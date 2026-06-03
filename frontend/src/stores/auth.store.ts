@@ -1,0 +1,69 @@
+import { create } from 'zustand';
+import type { User } from '@/types';
+
+interface AuthState {
+  user: User | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+
+  login: (user: User, accessToken: string, refreshToken: string) => void;
+  logout: () => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  setUser: (user: User) => void;
+  setLoading: (loading: boolean) => void;
+  initialize: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  accessToken: null,
+  refreshToken: null,
+  isAuthenticated: false,
+  isLoading: true,
+
+  login: (user, accessToken, refreshToken) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user, accessToken, refreshToken, isAuthenticated: true, isLoading: false });
+  },
+
+  logout: () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, isLoading: false });
+  },
+
+  setTokens: (accessToken, refreshToken) => {
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+    set({ accessToken, refreshToken });
+  },
+
+  setUser: (user) => {
+    localStorage.setItem('user', JSON.stringify(user));
+    set({ user });
+  },
+
+  setLoading: (isLoading) => set({ isLoading }),
+
+  initialize: () => {
+    const accessToken = localStorage.getItem('accessToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    const userStr = localStorage.getItem('user');
+
+    if (accessToken && refreshToken && userStr) {
+      try {
+        const user = JSON.parse(userStr) as User;
+        set({ user, accessToken, refreshToken, isAuthenticated: true, isLoading: false });
+      } catch {
+        set({ isLoading: false });
+      }
+    } else {
+      set({ isLoading: false });
+    }
+  },
+}));

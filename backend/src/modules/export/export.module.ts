@@ -1,0 +1,23 @@
+import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
+import { ExportService } from './export.service';
+import { ExportProcessor } from './processors';
+import { S3StorageService } from './s3-storage.service';
+import { ExportJob } from './entities/export-job.entity';
+import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { EXPORT_QUEUE } from './constants';
+
+@Module({
+  imports: [
+    ConfigModule,
+    BullModule.registerQueue({
+      name: EXPORT_QUEUE,
+    }),
+    TypeOrmModule.forFeature([ExportJob, SurveyResponse]),
+  ],
+  providers: [ExportService, ExportProcessor, S3StorageService],
+  exports: [ExportService],
+})
+export class ExportModule {}

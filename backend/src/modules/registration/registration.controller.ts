@@ -1,0 +1,79 @@
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { RegistrationService } from './registration.service';
+import { RegisterDto, VerifyOtpDto, ResendOtpDto, CompleteProfileDto } from './dto';
+import { JwtAuthGuard } from '@modules/auth/guards';
+import { RegistrationResult, OtpResult, VerificationResult } from './interfaces';
+
+@Controller('registration')
+export class RegistrationController {
+  constructor(private readonly registrationService: RegistrationService) {}
+
+  /**
+   * New account registration.
+   * Throttle: 5 requests/minute per IP — prevents mass account creation.
+   */
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  async register(@Body() registerDto: RegisterDto): Promise<RegistrationResult> {
+    return this.registrationService.register({
+      fullName: registerDto.fullName,
+      email: registerDto.email,
+      phone: registerDto.phone,
+      password: registerDto.password,
+      termsAccepted: registerDto.termsAccepted,
+    });
+  }
+
+  /**
+   * OTP verification.
+   * Throttle: 5 requests/minute per IP — limits brute-force guessing (10^6 space ÷ 5/min = impractical).
+   */
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<VerificationResult> {
+    return this.registrationService.verifyOtp(
+      verifyOtpDto.email,
+      verifyOtpDto.code,
+    );
+  }
+
+  /**
+   * OTP resend.
+   * Throttle: 3 requests/minute per IP — stricter than verify because resend
+   * triggers email delivery and can be abused for email flooding.
+   */
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 3 } })
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto): Promise<OtpResult> {
+    return this.registrationService.resendOtp(resendOtpDto.email);
+  }
+
+  @Post('complete-profile')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async completeProfile(
+    @Request() req: any,
+    @Body() completeProfileDto: CompleteProfileDto,
+  ): Promise<{ message: string }> {
+    await this.registrationService.completeProfile(req.user.sub, {
+      age: completeProfileDto.age,
+      gender: completeProfileDto.gender,
+      occupation: completeProfileDto.occupation,
+      city: completeProfileDto.city,
+      province: completeProfileDto.province,
+    });
+    return { message: 'Profile completed and account activated' };
+  }
+}

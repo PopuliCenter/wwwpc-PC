@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage and logs
+coverage/
+*/coverage/
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
+
+# Docker
+docker-compose.yml
+.dockerignore
+
+# Kiro specs
+.kiro/

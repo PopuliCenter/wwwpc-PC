@@ -1,0 +1,413 @@
+import {
+  Injectable,
+  Logger,
+  PreconditionFailedException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull, Not, LessThan } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { v4 as uuidv4 } from 'uuid';
+import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { Survey } from '@modules/survey/entities/survey.entity';
+import { User } from '@modules/auth/entities/user.entity';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
+import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
+import { AuditService } from '@modules/audit/audit.service';
+import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
+import { AuditActionType, SurveyStatus, UserRole } from '@shared/enums';
+import {
+  DeletionRequest,
+  DeletionResult,
+  CleanupFilter,
+  CleanupCandidate,
+  PurgeConfig,
+  PendingDeletion,
+} from './interfaces';
+
+const CONFIRMATION_EXPIRY_MINUTES = 30;
+
+@Injectable()
+export class DataCleanupService {
+  private readonly logger = new Logger(DataCleanupService.name);
+  private readonly pendingDeletions = new Map<string, PendingDeletion>();
+
+  constructor(
+    @InjectRepository(SurveyResponse)
+    private readonly responseRepository: Repository<SurveyResponse>,
+    @InjectRepository(Survey)
+    private readonly surveyRepository: Repository<Survey>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(UserProfile)
+    private readonly userProfileRepository: Repository<UserProfile>,
+    @InjectRepository(Geolocation)
+    private readonly geolocationRepository: Repository<Geolocation>,
+    @InjectRepository(ScheduledPurgeConfig)
+    private readonly purgeConfigRepository: Repository<ScheduledPurgeConfig>,
+    private readonly auditService: AuditService,
+  ) {}
+
+  /**
+   * Request deletion of survey responses.
+   * Only responses that have been exported (exportedAt != null) can be deleted.
+   * Returns a confirmation token for double confirmation.
+   */
+  async requestDeletion(
+    request: DeletionRequest,
+    adminUserId: string,
+    ipAddress: string,
+  ): Promise<DeletionResult> {
+    const queryBuilder = this.responseRepository.createQueryBuilder('response');
+
+    if (request.surveyId) {
+      queryBuilder.andWhere('response.survey_id = :surveyId', {
+        surveyId: request.surveyId,
+      });
+    }
+
+    if (request.dateRange) {
+      queryBuilder.andWhere('response.submitted_at >= :start', {
+        start: request.dateRange.start,
+      });
+      queryBuilder.andWhere('response.submitted_at <= :end', {
+        end: request.dateRange.end,
+      });
+    }
+
+    const responses = await queryBuilder.getMany();
+
+    if (responses.length === 0) {
+      throw new NotFoundException('No responses found matching the criteria');
+    }
+
+    // Validate all responses have been exported
+    const unexportedResponses = responses.filter((r) => r.exportedAt === null);
+    if (unexportedResponses.length > 0) {
+      throw new PreconditionFailedException(
+        `Cannot delete: ${unexportedResponses.length} response(s) have not been exported yet. All responses must be exported before deletion.`,
+      );
+    }
+
+    const requestId = uuidv4();
+    const confirmationToken = uuidv4();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + CONFIRMATION_EXPIRY_MINUTES);
+
+    const pendingDeletion: PendingDeletion = {
+      id: requestId,
+      filters: request,
+      confirmationToken,
+      affectedCount: responses.length,
+      createdAt: new Date(),
+      expiresAt,
+      confirmed: false,
+      adminUserId,
+    };
+
+    this.pendingDeletions.set(requestId, pendingDeletion);
+
+    await this.auditService.log({
+      userId: adminUserId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'data-cleanup',
+      details: {
+        action: 'deletion_requested',
+        requestId,
+        affectedCount: responses.length,
+        filters: request,
+      },
+      ipAddress,
+    });
+
+    return {
+      requestId,
+      confirmationToken,
+      affectedCount: responses.length,
+      expiresAt,
+    };
+  }
+
+  /**
+   * Confirm a pending deletion request (double confirmation step).
+   * Validates the confirmation token and executes the deletion.
+   */
+  async confirmDeletion(
+    requestId: string,
+    confirmationToken: string,
+    adminUserId: string,
+    ipAddress: string,
+  ): Promise<{ deletedCount: number }> {
+    const pending = this.pendingDeletions.get(requestId);
+
+    if (!pending) {
+      throw new NotFoundException('Deletion request not found or has expired');
+    }
+
+    if (pending.confirmationToken !== confirmationToken) {
+      throw new BadRequestException('Invalid confirmation token');
+    }
+
+    if (new Date() > pending.expiresAt) {
+      this.pendingDeletions.delete(requestId);
+      throw new BadRequestException('Deletion request has expired');
+    }
+
+    if (pending.confirmed) {
+      throw new BadRequestException('Deletion request has already been confirmed');
+    }
+
+    // Execute the deletion
+    const queryBuilder = this.responseRepository.createQueryBuilder('response');
+
+    if (pending.filters.surveyId) {
+      queryBuilder.andWhere('response.survey_id = :surveyId', {
+        surveyId: pending.filters.surveyId,
+      });
+    }
+
+    if (pending.filters.dateRange) {
+      queryBuilder.andWhere('response.submitted_at >= :start', {
+        start: pending.filters.dateRange.start,
+      });
+      queryBuilder.andWhere('response.submitted_at <= :end', {
+        end: pending.filters.dateRange.end,
+      });
+    }
+
+    // Only delete exported responses
+    queryBuilder.andWhere('response.exported_at IS NOT NULL');
+
+    const result = await queryBuilder.delete().execute();
+    const deletedCount = result.affected || 0;
+
+    pending.confirmed = true;
+    this.pendingDeletions.delete(requestId);
+
+    await this.auditService.log({
+      userId: adminUserId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'data-cleanup',
+      details: {
+        action: 'deletion_confirmed',
+        requestId,
+        deletedCount,
+      },
+      ipAddress,
+    });
+
+    return { deletedCount };
+  }
+
+  /**
+   * Archive a survey by setting its status to ARCHIVED.
+   */
+  async archiveSurvey(
+    surveyId: string,
+    adminUserId: string,
+    ipAddress: string,
+  ): Promise<void> {
+    const survey = await this.surveyRepository.findOne({
+      where: { id: surveyId },
+    });
+
+    if (!survey) {
+      throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+
+    survey.status = SurveyStatus.ARCHIVED;
+    survey.archivedAt = new Date();
+    await this.surveyRepository.save(survey);
+
+    await this.auditService.log({
+      userId: adminUserId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'data-cleanup',
+      details: {
+        action: 'survey_archived',
+        surveyId,
+        surveyTitle: survey.title,
+      },
+      ipAddress,
+    });
+  }
+
+  /**
+   * Get cleanup candidates based on filters.
+   */
+  async getCleanupCandidates(filters: CleanupFilter): Promise<CleanupCandidate[]> {
+    const queryBuilder = this.responseRepository
+      .createQueryBuilder('response')
+      .leftJoin('response.survey', 'survey')
+      .select('response.survey_id', 'surveyId')
+      .addSelect('survey.title', 'surveyTitle')
+      .addSelect('COUNT(response.id)', 'responseCount')
+      .addSelect('MIN(response.submitted_at)', 'oldestResponseDate')
+      .addSelect('MAX(response.submitted_at)', 'newestResponseDate')
+      .groupBy('response.survey_id')
+      .addGroupBy('survey.title');
+
+    if (filters.surveyId) {
+      queryBuilder.andWhere('response.survey_id = :surveyId', {
+        surveyId: filters.surveyId,
+      });
+    }
+
+    if (filters.dateRange) {
+      queryBuilder.andWhere('response.submitted_at >= :start', {
+        start: filters.dateRange.start,
+      });
+      queryBuilder.andWhere('response.submitted_at <= :end', {
+        end: filters.dateRange.end,
+      });
+    }
+
+    if (filters.exportStatus === 'exported_only') {
+      queryBuilder.andWhere('response.exported_at IS NOT NULL');
+    }
+
+    if (filters.surveyStatus) {
+      queryBuilder.andWhere('survey.status = :surveyStatus', {
+        surveyStatus: filters.surveyStatus,
+      });
+    }
+
+    const results = await queryBuilder.getRawMany();
+
+    return results.map((r) => ({
+      surveyId: r.surveyId,
+      surveyTitle: r.surveyTitle,
+      responseCount: parseInt(r.responseCount, 10),
+      oldestResponseDate: r.oldestResponseDate ? new Date(r.oldestResponseDate) : new Date(),
+      newestResponseDate: r.newestResponseDate ? new Date(r.newestResponseDate) : new Date(),
+    }));
+  }
+
+  /**
+   * Delete personal data for GDPR compliance.
+   * Requires Super_Admin approval.
+   */
+  async deletePersonalData(
+    respondentId: string,
+    superAdminApproval: string,
+    adminUserId: string,
+    ipAddress: string,
+  ): Promise<void> {
+    // Validate super admin approval - the approval token is the super admin's userId
+    const superAdmin = await this.userRepository.findOne({
+      where: { id: superAdminApproval },
+    });
+
+    if (!superAdmin || superAdmin.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'GDPR data deletion requires valid Super Admin approval',
+      );
+    }
+
+    const user = await this.userRepository.findOne({
+      where: { id: respondentId },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${respondentId} not found`);
+    }
+
+    // Anonymize user PII
+    user.fullName = '[DELETED]';
+    user.email = `deleted_${respondentId}@anonymized.local`;
+    user.phone = '0000000000';
+    await this.userRepository.save(user);
+
+    // Delete UserProfile
+    await this.userProfileRepository.delete({ userId: respondentId });
+
+    // Delete Geolocation records
+    await this.geolocationRepository.delete({ userId: respondentId });
+
+    await this.auditService.log({
+      userId: adminUserId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'data-cleanup',
+      details: {
+        action: 'gdpr_personal_data_deleted',
+        respondentId,
+        approvedBy: superAdminApproval,
+      },
+      ipAddress,
+    });
+  }
+
+  /**
+   * Configure scheduled purge settings.
+   */
+  async configureScheduledPurge(config: PurgeConfig): Promise<ScheduledPurgeConfig> {
+    // Get existing config or create new one
+    let purgeConfig = await this.purgeConfigRepository.findOne({
+      where: {},
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!purgeConfig) {
+      purgeConfig = this.purgeConfigRepository.create();
+    }
+
+    purgeConfig.retentionDays = config.retentionDays;
+    purgeConfig.enabled = config.enabled;
+    purgeConfig.cronExpression = config.cronExpression;
+
+    return this.purgeConfigRepository.save(purgeConfig);
+  }
+
+  /**
+   * Execute scheduled purge - deletes exported responses older than retention period.
+   * Runs daily at 2 AM by default.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async executeScheduledPurge(): Promise<{ deletedCount: number }> {
+    const config = await this.purgeConfigRepository.findOne({
+      where: { enabled: true },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!config) {
+      this.logger.debug('Scheduled purge is not configured or disabled');
+      return { deletedCount: 0 };
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
+
+    const result = await this.responseRepository
+      .createQueryBuilder('response')
+      .delete()
+      .where('response.exported_at IS NOT NULL')
+      .andWhere('response.submitted_at < :cutoffDate', { cutoffDate })
+      .execute();
+
+    const deletedCount = result.affected || 0;
+
+    config.lastRunAt = new Date();
+    await this.purgeConfigRepository.save(config);
+
+    await this.auditService.log({
+      userId: 'system',
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'data-cleanup',
+      details: {
+        action: 'scheduled_purge_executed',
+        deletedCount,
+        retentionDays: config.retentionDays,
+        cutoffDate: cutoffDate.toISOString(),
+      },
+      ipAddress: '0.0.0.0',
+    });
+
+    this.logger.log(
+      `Scheduled purge completed: deleted ${deletedCount} responses older than ${config.retentionDays} days`,
+    );
+
+    return { deletedCount };
+  }
+}
