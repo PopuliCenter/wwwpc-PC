@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ExportProcessor } from './export.processor';
+import { S3StorageService } from '../s3-storage.service';
 import { ExportJob } from '../entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { ExportFormat, ExportStatus } from '../interfaces';
@@ -19,6 +20,7 @@ describe('ExportProcessor', () => {
   let processor: ExportProcessor;
   let mockExportJobRepository: any;
   let mockResponseRepository: any;
+  let mockS3StorageService: any;
 
   const mockResponses: Partial<SurveyResponse>[] = [
     {
@@ -74,6 +76,13 @@ describe('ExportProcessor', () => {
       find: vi.fn().mockResolvedValue(mockResponses),
     };
 
+    // The processor writes a temp file then uploads it to S3, returning the key.
+    mockS3StorageService = {
+      uploadFile: vi
+        .fn()
+        .mockImplementation((_localPath: string, s3Key: string) => Promise.resolve(s3Key)),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExportProcessor,
@@ -84,6 +93,10 @@ describe('ExportProcessor', () => {
         {
           provide: getRepositoryToken(SurveyResponse),
           useValue: mockResponseRepository,
+        },
+        {
+          provide: S3StorageService,
+          useValue: mockS3StorageService,
         },
       ],
     }).compile();

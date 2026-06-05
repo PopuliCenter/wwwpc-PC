@@ -1,6 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import {
+  Timer,
+  Gift,
+  CheckCircle2,
+  Upload,
+  FileCheck2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Send,
+  AlertCircle,
+  Loader2,
+  Star,
+  MapPin,
+} from 'lucide-react';
 import { api } from '@/services/api';
+import { Card } from '@/components/common/Card';
+import { Button } from '@/components/common/Button';
+import {
+  getProvinces,
+  getRegencies,
+  getDistricts,
+  getVillages,
+  type WilayahItem,
+} from '@/utils/wilayah';
 
 // Types
 interface SurveyOption {
@@ -15,6 +39,19 @@ interface SkipCondition {
   value: string;
 }
 
+interface RegionConfig {
+  regionDepth?: 'province' | 'regency' | 'district' | 'village';
+  lockedProvince?: { id: string; name: string } | null;
+  lockedRegency?: { id: string; name: string } | null;
+}
+
+interface RatingConfig {
+  ratingMax?: number;
+  ratingDisplayMode?: 'star' | 'number';
+  ratingMinLabel?: string;
+  ratingMaxLabel?: string;
+}
+
 interface Question {
   id: string;
   type:
@@ -27,7 +64,11 @@ interface Question {
     | 'dropdown'
     | 'matrix_likert'
     | 'file_upload'
-    | 'date_time';
+    | 'date_time'
+    | 'date'
+    | 'rating_scale'
+    | 'unique_id'
+    | 'indonesia_region';
   text: string;
   description?: string;
   required: boolean;
@@ -40,6 +81,9 @@ interface Question {
   skipConditions?: SkipCondition[];
   visibilityConditions?: SkipCondition[];
   page: number;
+  regionConfig?: RegionConfig;
+  ratingConfig?: RatingConfig;
+  uniqueIdConfig?: { minLength?: number; maxLength?: number };
 }
 
 interface SurveyFillData {
@@ -57,6 +101,12 @@ interface SurveyFillData {
 
 type AnswerValue = string | string[] | Record<string, string> | null;
 
+const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : '',
+)
+  ? 'mobile'
+  : 'desktop';
+
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -66,200 +116,194 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-// Question Renderers
-function SingleChoiceQuestion({
-  question,
-  value,
-  onChange,
-}: {
+function isAnswered(value: AnswerValue): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return false;
+}
+
+// ─── Question Renderers ───────────────────────────────────────────────────────
+
+interface RendererProps {
   question: Question;
   value: AnswerValue;
   onChange: (val: AnswerValue) => void;
-}) {
+  surveyId: string;
+  invalid?: boolean;
+}
+
+function SingleChoiceQuestion({ question, value, onChange }: RendererProps) {
   const options = question.randomizeOptions
     ? shuffleArray(question.options ?? [])
-    : (question.options ?? []);
+    : question.options ?? [];
 
   return (
     <div className="space-y-2">
-      {options.map((opt) => (
-        <label key={opt.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-          <input
-            type="radio"
-            name={question.id}
-            value={opt.value}
-            checked={value === opt.value}
-            onChange={() => onChange(opt.value)}
-            className="w-4 h-4 text-blue-600"
-          />
-          <span className="text-sm text-gray-700">{opt.label}</span>
-        </label>
-      ))}
+      {options.map((opt) => {
+        const selected = value === opt.value;
+        return (
+          <label
+            key={opt.id}
+            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+              selected
+                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <input
+              type="radio"
+              name={question.id}
+              value={opt.value}
+              checked={selected}
+              onChange={() => onChange(opt.value)}
+              className="h-4 w-4 accent-primary-600"
+            />
+            <span className="text-sm text-gray-800">{opt.label}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
 
-function MultipleChoiceQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function MultipleChoiceQuestion({ question, value, onChange }: RendererProps) {
   const selected = Array.isArray(value) ? value : [];
   const options = question.randomizeOptions
     ? shuffleArray(question.options ?? [])
-    : (question.options ?? []);
+    : question.options ?? [];
 
-  const handleToggle = (optValue: string) => {
-    const newSelected = selected.includes(optValue)
-      ? selected.filter((v) => v !== optValue)
-      : [...selected, optValue];
-    onChange(newSelected);
+  const toggle = (optValue: string) => {
+    onChange(
+      selected.includes(optValue)
+        ? selected.filter((v) => v !== optValue)
+        : [...selected, optValue],
+    );
   };
 
   return (
     <div className="space-y-2">
-      {options.map((opt) => (
-        <label key={opt.id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-          <input
-            type="checkbox"
-            value={opt.value}
-            checked={selected.includes(opt.value)}
-            onChange={() => handleToggle(opt.value)}
-            className="w-4 h-4 text-blue-600 rounded"
-          />
-          <span className="text-sm text-gray-700">{opt.label}</span>
-        </label>
-      ))}
+      {options.map((opt) => {
+        const isSel = selected.includes(opt.value);
+        return (
+          <label
+            key={opt.id}
+            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+              isSel
+                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+                : 'border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <input
+              type="checkbox"
+              value={opt.value}
+              checked={isSel}
+              onChange={() => toggle(opt.value)}
+              className="h-4 w-4 rounded accent-primary-600"
+            />
+            <span className="text-sm text-gray-800">{opt.label}</span>
+          </label>
+        );
+      })}
     </div>
   );
 }
 
-function ShortTextQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+const textFieldBase =
+  'w-full rounded-lg border bg-white px-4 py-2.5 text-sm text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2';
+
+function fieldClasses(invalid?: boolean): string {
+  return `${textFieldBase} ${
+    invalid
+      ? 'border-red-300 focus:border-red-400 focus:ring-red-500/40'
+      : 'border-gray-300 hover:border-gray-400 focus:border-primary-500 focus:ring-primary-500/40'
+  }`;
+}
+
+function ShortTextQuestion({ question, value, onChange, invalid }: RendererProps) {
   return (
     <input
       type="text"
       value={(value as string) ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Ketik jawaban Anda..."
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      className={fieldClasses(invalid)}
       aria-label={question.text}
     />
   );
 }
 
-function LongTextQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function LongTextQuestion({ question, value, onChange, invalid }: RendererProps) {
   return (
     <textarea
       value={(value as string) ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder="Ketik jawaban Anda..."
       rows={4}
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+      className={`${fieldClasses(invalid)} resize-y`}
       aria-label={question.text}
     />
   );
 }
 
-function PhoneNumberQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function PhoneNumberQuestion({ question, value, onChange, invalid }: RendererProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600">
+      <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
         +62
       </span>
       <input
         type="tel"
+        inputMode="numeric"
         value={(value as string) ?? ''}
-        onChange={(e) => {
-          const cleaned = e.target.value.replace(/[^0-9]/g, '');
-          onChange(cleaned);
-        }}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
         placeholder="8xxxxxxxxxx"
-        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className={`flex-1 ${fieldClasses(invalid)}`}
         aria-label={question.text}
       />
     </div>
   );
 }
 
-function NumericScaleQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function NumericScaleQuestion({ question, value, onChange }: RendererProps) {
   const min = question.scaleMin ?? 1;
   const max = question.scaleMax ?? 10;
   const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i);
 
   return (
     <div className="flex flex-wrap gap-2">
-      {numbers.map((num) => (
-        <button
-          key={num}
-          type="button"
-          onClick={() => onChange(String(num))}
-          className={`w-10 h-10 rounded-lg border text-sm font-medium transition-colors ${
-            value === String(num)
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          {num}
-        </button>
-      ))}
+      {numbers.map((num) => {
+        const selected = value === String(num);
+        return (
+          <button
+            key={num}
+            type="button"
+            onClick={() => onChange(String(num))}
+            className={`h-11 w-11 rounded-lg border text-sm font-semibold transition-all ${
+              selected
+                ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                : 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50'
+            }`}
+          >
+            {num}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function DropdownQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function DropdownQuestion({ question, value, onChange, invalid }: RendererProps) {
   const options = question.randomizeOptions
     ? shuffleArray(question.options ?? [])
-    : (question.options ?? []);
+    : question.options ?? [];
 
   return (
     <select
       value={(value as string) ?? ''}
       onChange={(e) => onChange(e.target.value || null)}
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      className={fieldClasses(invalid)}
       aria-label={question.text}
     >
       <option value="">Pilih jawaban...</option>
@@ -272,39 +316,27 @@ function DropdownQuestion({
   );
 }
 
-function MatrixLikertQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function MatrixLikertQuestion({ question, value, onChange }: RendererProps) {
   const rows = question.matrixRows ?? [];
   const columns = question.matrixColumns ?? [];
   const answers = (value as Record<string, string>) ?? {};
 
-  const handleChange = (row: string, col: string) => {
-    onChange({ ...answers, [row]: col });
-  };
-
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-lg border border-gray-200">
       <table className="min-w-full">
         <thead>
-          <tr>
-            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500"></th>
+          <tr className="bg-gray-50/60">
+            <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500" />
             {columns.map((col) => (
-              <th key={col} className="px-3 py-2 text-center text-xs font-medium text-gray-500">
+              <th key={col} className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">
                 {col}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-gray-100">
           {rows.map((row) => (
-            <tr key={row}>
+            <tr key={row} className="hover:bg-gray-50/50">
               <td className="px-3 py-3 text-sm text-gray-700">{row}</td>
               {columns.map((col) => (
                 <td key={col} className="px-3 py-3 text-center">
@@ -312,8 +344,8 @@ function MatrixLikertQuestion({
                     type="radio"
                     name={`${question.id}-${row}`}
                     checked={answers[row] === col}
-                    onChange={() => handleChange(row, col)}
-                    className="w-4 h-4 text-blue-600"
+                    onChange={() => onChange({ ...answers, [row]: col })}
+                    className="h-4 w-4 accent-primary-600"
                     aria-label={`${row} - ${col}`}
                   />
                 </td>
@@ -326,104 +358,457 @@ function MatrixLikertQuestion({
   );
 }
 
-function FileUploadQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
+function FileUploadQuestion({ question, value, onChange, surveyId, invalid }: RendererProps) {
   const [dragOver, setDragOver] = useState(false);
-  const fileName = (value as string) ?? '';
+  const [uploading, setUploading] = useState(false);
+  const [fileName, setFileName] = useState<string>(value ? 'Berkas terunggah' : '');
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleFile = (file: File) => {
-    onChange(file.name);
+  const uploadFile = async (file: File) => {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await api.upload<{ key: string; originalName: string }>(
+        `/surveys/${surveyId}/responses/upload`,
+        formData,
+      );
+      onChange(result.key); // store the object key as the answer value
+      setFileName(result.originalName || file.name);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setUploadError(e.message || 'Gagal mengunggah berkas.');
+      onChange(null);
+      setFileName('');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clearFile = () => {
+    onChange(null);
+    setFileName('');
+    setUploadError(null);
   };
 
   return (
-    <div
-      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-        dragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
-      }`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragOver(true);
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file) handleFile(file);
-      }}
-    >
-      {fileName ? (
-        <div className="space-y-2">
-          <p className="text-sm text-green-600 font-medium">✓ File terpilih: {fileName}</p>
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            className="text-sm text-red-500 hover:text-red-700"
-          >
-            Hapus file
-          </button>
+    <div className="space-y-2">
+      <div
+        className={`rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
+          dragOver
+            ? 'border-primary-500 bg-primary-50'
+            : invalid
+              ? 'border-red-300'
+              : 'border-gray-300'
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const file = e.dataTransfer.files[0];
+          if (file) void uploadFile(file);
+        }}
+      >
+        {uploading ? (
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+            <Loader2 className="h-4 w-4 animate-spin" /> Mengunggah...
+          </div>
+        ) : fileName ? (
+          <div className="flex items-center justify-center gap-3">
+            <FileCheck2 className="h-5 w-5 text-emerald-600" />
+            <span className="text-sm font-medium text-gray-800">{fileName}</span>
+            <button
+              type="button"
+              onClick={clearFile}
+              className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-700"
+            >
+              <X className="h-3.5 w-3.5" /> Hapus
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Upload className="mx-auto h-6 w-6 text-gray-400" />
+            <p className="text-sm text-gray-500">Tarik &amp; lepas berkas di sini, atau</p>
+            <label className="inline-block cursor-pointer">
+              <span className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
+                <Upload className="h-4 w-4" /> Pilih Berkas
+              </span>
+              <input
+                type="file"
+                className="hidden"
+                accept="image/png,image/jpeg,image/gif,image/webp,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void uploadFile(file);
+                }}
+                aria-label={question.text}
+              />
+            </label>
+            <p className="text-xs text-gray-400">PNG, JPG, GIF, WEBP, atau PDF · maks 5 MB</p>
+          </div>
+        )}
+      </div>
+      {uploadError && (
+        <p className="flex items-center gap-1.5 text-sm text-red-600">
+          <AlertCircle className="h-3.5 w-3.5" /> {uploadError}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DateTimeQuestion({ question, value, onChange, invalid }: RendererProps) {
+  return (
+    <input
+      type="datetime-local"
+      value={(value as string) ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      className={fieldClasses(invalid)}
+      aria-label={question.text}
+    />
+  );
+}
+
+function DateQuestion({ question, value, onChange, invalid }: RendererProps) {
+  return (
+    <input
+      type="date"
+      value={(value as string) ?? ''}
+      onChange={(e) => onChange(e.target.value)}
+      className={fieldClasses(invalid)}
+      aria-label={question.text}
+    />
+  );
+}
+
+function UniqueIdQuestion({ question, value, onChange, invalid }: RendererProps) {
+  const min = question.uniqueIdConfig?.minLength;
+  const max = question.uniqueIdConfig?.maxLength;
+  return (
+    <div className="space-y-1">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={(value as string) ?? ''}
+        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
+        placeholder="Masukkan ID unik (hanya angka)..."
+        maxLength={max}
+        className={fieldClasses(invalid)}
+        aria-label={question.text}
+      />
+      {(min || max) && (
+        <p className="text-xs text-gray-400">
+          {min && max ? `${min}–${max} digit` : min ? `min ${min} digit` : `maks ${max} digit`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RatingScaleQuestion({ question, value, onChange }: RendererProps) {
+  const cfg = question.ratingConfig;
+  const max = cfg?.ratingMax ?? 5;
+  const mode = cfg?.ratingDisplayMode ?? 'star';
+  const current = value ? Number(value) : 0;
+
+  return (
+    <div className="space-y-2">
+      {mode === 'star' ? (
+        <div className="flex gap-1">
+          {Array.from({ length: max }, (_, i) => i + 1).map((num) => (
+            <button
+              key={num}
+              type="button"
+              onClick={() => onChange(String(num))}
+              className={`transition-all ${num <= current ? 'text-yellow-400' : 'text-gray-300'} hover:scale-110`}
+              aria-label={`Rating ${num}`}
+            >
+              <Star className="h-8 w-8" fill={num <= current ? 'currentColor' : 'none'} />
+            </button>
+          ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-sm text-gray-500">Drag & drop file di sini, atau</p>
-          <label className="inline-block cursor-pointer">
-            <span className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
-              Pilih File
-            </span>
-            <input
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleFile(file);
-              }}
-              aria-label={question.text}
-            />
-          </label>
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: max }, (_, i) => i + 1).map((num) => {
+            const sel = current === num;
+            return (
+              <button
+                key={num}
+                type="button"
+                onClick={() => onChange(String(num))}
+                className={`h-11 w-11 rounded-lg border text-sm font-semibold transition-all ${
+                  sel
+                    ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50'
+                }`}
+              >
+                {num}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {(cfg?.ratingMinLabel || cfg?.ratingMaxLabel) && (
+        <div className="flex justify-between text-xs text-gray-400">
+          <span>{cfg?.ratingMinLabel ?? ''}</span>
+          <span>{cfg?.ratingMaxLabel ?? ''}</span>
+        </div>
+      )}
+      {current > 0 && (
+        <p className="text-sm text-gray-500">
+          Anda memilih: <span className="font-semibold text-primary-700">{current}</span>
+          {mode === 'star' && ' bintang'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+type RegionValue = {
+  province_id?: string;
+  province_name?: string;
+  regency_id?: string;
+  regency_name?: string;
+  district_id?: string;
+  district_name?: string;
+  village_id?: string;
+  village_name?: string;
+};
+
+function IndonesiaRegionQuestion({ question, value, onChange, invalid }: RendererProps) {
+  const cfg = question.regionConfig;
+  const depth = cfg?.regionDepth ?? 'village';
+  const lockedProvince = cfg?.lockedProvince;
+  const lockedRegency = cfg?.lockedRegency;
+
+  const regionVal = (value as RegionValue) ?? {};
+
+  const [provinces, setProvinces] = useState<WilayahItem[]>([]);
+  const [regencies, setRegencies] = useState<WilayahItem[]>([]);
+  const [districts, setDistricts] = useState<WilayahItem[]>([]);
+  const [villages, setVillages] = useState<WilayahItem[]>([]);
+  const [loadingLevel, setLoadingLevel] = useState<string | null>(null);
+
+  const depthOrder = ['province', 'regency', 'district', 'village'];
+  const depthIndex = depthOrder.indexOf(depth);
+
+  // Load provinces (unless locked)
+  useEffect(() => {
+    if (lockedProvince) {
+      setProvinces([lockedProvince]);
+      return;
+    }
+    setLoadingLevel('province');
+    getProvinces()
+      .then(setProvinces)
+      .catch(() => setProvinces([]))
+      .finally(() => setLoadingLevel(null));
+  }, [lockedProvince]);
+
+  // Load regencies when province is selected
+  useEffect(() => {
+    const provId = lockedProvince?.id ?? regionVal.province_id;
+    if (!provId || depthIndex < 1) return;
+    if (lockedRegency) {
+      setRegencies([lockedRegency]);
+      return;
+    }
+    setLoadingLevel('regency');
+    getRegencies(provId)
+      .then(setRegencies)
+      .catch(() => setRegencies([]))
+      .finally(() => setLoadingLevel(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regionVal.province_id, lockedProvince, lockedRegency, depthIndex]);
+
+  // Load districts when regency is selected
+  useEffect(() => {
+    const regId = lockedRegency?.id ?? regionVal.regency_id;
+    if (!regId || depthIndex < 2) return;
+    setLoadingLevel('district');
+    getDistricts(regId)
+      .then(setDistricts)
+      .catch(() => setDistricts([]))
+      .finally(() => setLoadingLevel(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regionVal.regency_id, lockedRegency, depthIndex]);
+
+  // Load villages when district is selected
+  useEffect(() => {
+    const distId = regionVal.district_id;
+    if (!distId || depthIndex < 3) return;
+    setLoadingLevel('village');
+    getVillages(distId)
+      .then(setVillages)
+      .catch(() => setVillages([]))
+      .finally(() => setLoadingLevel(null));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [regionVal.district_id, depthIndex]);
+
+  const selectStyle = fieldClasses(invalid);
+
+  const setField = (updates: Partial<RegionValue>) => {
+    onChange({ ...regionVal, ...updates });
+  };
+
+  const clearBelow = (level: 'province' | 'regency' | 'district') => {
+    const clears: Partial<RegionValue> = {};
+    if (level === 'province') {
+      clears.regency_id = undefined;
+      clears.regency_name = undefined;
+      clears.district_id = undefined;
+      clears.district_name = undefined;
+      clears.village_id = undefined;
+      clears.village_name = undefined;
+      setRegencies([]);
+      setDistricts([]);
+      setVillages([]);
+    } else if (level === 'regency') {
+      clears.district_id = undefined;
+      clears.district_name = undefined;
+      clears.village_id = undefined;
+      clears.village_name = undefined;
+      setDistricts([]);
+      setVillages([]);
+    } else {
+      clears.village_id = undefined;
+      clears.village_name = undefined;
+      setVillages([]);
+    }
+    return clears;
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <MapPin className="h-3.5 w-3.5" />
+        Pilih wilayah secara berurutan
+      </div>
+
+      {/* Provinsi */}
+      <div>
+        <label className="mb-1 block text-xs font-medium text-gray-600">Provinsi</label>
+        <select
+          value={lockedProvince ? lockedProvince.id : (regionVal.province_id ?? '')}
+          disabled={!!lockedProvince || loadingLevel === 'province'}
+          onChange={(e) => {
+            const item = provinces.find((p) => p.id === e.target.value);
+            setField({
+              province_id: item?.id,
+              province_name: item?.name,
+              ...clearBelow('province'),
+            });
+          }}
+          className={selectStyle}
+        >
+          <option value="">
+            {loadingLevel === 'province' ? 'Memuat...' : '— Pilih Provinsi —'}
+          </option>
+          {provinces.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Kabupaten/Kota */}
+      {depthIndex >= 1 && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Kabupaten / Kota</label>
+          <select
+            value={lockedRegency ? lockedRegency.id : (regionVal.regency_id ?? '')}
+            disabled={!!lockedRegency || !regionVal.province_id || loadingLevel === 'regency'}
+            onChange={(e) => {
+              const item = regencies.find((r) => r.id === e.target.value);
+              setField({
+                regency_id: item?.id,
+                regency_name: item?.name,
+                ...clearBelow('regency'),
+              });
+            }}
+            className={selectStyle}
+          >
+            <option value="">
+              {loadingLevel === 'regency'
+                ? 'Memuat...'
+                : !regionVal.province_id
+                  ? '— Pilih provinsi dulu —'
+                  : '— Pilih Kabupaten/Kota —'}
+            </option>
+            {regencies.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Kecamatan */}
+      {depthIndex >= 2 && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Kecamatan</label>
+          <select
+            value={regionVal.district_id ?? ''}
+            disabled={!regionVal.regency_id || loadingLevel === 'district'}
+            onChange={(e) => {
+              const item = districts.find((d) => d.id === e.target.value);
+              setField({
+                district_id: item?.id,
+                district_name: item?.name,
+                ...clearBelow('district'),
+              });
+            }}
+            className={selectStyle}
+          >
+            <option value="">
+              {loadingLevel === 'district'
+                ? 'Memuat...'
+                : !regionVal.regency_id
+                  ? '— Pilih kabupaten/kota dulu —'
+                  : '— Pilih Kecamatan —'}
+            </option>
+            {districts.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Kelurahan/Desa */}
+      {depthIndex >= 3 && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Kelurahan / Desa</label>
+          <select
+            value={regionVal.village_id ?? ''}
+            disabled={!regionVal.district_id || loadingLevel === 'village'}
+            onChange={(e) => {
+              const item = villages.find((v) => v.id === e.target.value);
+              setField({ village_id: item?.id, village_name: item?.name });
+            }}
+            className={selectStyle}
+          >
+            <option value="">
+              {loadingLevel === 'village'
+                ? 'Memuat...'
+                : !regionVal.district_id
+                  ? '— Pilih kecamatan dulu —'
+                  : '— Pilih Kelurahan/Desa —'}
+            </option>
+            {villages.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
         </div>
       )}
     </div>
   );
 }
 
-function DateTimeQuestion({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
-  return (
-    <input
-      type="datetime-local"
-      value={(value as string) ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-      aria-label={question.text}
-    />
-  );
-}
-
-// Question Renderer
-function QuestionRenderer({
-  question,
-  value,
-  onChange,
-}: {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-}) {
-  const renderers: Record<Question['type'], React.FC<{ question: Question; value: AnswerValue; onChange: (val: AnswerValue) => void }>> = {
+function QuestionRenderer(props: RendererProps) {
+  const renderers: Record<Question['type'], React.FC<RendererProps>> = {
     single_choice: SingleChoiceQuestion,
     multiple_choice: MultipleChoiceQuestion,
     short_text: ShortTextQuestion,
@@ -434,15 +819,19 @@ function QuestionRenderer({
     matrix_likert: MatrixLikertQuestion,
     file_upload: FileUploadQuestion,
     date_time: DateTimeQuestion,
+    date: DateQuestion,
+    rating_scale: RatingScaleQuestion,
+    unique_id: UniqueIdQuestion,
+    indonesia_region: IndonesiaRegionQuestion,
   };
 
-  const Renderer = renderers[question.type];
-  if (!Renderer) return <p className="text-red-500 text-sm">Tipe pertanyaan tidak didukung</p>;
-
-  return <Renderer question={question} value={value} onChange={onChange} />;
+  const Renderer = renderers[props.question.type];
+  if (!Renderer) return <p className="text-sm text-red-500">Tipe pertanyaan tidak didukung</p>;
+  return <Renderer {...props} />;
 }
 
-// Countdown Timer
+// ─── Chrome ───────────────────────────────────────────────────────────────────
+
 function CountdownTimer({ minutes, onExpire }: { minutes: number; onExpire: () => void }) {
   const [secondsLeft, setSecondsLeft] = useState(minutes * 60);
 
@@ -465,40 +854,42 @@ function CountdownTimer({ minutes, onExpire }: { minutes: number; onExpire: () =
 
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
-  const isWarning = secondsLeft < 300; // less than 5 minutes
+  const warning = secondsLeft < 300;
 
   return (
     <div
-      className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg font-mono text-lg z-50 ${
-        isWarning ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-800 text-white'
+      className={`fixed right-4 top-4 z-50 inline-flex items-center gap-2 rounded-lg px-3.5 py-2 font-mono text-sm font-semibold shadow-lg ${
+        warning ? 'animate-pulse bg-red-600 text-white' : 'bg-gray-900 text-white'
       }`}
     >
-      ⏱️ {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+      <Timer className="h-4 w-4" />
+      {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
     </div>
   );
 }
 
-// Progress Bar
 function ProgressBar({ current, total }: { current: number; total: number }) {
   const percentage = Math.round((current / total) * 100);
-
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm text-gray-600">
-        <span>Halaman {current} dari {total}</span>
-        <span>{percentage}%</span>
+    <div className="space-y-1.5">
+      <div className="flex justify-between text-sm">
+        <span className="font-medium text-gray-700">
+          Halaman {current} dari {total}
+        </span>
+        <span className="text-gray-500">{percentage}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          className="h-2 rounded-full bg-primary-600 transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
-        ></div>
+        />
       </div>
     </div>
   );
 }
 
-// Main Component
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export function SurveyFillPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -510,11 +901,11 @@ export function SurveyFillPage() {
   const [submitted, setSubmitted] = useState(false);
   const [earnedPoints, setEarnedPoints] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+  const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [destinationNumber, setDestinationNumber] = useState('');
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
 
-  // Load survey
   useEffect(() => {
     const fetchSurvey = async () => {
       try {
@@ -529,33 +920,37 @@ export function SurveyFillPage() {
     fetchSurvey();
   }, [id]);
 
-  // Auto-save every 30 seconds
+  const answersToArray = useCallback(
+    () => Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
+    [answers],
+  );
+
+  // Auto-save every 30s
   useEffect(() => {
     if (!survey) return;
-
     autoSaveTimerRef.current = setInterval(() => {
-      const currentAnswersStr = JSON.stringify(answers);
-      if (currentAnswersStr !== lastSavedRef.current) {
-        api.post(`/responses/${survey.responseId}/progress`, { answers, currentPage }).catch(() => {
-          // Silent fail for auto-save
-        });
-        lastSavedRef.current = currentAnswersStr;
+      const snapshot = JSON.stringify(answers);
+      if (snapshot !== lastSavedRef.current) {
+        api
+          .post(`/surveys/${survey.id}/responses/save-progress`, {
+            answers: answersToArray(),
+            deviceType: DEVICE_TYPE,
+          })
+          .catch(() => {
+            /* silent auto-save failure */
+          });
+        lastSavedRef.current = snapshot;
       }
     }, 30000);
-
     return () => {
-      if (autoSaveTimerRef.current) {
-        clearInterval(autoSaveTimerRef.current);
-      }
+      if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
     };
-  }, [survey, answers, currentPage]);
+  }, [survey, answers, answersToArray]);
 
-  // Evaluate skip/visibility conditions
   const evaluateCondition = useCallback(
     (condition: SkipCondition): boolean => {
       const answer = answers[condition.questionId];
       const answerStr = Array.isArray(answer) ? answer.join(',') : String(answer ?? '');
-
       switch (condition.operator) {
         case 'equals':
           return answerStr === condition.value;
@@ -571,246 +966,267 @@ export function SurveyFillPage() {
           return false;
       }
     },
-    [answers]
+    [answers],
   );
 
   const isQuestionVisible = useCallback(
-    (question: Question): boolean => {
-      if (!question.visibilityConditions || question.visibilityConditions.length === 0) {
-        return true;
-      }
-      return question.visibilityConditions.every(evaluateCondition);
-    },
-    [evaluateCondition]
+    (question: Question): boolean =>
+      !question.visibilityConditions?.length ||
+      question.visibilityConditions.every(evaluateCondition),
+    [evaluateCondition],
   );
 
   const shouldSkipQuestion = useCallback(
-    (question: Question): boolean => {
-      if (!question.skipConditions || question.skipConditions.length === 0) {
-        return false;
-      }
-      return question.skipConditions.some(evaluateCondition);
-    },
-    [evaluateCondition]
+    (question: Question): boolean =>
+      !!question.skipConditions?.length && question.skipConditions.some(evaluateCondition),
+    [evaluateCondition],
+  );
+
+  const isActive = useCallback(
+    (q: Question) => isQuestionVisible(q) && !shouldSkipQuestion(q),
+    [isQuestionVisible, shouldSkipQuestion],
   );
 
   const handleSubmit = useCallback(async () => {
     if (!survey) return;
+
+    // Client-side required validation mirrors the server's checks.
+    const missing = survey.questions
+      .filter((q) => q.required && isActive(q) && !isAnswered(answers[q.id]))
+      .map((q) => q.id);
+
+    if (missing.length > 0) {
+      setMissingIds(new Set(missing));
+      const firstPage = survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
+      setCurrentPage(firstPage);
+      setError(`Masih ada ${missing.length} pertanyaan wajib yang belum diisi.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (survey.rewardMode === 'manual' && !destinationNumber) {
+      setError('Mohon isi nomor tujuan reward.');
+      return;
+    }
+
+    setError(null);
+    setMissingIds(new Set());
     setSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { answers };
-      if (survey.rewardMode === 'manual' && destinationNumber) {
-        payload.destinationNumber = destinationNumber;
-      }
-      const result = await api.post<{ pointsEarned: number }>('/responses/submit', {
-        responseId: survey.responseId,
-        surveyId: survey.id,
-        ...payload,
-      });
-      setEarnedPoints(result?.pointsEarned ?? 0);
+      const result = await api.post<{ pointsEarned?: number }>(
+        `/surveys/${survey.id}/responses/submit`,
+        {
+          answers: answersToArray(),
+          deviceType: DEVICE_TYPE,
+          ...(survey.rewardMode === 'manual' && destinationNumber ? { destinationNumber } : {}),
+        },
+      );
+      setEarnedPoints(result?.pointsEarned ?? survey.rewardPoints ?? 0);
       setSubmitted(true);
-    } catch {
-      setError('Gagal mengirim jawaban. Silakan coba lagi.');
+    } catch (err: unknown) {
+      const e = err as { message?: string; errors?: string[] };
+      setError(e.errors?.[0] || e.message || 'Gagal mengirim jawaban. Silakan coba lagi.');
     } finally {
       setSubmitting(false);
     }
-  }, [survey, answers, destinationNumber]);
+  }, [survey, answers, destinationNumber, isActive, answersToArray, currentPage]);
 
   const handleTimerExpire = useCallback(() => {
-    handleSubmit();
+    void handleSubmit();
   }, [handleSubmit]);
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="bg-white rounded-lg shadow p-6 animate-pulse">
-          <div className="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        </div>
+      <div className="mx-auto max-w-3xl">
+        <Card className="animate-pulse">
+          <div className="mb-4 h-6 w-2/3 rounded bg-gray-200" />
+          <div className="mb-2 h-4 w-full rounded bg-gray-200" />
+          <div className="h-4 w-3/4 rounded bg-gray-200" />
+        </Card>
       </div>
     );
   }
 
   if (error && !survey) {
     return (
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>
+      <div className="mx-auto max-w-3xl">
+        <Card className="border-red-200 bg-red-50 text-red-700">{error}</Card>
       </div>
     );
   }
 
   if (submitted) {
     return (
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-lg shadow p-8 text-center space-y-4">
-          <div className="text-5xl">🎉</div>
-          <h2 className="text-2xl font-bold text-gray-900">Terima Kasih!</h2>
-          <p className="text-gray-600">Jawaban Anda telah berhasil dikirim.</p>
+      <div className="mx-auto max-w-2xl">
+        <Card className="animate-fade-up p-8 text-center sm:p-10">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-100">
+            <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={1.75} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Terima kasih!</h2>
+          <p className="mt-1.5 text-gray-600">Jawaban Anda telah berhasil dikirim.</p>
           {earnedPoints > 0 && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-green-700 font-medium">
-                +{earnedPoints} poin telah ditambahkan ke saldo Anda!
-              </p>
+            <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-lg bg-primary-50 px-4 py-2.5 text-primary-700 ring-1 ring-primary-100">
+              <Gift className="h-4 w-4" />
+              <span className="font-semibold">+{earnedPoints} poin</span> ditambahkan ke saldo Anda
             </div>
           )}
-          <button
-            onClick={() => navigate('/surveys')}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Kembali ke Daftar Survei
-          </button>
-        </div>
+          <div className="mt-7">
+            <Button onClick={() => navigate('/surveys')} size="lg">
+              Kembali ke Daftar Survei
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   if (!survey) return null;
 
-  // Get questions for current page
   const pageQuestions = survey.questions
     .filter((q) => q.page === currentPage)
-    .filter((q) => isQuestionVisible(q))
-    .filter((q) => !shouldSkipQuestion(q));
+    .filter(isActive);
 
   const handleAnswerChange = (questionId: string, value: AnswerValue) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    if (missingIds.has(questionId) && isAnswered(value)) {
+      setMissingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(questionId);
+        return next;
+      });
+    }
   };
 
   const goToNextPage = () => {
     if (currentPage < survey.totalPages) {
-      setCurrentPage((prev) => prev + 1);
-      window.scrollTo(0, 0);
+      setCurrentPage((p) => p + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const goToPrevPage = () => {
     if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-      window.scrollTo(0, 0);
+      setCurrentPage((p) => p - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const isLastPage = currentPage === survey.totalPages;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Timer */}
+    <div className="mx-auto max-w-3xl space-y-5">
       {survey.maxDuration && (
         <CountdownTimer minutes={survey.maxDuration} onExpire={handleTimerExpire} />
       )}
 
       {/* Header */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-xl font-bold text-gray-900">{survey.title}</h1>
-        <p className="text-sm text-gray-600 mt-1">{survey.description}</p>
+      <Card>
+        <h1 className="text-xl font-bold tracking-tight text-gray-900">{survey.title}</h1>
+        {survey.description && (
+          <p className="mt-1 text-sm text-gray-600">{survey.description}</p>
+        )}
 
-        {/* Reward info banner */}
         {survey.rewardMode === 'manual' && survey.rewardDescription && (
-          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">🎁 Reward:</span> {survey.rewardDescription}
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-primary-50 p-3 text-primary-700 ring-1 ring-primary-100">
+            <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="text-sm">
+              <span className="font-medium">Reward:</span> {survey.rewardDescription}
             </p>
           </div>
         )}
         {survey.rewardMode === 'auto_point' && survey.rewardPoints && (
-          <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-3">
-            <p className="text-sm text-green-700">
-              <span className="font-medium">🎁 Reward:</span> {survey.rewardPoints} poin otomatis setelah menyelesaikan survei
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-emerald-50 p-3 text-emerald-700 ring-1 ring-emerald-100">
+            <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+            <p className="text-sm">
+              <span className="font-medium">Reward:</span> {survey.rewardPoints} poin otomatis setelah selesai
             </p>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Progress */}
       <ProgressBar current={currentPage} total={survey.totalPages} />
 
-      {/* Questions */}
-      <div className="space-y-6">
-        {pageQuestions.map((question, idx) => (
-          <div key={question.id} className="bg-white rounded-lg shadow p-6">
-            <div className="mb-4">
-              <div className="flex items-start gap-2">
-                <span className="text-sm font-medium text-gray-400">{idx + 1}.</span>
+      {error && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Questions for the current page */}
+      <div key={currentPage} className="animate-fade-up space-y-5">
+        {pageQuestions.map((question, idx) => {
+          const invalid = missingIds.has(question.id);
+          return (
+            <Card
+              key={question.id}
+              className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}
+            >
+              <div className="mb-4 flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+                  {idx + 1}
+                </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">
                     {question.text}
-                    {question.required && <span className="text-red-500 ml-1">*</span>}
+                    {question.required && <span className="ml-1 text-red-500">*</span>}
                   </p>
                   {question.description && (
-                    <p className="text-xs text-gray-500 mt-1">{question.description}</p>
+                    <p className="mt-1 text-xs text-gray-500">{question.description}</p>
                   )}
                 </div>
               </div>
-            </div>
-            <QuestionRenderer
-              question={question}
-              value={answers[question.id] ?? null}
-              onChange={(val) => handleAnswerChange(question.id, val)}
-            />
-          </div>
-        ))}
+              <QuestionRenderer
+                question={question}
+                value={answers[question.id] ?? null}
+                onChange={(val) => handleAnswerChange(question.id, val)}
+                surveyId={survey.id}
+                invalid={invalid}
+              />
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Manual reward destination number */}
+      {/* Manual reward destination */}
       {isLastPage && survey.rewardMode === 'manual' && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-2">
+        <Card>
+          <h3 className="text-sm font-semibold text-gray-900">
             Nomor Tujuan Reward <span className="text-red-500">*</span>
           </h3>
-          <p className="text-xs text-gray-500 mb-3">
-            Masukkan nomor telepon/e-wallet untuk menerima reward
+          <p className="mb-3 mt-0.5 text-xs text-gray-500">
+            Masukkan nomor telepon/e-wallet untuk menerima reward.
           </p>
           <div className="flex items-center gap-2">
-            <span className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-gray-600">
+            <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
               +62
             </span>
             <input
               type="tel"
+              inputMode="numeric"
               value={destinationNumber}
               onChange={(e) => setDestinationNumber(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="8xxxxxxxxxx"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`flex-1 ${fieldClasses(false)}`}
             />
           </div>
-        </div>
-      )}
-
-      {/* Error message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-          {error}
-        </div>
+        </Card>
       )}
 
       {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={goToPrevPage}
-          disabled={currentPage === 1}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ← Sebelumnya
-        </button>
+      <div className="flex items-center justify-between gap-3 pb-2">
+        <Button variant="secondary" onClick={goToPrevPage} disabled={currentPage === 1}>
+          <ChevronLeft className="h-4 w-4" /> Sebelumnya
+        </Button>
 
         {isLastPage ? (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
-          </button>
+          <Button onClick={handleSubmit} isLoading={submitting}>
+            <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
+          </Button>
         ) : (
-          <button
-            type="button"
-            onClick={goToNextPage}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-          >
-            Selanjutnya →
-          </button>
+          <Button onClick={goToNextPage}>
+            Selanjutnya <ChevronRight className="h-4 w-4" />
+          </Button>
         )}
       </div>
     </div>

@@ -21,6 +21,12 @@ export interface ResponseSubmittedPayload {
   respondentName: string;
   surveyTitle: string;
   submittedAt: Date;
+  /**
+   * The survey's configured completion reward (SurveyRewardConfig.pointsValue).
+   * `null` when the survey has no configured points (e.g. manual-reward
+   * surveys); the reward handler falls back to a default base in that case.
+   */
+  rewardPoints: number | null;
 }
 
 /**

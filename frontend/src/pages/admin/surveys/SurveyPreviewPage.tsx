@@ -44,7 +44,7 @@ function QuestionPreview({ question }: { question: Question }) {
           <div className="space-y-2">
             {(question.options ?? []).map((opt) => (
               <label key={opt.id} className="flex items-center gap-2">
-                <input type="radio" name={question.id} disabled className="text-blue-600" />
+                <input type="radio" name={question.id} disabled className="text-primary-600" />
                 <span className="text-sm text-gray-700">{opt.text}</span>
               </label>
             ))}
@@ -55,7 +55,7 @@ function QuestionPreview({ question }: { question: Question }) {
           <div className="space-y-2">
             {(question.options ?? []).map((opt) => (
               <label key={opt.id} className="flex items-center gap-2">
-                <input type="checkbox" disabled className="rounded text-blue-600" />
+                <input type="checkbox" disabled className="rounded text-primary-600" />
                 <span className="text-sm text-gray-700">{opt.text}</span>
               </label>
             ))}

@@ -5,7 +5,12 @@ import { NotificationService } from '@modules/notification/notification.service'
 import { RewardService } from '@modules/reward/reward.service';
 import { AuditService } from '@modules/audit/audit.service';
 import { AuditActionType } from '@shared/enums';
-import { PointCreditReason } from '@shared/enums';
+
+/**
+ * Fallback base points awarded for completing a survey that has no configured
+ * reward amount (SurveyRewardConfig.pointsValue is null).
+ */
+const DEFAULT_SURVEY_COMPLETION_POINTS = 100;
 
 @Injectable()
 export class ResponseSubmittedHandler {
@@ -23,14 +28,19 @@ export class ResponseSubmittedHandler {
   @OnEvent(EventType.RESPONSE_SUBMITTED, { async: true })
   async handleRewardCredit(payload: ResponseSubmittedPayload): Promise<void> {
     try {
+      // Credit the survey's configured reward; fall back to a default base only
+      // when the survey has no configured points value. This keeps the credited
+      // amount consistent with what the respondent was shown on the fill page.
+      const basePoints = payload.rewardPoints ?? DEFAULT_SURVEY_COMPLETION_POINTS;
+
       await this.rewardService.creditSurveyCompletion(
         payload.respondentId,
         payload.surveyId,
-        100, // base points for survey completion
+        basePoints,
         'complete',
       );
       this.logger.log(
-        `Points credited for response: respondentId=${payload.respondentId}, surveyId=${payload.surveyId}`,
+        `Points credited for response: respondentId=${payload.respondentId}, surveyId=${payload.surveyId}, basePoints=${basePoints}`,
       );
     } catch (error: any) {
       this.logger.error(

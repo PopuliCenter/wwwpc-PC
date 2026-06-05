@@ -103,6 +103,34 @@ export class S3StorageService {
   }
 
   /**
+   * Upload an in-memory buffer to S3/MinIO and return the object key.
+   * Used for respondent file uploads where the bytes never touch local disk.
+   */
+  async uploadBuffer(
+    buffer: Buffer,
+    s3Key: string,
+    contentType: string,
+  ): Promise<string> {
+    try {
+      await this.s3Client.send(
+        new PutObjectCommand({
+          Bucket: this.bucket,
+          Key: s3Key,
+          Body: buffer,
+          ContentType: contentType,
+          // No ACL → object remains private (served via pre-signed URLs only)
+        }),
+      );
+      this.logger.log(`Uploaded buffer to ${s3Key} in bucket '${this.bucket}'`);
+      return s3Key;
+    } catch (err: any) {
+      throw new InternalServerErrorException(
+        `S3 buffer upload failed for key '${s3Key}': ${err.message}`,
+      );
+    }
+  }
+
+  /**
    * Generate a time-limited, pre-signed GET URL for a private S3 object.
    * The URL expires after `S3_PRESIGNED_URL_EXPIRES_IN` seconds (default 900 = 15 min).
    *

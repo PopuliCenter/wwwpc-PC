@@ -1,113 +1,155 @@
+# =============================================================================
+# Docker Compose — Survei Online
+# =============================================================================
+#
+# Services:
+#   Infrastructure : postgres · redis · minio · minio-init
+#   Application    : backend · frontend
+#
+# Sebelum pertama kali menjalankan:
+#   1. cp .env.example .env          ← isi semua nilai yang diperlukan
+#   2. cp backend/.env.example backend/.env  ← sesuaikan dengan .env
+#   3. docker compose up -d
+#
+# Urutan start (ditangani oleh depends_on + healthcheck):
+#   postgres, redis, minio
+#     → minio-init  (buat bucket, lalu exit)
+#     → backend     (auto-run migration via TypeORM migrationsRun=true)
+#     → frontend    (nginx melayani SPA + proxy /api/ ke backend)
+# =============================================================================
+
 services:
-  # ---------------------------------------------------------------------------
-  # Infrastructure
-  # ---------------------------------------------------------------------------
+
+  # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
   postgres:
-    image: postgres:13-alpine
-    container_name: survei_online_postgres
+    image: postgres:16-alpine
+    container_name: survei_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: survei_online
-    # Bind to loopback only — the DB must never be reachable from the public
-    # internet. Other containers reach it over the internal docker network.
+      POSTGRES_USER:     ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
+      POSTGRES_DB:       ${DB_DATABASE:-survei_online}
+    # Bind ke loopback saja — DB tidak boleh terbuka ke internet publik.
+    # Container lain menjangkaunya via jaringan internal Docker.
     ports:
-      - '127.0.0.1:5432:5432'
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - survei_network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d survei_online']
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-survei_online}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
 
+  # ── Redis 7 ────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: survei_online_redis
+    container_name: survei_redis
     restart: unless-stopped
-    # Require a password. Set REDIS_PASSWORD in the host environment / .env.
-    command: ['redis-server', '--requirepass', '${REDIS_PASSWORD:?REDIS_PASSWORD is required}']
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD wajib diisi di .env}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
     ports:
-      - '127.0.0.1:6379:6379'
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - survei_network
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
 
+  # ── MinIO (S3-compatible object storage) ───────────────────────────────────
   minio:
     image: minio/minio:latest
-    container_name: survei_online_minio
+    container_name: survei_minio
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
-    # API (9000) and console (9001) bound to loopback only. Expose the console
-    # through an authenticated tunnel/VPN if you need remote access.
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib diisi di .env}
+    # API :9000 dan console :9001 hanya dapat diakses dari host lokal.
+    # Akses console dari luar via SSH tunnel jika diperlukan.
     ports:
-      - '127.0.0.1:9000:9000'
-      - '127.0.0.1:9001:9001'
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     networks:
       - survei_network
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
 
+  # ── MinIO Init — buat bucket satu kali lalu keluar ─────────────────────────
   minio-init:
     image: minio/mc:latest
-    container_name: survei_online_minio_init
+    container_name: survei_minio_init
+    restart: "no"
     depends_on:
       minio:
         condition: service_healthy
     networks:
       - survei_network
+    environment:
+      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin};
-      mc mb local/survey-exports --ignore-existing;
-      echo 'Bucket survey-exports is ready (private — no public access policy applied)';
-      exit 0;
+        mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+        mc mb --ignore-existing local/survey-exports &&
+        mc mb --ignore-existing local/survey-uploads &&
+        echo '✓ Bucket siap: survey-exports, survey-uploads'
       "
 
-  # ---------------------------------------------------------------------------
-  # Application
-  # ---------------------------------------------------------------------------
+  # ── Backend — NestJS API ───────────────────────────────────────────────────
+  # Migration TypeORM dijalankan otomatis saat startup (migrationsRun=true
+  # di database.config.ts ketika NODE_ENV=production).
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
       target: runner
-    container_name: survei_online_backend
+    container_name: survei_backend
     restart: unless-stopped
     env_file:
       - ./backend/.env
     environment:
-      NODE_ENV: production
-      # Override host values to use Docker service names
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      BULL_REDIS_HOST: redis
+      NODE_ENV:           production
+      # Override agar gunakan nama service Docker, bukan localhost
+      DB_HOST:            postgres
+      DB_PORT:            "5432"
+      DB_USERNAME:        ${DB_USERNAME:-postgres}
+      DB_PASSWORD:        ${DB_PASSWORD}
+      DB_DATABASE:        ${DB_DATABASE:-survei_online}
+      DB_SYNCHRONIZE:     "false"
+      DB_LOGGING:         "false"
+      REDIS_HOST:         redis
+      REDIS_PORT:         "6379"
+      REDIS_PASSWORD:     ${REDIS_PASSWORD}
+      BULL_REDIS_HOST:    redis
+      BULL_REDIS_PORT:    "6379"
       BULL_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      S3_ENDPOINT: http://minio:9000
+      S3_ENDPOINT:        http://minio:9000
+      S3_ACCESS_KEY:      ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY:      ${MINIO_ROOT_PASSWORD}
+      ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-http://localhost}
     ports:
-      - '3000:3000'
+      # Hanya expose ke loopback; frontend (nginx) yang proxy ke sini
+      - "127.0.0.1:3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,36 +160,47 @@ services:
     networks:
       - survei_network
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 40s
 
+  # ── Frontend — React SPA + Nginx reverse proxy ─────────────────────────────
+  # nginx melayani:
+  #   /api/*  → proxy ke backend:3000 (strip /api prefix)
+  #   /*      → file statis SPA + fallback ke index.html
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: runner
       args:
-        # Backend is proxied via nginx or accessed at /api — adjust if needed
+        # Semua panggilan API dari browser akan ke /api/* (relatif)
         VITE_API_BASE_URL: /api
-    container_name: survei_online_frontend
+    container_name: survei_frontend
     restart: unless-stopped
-    ports:
-      - '80:80'
+    # Tidak merebut port 80 host — reverse proxy bersama (Nginx Proxy Manager)
+    # yang memegang 80/443 dan meneruskan survei.domain.id ke container ini.
+    # Untuk akses langsung tanpa proxy (testing lokal), buka komentar ports di bawah.
+    # ports:
+    #   - "127.0.0.1:8081:80"
+    expose:
+      - "80"
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - survei_network
+      - survei_network   # internal: ke backend/postgres/redis/minio
+      - web              # bersama: tempat reverse proxy menjangkau frontend
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost/health || exit 1']
+      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
+# ── Volumes ────────────────────────────────────────────────────────────────────
 volumes:
   postgres_data:
     driver: local
@@ -156,7 +209,14 @@ volumes:
   minio_data:
     driver: local
 
+# ── Networks ───────────────────────────────────────────────────────────────────
 networks:
+  # Jaringan internal aplikasi survei (backend, db, redis, minio, frontend)
   survei_network:
     driver: bridge
-    name: survei_online_network
+    name: survei_network
+  # Jaringan bersama lintas-aplikasi tempat reverse proxy (Nginx Proxy Manager)
+  # menjangkau frontend tiap app. Dibuat sekali manual:
+  #   docker network create web
+  web:
+    external: true

@@ -1,0 +1,52 @@
+# =============================================================================
+# Nginx Proxy Manager — reverse proxy BERSAMA untuk semua app di VPS
+# =============================================================================
+#
+# Stack ini berdiri SENDIRI, terpisah dari app survei. Dia yang memegang
+# port 80 & 443 di host, lalu meneruskan tiap subdomain ke container app
+# yang sesuai (survei, app lama, dll) lewat jaringan Docker bersama "web".
+#
+# Setup pertama kali (jalankan di VPS):
+#   1. docker network create web          # jaringan bersama lintas-app
+#   2. docker compose up -d                # dari folder ini
+#   3. Buka http://IP_VPS:81               # GUI admin NPM
+#        Login awal:  admin@example.com / changeme  (WAJIB ganti)
+#   4. Pastikan tiap app (survei, dll) juga tergabung ke network "web".
+#   5. Di GUI → Proxy Hosts → Add:
+#        Domain:        survei.domainmu.id
+#        Forward Host:  survei_frontend     (nama container, BUKAN IP)
+#        Forward Port:  80
+#        Scheme:        http
+#        Block Common Exploits: on
+#        Websockets Support: on
+#      Tab SSL → Request a new SSL Certificate (Let's Encrypt) → Force SSL.
+#
+# Catatan DNS: arahkan A record survei.domainmu.id → IP VPS sebelum minta SSL.
+# =============================================================================
+
+services:
+  npm:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx_proxy_manager
+    restart: unless-stopped
+    ports:
+      - "80:80"      # HTTP publik
+      - "443:443"    # HTTPS publik
+      - "81:81"      # GUI admin — sebaiknya dibatasi via firewall / SSH tunnel
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - web
+
+volumes:
+  npm_data:
+    driver: local
+  npm_letsencrypt:
+    driver: local
+
+networks:
+  # Jaringan bersama yang sama dipakai semua app. Dibuat manual sekali:
+  #   docker network create web
+  web:
+    external: true

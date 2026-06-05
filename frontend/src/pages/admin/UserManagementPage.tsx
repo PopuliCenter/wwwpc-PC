@@ -145,7 +145,7 @@ function CreateUserModal({
               required
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -158,7 +158,7 @@ function CreateUserModal({
               required
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -170,7 +170,7 @@ function CreateUserModal({
               type="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -181,7 +181,7 @@ function CreateUserModal({
               id="role"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value as CreateUserPayload['role'] })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="admin">Admin</option>
               <option value="analyst">Analyst</option>
@@ -199,7 +199,7 @@ function CreateUserModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {loading ? 'Menyimpan...' : 'Simpan'}
             </button>
@@ -293,7 +293,7 @@ function BulkImportModal({
               type="file"
               accept=".csv"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
             />
           </div>
           <div className="flex gap-3">
@@ -307,7 +307,7 @@ function BulkImportModal({
             <button
               onClick={handleUpload}
               disabled={!file || loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
             >
               {loading ? 'Mengimpor...' : 'Import'}
             </button>
@@ -415,7 +415,7 @@ export function UserManagementPage() {
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
           >
             + Tambah Pengguna
           </button>
@@ -424,8 +424,8 @@ export function UserManagementPage() {
 
       {/* Action feedback */}
       {actionMessage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <p className="text-sm text-blue-800">{actionMessage}</p>
+        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
+          <p className="text-sm text-primary-800">{actionMessage}</p>
         </div>
       )}
 
@@ -445,7 +445,7 @@ export function UserManagementPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             />
           </div>
           <div>
@@ -459,7 +459,7 @@ export function UserManagementPage() {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             >
               <option value="">Semua Role</option>
               <option value="admin">Admin</option>
@@ -478,7 +478,7 @@ export function UserManagementPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             >
               <option value="">Semua Status</option>
               <option value="active">Aktif</option>
@@ -544,7 +544,7 @@ export function UserManagementPage() {
                         <select
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
                           aria-label={`Role for ${user.fullName}`}
                         >
                           <option value="admin">Admin</option>
@@ -570,7 +570,7 @@ export function UserManagementPage() {
                       <td className="px-4 py-3 text-sm">
                         <button
                           onClick={() => handleResetPassword(user.id)}
-                          className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                          className="text-primary-600 hover:text-primary-800 text-xs font-medium"
                         >
                           Reset Password
                         </button>
@@ -607,7 +607,7 @@ export function UserManagementPage() {
                     onClick={() => setPage(pageNum)}
                     className={`px-3 py-1 text-sm border rounded-md ${
                       page === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-primary-600 text-white border-primary-600'
                         : 'border-gray-300 hover:bg-gray-50'
                     }`}
                   >

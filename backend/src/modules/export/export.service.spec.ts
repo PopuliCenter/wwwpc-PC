@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bull';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ExportService } from './export.service';
+import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
 import { ExportFormat, ExportStatus, ResponseFilter, AuditFilter } from './interfaces';
 import {
@@ -21,6 +22,7 @@ describe('ExportService', () => {
   let service: ExportService;
   let mockQueue: any;
   let mockExportJobRepository: any;
+  let mockS3StorageService: any;
 
   const mockExportJob: Partial<ExportJob> = {
     id: 'job-123',
@@ -45,6 +47,12 @@ describe('ExportService', () => {
       update: vi.fn().mockResolvedValue({ affected: 1 }),
     };
 
+    mockS3StorageService = {
+      getPresignedDownloadUrl: vi
+        .fn()
+        .mockResolvedValue('https://s3.example/exports/export-job-123.csv?signature=abc'),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExportService,
@@ -55,6 +63,10 @@ describe('ExportService', () => {
         {
           provide: getRepositoryToken(ExportJob),
           useValue: mockExportJobRepository,
+        },
+        {
+          provide: S3StorageService,
+          useValue: mockS3StorageService,
         },
       ],
     }).compile();
@@ -229,7 +241,7 @@ describe('ExportService', () => {
   });
 
   describe('downloadExport', () => {
-    it('should return file path for completed export', async () => {
+    it('should return a pre-signed download URL for completed export', async () => {
       const completedJob = {
         ...mockExportJob,
         status: ExportStatus.COMPLETED,
@@ -239,8 +251,12 @@ describe('ExportService', () => {
 
       const result = await service.downloadExport('job-123');
 
+      // The stored path is resolved to an S3 key and signed for time-limited access.
+      expect(mockS3StorageService.getPresignedDownloadUrl).toHaveBeenCalledWith(
+        'exports/export-job-123.csv',
+      );
       expect(result).toEqual({
-        filePath: '/exports/export-job-123.csv',
+        presignedUrl: 'https://s3.example/exports/export-job-123.csv?signature=abc',
         format: ExportFormat.CSV,
       });
     });

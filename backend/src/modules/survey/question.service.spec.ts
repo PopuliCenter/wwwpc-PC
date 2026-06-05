@@ -351,9 +351,9 @@ describe('QuestionService', () => {
       );
     });
 
-    it('should support all 10 question types', async () => {
+    it('should support all 14 question types', async () => {
       const allTypes = Object.values(QuestionType);
-      expect(allTypes).toHaveLength(10);
+      expect(allTypes).toHaveLength(14);
 
       for (const type of allTypes) {
         questionRepository.create.mockClear();

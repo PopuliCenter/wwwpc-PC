@@ -25,5 +25,8 @@ export const databaseConfig = registerAs(
     // Migration configuration
     migrations: ['dist/migrations/*.js'],
     migrationsTableName: 'typeorm_migrations',
+    // Auto-run pending migrations on startup in production.
+    // In development DB_SYNCHRONIZE=true handles schema, so don't double-run.
+    migrationsRun: process.env.NODE_ENV === 'production',
   }),
 );

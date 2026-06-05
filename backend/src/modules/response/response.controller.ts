@@ -7,11 +7,16 @@ import {
   Body,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   Request,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ResponseService } from './response.service';
+import { FileUploadService } from './services/file-upload.service';
+import { UploadedFileLike } from './services/file-validation.service';
 import { SubmitResponseDto } from './dto/submit-response.dto';
 import { SaveProgressDto } from './dto/save-progress.dto';
 import { ResponseFilterDto } from './dto/response-filter.dto';
@@ -20,10 +25,35 @@ import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
 
+// Hard cap enforced by Multer before the file is buffered into memory.
+const MAX_UPLOAD_BYTES = Number(process.env.UPLOAD_MAX_BYTES ?? 5 * 1024 * 1024);
+
 @Controller('surveys/:surveyId/responses')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ResponseController {
-  constructor(private readonly responseService: ResponseService) {}
+  constructor(
+    private readonly responseService: ResponseService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
+
+  /**
+   * Upload a file for a file_upload question. Validates size, MIME type, and
+   * magic bytes, stores it privately in object storage, and returns the object
+   * key (to be submitted as the answer value) plus a short-lived preview URL.
+   */
+  @Post('upload')
+  @Roles(UserRole.RESPONDENT)
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
+  )
+  async uploadFile(
+    @Param('surveyId') surveyId: string,
+    @Request() req: any,
+    @UploadedFile() file: UploadedFileLike,
+  ) {
+    return this.fileUploadService.uploadAnswerFile(surveyId, req.user.userId, file);
+  }
 
   /**
    * Submit a complete response to a survey.

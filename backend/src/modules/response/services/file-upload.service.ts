@@ -1,0 +1,44 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { v4 as uuidv4 } from 'uuid';
+import { S3StorageService } from '@modules/export/s3-storage.service';
+import { FileValidationService, UploadedFileLike } from './file-validation.service';
+
+export interface UploadResult {
+  /** S3 object key — this is what the respondent stores as the answer value. */
+  key: string;
+  /** Time-limited pre-signed URL so the UI can show a preview. */
+  url: string;
+  originalName: string;
+}
+
+@Injectable()
+export class FileUploadService {
+  private readonly logger = new Logger(FileUploadService.name);
+
+  constructor(
+    private readonly fileValidation: FileValidationService,
+    private readonly s3: S3StorageService,
+  ) {}
+
+  /**
+   * Validate and store a respondent's uploaded file. The object key is scoped
+   * to the survey and respondent so answer validation can verify ownership.
+   */
+  async uploadAnswerFile(
+    surveyId: string,
+    respondentId: string,
+    file: UploadedFileLike | undefined,
+  ): Promise<UploadResult> {
+    const { ext, contentType } = this.fileValidation.validate(file);
+
+    const key = `survey-uploads/${surveyId}/${respondentId}/${uuidv4()}.${ext}`;
+    await this.s3.uploadBuffer(file!.buffer, key, contentType);
+    const url = await this.s3.getPresignedDownloadUrl(key);
+
+    this.logger.log(
+      `Respondent ${respondentId} uploaded file for survey ${surveyId}: ${key}`,
+    );
+
+    return { key, url, originalName: file!.originalname };
+  }
+}

@@ -329,7 +329,7 @@ export function ResponseListPage() {
         </div>
         <button
           onClick={handleApplyFilters}
-          className="mt-3 px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+          className="mt-3 px-4 py-1.5 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700 transition-colors"
         >
           Terapkan Filter
         </button>
@@ -374,7 +374,7 @@ export function ResponseListPage() {
                     <td className="px-4 py-3 text-sm">
                       <button
                         onClick={() => navigate(`/admin/responses/${r.id}`)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-primary-600 hover:text-primary-800"
                       >
                         Detail
                       </button>

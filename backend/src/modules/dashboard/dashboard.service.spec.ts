@@ -100,10 +100,11 @@ describe('DashboardService', () => {
         activeSurveys: 3,
         totalResponses: 250,
       });
+      // Overview metrics use a 60 s TTL (high traffic, cheap to recompute).
       expect(cacheManager.set).toHaveBeenCalledWith(
         'dashboard:overview',
         result,
-        300000,
+        60000,
       );
     });
 

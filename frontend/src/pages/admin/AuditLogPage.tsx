@@ -145,8 +145,8 @@ export function AuditLogPage() {
 
       {/* Export message */}
       {exportMessage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <p className="text-sm text-blue-800">{exportMessage}</p>
+        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
+          <p className="text-sm text-primary-800">{exportMessage}</p>
         </div>
       )}
 
@@ -166,7 +166,7 @@ export function AuditLogPage() {
                 setUserFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             />
           </div>
           <div>
@@ -180,7 +180,7 @@ export function AuditLogPage() {
                 setActionTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             >
               <option value="">Semua</option>
               {ACTION_TYPES.map((type) => (
@@ -201,7 +201,7 @@ export function AuditLogPage() {
                 setModuleFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             >
               <option value="">Semua</option>
               {MODULES.map((mod) => (
@@ -223,7 +223,7 @@ export function AuditLogPage() {
                 setStartDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             />
           </div>
           <div>
@@ -238,7 +238,7 @@ export function AuditLogPage() {
                 setEndDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             />
           </div>
           <div>
@@ -254,7 +254,7 @@ export function AuditLogPage() {
                 setIpFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
             />
           </div>
         </div>
@@ -364,7 +364,7 @@ export function AuditLogPage() {
                     onClick={() => setPage(pageNum)}
                     className={`px-3 py-1 text-sm border rounded-md ${
                       page === pageNum
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-primary-600 text-white border-primary-600'
                         : 'border-gray-300 hover:bg-gray-50'
                     }`}
                   >

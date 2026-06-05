@@ -97,12 +97,58 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   return response.json();
 }
 
+/**
+ * Upload multipart/form-data (e.g. respondent file uploads). Unlike `request`,
+ * this must NOT set Content-Type — the browser sets the multipart boundary.
+ */
+async function uploadRequest<T>(endpoint: string, formData: FormData): Promise<T> {
+  const buildHeaders = (token: string | null): Record<string, string> => {
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
+
+  const accessToken = getAccessToken();
+  let response = await fetch(`${BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: buildHeaders(accessToken),
+    body: formData,
+  });
+
+  if (response.status === 401 && accessToken) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      response = await fetch(`${BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: buildHeaders(newToken),
+        body: formData,
+      });
+    } else {
+      clearTokens();
+      window.location.href = '/login';
+      throw new Error('Session expired');
+    }
+  }
+
+  if (!response.ok) {
+    throw await response.json().catch(() => ({
+      statusCode: response.status,
+      message: response.statusText,
+    }));
+  }
+
+  return response.json();
+}
+
 export const api = {
   get: <T>(endpoint: string, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'GET' }),
 
   post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'POST', body }),
+
+  upload: <T>(endpoint: string, formData: FormData) =>
+    uploadRequest<T>(endpoint, formData),
 
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'PATCH', body }),

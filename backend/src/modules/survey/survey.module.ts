@@ -11,6 +11,8 @@ import { VisibilityService } from './services/visibility.service';
 import { BranchingService } from './services/branching.service';
 import { OptionRandomizerService } from './services/option-randomizer';
 import { SurveyTimeService } from './services/survey-time.service';
+import { AnswerValidationService } from './services/answer-validation.service';
+import { SurveyFillService } from './services/survey-fill.service';
 import { Survey } from './entities/survey.entity';
 import { SurveyPage } from './entities/survey-page.entity';
 import { SurveyTimeConfig } from './entities/survey-time-config.entity';
@@ -20,6 +22,7 @@ import { QuestionOption } from './entities/question-option.entity';
 import { SkipLogicRule } from './entities/skip-logic-rule.entity';
 import { VisibilityRule } from './entities/visibility-rule.entity';
 import { BranchingRule } from './entities/branching-rule.entity';
+import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { AuthModule } from '@modules/auth';
 
 @Module({
@@ -34,6 +37,7 @@ import { AuthModule } from '@modules/auth';
       SkipLogicRule,
       VisibilityRule,
       BranchingRule,
+      SurveyResponse,
     ]),
     AuthModule,
   ],
@@ -51,6 +55,8 @@ import { AuthModule } from '@modules/auth';
     BranchingService,
     OptionRandomizerService,
     SurveyTimeService,
+    AnswerValidationService,
+    SurveyFillService,
   ],
   exports: [
     SurveyService,
@@ -60,6 +66,7 @@ import { AuthModule } from '@modules/auth';
     BranchingService,
     OptionRandomizerService,
     SurveyTimeService,
+    AnswerValidationService,
   ],
 })
 export class SurveyModule {}

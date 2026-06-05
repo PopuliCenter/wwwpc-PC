@@ -16,6 +16,7 @@ describe('ResponseSubmittedHandler', () => {
     respondentName: 'Test User',
     surveyTitle: 'Test Survey',
     submittedAt: new Date('2024-01-01T10:00:00Z'),
+    rewardPoints: 250,
   };
 
   beforeEach(() => {
@@ -37,13 +38,24 @@ describe('ResponseSubmittedHandler', () => {
   });
 
   describe('handleRewardCredit', () => {
-    it('should credit points to respondent', async () => {
+    it('should credit the survey-configured points to the respondent', async () => {
       await handler.handleRewardCredit(payload);
 
       expect(mockRewardService.creditSurveyCompletion).toHaveBeenCalledWith(
         'user-1',
         'survey-1',
-        100,
+        250, // payload.rewardPoints (the configured reward)
+        'complete',
+      );
+    });
+
+    it('should fall back to the default base points when rewardPoints is null', async () => {
+      await handler.handleRewardCredit({ ...payload, rewardPoints: null });
+
+      expect(mockRewardService.creditSurveyCompletion).toHaveBeenCalledWith(
+        'user-1',
+        'survey-1',
+        100, // DEFAULT_SURVEY_COMPLETION_POINTS
         'complete',
       );
     });

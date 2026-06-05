@@ -103,7 +103,7 @@ export function SurveyListPage() {
                   </div>
                 )}
                 {survey.rewardMode === 'manual' && survey.rewardDescription && (
-                  <div className="flex items-center gap-2 text-sm text-blue-600 font-medium">
+                  <div className="flex items-center gap-2 text-sm text-primary-600 font-medium">
                     <span>🎁</span>
                     <span>{survey.rewardDescription}</span>
                   </div>
@@ -112,7 +112,7 @@ export function SurveyListPage() {
 
               <button
                 onClick={() => navigate(`/surveys/${survey.id}/fill`)}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="w-full bg-primary-600 text-white py-2 px-4 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
               >
                 Isi Survei
               </button>

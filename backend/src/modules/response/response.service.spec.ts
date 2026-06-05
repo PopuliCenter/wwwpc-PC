@@ -9,6 +9,7 @@ import { SurveyResponse, ResponseStatus } from './entities/survey-response.entit
 import { Answer } from './entities/answer.entity';
 import { ManualRewardDistribution, ManualRewardStatus } from './entities/manual-reward-distribution.entity';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
+import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType } from '@modules/events/event-types';
 
 describe('ResponseService', () => {
@@ -49,6 +50,10 @@ describe('ResponseService', () => {
     incrementRespondentCount: vi.fn(),
   };
 
+  const mockAnswerValidationService = {
+    validate: vi.fn().mockResolvedValue(undefined),
+  };
+
   // Transaction EntityManager mock
   const mockManager = {
     create: vi.fn(),
@@ -79,7 +84,7 @@ describe('ResponseService', () => {
     mockManager.query.mockResolvedValue(undefined);
     mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
     mockDataSource.query.mockResolvedValue([
-      { email: 'respondent@example.com', fullName: 'Respondent', surveyTitle: 'Survey' },
+      { email: 'respondent@example.com', fullName: 'Respondent', surveyTitle: 'Survey', rewardPoints: 250 },
     ]);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -89,6 +94,7 @@ describe('ResponseService', () => {
         { provide: getRepositoryToken(Answer), useValue: mockAnswerRepository },
         { provide: getRepositoryToken(ManualRewardDistribution), useValue: mockManualRewardRepository },
         { provide: SurveyTimeService, useValue: mockSurveyTimeService },
+        { provide: AnswerValidationService, useValue: mockAnswerValidationService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
@@ -198,10 +204,11 @@ describe('ResponseService', () => {
       expect(result.status).toBe(ResponseStatus.COMPLETE);
       expect(dataSource.transaction).toHaveBeenCalled();
       expect(surveyTimeService.incrementRespondentCount).toHaveBeenCalledWith(surveyId);
-      // Domain event emitted to trigger reward crediting / notification / audit
+      // Domain event emitted to trigger reward crediting / notification / audit,
+      // carrying the survey's configured reward points for the credit handler.
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         EventType.RESPONSE_SUBMITTED,
-        expect.objectContaining({ surveyId, respondentId }),
+        expect.objectContaining({ surveyId, respondentId, rewardPoints: 250 }),
       );
     });
 

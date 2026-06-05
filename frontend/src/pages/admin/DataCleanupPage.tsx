@@ -186,8 +186,8 @@ function CleanupCandidatesSection() {
       )}
 
       {archiveMessage && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-          <p className="text-sm text-blue-800">{archiveMessage}</p>
+        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
+          <p className="text-sm text-primary-800">{archiveMessage}</p>
         </div>
       )}
 
@@ -243,7 +243,7 @@ function CleanupCandidatesSection() {
                       <button
                         onClick={() => handleArchive(c.surveyId)}
                         disabled={archiving === c.surveyId}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium disabled:opacity-50"
+                        className="text-primary-600 hover:text-primary-800 text-xs font-medium disabled:opacity-50"
                       >
                         {archiving === c.surveyId ? 'Mengarsipkan...' : 'Arsipkan'}
                       </button>
@@ -268,7 +268,7 @@ function CleanupCandidatesSection() {
               id="deleteSurvey"
               value={selectedSurvey}
               onChange={(e) => setSelectedSurvey(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="">Pilih survei...</option>
               {candidates.map((c) => (
@@ -287,7 +287,7 @@ function CleanupCandidatesSection() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div>
@@ -299,7 +299,7 @@ function CleanupCandidatesSection() {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <div className="flex items-end">
@@ -440,7 +440,7 @@ function GdprDeletionSection() {
             value={respondentId}
             onChange={(e) => setRespondentId(e.target.value)}
             placeholder="ID responden..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div>
@@ -456,7 +456,7 @@ function GdprDeletionSection() {
             value={superAdminApproval}
             onChange={(e) => setSuperAdminApproval(e.target.value)}
             placeholder="Kode approval..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div className="flex items-end">
@@ -558,7 +558,7 @@ function ScheduledPurgeSection() {
               type="checkbox"
               checked={config.enabled}
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
             />
             <span className="text-sm font-medium text-gray-700">Aktifkan Scheduled Purge</span>
           </label>
@@ -577,7 +577,7 @@ function ScheduledPurgeSection() {
             max={3650}
             value={config.retentionDays}
             onChange={(e) => setConfig({ ...config, retentionDays: Number(e.target.value) })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <div>
@@ -590,7 +590,7 @@ function ScheduledPurgeSection() {
             value={config.cronExpression}
             onChange={(e) => setConfig({ ...config, cronExpression: e.target.value })}
             placeholder="0 2 * * *"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p className="text-xs text-gray-500 mt-1">Contoh: 0 2 * * * (setiap hari jam 02:00)</p>
         </div>
@@ -600,7 +600,7 @@ function ScheduledPurgeSection() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm"
+          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm"
         >
           {saving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
         </button>

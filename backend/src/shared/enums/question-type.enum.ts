@@ -9,4 +9,12 @@ export enum QuestionType {
   MATRIX_LIKERT = 'matrix_likert',
   FILE_UPLOAD = 'file_upload',
   DATE_TIME = 'date_time',
+  /** Tanggal saja (tanpa jam) */
+  DATE = 'date',
+  /** Skala rating dengan tampilan bintang atau angka */
+  RATING_SCALE = 'rating_scale',
+  /** ID unik per survei — hanya angka, wajib unik per survei */
+  UNIQUE_ID = 'unique_id',
+  /** Wilayah Indonesia bertingkat (Provinsi → Kabupaten/Kota → Kecamatan → Kelurahan) */
+  INDONESIA_REGION = 'indonesia_region',
 }

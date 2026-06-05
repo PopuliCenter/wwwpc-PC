@@ -18,6 +18,6 @@ import { EXPORT_QUEUE } from './constants';
     TypeOrmModule.forFeature([ExportJob, SurveyResponse]),
   ],
   providers: [ExportService, ExportProcessor, S3StorageService],
-  exports: [ExportService],
+  exports: [ExportService, S3StorageService],
 })
 export class ExportModule {}

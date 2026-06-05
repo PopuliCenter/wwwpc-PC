@@ -15,6 +15,7 @@ import { SubmitResponseDto } from './dto/submit-response.dto';
 import { SaveProgressDto } from './dto/save-progress.dto';
 import { ResponseFilterDto } from './dto/response-filter.dto';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
+import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
 import {
   createPaginatedResponse,
@@ -43,6 +44,7 @@ export class ResponseService {
     @InjectRepository(ManualRewardDistribution)
     private readonly manualRewardRepository: Repository<ManualRewardDistribution>,
     private readonly surveyTimeService: SurveyTimeService,
+    private readonly answerValidationService: AnswerValidationService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -77,6 +79,14 @@ export class ResponseService {
     if (!submissionCheck.allowed) {
       throw new ForbiddenException(submissionCheck.reason);
     }
+
+    // Server-side answer validation (required, type, range, options, file refs).
+    // The client validates too, but it is untrusted — re-validate authoritatively.
+    await this.answerValidationService.validate(surveyId, dto.answers, {
+      respondentId,
+      enforceRequired: true,
+      enforceTypes: true,
+    });
 
     let savedResponseId: string;
 
@@ -155,6 +165,15 @@ export class ResponseService {
     respondentId: string,
     dto: SaveProgressDto,
   ): Promise<SurveyResponse> {
+    // Lenient validation for auto-save: only reject answers tied to questions
+    // that don't belong to this survey. Required/format checks are deferred to
+    // final submit so a partially-filled draft never fails to save.
+    await this.answerValidationService.validate(surveyId, dto.answers, {
+      respondentId,
+      enforceRequired: false,
+      enforceTypes: false,
+    });
+
     let response = await this.responseRepository.findOne({
       where: { surveyId, respondentId },
     });
@@ -382,9 +401,13 @@ export class ResponseService {
   ): Promise<void> {
     try {
       const meta = await this.dataSource.query(
-        `SELECT u.email AS email, u.full_name AS "fullName", s.title AS "surveyTitle"
+        `SELECT u.email AS email,
+                u.full_name AS "fullName",
+                s.title AS "surveyTitle",
+                rc.points_value AS "rewardPoints"
          FROM users u
          CROSS JOIN survey s
+         LEFT JOIN survey_reward_config rc ON rc.survey_id = s.id
          WHERE u.id = $1 AND s.id = $2`,
         [respondentId, surveyId],
       );
@@ -398,6 +421,7 @@ export class ResponseService {
         respondentName: row.fullName ?? '',
         surveyTitle: row.surveyTitle ?? '',
         submittedAt: new Date(),
+        rewardPoints: row.rewardPoints != null ? Number(row.rewardPoints) : null,
       };
 
       this.eventEmitter.emit(EventType.RESPONSE_SUBMITTED, payload);

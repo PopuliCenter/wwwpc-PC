@@ -56,18 +56,18 @@ const CATEGORY_ICONS: Record<string, string> = {
 function BalanceCard({ balance, loading }: { balance: PointBalance | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-6 text-white animate-pulse">
-        <div className="h-4 bg-blue-400 rounded w-1/3 mb-3"></div>
-        <div className="h-10 bg-blue-400 rounded w-1/2"></div>
+      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-6 text-white animate-pulse">
+        <div className="h-4 bg-primary-400 rounded w-1/3 mb-3"></div>
+        <div className="h-10 bg-primary-400 rounded w-1/2"></div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-6 text-white">
-      <p className="text-sm text-blue-100">Saldo Poin Anda</p>
+    <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-6 text-white">
+      <p className="text-sm text-primary-100">Saldo Poin Anda</p>
       <p className="text-4xl font-bold mt-1">{(balance?.current ?? 0).toLocaleString()}</p>
-      <p className="text-sm text-blue-200 mt-1">poin</p>
+      <p className="text-sm text-primary-200 mt-1">poin</p>
 
       {balance && balance.expiringIn30Days > 0 && (
         <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
@@ -230,7 +230,7 @@ function RewardCatalog({
             onClick={() => setActiveCategory(cat)}
             className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${
               activeCategory === cat
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -259,7 +259,7 @@ function RewardCatalog({
               <div
                 key={reward.id}
                 className={`border rounded-lg p-4 transition-colors ${
-                  canAfford ? 'hover:border-blue-300' : 'opacity-60'
+                  canAfford ? 'hover:border-primary-300' : 'opacity-60'
                 }`}
               >
                 <div className="flex items-start gap-3">
@@ -267,7 +267,7 @@ function RewardCatalog({
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-gray-900">{reward.name}</h4>
                     <p className="text-xs text-gray-500 mt-1">{reward.description}</p>
-                    <p className="text-sm font-bold text-blue-600 mt-2">
+                    <p className="text-sm font-bold text-primary-600 mt-2">
                       {reward.pointsRequired.toLocaleString()} poin
                     </p>
                   </div>
@@ -275,7 +275,7 @@ function RewardCatalog({
                 <button
                   onClick={() => onSelectReward(reward)}
                   disabled={!canAfford}
-                  className="mt-3 w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-blue-600 text-white hover:bg-blue-700"
+                  className="mt-3 w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 text-white hover:bg-primary-700"
                 >
                   {canAfford ? 'Tukar' : 'Poin tidak cukup'}
                 </button>
@@ -367,7 +367,7 @@ function RedemptionModal({
             <h3 className="text-lg font-semibold text-gray-900">Tukar Reward</h3>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm font-medium text-gray-900">{reward.name}</p>
-              <p className="text-sm text-blue-600">{reward.pointsRequired.toLocaleString()} poin</p>
+              <p className="text-sm text-primary-600">{reward.pointsRequired.toLocaleString()} poin</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -383,14 +383,14 @@ function RedemptionModal({
                 value={destinationNumber}
                 onChange={(e) => setDestinationNumber(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="08xxxxxxxxxx"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               onClick={handleInitiate}
               disabled={loading}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
             >
               {loading ? 'Memproses...' : 'Lanjutkan'}
             </button>
@@ -410,13 +410,13 @@ function RedemptionModal({
               onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
               placeholder="000000"
               maxLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               onClick={handleConfirm}
               disabled={loading || otp.length !== 6}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
             >
               {loading ? 'Memverifikasi...' : 'Konfirmasi'}
             </button>
@@ -442,7 +442,7 @@ function RedemptionModal({
                 onSuccess(remainingBalance);
                 onClose();
               }}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
             >
               Selesai
             </button>

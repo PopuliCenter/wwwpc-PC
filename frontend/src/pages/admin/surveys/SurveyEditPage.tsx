@@ -19,34 +19,75 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/services/api';
 
-// Types
+// ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
 type QuestionType =
   | 'single_choice'
   | 'multiple_choice'
-  | 'text_short'
-  | 'text_long'
-  | 'rating_scale'
-  | 'likert'
+  | 'short_text'
+  | 'long_text'
+  | 'phone_number'
+  | 'numeric_scale'
   | 'dropdown'
+  | 'matrix_likert'
+  | 'file_upload'
+  | 'date_time'
   | 'date'
-  | 'number'
-  | 'file_upload';
+  | 'rating_scale'
+  | 'unique_id'
+  | 'indonesia_region';
 
 interface QuestionOption {
   id: string;
-  text: string;
+  label: string;
+  value: string;
   order: number;
 }
 
-interface SkipLogic {
-  condition: string;
-  targetQuestionId: string;
+type ConditionOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+
+interface SkipLogicRule {
+  sourceQuestionId: string;
+  operator: ConditionOperator;
+  conditionValue: string;
+  action: 'skip' | 'jump_to';
+  targetQuestionId?: string;
 }
 
 interface VisibilityRule {
-  dependsOnQuestionId: string;
-  condition: string;
-  value: string;
+  sourceQuestionId: string;
+  operator: ConditionOperator;
+  conditionValue: string;
+  visibilityAction: 'show' | 'hide';
+}
+
+interface ValidationRules {
+  // Teks
+  minLength?: number;
+  maxLength?: number;
+  emailFormat?: boolean;
+  phoneFormat?: boolean;
+  regex?: string;
+  // Numeric
+  numericRange?: { min?: number; max?: number };
+  // Pilihan
+  maxCheckbox?: number;
+  minCheckbox?: number;
+  // Matrix
+  matrixRows?: string[];
+  matrixColumns?: string[];
+  // Rating Scale
+  ratingMax?: number;
+  ratingDisplayMode?: 'star' | 'number';
+  ratingMinLabel?: string;
+  ratingMaxLabel?: string;
+  // Wilayah
+  regionDepth?: 'province' | 'regency' | 'district' | 'village';
+  lockedProvince?: { id: string; name: string } | null;
+  lockedRegency?: { id: string; name: string } | null;
+  // Misc
+  description?: string;
+  scaleMin?: number;
+  scaleMax?: number;
 }
 
 interface Question {
@@ -55,10 +96,11 @@ interface Question {
   text: string;
   required: boolean;
   order: number;
+  hasOtherOption?: boolean;
   options?: QuestionOption[];
-  skipLogic?: SkipLogic;
-  visibilityRule?: VisibilityRule;
-  config?: Record<string, unknown>;
+  skipLogicRules?: SkipLogicRule[];
+  visibilityRules?: VisibilityRule[];
+  validationRules?: ValidationRules;
 }
 
 interface SurveyDetail {
@@ -68,241 +110,869 @@ interface SurveyDetail {
   questions: Question[];
 }
 
+// ─── Metadata tipe pertanyaan ─────────────────────────────────────────────────
 const questionTypeLabels: Record<QuestionType, string> = {
   single_choice: 'Pilihan Tunggal',
   multiple_choice: 'Pilihan Ganda',
-  text_short: 'Teks Pendek',
-  text_long: 'Teks Panjang',
-  rating_scale: 'Skala Rating',
-  likert: 'Likert',
+  short_text: 'Teks Pendek',
+  long_text: 'Teks Panjang',
+  phone_number: 'No. Telepon',
+  numeric_scale: 'Skala Numerik',
   dropdown: 'Dropdown',
-  date: 'Tanggal',
-  number: 'Angka',
+  matrix_likert: 'Matriks / Likert',
   file_upload: 'Upload File',
+  date_time: 'Tanggal & Waktu',
+  date: 'Tanggal',
+  rating_scale: 'Skala Rating ⭐',
+  unique_id: 'ID Unik',
+  indonesia_region: 'Wilayah Indonesia 🗺️',
 };
 
 const questionTypeIcons: Record<QuestionType, string> = {
   single_choice: '⭕',
   multiple_choice: '☑️',
-  text_short: '📝',
-  text_long: '📄',
-  rating_scale: '⭐',
-  likert: '📊',
+  short_text: '📝',
+  long_text: '📄',
+  phone_number: '📱',
+  numeric_scale: '🔢',
   dropdown: '📋',
-  date: '📅',
-  number: '🔢',
+  matrix_likert: '📊',
   file_upload: '📎',
+  date_time: '🕐',
+  date: '📅',
+  rating_scale: '⭐',
+  unique_id: '🔖',
+  indonesia_region: '🗺️',
 };
 
-// Sortable Question Card
-function SortableQuestionCard({
+const operatorLabels: Record<ConditionOperator, string> = {
+  equals: 'sama dengan (=)',
+  not_equals: 'tidak sama dengan (≠)',
+  contains: 'mengandung kata',
+  greater_than: 'lebih besar dari (>)',
+  less_than: 'lebih kecil dari (<)',
+};
+
+// ─── Komponen konfigurasi per tipe ───────────────────────────────────────────
+
+function ChoiceConfig({
   question,
   onEdit,
-  onDelete,
-  allQuestions,
 }: {
   question: Question;
   onEdit: (q: Question) => void;
+}) {
+  const options = question.options ?? [];
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-xs font-medium text-gray-600">Opsi Jawaban</label>
+      {options.map((opt, idx) => (
+        <div key={opt.id} className="flex items-center gap-2">
+          <span className="text-gray-400 text-xs w-5">{idx + 1}.</span>
+          <input
+            type="text"
+            value={opt.label}
+            onChange={(e) => {
+              const next = [...options];
+              next[idx] = { ...opt, label: e.target.value, value: e.target.value.toLowerCase().replace(/\s+/g, '_') };
+              onEdit({ ...question, options: next });
+            }}
+            className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            placeholder={`Opsi ${idx + 1}`}
+          />
+          <button
+            onClick={() => onEdit({ ...question, options: options.filter((_, i) => i !== idx) })}
+            className="text-red-400 hover:text-red-600 text-sm px-1"
+            title="Hapus opsi"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => {
+          const newOpt: QuestionOption = {
+            id: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            label: '',
+            value: `option_${options.length + 1}`,
+            order: options.length,
+          };
+          onEdit({ ...question, options: [...options, newOpt] });
+        }}
+        className="text-primary-600 text-sm hover:text-primary-800 mt-1 flex items-center gap-1"
+      >
+        + Tambah Opsi
+      </button>
+      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+        <input
+          type="checkbox"
+          id={`other-${question.id}`}
+          checked={question.hasOtherOption ?? false}
+          onChange={(e) => onEdit({ ...question, hasOtherOption: e.target.checked })}
+          className="rounded border-gray-300"
+        />
+        <label htmlFor={`other-${question.id}`} className="text-xs text-gray-600">
+          Tambah opsi "Lainnya" (teks bebas)
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function MatrixConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const rules = question.validationRules ?? {};
+  const rows: string[] = rules.matrixRows ?? [''];
+  const cols: string[] = rules.matrixColumns ?? [''];
+
+  const updateRows = (next: string[]) =>
+    onEdit({ ...question, validationRules: { ...rules, matrixRows: next } });
+  const updateCols = (next: string[]) =>
+    onEdit({ ...question, validationRules: { ...rules, matrixColumns: next } });
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Baris</label>
+        {rows.map((row, i) => (
+          <div key={i} className="flex gap-1 mb-1">
+            <input
+              value={row}
+              onChange={(e) => { const n = [...rows]; n[i] = e.target.value; updateRows(n); }}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+              placeholder={`Baris ${i + 1}`}
+            />
+            <button onClick={() => updateRows(rows.filter((_, j) => j !== i))} className="text-red-400 text-xs">✕</button>
+          </div>
+        ))}
+        <button onClick={() => updateRows([...rows, ''])} className="text-primary-600 text-xs">+ Baris</button>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Kolom</label>
+        {cols.map((col, i) => (
+          <div key={i} className="flex gap-1 mb-1">
+            <input
+              value={col}
+              onChange={(e) => { const n = [...cols]; n[i] = e.target.value; updateCols(n); }}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs"
+              placeholder={`Kolom ${i + 1}`}
+            />
+            <button onClick={() => updateCols(cols.filter((_, j) => j !== i))} className="text-red-400 text-xs">✕</button>
+          </div>
+        ))}
+        <button onClick={() => updateCols([...cols, ''])} className="text-primary-600 text-xs">+ Kolom</button>
+      </div>
+    </div>
+  );
+}
+
+function RatingConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const rules = question.validationRules ?? {};
+  const set = (patch: Partial<ValidationRules>) =>
+    onEdit({ ...question, validationRules: { ...rules, ...patch } });
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Nilai Maks</label>
+          <select
+            value={rules.ratingMax ?? 5}
+            onChange={(e) => set({ ratingMax: Number(e.target.value) })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          >
+            {[3, 4, 5, 7, 10].map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Tampilan</label>
+          <select
+            value={rules.ratingDisplayMode ?? 'star'}
+            onChange={(e) => set({ ratingDisplayMode: e.target.value as 'star' | 'number' })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          >
+            <option value="star">⭐ Bintang</option>
+            <option value="number">🔢 Angka</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Label kiri (nilai rendah)</label>
+          <input
+            type="text"
+            value={rules.ratingMinLabel ?? ''}
+            onChange={(e) => set({ ratingMinLabel: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+            placeholder="Sangat Tidak Puas"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">Label kanan (nilai tinggi)</label>
+          <input
+            type="text"
+            value={rules.ratingMaxLabel ?? ''}
+            onChange={(e) => set({ ratingMaxLabel: e.target.value })}
+            className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+            placeholder="Sangat Puas"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegionConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const rules = question.validationRules ?? {};
+  const set = (patch: Partial<ValidationRules>) =>
+    onEdit({ ...question, validationRules: { ...rules, ...patch } });
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Kedalaman wilayah</label>
+        <select
+          value={rules.regionDepth ?? 'village'}
+          onChange={(e) => set({ regionDepth: e.target.value as ValidationRules['regionDepth'] })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+        >
+          <option value="province">Provinsi</option>
+          <option value="regency">Kabupaten/Kota</option>
+          <option value="district">Kecamatan</option>
+          <option value="village">Kelurahan/Desa</option>
+        </select>
+        <p className="text-xs text-gray-400 mt-1">Responden wajib memilih hingga level ini.</p>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">
+          Kunci Provinsi (opsional)
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="text"
+            value={rules.lockedProvince?.id ?? ''}
+            onChange={(e) =>
+              set({ lockedProvince: e.target.value ? { id: e.target.value, name: rules.lockedProvince?.name ?? '' } : null })
+            }
+            className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+            placeholder="ID provinsi"
+          />
+          <input
+            type="text"
+            value={rules.lockedProvince?.name ?? ''}
+            onChange={(e) =>
+              set({ lockedProvince: e.target.value ? { id: rules.lockedProvince?.id ?? '', name: e.target.value } : null })
+            }
+            className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+            placeholder="Nama provinsi"
+          />
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Isi ID & nama untuk mengunci provinsi. Contoh: ID=32, Nama=JAWA BARAT
+        </p>
+      </div>
+      {rules.lockedProvince && (
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Kunci Kabupaten/Kota (opsional)
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={rules.lockedRegency?.id ?? ''}
+              onChange={(e) =>
+                set({ lockedRegency: e.target.value ? { id: e.target.value, name: rules.lockedRegency?.name ?? '' } : null })
+              }
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+              placeholder="ID kab/kota"
+            />
+            <input
+              type="text"
+              value={rules.lockedRegency?.name ?? ''}
+              onChange={(e) =>
+                set({ lockedRegency: e.target.value ? { id: rules.lockedRegency?.id ?? '', name: e.target.value } : null })
+              }
+              className="px-2 py-1.5 border border-gray-300 rounded text-sm"
+              placeholder="Nama kab/kota"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NumericConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const rules = question.validationRules ?? {};
+  const set = (patch: Partial<ValidationRules>) =>
+    onEdit({ ...question, validationRules: { ...rules, ...patch } });
+  const range = rules.numericRange ?? {};
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Nilai Min</label>
+        <input
+          type="number"
+          value={range.min ?? ''}
+          onChange={(e) => set({ numericRange: { ...range, min: Number(e.target.value) } })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          placeholder="0"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Nilai Maks</label>
+        <input
+          type="number"
+          value={range.max ?? ''}
+          onChange={(e) => set({ numericRange: { ...range, max: Number(e.target.value) } })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          placeholder="100"
+        />
+      </div>
+    </div>
+  );
+}
+
+function UniqueIdConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const rules = question.validationRules ?? {};
+  const set = (patch: Partial<ValidationRules>) =>
+    onEdit({ ...question, validationRules: { ...rules, ...patch } });
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Min Digit</label>
+        <input
+          type="number"
+          value={rules.minLength ?? ''}
+          onChange={(e) => set({ minLength: e.target.value ? Number(e.target.value) : undefined })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          placeholder="5"
+          min={1}
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1">Maks Digit</label>
+        <input
+          type="number"
+          value={rules.maxLength ?? ''}
+          onChange={(e) => set({ maxLength: e.target.value ? Number(e.target.value) : undefined })}
+          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+          placeholder="10"
+          min={1}
+        />
+      </div>
+      <div className="col-span-2 text-xs text-gray-400">
+        Hanya angka. Unik per survei (duplikat ditolak sisi server).
+      </div>
+    </div>
+  );
+}
+
+// ─── Skip Logic / Visibility Editor ──────────────────────────────────────────
+
+function LogicEditor({
+  question,
+  allQuestions,
+  onEdit,
+}: {
+  question: Question;
+  allQuestions: Question[];
+  onEdit: (q: Question) => void;
+}) {
+  const others = allQuestions.filter((q) => q.id !== question.id);
+  const skipRules = question.skipLogicRules ?? [];
+  const visRules = question.visibilityRules ?? [];
+
+  const setSkip = (rules: SkipLogicRule[]) => onEdit({ ...question, skipLogicRules: rules });
+  const setVis = (rules: VisibilityRule[]) => onEdit({ ...question, visibilityRules: rules });
+
+  const blankSkip = (): SkipLogicRule => ({
+    sourceQuestionId: '',
+    operator: 'equals',
+    conditionValue: '',
+    action: 'skip',
+  });
+
+  const blankVis = (): VisibilityRule => ({
+    sourceQuestionId: '',
+    operator: 'equals',
+    conditionValue: '',
+    visibilityAction: 'show',
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Skip Logic */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
+            Skip Logic
+          </h4>
+          <button
+            onClick={() => setSkip([...skipRules, blankSkip()])}
+            className="text-xs text-purple-600 hover:text-purple-800"
+          >
+            + Tambah Aturan
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mb-2">
+          Sembunyikan pertanyaan ini jika kondisi terpenuhi.
+        </p>
+        {skipRules.length === 0 && (
+          <p className="text-xs text-gray-400 italic">Tidak ada skip logic.</p>
+        )}
+        {skipRules.map((rule, idx) => (
+          <div key={idx} className="bg-purple-50 border border-purple-100 rounded p-2 mb-2 space-y-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Jika pertanyaan</label>
+                <select
+                  value={rule.sourceQuestionId}
+                  onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, sourceQuestionId: e.target.value }; setSkip(n); }}
+                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+                >
+                  <option value="">— pilih —</option>
+                  {others.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.text ? (q.text.length > 30 ? q.text.slice(0, 30) + '…' : q.text) : `Q${q.order + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Operator</label>
+                <select
+                  value={rule.operator}
+                  onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, operator: e.target.value as ConditionOperator }; setSkip(n); }}
+                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+                >
+                  {(Object.entries(operatorLabels) as [ConditionOperator, string][]).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
+                <input
+                  type="text"
+                  value={rule.conditionValue}
+                  onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, conditionValue: e.target.value }; setSkip(n); }}
+                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+                  placeholder="nilai..."
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Aksi:</span>
+                <select
+                  value={rule.action}
+                  onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, action: e.target.value as 'skip' | 'jump_to' }; setSkip(n); }}
+                  className="px-1.5 py-1 border border-purple-200 rounded text-xs"
+                >
+                  <option value="skip">Sembunyikan pertanyaan ini</option>
+                  <option value="jump_to">Lompat ke pertanyaan lain</option>
+                </select>
+                {rule.action === 'jump_to' && (
+                  <select
+                    value={rule.targetQuestionId ?? ''}
+                    onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, targetQuestionId: e.target.value }; setSkip(n); }}
+                    className="px-1.5 py-1 border border-purple-200 rounded text-xs"
+                  >
+                    <option value="">— tujuan —</option>
+                    {others.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.text ? q.text.slice(0, 25) : `Q${q.order + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <button
+                onClick={() => setSkip(skipRules.filter((_, i) => i !== idx))}
+                className="text-red-400 hover:text-red-600 text-xs"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Visibility Rules */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+            Visibilitas
+          </h4>
+          <button
+            onClick={() => setVis([...visRules, blankVis()])}
+            className="text-xs text-blue-600 hover:text-blue-800"
+          >
+            + Tambah Kondisi
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mb-2">
+          Tampilkan/sembunyikan pertanyaan ini berdasarkan jawaban pertanyaan lain.
+        </p>
+        {visRules.length === 0 && (
+          <p className="text-xs text-gray-400 italic">Selalu tampil.</p>
+        )}
+        {visRules.map((rule, idx) => (
+          <div key={idx} className="bg-blue-50 border border-blue-100 rounded p-2 mb-2 space-y-2">
+            <div className="grid grid-cols-3 gap-1.5">
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Jika pertanyaan</label>
+                <select
+                  value={rule.sourceQuestionId}
+                  onChange={(e) => { const n = [...visRules]; n[idx] = { ...rule, sourceQuestionId: e.target.value }; setVis(n); }}
+                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
+                >
+                  <option value="">— pilih —</option>
+                  {others.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.text ? (q.text.length > 30 ? q.text.slice(0, 30) + '…' : q.text) : `Q${q.order + 1}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Operator</label>
+                <select
+                  value={rule.operator}
+                  onChange={(e) => { const n = [...visRules]; n[idx] = { ...rule, operator: e.target.value as ConditionOperator }; setVis(n); }}
+                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
+                >
+                  {(Object.entries(operatorLabels) as [ConditionOperator, string][]).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
+                <input
+                  type="text"
+                  value={rule.conditionValue}
+                  onChange={(e) => { const n = [...visRules]; n[idx] = { ...rule, conditionValue: e.target.value }; setVis(n); }}
+                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
+                  placeholder="nilai..."
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Maka:</span>
+                <select
+                  value={rule.visibilityAction}
+                  onChange={(e) => { const n = [...visRules]; n[idx] = { ...rule, visibilityAction: e.target.value as 'show' | 'hide' }; setVis(n); }}
+                  className="px-1.5 py-1 border border-blue-200 rounded text-xs"
+                >
+                  <option value="show">Tampilkan pertanyaan ini</option>
+                  <option value="hide">Sembunyikan pertanyaan ini</option>
+                </select>
+              </div>
+              <button
+                onClick={() => setVis(visRules.filter((_, i) => i !== idx))}
+                className="text-red-400 hover:text-red-600 text-xs"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Sortable Question Card ───────────────────────────────────────────────────
+
+function SortableQuestionCard({
+  question,
+  index,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  allQuestions,
+}: {
+  question: Question;
+  index: number;
+  onEdit: (q: Question) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (q: Question) => void;
   allQuestions: Question[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: question.id,
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
+  const style = { transform: CSS.Transform.toString(transform), transition };
   const [expanded, setExpanded] = useState(false);
-  const [editingLogic, setEditingLogic] = useState(false);
+  const [tab, setTab] = useState<'edit' | 'logic' | 'validation'>('edit');
+
+  const hasLogic =
+    (question.skipLogicRules?.length ?? 0) > 0 ||
+    (question.visibilityRules?.length ?? 0) > 0;
 
   return (
-    <div ref={setNodeRef} style={style} className="bg-white border border-gray-200 rounded-lg p-4 mb-3">
-      <div className="flex items-center gap-3">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-white border rounded-lg mb-3 transition-shadow ${expanded ? 'border-primary-300 shadow-md' : 'border-gray-200'}`}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600"
-          title="Drag to reorder"
+          className="cursor-grab text-gray-300 hover:text-gray-500 text-lg leading-none"
+          title="Geser untuk mengurutkan"
         >
           ⠿
         </button>
-        <span className="text-lg">{questionTypeIcons[question.type]}</span>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-900">{question.text || 'Pertanyaan baru'}</span>
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+          {index + 1}
+        </span>
+        <span className="text-base">{questionTypeIcons[question.type]}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {question.text || <span className="text-gray-400 italic">Pertanyaan baru</span>}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-xs text-gray-400">{questionTypeLabels[question.type]}</span>
             {question.required && (
-              <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Wajib</span>
+              <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Wajib</span>
+            )}
+            {hasLogic && (
+              <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Logic</span>
             )}
           </div>
-          <span className="text-xs text-gray-500">{questionTypeLabels[question.type]}</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1">
           <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-blue-600 hover:text-blue-800 text-sm"
+            onClick={() => { setExpanded(!expanded); if (!expanded) setTab('edit'); }}
+            className={`px-3 py-1.5 text-xs rounded-md transition-colors ${expanded ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
             {expanded ? 'Tutup' : 'Edit'}
           </button>
           <button
-            onClick={() => setEditingLogic(!editingLogic)}
-            className="text-purple-600 hover:text-purple-800 text-sm"
+            onClick={() => onDuplicate(question)}
+            className="px-2 py-1.5 text-xs bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200"
+            title="Duplikat"
           >
-            Logic
+            ⧉
           </button>
           <button
             onClick={() => onDelete(question.id)}
-            className="text-red-600 hover:text-red-800 text-sm"
+            className="px-2 py-1.5 text-xs bg-red-50 text-red-500 rounded-md hover:bg-red-100"
+            title="Hapus"
           >
-            Hapus
+            ✕
           </button>
         </div>
       </div>
 
+      {/* Expanded panel */}
       {expanded && (
-        <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Teks Pertanyaan</label>
-            <input
-              type="text"
-              value={question.text}
-              onChange={(e) => onEdit({ ...question, text: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+        <div className="border-t border-gray-100">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100 px-4">
+            {(['edit', 'logic', 'validation'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
+                  tab === t
+                    ? 'border-primary-500 text-primary-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {t === 'edit' ? '✏️ Edit' : t === 'logic' ? '🔀 Logic' : '✅ Validasi'}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id={`required-${question.id}`}
-              checked={question.required}
-              onChange={(e) => onEdit({ ...question, required: e.target.checked })}
-              className="rounded border-gray-300"
-            />
-            <label htmlFor={`required-${question.id}`} className="text-sm text-gray-700">
-              Wajib diisi
-            </label>
-          </div>
-          {(question.type === 'single_choice' ||
-            question.type === 'multiple_choice' ||
-            question.type === 'dropdown') && (
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Opsi Jawaban</label>
-              {(question.options ?? []).map((opt, idx) => (
-                <div key={opt.id} className="flex items-center gap-2 mb-1">
+
+          <div className="p-4 space-y-4">
+            {tab === 'edit' && (
+              <>
+                {/* Teks pertanyaan */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Teks Pertanyaan</label>
                   <input
                     type="text"
-                    value={opt.text}
-                    onChange={(e) => {
-                      const newOptions = [...(question.options ?? [])];
-                      newOptions[idx] = { ...opt, text: e.target.value };
-                      onEdit({ ...question, options: newOptions });
-                    }}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                    placeholder={`Opsi ${idx + 1}`}
+                    value={question.text}
+                    onChange={(e) => onEdit({ ...question, text: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Tulis pertanyaan di sini..."
                   />
-                  <button
-                    onClick={() => {
-                      const newOptions = (question.options ?? []).filter((_, i) => i !== idx);
-                      onEdit({ ...question, options: newOptions });
-                    }}
-                    className="text-red-500 text-sm"
-                  >
-                    ✕
-                  </button>
                 </div>
-              ))}
-              <button
-                onClick={() => {
-                  const newOpt: QuestionOption = {
-                    id: `opt-${Date.now()}`,
-                    text: '',
-                    order: (question.options ?? []).length,
-                  };
-                  onEdit({ ...question, options: [...(question.options ?? []), newOpt] });
-                }}
-                className="text-blue-600 text-sm hover:text-blue-800 mt-1"
-              >
-                + Tambah Opsi
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
-      {editingLogic && (
-        <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-          <h4 className="text-sm font-medium text-purple-700">Skip Logic & Visibility</h4>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Skip ke pertanyaan</label>
-            <select
-              value={question.skipLogic?.targetQuestionId ?? ''}
-              onChange={(e) =>
-                onEdit({
-                  ...question,
-                  skipLogic: e.target.value
-                    ? { condition: 'answered', targetQuestionId: e.target.value }
-                    : undefined,
-                })
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Tidak ada skip</option>
-              {allQuestions
-                .filter((q) => q.id !== question.id)
-                .map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.text || `Pertanyaan ${q.order + 1}`}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Tampilkan jika pertanyaan lain dijawab
-            </label>
-            <select
-              value={question.visibilityRule?.dependsOnQuestionId ?? ''}
-              onChange={(e) =>
-                onEdit({
-                  ...question,
-                  visibilityRule: e.target.value
-                    ? {
-                        dependsOnQuestionId: e.target.value,
-                        condition: 'equals',
-                        value: question.visibilityRule?.value ?? '',
-                      }
-                    : undefined,
-                })
-              }
-              className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Selalu tampil</option>
-              {allQuestions
-                .filter((q) => q.id !== question.id)
-                .map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.text || `Pertanyaan ${q.order + 1}`}
-                  </option>
-                ))}
-            </select>
-            {question.visibilityRule && (
-              <input
-                type="text"
-                value={question.visibilityRule.value}
-                onChange={(e) =>
-                  onEdit({
-                    ...question,
-                    visibilityRule: {
-                      ...question.visibilityRule!,
-                      value: e.target.value,
-                    },
-                  })
-                }
-                className="w-full mt-1 px-2 py-1 border border-gray-300 rounded text-sm"
-                placeholder="Nilai yang harus cocok"
-              />
+                {/* Deskripsi */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Deskripsi (opsional)</label>
+                  <input
+                    type="text"
+                    value={question.validationRules?.description ?? ''}
+                    onChange={(e) =>
+                      onEdit({ ...question, validationRules: { ...question.validationRules, description: e.target.value } })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    placeholder="Penjelasan tambahan untuk responden..."
+                  />
+                </div>
+
+                {/* Wajib */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={question.required}
+                    onChange={(e) => onEdit({ ...question, required: e.target.checked })}
+                    className="rounded border-gray-300 accent-primary-600"
+                  />
+                  <span className="text-sm text-gray-700">Wajib diisi</span>
+                </label>
+
+                {/* Konfigurasi per tipe */}
+                {(question.type === 'single_choice' || question.type === 'multiple_choice' || question.type === 'dropdown') && (
+                  <ChoiceConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'matrix_likert' && (
+                  <MatrixConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'rating_scale' && (
+                  <RatingConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'indonesia_region' && (
+                  <RegionConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'numeric_scale' && (
+                  <NumericConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'unique_id' && (
+                  <UniqueIdConfig question={question} onEdit={onEdit} />
+                )}
+              </>
+            )}
+
+            {tab === 'logic' && (
+              <LogicEditor question={question} allQuestions={allQuestions} onEdit={onEdit} />
+            )}
+
+            {tab === 'validation' && (
+              <div className="space-y-3">
+                {(question.type === 'short_text' || question.type === 'long_text') && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Min Karakter</label>
+                        <input
+                          type="number"
+                          value={question.validationRules?.minLength ?? ''}
+                          onChange={(e) =>
+                            onEdit({ ...question, validationRules: { ...question.validationRules, minLength: e.target.value ? Number(e.target.value) : undefined } })
+                          }
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                          min={0}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Maks Karakter</label>
+                        <input
+                          type="number"
+                          value={question.validationRules?.maxLength ?? ''}
+                          onChange={(e) =>
+                            onEdit({ ...question, validationRules: { ...question.validationRules, maxLength: e.target.value ? Number(e.target.value) : undefined } })
+                          }
+                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                          min={1}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={question.validationRules?.emailFormat ?? false}
+                          onChange={(e) => onEdit({ ...question, validationRules: { ...question.validationRules, emailFormat: e.target.checked } })}
+                          className="rounded"
+                        />
+                        Validasi format email
+                      </label>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Pola Regex (opsional)</label>
+                      <input
+                        type="text"
+                        value={question.validationRules?.regex ?? ''}
+                        onChange={(e) => onEdit({ ...question, validationRules: { ...question.validationRules, regex: e.target.value } })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm font-mono"
+                        placeholder="^\d{5}$"
+                      />
+                    </div>
+                  </>
+                )}
+                {question.type === 'multiple_choice' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Min Pilihan</label>
+                      <input
+                        type="number"
+                        value={question.validationRules?.minCheckbox ?? ''}
+                        onChange={(e) => onEdit({ ...question, validationRules: { ...question.validationRules, minCheckbox: e.target.value ? Number(e.target.value) : undefined } })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        min={1}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Maks Pilihan</label>
+                      <input
+                        type="number"
+                        value={question.validationRules?.maxCheckbox ?? ''}
+                        onChange={(e) => onEdit({ ...question, validationRules: { ...question.validationRules, maxCheckbox: e.target.value ? Number(e.target.value) : undefined } })}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                        min={1}
+                      />
+                    </div>
+                  </div>
+                )}
+                {!['short_text', 'long_text', 'multiple_choice'].includes(question.type) && (
+                  <p className="text-xs text-gray-400 italic">Tidak ada opsi validasi tambahan untuk tipe ini.</p>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -310,6 +980,8 @@ function SortableQuestionCard({
     </div>
   );
 }
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SurveyEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -319,10 +991,11 @@ export function SurveyEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   useEffect(() => {
@@ -347,28 +1020,44 @@ export function SurveyEditPage() {
       setQuestions((items) => {
         const oldIndex = items.findIndex((i) => i.id === active.id);
         const newIndex = items.findIndex((i) => i.id === over.id);
-        const reordered = arrayMove(items, oldIndex, newIndex);
-        return reordered.map((q, idx) => ({ ...q, order: idx }));
+        return arrayMove(items, oldIndex, newIndex).map((q, idx) => ({ ...q, order: idx }));
       });
     }
   };
 
   const addQuestion = (type: QuestionType) => {
-    const newQuestion: Question = {
+    const defaults: Partial<Question> = {};
+    if (type === 'single_choice' || type === 'multiple_choice' || type === 'dropdown') {
+      defaults.options = [
+        { id: `opt-${Date.now()}-1`, label: 'Opsi 1', value: 'option_1', order: 0 },
+        { id: `opt-${Date.now()}-2`, label: 'Opsi 2', value: 'option_2', order: 1 },
+      ];
+    }
+    if (type === 'matrix_likert') {
+      defaults.validationRules = { matrixRows: ['Aspek 1'], matrixColumns: ['Sangat Setuju', 'Setuju', 'Tidak Setuju'] };
+    }
+    if (type === 'rating_scale') {
+      defaults.validationRules = { ratingMax: 5, ratingDisplayMode: 'star' };
+    }
+    if (type === 'numeric_scale') {
+      defaults.validationRules = { numericRange: { min: 1, max: 10 } };
+    }
+    if (type === 'indonesia_region') {
+      defaults.validationRules = { regionDepth: 'village' };
+    }
+    if (type === 'unique_id') {
+      defaults.validationRules = { minLength: 5, maxLength: 10 };
+    }
+
+    const newQ: Question = {
       id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type,
       text: '',
       required: false,
       order: questions.length,
-      options:
-        type === 'single_choice' || type === 'multiple_choice' || type === 'dropdown'
-          ? [
-              { id: `opt-${Date.now()}-1`, text: 'Opsi 1', order: 0 },
-              { id: `opt-${Date.now()}-2`, text: 'Opsi 2', order: 1 },
-            ]
-          : undefined,
+      ...defaults,
     };
-    setQuestions((prev) => [...prev, newQuestion]);
+    setQuestions((prev) => [...prev, newQ]);
     setShowTypeSelector(false);
   };
 
@@ -377,16 +1066,31 @@ export function SurveyEditPage() {
   }, []);
 
   const deleteQuestion = useCallback((qId: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== qId).map((q, idx) => ({ ...q, order: idx })));
+    setQuestions((prev) =>
+      prev.filter((q) => q.id !== qId).map((q, idx) => ({ ...q, order: idx })),
+    );
   }, []);
+
+  const duplicateQuestion = useCallback((q: Question) => {
+    const copy: Question = {
+      ...q,
+      id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      order: questions.length,
+      skipLogicRules: [],
+      visibilityRules: [],
+    };
+    setQuestions((prev) => [...prev, copy]);
+  }, [questions.length]);
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveMessage(null);
     try {
       await api.patch(`/surveys/${id}`, { questions });
-      alert('Survei berhasil disimpan');
+      setSaveMessage({ ok: true, text: 'Survei berhasil disimpan' });
+      setTimeout(() => setSaveMessage(null), 3000);
     } catch {
-      alert('Gagal menyimpan survei');
+      setSaveMessage({ ok: false, text: 'Gagal menyimpan survei' });
     } finally {
       setSaving(false);
     }
@@ -396,36 +1100,49 @@ export function SurveyEditPage() {
     return <div className="p-6 text-center text-gray-500">Memuat survei...</div>;
   }
 
+  // Kelompokkan tipe pertanyaan dalam kategori untuk selector
+  const typeGroups: { label: string; types: QuestionType[] }[] = [
+    { label: 'Pilihan', types: ['single_choice', 'multiple_choice', 'dropdown'] },
+    { label: 'Teks', types: ['short_text', 'long_text'] },
+    { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
+    { label: 'Waktu', types: ['date', 'date_time'] },
+    { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
+    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload'] },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/admin/surveys')}
-            className="text-gray-600 hover:text-gray-900"
-          >
+          <button onClick={() => navigate('/admin/surveys')} className="text-gray-600 hover:text-gray-900 text-sm">
             ← Kembali
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Edit: {survey?.title}</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {saveMessage && (
+            <span className={`text-sm ${saveMessage.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+              {saveMessage.ok ? '✓' : '✗'} {saveMessage.text}
+            </span>
+          )}
           <button
             onClick={() => navigate(`/admin/surveys/${id}/preview`)}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
           >
             👁️ Preview
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm transition-colors"
           >
             {saving ? 'Menyimpan...' : '💾 Simpan'}
           </button>
         </div>
       </div>
 
-      {/* Question Builder */}
+      {/* Builder */}
       <div className="bg-gray-50 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Pertanyaan ({questions.length})
@@ -433,12 +1150,14 @@ export function SurveyEditPage() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
-            {questions.map((question) => (
+            {questions.map((question, idx) => (
               <SortableQuestionCard
                 key={question.id}
                 question={question}
+                index={idx}
                 onEdit={editQuestion}
                 onDelete={deleteQuestion}
+                onDuplicate={duplicateQuestion}
                 allQuestions={questions}
               />
             ))}
@@ -446,39 +1165,48 @@ export function SurveyEditPage() {
         </DndContext>
 
         {questions.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            Belum ada pertanyaan. Klik tombol di bawah untuk menambahkan.
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-4xl mb-3">📋</p>
+            <p className="text-sm">Belum ada pertanyaan. Klik tombol di bawah untuk menambahkan.</p>
           </div>
         )}
 
-        {/* Add Question Button */}
+        {/* Tombol tambah pertanyaan */}
         <div className="mt-4">
           {showTypeSelector ? (
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Pilih Tipe Pertanyaan</h3>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {(Object.keys(questionTypeLabels) as QuestionType[]).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => addQuestion(type)}
-                    className="flex flex-col items-center gap-1 p-3 border border-gray-200 rounded-md hover:bg-blue-50 hover:border-blue-300 transition-colors"
-                  >
-                    <span className="text-xl">{questionTypeIcons[type]}</span>
-                    <span className="text-xs text-gray-700 text-center">{questionTypeLabels[type]}</span>
-                  </button>
+            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-800">Pilih Tipe Pertanyaan</h3>
+                <button onClick={() => setShowTypeSelector(false)} className="text-gray-400 hover:text-gray-600 text-sm">
+                  ✕ Batal
+                </button>
+              </div>
+              <div className="space-y-4">
+                {typeGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{group.label}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {group.types.map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => addQuestion(type)}
+                          className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-colors group"
+                        >
+                          <span className="text-lg">{questionTypeIcons[type]}</span>
+                          <span className="text-xs text-gray-700 group-hover:text-primary-700 leading-tight">
+                            {questionTypeLabels[type]}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-              <button
-                onClick={() => setShowTypeSelector(false)}
-                className="mt-3 text-sm text-gray-500 hover:text-gray-700"
-              >
-                Batal
-              </button>
             </div>
           ) : (
             <button
               onClick={() => setShowTypeSelector(true)}
-              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors"
+              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors text-sm"
             >
               + Tambah Pertanyaan
             </button>
