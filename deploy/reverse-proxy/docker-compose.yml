@@ -24,6 +24,8 @@
 # Catatan DNS: arahkan A record survei.domainmu.id → IP VPS sebelum minta SSL.
 # =============================================================================
 
+name: reverse-proxy
+
 services:
   npm:
     image: jc21/nginx-proxy-manager:latest

@@ -1,3 +1,7 @@
+> ⚠️ ARSIP / TIDAK DIPAKAI. Ini runbook Opsi C (Nginx Proxy Manager) yang
+> memindahkan risetcenter.com ke belakang NPM. Kita memilih **Opsi B** —
+> lihat **`DEPLOY-OPSI-B.md`**. Dokumen ini disimpan sebagai referensi saja.
+
 # Runbook Deploy — Survei di VPS bersama `survey-populicenter`
 
 Target: menjalankan aplikasi survei baru di **`https://survei.populicenter.org`**
@@ -83,14 +87,15 @@ networks:
 Terapkan:
 
 ```bash
-cd /path/ke/survey-populicenter
+cd /var/www/survey-populicenter
 docker compose up -d        # nginx lama kini lepas dari 80/443
 ```
 
 ## Langkah 3 — Jalankan Nginx Proxy Manager
 
 ```bash
-cd /path/ke/aplikasi-survei-web-online/deploy/reverse-proxy
+cp /var/www/online-survei/deploy/reverse-proxy/docker-compose.yml /var/www/reverse-proxy/
+cd /var/www/reverse-proxy
 docker compose up -d
 ```
 
@@ -100,7 +105,7 @@ Login awal: `admin@example.com` / `changeme` → WAJIB ganti email & password.
 ## Langkah 4 — Jalankan app survei
 
 ```bash
-cd /path/ke/aplikasi-survei-web-online
+cd /var/www/online-survei
 
 # Pastikan .env & backend/.env sudah terisi (password + ALLOWED_ORIGINS=https://survei.populicenter.org)
 docker compose up -d
@@ -161,12 +166,12 @@ sudo ufw enable
 
 ```bash
 # Kembalikan app lama pegang 80/443
-cd /path/ke/survey-populicenter
+cd /var/www/survey-populicenter
 cp docker-compose.yml.bak docker-compose.yml
 docker compose up -d
 # Matikan NPM & survei
-cd /path/ke/aplikasi-survei-web-online/deploy/reverse-proxy && docker compose down
-cd .. && docker compose down
+cd /var/www/reverse-proxy && docker compose down
+cd /var/www/online-survei && docker compose down
 ```
 
 ## Catatan resource (KVM 2, 8 GB RAM)
