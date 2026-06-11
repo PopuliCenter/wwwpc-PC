@@ -10,8 +10,23 @@ interface AuditLogEntry {
   actionType: string;
   module: string;
   ipAddress: string;
-  details?: string;
+  details?: Record<string, unknown> | string | null;
   createdAt: string;
+}
+
+/** Render details (objek JSONB / string) jadi teks aman untuk React. */
+function formatDetails(details?: Record<string, unknown> | string | null): string {
+  if (!details) return '-';
+  if (typeof details === 'string') return details;
+  try {
+    const entries = Object.entries(details);
+    if (entries.length === 0) return '-';
+    return entries
+      .map(([k, v]) => `${k}: ${v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+      .join(', ');
+  } catch {
+    return '-';
+  }
 }
 
 interface AuditLogResponse {
@@ -329,8 +344,8 @@ export function AuditLogPage() {
                       <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
                         {log.ipAddress}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
-                        {log.details || '-'}
+                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={formatDetails(log.details)}>
+                        {formatDetails(log.details)}
                       </td>
                     </tr>
                   ))
