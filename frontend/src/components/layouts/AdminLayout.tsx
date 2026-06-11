@@ -59,9 +59,9 @@ export function AdminLayout() {
       <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900 text-white">
         <div className="flex items-center gap-3 px-5 py-5">
           <img
-            src="/populi-center.png"
+            src="/logo-populi-center.png"
             alt="Populi Center"
-            className="h-9 w-9 rounded-lg bg-white/90 object-contain p-1"
+            className="h-10 w-10 object-contain"
           />
           <div className="leading-tight">
             <h1 className="text-sm font-semibold text-white">Populi Center</h1>

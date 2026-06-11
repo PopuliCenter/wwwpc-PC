@@ -24,7 +24,7 @@ export function RespondentLayout() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
-                <img src="/populi-center.png" alt="Populi Center" className="h-8 w-8 rounded object-contain" />
+                <img src="/logo-populi-center.png" alt="Populi Center" className="h-9 w-9 object-contain" />
                 <span className="text-lg font-bold text-primary-600">Survei Online</span>
               </div>
               <nav className="flex gap-4">

@@ -38,9 +38,9 @@ export function AuthLayout() {
         />
         <div className="relative z-10 flex items-center gap-3 p-10">
           <img
-            src="/populi-center.png"
+            src="/logo-populi-center.png"
             alt="Populi Center"
-            className="h-11 w-11 rounded-lg bg-white/95 object-contain p-1.5"
+            className="h-14 w-14 object-contain"
           />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-white">Populi Center</p>
