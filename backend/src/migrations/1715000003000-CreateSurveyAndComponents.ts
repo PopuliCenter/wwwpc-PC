@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSurveyAndComponents1715000003 implements MigrationInterface {
+export class CreateSurveyAndComponents1715000003000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create enum types for survey module
     await queryRunner.query(`

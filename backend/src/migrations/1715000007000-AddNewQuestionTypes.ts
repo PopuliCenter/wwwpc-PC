@@ -10,8 +10,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Config tambahan disimpan di kolom validation_rules (JSONB) yang sudah ada —
  * tidak perlu perubahan skema tabel question.
  */
-export class AddNewQuestionTypes1715000007 implements MigrationInterface {
-  name = 'AddNewQuestionTypes1715000007';
+export class AddNewQuestionTypes1715000007000 implements MigrationInterface {
+  name = 'AddNewQuestionTypes1715000007000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'date'`);

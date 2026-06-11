@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateGeolocation1715000002 implements MigrationInterface {
+export class CreateGeolocation1715000002000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Enable pgcrypto extension for AES-256 encryption
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`);

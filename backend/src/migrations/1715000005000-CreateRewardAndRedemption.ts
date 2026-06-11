@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateRewardAndRedemption1715000005 implements MigrationInterface {
+export class CreateRewardAndRedemption1715000005000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create enum types for reward module
     await queryRunner.query(`

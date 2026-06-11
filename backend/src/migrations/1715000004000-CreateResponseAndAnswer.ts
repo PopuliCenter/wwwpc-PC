@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateResponseAndAnswer1715000004 implements MigrationInterface {
+export class CreateResponseAndAnswer1715000004000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create enum for response status
     await queryRunner.query(`

@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateAuditExportAndCleanup1715000006 implements MigrationInterface {
+export class CreateAuditExportAndCleanup1715000006000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Create enum types
     await queryRunner.query(`
