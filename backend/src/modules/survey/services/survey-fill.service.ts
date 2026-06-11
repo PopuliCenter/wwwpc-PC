@@ -147,7 +147,8 @@ export class SurveyFillService {
     const [pages, questions] = await Promise.all([
       this.pageRepository.find({ where: { surveyId }, order: { pageNumber: 'ASC' } }),
       this.questionRepository.find({
-        where: { surveyId },
+        // Pertanyaan nonaktif (enabled=false) tidak ditampilkan ke responden
+        where: { surveyId, enabled: true },
         order: { orderIndex: 'ASC' },
       }),
     ]);

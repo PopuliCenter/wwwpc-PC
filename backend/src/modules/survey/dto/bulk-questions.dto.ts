@@ -26,6 +26,7 @@ export class BulkQuestionDto {
 
   @IsOptional() @IsString() text?: string;
   @IsOptional() @IsBoolean() required?: boolean;
+  @IsOptional() @IsBoolean() enabled?: boolean;
   @IsOptional() @IsInt() order?: number;
   @IsOptional() @IsBoolean() hasOtherOption?: boolean;
 

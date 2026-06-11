@@ -43,7 +43,8 @@ export class AnswerValidationService {
     options: ValidateOptions,
   ): Promise<void> {
     const questions = await this.questionRepository.find({
-      where: { surveyId },
+      // Pertanyaan nonaktif diabaikan saat validasi (tidak ditampilkan ke responden)
+      where: { surveyId, enabled: true },
       relations: ['options'],
     });
     const byId = new Map(questions.map((q) => [q.id, q]));

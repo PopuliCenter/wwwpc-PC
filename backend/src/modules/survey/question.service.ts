@@ -117,6 +117,7 @@ export class QuestionService {
       type: QuestionType;
       text?: string;
       required?: boolean;
+      enabled?: boolean;
       order?: number;
       hasOtherOption?: boolean;
       options?: Array<{ label?: string; value?: string; orderIndex?: number }>;
@@ -154,6 +155,7 @@ export class QuestionService {
           type: q.type,
           questionText: q.text ?? '',
           required: q.required ?? false,
+          enabled: q.enabled ?? true,
           orderIndex: q.order ?? i,
           validationRules: q.validationRules ?? null,
           hasOtherOption: q.hasOtherOption ?? false,

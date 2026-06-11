@@ -44,6 +44,10 @@ export class Question {
   @Column({ type: 'boolean', default: false })
   required: boolean;
 
+  /** false = pertanyaan nonaktif (tak ditampilkan ke responden). Default true. */
+  @Column({ type: 'boolean', default: true })
+  enabled: boolean;
+
   @Column({ type: 'int', default: 0, name: 'order_index' })
   orderIndex: number;
 

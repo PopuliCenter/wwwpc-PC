@@ -95,6 +95,8 @@ interface Question {
   type: QuestionType;
   text: string;
   required: boolean;
+  /** true=tampil, false=nonaktif (tidak ditampilkan ke responden). Default true. */
+  enabled?: boolean;
   order: number;
   hasOtherOption?: boolean;
   options?: QuestionOption[];
@@ -116,6 +118,7 @@ interface BackendQuestion {
   type: QuestionType;
   questionText: string;
   required: boolean;
+  enabled?: boolean;
   orderIndex: number;
   validationRules: ValidationRules | null;
   hasOtherOption: boolean;
@@ -128,6 +131,7 @@ function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
     type: q.type,
     text: q.questionText ?? '',
     required: !!q.required,
+    enabled: q.enabled !== false,
     order: q.orderIndex ?? idx,
     hasOtherOption: !!q.hasOtherOption,
     validationRules: q.validationRules ?? undefined,
@@ -866,16 +870,46 @@ function SortableQuestionCard({
                   />
                 </div>
 
-                {/* Wajib */}
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={question.required}
-                    onChange={(e) => onEdit({ ...question, required: e.target.checked })}
-                    className="rounded border-gray-300 accent-primary-600"
-                  />
-                  <span className="text-sm text-gray-700">Wajib diisi</span>
-                </label>
+                {/* Status pertanyaan: Wajib / Opsional / Nonaktif */}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Status pertanyaan</label>
+                  <div className="inline-flex rounded-md border border-gray-300 p-0.5">
+                    {([
+                      { key: 'required', label: 'Wajib' },
+                      { key: 'optional', label: 'Opsional' },
+                      { key: 'disabled', label: 'Nonaktif' },
+                    ] as const).map((opt) => {
+                      const mode =
+                        question.enabled === false
+                          ? 'disabled'
+                          : question.required
+                            ? 'required'
+                            : 'optional';
+                      const active = mode === opt.key;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => {
+                            if (opt.key === 'required') onEdit({ ...question, required: true, enabled: true });
+                            else if (opt.key === 'optional') onEdit({ ...question, required: false, enabled: true });
+                            else onEdit({ ...question, enabled: false });
+                          }}
+                          className={`rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                            active ? 'bg-primary-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {question.enabled === false && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Pertanyaan ini tidak ditampilkan ke responden.
+                    </p>
+                  )}
+                </div>
 
                 {/* Konfigurasi per tipe */}
                 {(question.type === 'single_choice' || question.type === 'multiple_choice' || question.type === 'dropdown') && (
@@ -1069,6 +1103,7 @@ export function SurveyEditPage() {
       type,
       text: '',
       required: false,
+      enabled: true,
       order: questions.length,
       ...defaults,
     };
@@ -1104,6 +1139,7 @@ export function SurveyEditPage() {
         type: q.type,
         text: q.text ?? '',
         required: !!q.required,
+        enabled: q.enabled !== false,
         order: idx,
         hasOtherOption: !!q.hasOtherOption,
         options: (q.options ?? []).map((o, i) => ({
