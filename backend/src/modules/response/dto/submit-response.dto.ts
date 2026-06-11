@@ -21,4 +21,8 @@ export class SubmitResponseDto {
   @IsOptional()
   @IsString()
   destinationNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  rewardType?: string;
 }

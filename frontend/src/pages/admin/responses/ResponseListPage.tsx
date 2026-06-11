@@ -6,14 +6,17 @@ import { format } from 'date-fns';
 interface ResponseItem {
   id: string;
   respondentName: string;
+  respondentPhone?: string | null;
   surveyTitle: string;
   status: 'completed' | 'partial' | 'abandoned';
   submittedAt: string;
   deviceType: string;
   surveyId: string;
   rewardMode?: 'automatic' | 'manual';
+  rewardType?: string | null;
   rewardDistributed?: boolean;
-  destinationNumber?: string;
+  destinationNumber?: string | null;
+  duplicateFlag?: boolean;
 }
 
 interface SurveyOption {
@@ -29,6 +32,7 @@ interface FilterState {
   status: string;
   deviceType: string;
   surveyId: string;
+  search: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -91,6 +95,7 @@ function ManualRewardPanel({
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responden</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Survei</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jenis</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. Tujuan</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
             </tr>
@@ -108,6 +113,7 @@ function ManualRewardPanel({
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">{r.respondentName}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
+                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{r.rewardType ?? '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{r.destinationNumber ?? '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">
                   {format(new Date(r.submittedAt), 'dd/MM/yyyy HH:mm')}
@@ -147,6 +153,7 @@ export function ResponseListPage() {
     status: '',
     deviceType: '',
     surveyId: '',
+    search: '',
   });
 
   const fetchResponses = async () => {
@@ -159,6 +166,7 @@ export function ResponseListPage() {
       if (filters.status) params.set('status', filters.status);
       if (filters.deviceType) params.set('deviceType', filters.deviceType);
       if (filters.surveyId) params.set('surveyId', filters.surveyId);
+      if (filters.search) params.set('search', filters.search);
 
       const query = params.toString();
       const result = await api.get<ResponseItem[]>(`/responses${query ? `?${query}` : ''}`);
@@ -250,6 +258,16 @@ export function ResponseListPage() {
       {/* Filter Panel */}
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Filter</h3>
+        <div className="mb-3">
+          <input
+            type="text"
+            name="search"
+            value={filters.search}
+            onChange={handleFilterChange}
+            placeholder="Cari nama atau nomor HP responden..."
+            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
@@ -354,13 +372,29 @@ export function ResponseListPage() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Perangkat</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reward</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {responses.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{r.respondentName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <span>{r.respondentName}</span>
+                        {r.duplicateFlag && (
+                          <span
+                            className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                            title="Nomor tujuan sama dipakai lebih dari satu respons"
+                          >
+                            Duplikat
+                          </span>
+                        )}
+                      </div>
+                      {r.respondentPhone && (
+                        <span className="text-xs text-gray-400">{r.respondentPhone}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
                     <td className="px-4 py-3 text-sm">
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusColors[r.status]}`}>
@@ -371,6 +405,23 @@ export function ResponseListPage() {
                       {format(new Date(r.submittedAt), 'dd/MM/yyyy HH:mm')}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 capitalize">{r.deviceType}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      {r.rewardMode === 'manual' ? (
+                        r.destinationNumber ? (
+                          <div>
+                            <span className="capitalize">{r.rewardType ?? 'reward'}</span>
+                            <span className="block text-xs text-gray-400">{r.destinationNumber}</span>
+                            {r.rewardDistributed && (
+                              <span className="text-xs text-emerald-600">sudah ditop-up</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">belum diisi</span>
+                        )
+                      ) : (
+                        <span className="text-xs text-gray-400">otomatis</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-sm">
                       <button
                         onClick={() => navigate(`/admin/responses/${r.id}`)}

@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, In, Repository, SelectQueryBuilder } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SurveyResponse, ResponseStatus } from './entities/survey-response.entity';
 import { Answer } from './entities/answer.entity';
@@ -14,6 +14,7 @@ import { ManualRewardDistribution, ManualRewardStatus } from './entities/manual-
 import { SubmitResponseDto } from './dto/submit-response.dto';
 import { SaveProgressDto } from './dto/save-progress.dto';
 import { ResponseFilterDto } from './dto/response-filter.dto';
+import { AllResponsesFilterDto } from './dto/all-responses-filter.dto';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
@@ -31,6 +32,24 @@ import { PaginatedResponse } from '@shared/interfaces';
  * response created via save-progress).
  */
 const MIN_COMPLETION_SECONDS = Number(process.env.MIN_COMPLETION_SECONDS ?? 5);
+
+/** Item respons untuk panel admin lintas-survei. */
+export interface AdminResponseItem {
+  id: string;
+  surveyId: string;
+  surveyTitle: string;
+  respondentName: string;
+  respondentPhone: string | null;
+  status: 'completed' | 'partial' | 'abandoned';
+  submittedAt: string;
+  deviceType: string;
+  rewardMode: 'automatic' | 'manual';
+  rewardType: string | null;
+  destinationNumber: string | null;
+  rewardDistributed: boolean;
+  /** Dugaan duplikat: nomor tujuan sama dipakai >1 respons (indikasi fraud). */
+  duplicateFlag: boolean;
+}
 
 @Injectable()
 export class ResponseService {
@@ -111,6 +130,12 @@ export class ResponseService {
         existingResponse.status = ResponseStatus.COMPLETE;
         existingResponse.submittedAt = new Date();
         existingResponse.deviceType = dto.deviceType || existingResponse.deviceType;
+        if (dto.destinationNumber !== undefined) {
+          existingResponse.destinationNumber = dto.destinationNumber || null;
+        }
+        if (dto.rewardType !== undefined) {
+          existingResponse.rewardType = dto.rewardType || null;
+        }
         const saved = await manager.save(existingResponse);
 
         // Upsert answers within the same transaction
@@ -128,6 +153,8 @@ export class ResponseService {
             deviceType: dto.deviceType || null,
             startedAt: new Date(),
             submittedAt: new Date(),
+            destinationNumber: dto.destinationNumber || null,
+            rewardType: dto.rewardType || null,
           });
 
           const saved = await manager.save(response);
@@ -260,6 +287,108 @@ export class ResponseService {
       page: filters.page,
       pageSize: filters.pageSize,
     });
+  }
+
+  /**
+   * Daftar respons LINTAS-SURVEI untuk panel admin (dengan filter + pencarian
+   * + penanda dugaan duplikat nomor tujuan). Mengembalikan array siap-pakai.
+   */
+  async getAllResponses(filters: AllResponsesFilterDto): Promise<AdminResponseItem[]> {
+    const statusMap: Record<string, ResponseStatus> = {
+      completed: ResponseStatus.COMPLETE,
+      partial: ResponseStatus.IN_PROGRESS,
+      abandoned: ResponseStatus.ABANDONED,
+    };
+
+    const qb = this.responseRepository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.respondent', 'respondent')
+      .leftJoinAndSelect('r.survey', 'survey')
+      .leftJoin('user_profile', 'profile', 'profile.user_id = r.respondent_id');
+
+    if (filters.surveyId) {
+      qb.andWhere('r.survey_id = :surveyId', { surveyId: filters.surveyId });
+    }
+    if (filters.status && statusMap[filters.status]) {
+      qb.andWhere('r.status = :status', { status: statusMap[filters.status] });
+    }
+    if (filters.deviceType) {
+      qb.andWhere('r.device_type = :deviceType', { deviceType: filters.deviceType });
+    }
+    if (filters.startDate) {
+      qb.andWhere('r.started_at >= :startDate', { startDate: new Date(filters.startDate) });
+    }
+    if (filters.endDate) {
+      qb.andWhere('r.started_at <= :endDate', { endDate: new Date(filters.endDate) });
+    }
+    if (filters.region) {
+      qb.andWhere('(profile.city ILIKE :region OR profile.province ILIKE :region)', {
+        region: `%${filters.region}%`,
+      });
+    }
+    if (filters.search) {
+      qb.andWhere('(respondent.full_name ILIKE :search OR respondent.phone ILIKE :search)', {
+        search: `%${filters.search}%`,
+      });
+    }
+
+    qb.orderBy('r.started_at', 'DESC').take(500);
+
+    const rows = await qb.getMany();
+
+    // Hitung kemunculan nomor tujuan → penanda dugaan duplikat (fraud)
+    const destCounts = new Map<string, number>();
+    for (const r of rows) {
+      if (r.destinationNumber) {
+        destCounts.set(r.destinationNumber, (destCounts.get(r.destinationNumber) ?? 0) + 1);
+      }
+    }
+
+    const reverseStatus: Record<ResponseStatus, 'completed' | 'partial' | 'abandoned'> = {
+      [ResponseStatus.COMPLETE]: 'completed',
+      [ResponseStatus.IN_PROGRESS]: 'partial',
+      [ResponseStatus.ABANDONED]: 'abandoned',
+    };
+
+    return rows.map((r) => ({
+      id: r.id,
+      surveyId: r.surveyId,
+      surveyTitle: r.survey?.title ?? '-',
+      respondentName: r.respondent?.fullName ?? '-',
+      respondentPhone: r.respondent?.phone ?? null,
+      status: reverseStatus[r.status],
+      submittedAt: (r.submittedAt ?? r.startedAt).toISOString(),
+      deviceType: r.deviceType ?? '-',
+      rewardMode: (r.survey?.rewardMode ?? 'automatic') as 'automatic' | 'manual',
+      rewardType: r.rewardType,
+      destinationNumber: r.destinationNumber,
+      rewardDistributed: r.rewardDistributed,
+      duplicateFlag: r.destinationNumber
+        ? (destCounts.get(r.destinationNumber) ?? 0) > 1
+        : false,
+    }));
+  }
+
+  /**
+   * Tandai reward sejumlah respons sebagai sudah didistribusikan (rekonsiliasi
+   * top-up oleh admin).
+   */
+  async markResponsesDistributed(
+    responseIds: string[],
+    adminId: string,
+  ): Promise<{ updated: number }> {
+    if (!responseIds || responseIds.length === 0) {
+      return { updated: 0 };
+    }
+    const result = await this.responseRepository.update(
+      { id: In(responseIds) },
+      {
+        rewardDistributed: true,
+        rewardDistributedAt: new Date(),
+        rewardDistributedBy: adminId,
+      },
+    );
+    return { updated: result.affected ?? 0 };
   }
 
   /**

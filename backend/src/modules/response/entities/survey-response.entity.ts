@@ -58,6 +58,24 @@ export class SurveyResponse {
   @Column({ type: 'jsonb', nullable: true })
   tags: string[] | null;
 
+  // ── Reward per-respons (mode manual) ──────────────────────────────────────
+  /** Nomor tujuan top-up (pulsa/e-wallet) yang diisi responden saat submit. */
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'destination_number' })
+  destinationNumber: string | null;
+
+  /** Jenis reward yang dipilih responden (pulsa, gopay, ovo, dana, shopeepay). */
+  @Column({ type: 'varchar', length: 30, nullable: true, name: 'reward_type' })
+  rewardType: string | null;
+
+  @Column({ type: 'boolean', default: false, name: 'reward_distributed' })
+  rewardDistributed: boolean;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'reward_distributed_at' })
+  rewardDistributedAt: Date | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'reward_distributed_by' })
+  rewardDistributedBy: string | null;
+
   @OneToMany(() => Answer, (answer) => answer.response, {
     cascade: true,
     eager: false,

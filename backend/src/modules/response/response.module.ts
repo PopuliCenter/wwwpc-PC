@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ResponseService } from './response.service';
 import { ResponseController } from './response.controller';
+import {
+  ResponsesAdminController,
+  RewardDistributionController,
+} from './responses-admin.controller';
 import { FileValidationService } from './services/file-validation.service';
 import { FileUploadService } from './services/file-upload.service';
 import { SurveyResponse } from './entities/survey-response.entity';
@@ -18,7 +22,11 @@ import { ExportModule } from '@modules/export';
     AuthModule,
     ExportModule, // provides S3StorageService for respondent file uploads
   ],
-  controllers: [ResponseController],
+  controllers: [
+    ResponseController,
+    ResponsesAdminController,
+    RewardDistributionController,
+  ],
   providers: [ResponseService, FileValidationService, FileUploadService],
   exports: [ResponseService],
 })
