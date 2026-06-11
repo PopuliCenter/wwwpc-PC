@@ -17,4 +17,6 @@ export enum QuestionType {
   UNIQUE_ID = 'unique_id',
   /** Wilayah Indonesia bertingkat (Provinsi → Kabupaten/Kota → Kecamatan → Kelurahan) */
   INDONESIA_REGION = 'indonesia_region',
+  /** Tanda tangan — kanvas, disimpan sebagai gambar PNG di object storage */
+  SIGNATURE = 'signature',
 }

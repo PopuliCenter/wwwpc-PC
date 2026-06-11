@@ -68,7 +68,8 @@ interface Question {
     | 'date'
     | 'rating_scale'
     | 'unique_id'
-    | 'indonesia_region';
+    | 'indonesia_region'
+    | 'signature';
   text: string;
   description?: string;
   required: boolean;
@@ -807,6 +808,134 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
   );
 }
 
+function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawing = useRef(false);
+  const [uploading, setUploading] = useState(false);
+  const [saved, setSaved] = useState<boolean>(!!value);
+  const [error, setError] = useState<string | null>(null);
+
+  const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current!;
+    const rect = c.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (c.width / rect.width),
+      y: (e.clientY - rect.top) * (c.height / rect.height),
+    };
+  };
+
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    drawing.current = true;
+    const p = point(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const p = point(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+  const end = () => {
+    drawing.current = false;
+  };
+
+  const clear = () => {
+    const c = canvasRef.current;
+    const ctx = c?.getContext('2d');
+    if (c && ctx) ctx.clearRect(0, 0, c.width, c.height);
+    setSaved(false);
+    setError(null);
+    onChange(null);
+  };
+
+  const save = async () => {
+    const c = canvasRef.current;
+    if (!c) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const blob = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, 'image/png'));
+      if (!blob) throw new Error('Gagal membuat gambar tanda tangan.');
+      const formData = new FormData();
+      formData.append('file', new File([blob], 'signature.png', { type: 'image/png' }));
+      const result = await api.upload<{ key: string }>(
+        `/surveys/${surveyId}/responses/upload`,
+        formData,
+      );
+      onChange(result.key);
+      setSaved(true);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e.message || 'Gagal menyimpan tanda tangan.');
+      onChange(null);
+      setSaved(false);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (saved) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+        <FileCheck2 className="h-5 w-5 text-emerald-600" />
+        <span className="text-sm font-medium text-gray-800">Tanda tangan tersimpan</span>
+        <button
+          type="button"
+          onClick={clear}
+          className="ml-auto inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-700"
+        >
+          <X className="h-3.5 w-3.5" /> Ulangi
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <canvas
+        ref={canvasRef}
+        width={520}
+        height={180}
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerLeave={end}
+        className={`w-full touch-none rounded-lg border bg-white ${invalid ? 'border-red-300' : 'border-gray-300'}`}
+        style={{ height: 180 }}
+      />
+      <p className="text-xs text-gray-400">Bubuhkan tanda tangan di kotak di atas (gunakan jari/mouse), lalu Simpan.</p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={save}
+          disabled={uploading}
+          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+        >
+          {uploading && <Loader2 className="h-4 w-4 animate-spin" />} Simpan Tanda Tangan
+        </button>
+        <button
+          type="button"
+          onClick={clear}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Bersihkan
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function QuestionRenderer(props: RendererProps) {
   const renderers: Record<Question['type'], React.FC<RendererProps>> = {
     single_choice: SingleChoiceQuestion,
@@ -823,6 +952,7 @@ function QuestionRenderer(props: RendererProps) {
     rating_scale: RatingScaleQuestion,
     unique_id: UniqueIdQuestion,
     indonesia_region: IndonesiaRegionQuestion,
+    signature: SignatureQuestion,
   };
 
   const Renderer = renderers[props.question.type];

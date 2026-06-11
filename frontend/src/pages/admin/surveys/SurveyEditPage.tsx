@@ -34,7 +34,8 @@ type QuestionType =
   | 'date'
   | 'rating_scale'
   | 'unique_id'
-  | 'indonesia_region';
+  | 'indonesia_region'
+  | 'signature';
 
 interface QuestionOption {
   id: string;
@@ -158,6 +159,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
   rating_scale: 'Skala Rating',
   unique_id: 'ID Unik',
   indonesia_region: 'Wilayah Indonesia',
+  signature: 'Tanda Tangan',
 };
 
 const operatorLabels: Record<ConditionOperator, string> = {
@@ -1172,7 +1174,7 @@ export function SurveyEditPage() {
     { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
     { label: 'Waktu', types: ['date', 'date_time'] },
     { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload'] },
+    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature'] },
   ];
 
   return (
