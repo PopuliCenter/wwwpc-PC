@@ -246,6 +246,19 @@ export class AnswerValidationService {
         return null;
       }
 
+      case QuestionType.GPS: {
+        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+          return 'lokasi tidak valid';
+        }
+        const lat = Number((value as Record<string, any>).latitude);
+        const lng = Number((value as Record<string, any>).longitude);
+        if (Number.isNaN(lat) || Number.isNaN(lng)) return 'koordinat tidak valid';
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return 'koordinat di luar rentang';
+        }
+        return null;
+      }
+
       default:
         return null;
     }

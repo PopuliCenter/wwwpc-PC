@@ -36,7 +36,8 @@ type QuestionType =
   | 'unique_id'
   | 'indonesia_region'
   | 'signature'
-  | 'photo';
+  | 'photo'
+  | 'gps';
 
 interface QuestionOption {
   id: string;
@@ -162,6 +163,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
   indonesia_region: 'Wilayah Indonesia',
   signature: 'Tanda Tangan',
   photo: 'Foto (Kamera)',
+  gps: 'Titik GPS',
 };
 
 const operatorLabels: Record<ConditionOperator, string> = {
@@ -1176,7 +1178,7 @@ export function SurveyEditPage() {
     { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
     { label: 'Waktu', types: ['date', 'date_time'] },
     { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature', 'photo'] },
+    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature', 'photo', 'gps'] },
   ];
 
   return (

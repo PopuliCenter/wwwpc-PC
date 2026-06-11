@@ -21,4 +21,6 @@ export enum QuestionType {
   SIGNATURE = 'signature',
   /** Foto — ambil langsung dari kamera HP/perangkat */
   PHOTO = 'photo',
+  /** Titik GPS — koordinat (latitude/longitude) direkam saat mengisi */
+  GPS = 'gps',
 }

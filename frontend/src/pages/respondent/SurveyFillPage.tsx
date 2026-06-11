@@ -71,7 +71,8 @@ interface Question {
     | 'unique_id'
     | 'indonesia_region'
     | 'signature'
-    | 'photo';
+    | 'photo'
+    | 'gps';
   text: string;
   description?: string;
   required: boolean;
@@ -102,7 +103,7 @@ interface SurveyFillData {
   responseId: string;
 }
 
-type AnswerValue = string | string[] | Record<string, string> | null;
+type AnswerValue = string | string[] | Record<string, any> | null;
 
 const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : '',
@@ -1024,6 +1025,78 @@ function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
   );
 }
 
+function GpsQuestion({ value, onChange, invalid }: RendererProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const coords =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as { latitude?: number; longitude?: number; accuracy?: number })
+      : null;
+  const lat = typeof coords?.latitude === 'number' ? coords.latitude : null;
+  const lng = typeof coords?.longitude === 'number' ? coords.longitude : null;
+  const acc = typeof coords?.accuracy === 'number' ? coords.accuracy : null;
+
+  const capture = () => {
+    if (!('geolocation' in navigator)) {
+      setError('Perangkat tidak mendukung GPS.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        onChange({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setLoading(false);
+      },
+      (err) => {
+        setError(err.message || 'Gagal mengambil lokasi. Izinkan akses lokasi di browser.');
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  };
+
+  return (
+    <div className="space-y-2">
+      {lat != null && lng != null ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+          <div className="flex items-center gap-2 font-medium text-emerald-700">
+            <MapPin className="h-4 w-4" /> Lokasi terekam
+          </div>
+          <p className="mt-1 font-mono text-xs text-gray-600">
+            {lat.toFixed(6)}, {lng.toFixed(6)}
+            {acc != null ? ` (±${Math.round(acc)} m)` : ''}
+          </p>
+          <button
+            type="button"
+            onClick={capture}
+            disabled={loading}
+            className="mt-2 text-xs font-medium text-primary-600 hover:text-primary-800 disabled:opacity-50"
+          >
+            Rekam ulang
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={capture}
+          disabled={loading}
+          className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 ${
+            invalid ? 'border-red-300' : 'border-gray-300'
+          }`}
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />} Rekam Lokasi Saat Ini
+        </button>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function QuestionRenderer(props: RendererProps) {
   const renderers: Record<Question['type'], React.FC<RendererProps>> = {
     single_choice: SingleChoiceQuestion,
@@ -1042,6 +1115,7 @@ function QuestionRenderer(props: RendererProps) {
     indonesia_region: IndonesiaRegionQuestion,
     signature: SignatureQuestion,
     photo: PhotoQuestion,
+    gps: GpsQuestion,
   };
 
   const Renderer = renderers[props.question.type];
