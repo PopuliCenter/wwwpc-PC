@@ -227,6 +227,26 @@ export class ExportService {
   }
 
   /**
+   * Ambil file export selesai sebagai buffer untuk di-stream lewat backend
+   * (download yang bisa diakses browser tanpa membuka MinIO ke publik).
+   */
+  async getExportFile(
+    jobId: string,
+  ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    const job = await this.exportJobRepository.findOne({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException(`Export job with id ${jobId} not found`);
+    }
+    if (job.status !== ExportStatus.COMPLETED || !job.filePath) {
+      throw new NotFoundException(`Export ${jobId} belum selesai`);
+    }
+    const s3Key = S3StorageService.resolveS3Key(job.filePath);
+    const { buffer, contentType } = await this.s3StorageService.getObjectBuffer(s3Key);
+    const filename = s3Key.split('/').pop() ?? `export-${jobId}.${job.format}`;
+    return { buffer, contentType, filename };
+  }
+
+  /**
    * Create an export job and queue it for background processing.
    */
   private async createExportJob(

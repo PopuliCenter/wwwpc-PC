@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
+import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
 
 // Types
@@ -134,10 +135,12 @@ export function AuditLogPage() {
       if (endDate) filters.endDate = endDate;
       if (ipFilter) filters.ipAddress = ipFilter;
 
-      await api.post('/export/audit-log', filters);
-      setExportMessage('Export audit log berhasil dimulai. File akan tersedia di halaman export.');
-    } catch {
-      setExportMessage('Gagal mengexport audit log');
+      const job = await api.post<{ id: string }>('/export/audit-log', filters);
+      setExportMessage('Memproses export...');
+      await pollAndDownloadExport(job.id);
+      setExportMessage('File export berhasil diunduh.');
+    } catch (e) {
+      setExportMessage((e as Error).message || 'Gagal mengexport audit log');
     } finally {
       setExporting(false);
       setTimeout(() => setExportMessage(null), 5000);

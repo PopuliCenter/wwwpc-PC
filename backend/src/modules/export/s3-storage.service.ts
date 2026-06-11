@@ -159,6 +159,27 @@ export class S3StorageService {
   }
 
   /**
+   * Ambil isi objek dari S3/MinIO sebagai buffer (untuk di-stream ke klien lewat
+   * backend — MinIO bersifat internal, jadi presigned URL tak dapat diakses browser).
+   */
+  async getObjectBuffer(s3Key: string): Promise<{ buffer: Buffer; contentType: string }> {
+    try {
+      const res = await this.s3Client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }),
+      );
+      const bytes = await (res.Body as any).transformToByteArray();
+      return {
+        buffer: Buffer.from(bytes),
+        contentType: res.ContentType ?? 'application/octet-stream',
+      };
+    } catch (err: any) {
+      throw new InternalServerErrorException(
+        `Failed to read S3 object '${s3Key}': ${err.message}`,
+      );
+    }
+  }
+
+  /**
    * Delete an object from S3/MinIO (e.g. after scheduled cleanup).
    */
   async deleteObject(s3Key: string): Promise<void> {

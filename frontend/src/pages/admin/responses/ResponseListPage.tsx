@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
 
 interface ResponseItem {
@@ -200,17 +201,21 @@ export function ResponseListPage() {
     fetchResponses();
   };
 
-  const handleExport = async (format: 'csv' | 'excel' | 'pdf' | 'json') => {
+  const handleExport = async (fmt: 'csv' | 'excel' | 'pdf' | 'json') => {
+    if (!filters.surveyId) {
+      alert('Pilih survei dulu di filter untuk mengekspor data.');
+      return;
+    }
     try {
       const params = new URLSearchParams();
-      if (filters.surveyId) params.set('surveyId', filters.surveyId);
+      params.set('surveyId', filters.surveyId);
       if (filters.startDate) params.set('startDate', filters.startDate);
       if (filters.endDate) params.set('endDate', filters.endDate);
 
-      await api.post(`/export/${format}?${params.toString()}`);
-      alert(`Export ${format.toUpperCase()} berhasil dimulai. File akan tersedia segera.`);
-    } catch {
-      alert(`Gagal export ${format.toUpperCase()}`);
+      const job = await api.post<{ id: string }>(`/export/${fmt}?${params.toString()}`);
+      await pollAndDownloadExport(job.id);
+    } catch (e) {
+      alert((e as Error).message || `Gagal export ${fmt.toUpperCase()}`);
     }
   };
 
