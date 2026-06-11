@@ -318,6 +318,117 @@ function BulkImportModal({
   );
 }
 
+// Edit User Modal — ubah data diri + (opsional) set password baru
+function EditUserModal({
+  open,
+  onClose,
+  user,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  user: UserItem | null;
+  onSuccess: () => void;
+}) {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.fullName);
+      setEmail(user.email);
+      setPhone(user.phone ?? '');
+      setPassword('');
+      setError(null);
+      setDone(false);
+    }
+  }, [user]);
+
+  if (!user) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: Record<string, string> = { fullName, email, phone };
+      if (password.trim()) payload.password = password.trim();
+      await api.patch(`/users/${user.id}`, payload);
+      setDone(true);
+      onSuccess();
+    } catch (err: unknown) {
+      const apiErr = err as { message?: string | string[] };
+      const msg = Array.isArray(apiErr.message) ? apiErr.message.join(', ') : apiErr.message;
+      setError(msg || 'Gagal menyimpan perubahan');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
+  const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Edit Pengguna — ${user.fullName}`}>
+      {done ? (
+        <div className="space-y-4">
+          <p className="text-sm text-emerald-700">Perubahan tersimpan.</p>
+          <button
+            onClick={onClose}
+            className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            Tutup
+          </button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">{error}</div>
+          )}
+          <div>
+            <label className={labelClass}>Nama Lengkap</label>
+            <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div>
+            <label className={labelClass}>Email</label>
+            <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <div>
+            <label className={labelClass}>Nomor Telepon</label>
+            <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          </div>
+          <div>
+            <label className={labelClass}>
+              Password Baru <span className="text-gray-400">(kosongkan jika tidak diubah)</span>
+            </label>
+            <input
+              type="text"
+              className={inputClass}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 8 karakter"
+              autoComplete="new-password"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
+          </button>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 export function UserManagementPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -336,6 +447,9 @@ export function UserManagementPage() {
 
   // Action feedback
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  // Edit user modal
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
 
   const limit = 20;
 
@@ -568,12 +682,20 @@ export function UserManagementPage() {
                         {format(new Date(user.createdAt), 'dd/MM/yyyy')}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <button
-                          onClick={() => handleResetPassword(user.id)}
-                          className="text-primary-600 hover:text-primary-800 text-xs font-medium"
-                        >
-                          Reset Password
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setEditingUser(user)}
+                            className="text-primary-600 hover:text-primary-800 text-xs font-medium"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(user.id)}
+                            className="text-gray-500 hover:text-gray-700 text-xs font-medium"
+                          >
+                            Reset Password
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -636,6 +758,12 @@ export function UserManagementPage() {
       <BulkImportModal
         open={showImportModal}
         onClose={() => setShowImportModal(false)}
+        onSuccess={fetchUsers}
+      />
+      <EditUserModal
+        open={!!editingUser}
+        user={editingUser}
+        onClose={() => setEditingUser(null)}
         onSuccess={fetchUsers}
       />
     </div>

@@ -202,6 +202,55 @@ export class UserManagerService {
   }
 
   /**
+   * Edit data pengguna (nama/telepon/email) + opsional set password baru.
+   */
+  async updateUser(
+    userId: string,
+    dto: { fullName?: string; phone?: string; email?: string; password?: string },
+    adminUserId: string,
+    ipAddress: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with id ${userId} not found`);
+    }
+
+    if (dto.fullName !== undefined) {
+      user.fullName = dto.fullName.trim();
+    }
+
+    if (dto.phone !== undefined && dto.phone !== user.phone) {
+      const existing = await this.userRepository.findOne({ where: { phone: dto.phone } });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('Nomor telepon sudah dipakai akun lain');
+      }
+      user.phone = dto.phone;
+    }
+
+    if (dto.email !== undefined && dto.email !== user.email) {
+      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (existing && existing.id !== userId) {
+        throw new ConflictException('Email sudah dipakai akun lain');
+      }
+      user.email = dto.email;
+    }
+
+    if (dto.password) {
+      user.passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    }
+
+    await this.userRepository.save(user);
+
+    await this.auditService.log({
+      userId: adminUserId,
+      actionType: AuditActionType.USER_UPDATE,
+      module: 'user-manager',
+      details: { targetUserId: userId, fields: Object.keys(dto) },
+      ipAddress,
+    });
+  }
+
+  /**
    * List users with filters and pagination.
    */
   async listUsers(filters: ListUsersFilterDto): Promise<PaginatedUsers> {

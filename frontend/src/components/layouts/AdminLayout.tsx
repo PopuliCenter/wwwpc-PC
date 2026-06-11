@@ -55,8 +55,8 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-surface">
-      {/* Sidebar */}
-      <aside className="flex w-64 flex-col border-r border-gray-800 bg-gray-900 text-white">
+      {/* Sidebar — sticky setinggi layar agar logout selalu terlihat */}
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col border-r border-gray-800 bg-gray-900 text-white">
         <div className="flex items-center gap-3 px-5 py-5">
           <img
             src="/logo-populi-center.png"
@@ -69,7 +69,7 @@ export function AdminLayout() {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-2">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {visibleNav.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
@@ -116,14 +116,14 @@ export function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 border-b border-gray-200 bg-surface/80 px-6 py-4 backdrop-blur">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold text-gray-900">Panel Admin</h2>
             <span className="hidden text-sm text-gray-500 sm:block">{user?.email}</span>
           </div>
         </header>
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 p-6">
           <Outlet />
         </main>
       </div>

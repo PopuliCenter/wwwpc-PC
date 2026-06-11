@@ -12,7 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { UserManagerService } from './user-manager.service';
-import { CreateUserDto, UpdateRoleDto, ListUsersFilterDto } from './dto';
+import { CreateUserDto, UpdateRoleDto, UpdateUserDto, ListUsersFilterDto } from './dto';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators';
@@ -29,6 +29,18 @@ export class UserManagerController {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     return this.userManagerService.createUser(dto, adminUserId, ipAddress);
+  }
+
+  @Patch(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @Req() req: any,
+  ) {
+    const adminUserId = req.user.userId;
+    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    await this.userManagerService.updateUser(id, dto, adminUserId, ipAddress);
   }
 
   @Patch(':id/role')

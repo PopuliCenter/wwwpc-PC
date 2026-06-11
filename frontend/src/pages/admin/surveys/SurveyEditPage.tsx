@@ -724,7 +724,8 @@ function SortableQuestionCard({
   });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
-  const [expanded, setExpanded] = useState(false);
+  // Pertanyaan baru (teks masih kosong) otomatis terbuka agar langsung bisa diisi.
+  const [expanded, setExpanded] = useState(question.text.trim() === '');
   const [tab, setTab] = useState<'edit' | 'logic' | 'validation'>('edit');
 
   const hasLogic =

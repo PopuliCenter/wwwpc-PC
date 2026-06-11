@@ -15,6 +15,7 @@ export enum AuditActionType {
   REWARD_REDEMPTION = 'reward_redemption',
   MANUAL_REWARD_DISTRIBUTION = 'manual_reward_distribution',
   USER_CREATE = 'user_create',
+  USER_UPDATE = 'user_update',
   USER_ACTIVATE = 'user_activate',
   USER_DEACTIVATE = 'user_deactivate',
   USER_PASSWORD_RESET = 'user_password_reset',
