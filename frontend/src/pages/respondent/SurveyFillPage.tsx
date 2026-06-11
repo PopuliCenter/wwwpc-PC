@@ -903,6 +903,7 @@ export function SurveyFillPage() {
   const [error, setError] = useState<string | null>(null);
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [destinationNumber, setDestinationNumber] = useState('');
+  const [rewardType, setRewardType] = useState('pulsa');
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
 
@@ -1018,7 +1019,9 @@ export function SurveyFillPage() {
         {
           answers: answersToArray(),
           deviceType: DEVICE_TYPE,
-          ...(survey.rewardMode === 'manual' && destinationNumber ? { destinationNumber } : {}),
+          ...(survey.rewardMode === 'manual' && destinationNumber
+            ? { destinationNumber, rewardType }
+            : {}),
         },
       );
       setEarnedPoints(result?.pointsEarned ?? survey.rewardPoints ?? 0);
@@ -1029,7 +1032,7 @@ export function SurveyFillPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [survey, answers, destinationNumber, isActive, answersToArray, currentPage]);
+  }, [survey, answers, destinationNumber, rewardType, isActive, answersToArray, currentPage]);
 
   const handleTimerExpire = useCallback(() => {
     void handleSubmit();
@@ -1195,8 +1198,23 @@ export function SurveyFillPage() {
             Nomor Tujuan Reward <span className="text-red-500">*</span>
           </h3>
           <p className="mb-3 mt-0.5 text-xs text-gray-500">
-            Masukkan nomor telepon/e-wallet untuk menerima reward.
+            Pilih jenis reward dan masukkan nomor tujuan untuk menerima reward.
           </p>
+          <div className="mb-3">
+            <label className="mb-1 block text-xs font-medium text-gray-600">Jenis Reward</label>
+            <select
+              value={rewardType}
+              onChange={(e) => setRewardType(e.target.value)}
+              className={fieldClasses(false)}
+            >
+              <option value="pulsa">Pulsa</option>
+              <option value="gopay">GoPay</option>
+              <option value="ovo">OVO</option>
+              <option value="dana">DANA</option>
+              <option value="shopeepay">ShopeePay</option>
+            </select>
+          </div>
+          <label className="mb-1 block text-xs font-medium text-gray-600">Nomor Tujuan</label>
           <div className="flex items-center gap-2">
             <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
               +62
