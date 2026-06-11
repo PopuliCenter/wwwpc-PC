@@ -61,7 +61,7 @@ export function AdminLayout() {
           <img
             src="/populi-center.png"
             alt="Populi Center"
-            className="h-9 w-9 rounded-lg bg-white/90 p-1"
+            className="h-9 w-9 rounded-lg bg-white/90 object-contain p-1"
           />
           <div className="leading-tight">
             <h1 className="text-sm font-semibold text-white">Populi Center</h1>

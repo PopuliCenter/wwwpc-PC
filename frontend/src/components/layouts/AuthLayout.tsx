@@ -1,11 +1,11 @@
 import { Outlet, Navigate } from 'react-router-dom';
-import { ShieldCheck, BarChart3, Gift } from 'lucide-react';
+import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 
 const highlights = [
-  { icon: BarChart3, title: 'Analitik real-time', desc: 'Pantau respons & demografi dalam satu dashboard.' },
-  { icon: ShieldCheck, title: 'Data aman', desc: 'Enkripsi, audit log, dan kontrol akses berbasis peran.' },
-  { icon: Gift, title: 'Reward responden', desc: 'Sistem poin & penukaran untuk menjaga partisipasi.' },
+  { icon: Gift, title: 'Reward tiap survei', desc: 'Kumpulkan poin di setiap survei dan tukar jadi pulsa atau saldo e-wallet.' },
+  { icon: ShieldCheck, title: 'Privasi terjaga', desc: 'Identitas dan lokasi Anda dienkripsi, dipakai hanya untuk riset — tidak dijual.' },
+  { icon: Clock, title: 'Cepat & mudah', desc: 'Isi kapan saja langsung dari ponsel, hanya butuh beberapa menit.' },
 ];
 
 export function AuthLayout() {
@@ -40,7 +40,7 @@ export function AuthLayout() {
           <img
             src="/populi-center.png"
             alt="Populi Center"
-            className="h-10 w-10 rounded-lg bg-white/90 p-1"
+            className="h-11 w-11 rounded-lg bg-white/95 object-contain p-1.5"
           />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-white">Populi Center</p>
@@ -50,11 +50,11 @@ export function AuthLayout() {
 
         <div className="relative z-10 px-10">
           <h1 className="max-w-md text-3xl font-bold leading-tight text-white">
-            Platform survei untuk keputusan berbasis data.
+            Isi survei, suara Anda dihargai.
           </h1>
           <p className="mt-3 max-w-sm text-sm text-white/70">
-            Kelola survei, kumpulkan respons, dan analisis hasil dengan cepat — dalam
-            satu tempat.
+            Bagikan pendapat Anda dalam beberapa menit dan kumpulkan reward —
+            data serta privasi Anda tetap terlindungi.
           </p>
 
           <ul className="mt-10 space-y-5">
