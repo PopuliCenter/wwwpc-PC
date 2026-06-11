@@ -33,7 +33,7 @@ export function AuthLayout() {
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,0.10), transparent 60%), linear-gradient(160deg, #7a1f1d 0%, #4a1413 100%)',
+              'radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,0.10), transparent 60%), linear-gradient(160deg, #312e81 0%, #1e1b4b 100%)',
           }}
         />
         <div className="relative z-10 flex items-center gap-3 p-10">

@@ -63,9 +63,9 @@ interface CompletionRate {
   rate: number;
 }
 
-// Brand-anchored chart palette (maroon → warm → cool accents)
-const COLORS = ['#b1211f', '#d4736d', '#e0a458', '#6b7b8c', '#8a6d5a', '#a8403a', '#c98b3f', '#5f6b76'];
-const CHART_PRIMARY = '#b1211f';
+// Brand-anchored chart palette (indigo primary + orange accent + cool tones)
+const COLORS = ['#4f46e5', '#f97316', '#0ea5e9', '#10b981', '#a855f7', '#f59e0b', '#64748b', '#ec4899'];
+const CHART_PRIMARY = '#4f46e5';
 
 function OverviewCards({ data, loading }: { data: OverviewData | null; loading: boolean }) {
   const cards: { label: string; value: number; icon: LucideIcon }[] = [
