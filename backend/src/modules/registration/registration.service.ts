@@ -99,28 +99,38 @@ export class RegistrationService {
     // Hash password
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
-    // Create user with PENDING status
+    // Auto-aktif tanpa OTP: akun langsung ACTIVE & dianggap terverifikasi.
     const user = this.userRepository.create({
       fullName: data.fullName,
       email: data.email,
       phone: data.phone,
       passwordHash,
-      status: UserStatus.PENDING,
-      emailVerified: false,
+      status: UserStatus.ACTIVE,
+      emailVerified: true,
       profileCompleted: false,
     });
 
     const savedUser = await this.userRepository.save(user);
 
-    // Send OTP after registration
-    await this.sendOtp(data.email);
+    // Buat sesi + token agar pengguna langsung login setelah daftar.
+    const sessionId = uuidv4();
+    const tokenPair = await this.generateTokenPair(savedUser, sessionId);
+    await this.storeSession(savedUser, sessionId, tokenPair.refreshToken);
 
-    this.logger.log(`User registered: ${data.email}`);
+    this.logger.log(`User registered & activated: ${data.email}`);
 
     return {
       userId: savedUser.id,
       email: savedUser.email,
-      message: 'Registration successful. Please verify your email with the OTP sent.',
+      message: 'Registration successful.',
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        fullName: savedUser.fullName,
+        role: savedUser.role,
+      },
     };
   }
 
@@ -318,6 +328,26 @@ export class RegistrationService {
     // Use cryptographically secure RNG — Math.random() is NOT suitable for OTPs
     // randomInt(min, max) returns integer in [min, max) — guarantees exactly 6 digits
     return randomInt(100000, 1000000).toString();
+  }
+
+  /** Simpan sesi + refresh token di Redis agar token lolos validasi JwtStrategy. */
+  private async storeSession(
+    user: User,
+    sessionId: string,
+    refreshToken: string,
+  ): Promise<void> {
+    const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
+    await this.cacheManager.set(
+      `session:${sessionId}`,
+      JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: new Date().toISOString(),
+      }),
+      sessionTtl * 1000,
+    );
+    await this.cacheManager.set(`refresh:${sessionId}`, refreshToken, sessionTtl * 1000);
   }
 
   private async generateTokenPair(

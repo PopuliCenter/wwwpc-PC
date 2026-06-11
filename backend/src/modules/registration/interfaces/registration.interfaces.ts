@@ -1,7 +1,17 @@
+import { UserRole } from '@shared/enums';
+
 export interface RegistrationResult {
   userId: string;
   email: string;
   message: string;
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: UserRole;
+  };
 }
 
 export interface OtpResult {
