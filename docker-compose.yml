@@ -125,8 +125,10 @@ services:
   # di database.config.ts ketika NODE_ENV=production).
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Context = root monorepo (npm workspaces). Dockerfile butuh package-lock.json
+      # root + tsconfig.base.json + manifest kedua workspace.
+      context: .
+      dockerfile: backend/Dockerfile
       target: runner
     container_name: survei_backend
     restart: unless-stopped
@@ -182,8 +184,9 @@ services:
   #   /*      → file statis SPA + fallback ke index.html
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # Context = root monorepo (npm workspaces) — lihat catatan di service backend.
+      context: .
+      dockerfile: frontend/Dockerfile
       target: runner
       args:
         # Semua panggilan API dari browser akan ke /api/* (relatif)

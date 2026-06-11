@@ -1,61 +1,50 @@
 # =============================================================================
-# Stage 1: deps — install only production dependencies
+# Backend (NestJS) — BUILD DARI ROOT MONOREPO (npm workspaces)
+# -----------------------------------------------------------------------------
+# Context build = root repo  →  docker-compose.yml: { context: ., dockerfile: backend/Dockerfile }
+# Alasan: backend/tsconfig.json `extends ../tsconfig.base.json`, dan sebagian
+# devDependency (typescript, @types/node, @nestjs/cli) ada di root & di-hoist.
+# Build per-folder (context ./backend) gagal karena file root itu tidak ikut.
 # =============================================================================
-FROM node:20-alpine AS deps
 
-WORKDIR /app
-
-# Copy manifests first for better layer caching
-COPY package.json ./
-
-# Monorepo npm-workspaces: tidak ada package-lock.json per-paket di context ini,
-# jadi pakai `npm install` (bukan `npm ci`) agar resolve dari package.json.
-RUN npm install --omit=dev --ignore-scripts
-
-
-# =============================================================================
-# Stage 2: builder — compile TypeScript
-# =============================================================================
+# ── Stage 1: builder — install seluruh workspace + compile ───────────────────
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-COPY package.json ./
+# Manifest dulu (root + kedua workspace) agar layer install ter-cache
+COPY package.json package-lock.json ./
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
 
-# Install all deps (including devDeps needed for the build)
-RUN npm install --ignore-scripts
+RUN npm ci --ignore-scripts
 
-COPY . .
+# Config TS bersama + source backend
+COPY tsconfig.base.json ./
+COPY backend/ ./backend/
 
-RUN npm run build
+# Compile (nest build) lalu buang devDependencies agar image ramping
+RUN npm run build --workspace=backend \
+ && npm prune --omit=dev
 
 
-# =============================================================================
-# Stage 3: runner — minimal production image
-# =============================================================================
+# ── Stage 2: runner — image produksi ─────────────────────────────────────────
 FROM node:20-alpine AS runner
-
 WORKDIR /app
-
 ENV NODE_ENV=production
 
-# Non-root user for security
+# User non-root
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy production node_modules from deps stage
-COPY --from=deps --chown=appuser:appgroup /app/node_modules ./node_modules
-
-# Copy compiled output from builder stage
-COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
-
-# Copy package.json for version / scripts reference
-COPY --chown=appuser:appgroup package.json ./
+# Salin seluruh /app dari builder: node_modules (ter-hoist) + backend/dist utuh,
+# sehingga resolusi modul Node (backend/node_modules → root node_modules) pasti benar.
+COPY --from=builder --chown=appuser:appgroup /app ./
 
 USER appuser
+WORKDIR /app/backend
 
 EXPOSE 3000
 
-# Health check — matches the /health endpoint added in main.ts
+# Health check — cocok dengan endpoint /health di main.ts
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:3000/health || exit 1
 

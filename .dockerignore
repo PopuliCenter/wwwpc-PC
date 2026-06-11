@@ -8,10 +8,12 @@ build/
 */dist/
 */build/
 
-# Environment files
+# Environment files (root + subfolder, mis. backend/.env — jangan bake secret)
 .env
+**/.env
 .env.local
 .env.*.local
+**/.env.local
 
 # Git
 .git/
