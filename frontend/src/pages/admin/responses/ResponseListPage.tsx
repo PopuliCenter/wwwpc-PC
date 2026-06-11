@@ -77,7 +77,7 @@ function ManualRewardPanel({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Distribusi Reward Manual ({eligibleResponses.length} menunggu)
       </h3>
@@ -256,7 +256,7 @@ export function ResponseListPage() {
       </div>
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
         <h3 className="text-sm font-medium text-gray-700 mb-3">Filter</h3>
         <div className="mb-3">
           <input
@@ -357,7 +357,7 @@ export function ResponseListPage() {
       <ManualRewardPanel responses={responses} onMarkDistributed={handleMarkDistributed} />
 
       {/* Response Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Memuat...</div>
         ) : responses.length === 0 ? (

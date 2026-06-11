@@ -173,12 +173,12 @@ function RegistrationBarChart() {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e3de" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#78706a' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: '#78706a' }} axisLine={false} tickLine={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <Tooltip
-              cursor={{ fill: 'rgba(177,33,31,0.06)' }}
-              contentStyle={{ borderRadius: 10, border: '1px solid #e7e3de', fontSize: 12 }}
+              cursor={{ fill: 'rgba(79,70,229,0.06)' }}
+              contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }}
             />
             <Bar dataKey="count" fill={CHART_PRIMARY} name="Registrasi" radius={[4, 4, 0, 0]} maxBarSize={44} />
           </BarChart>
@@ -229,10 +229,10 @@ function CumulativeTrendChart() {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e3de" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#78706a' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: '#78706a' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e7e3de', fontSize: 12 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }} />
             <Line
               type="monotone"
               dataKey="total"
@@ -303,7 +303,7 @@ function DistributionCharts() {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e7e3de', fontSize: 12 }} />
+              <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
