@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, AlertCircle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { useAuthStore } from '@/stores/auth.store';
@@ -10,6 +10,7 @@ import type { LoginResponse } from '@/types';
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -39,9 +40,9 @@ export function LoginPage() {
       {/* Compact brand mark — visible mainly on mobile where the side panel is hidden */}
       <div className="mb-8">
         <img
-          src="/populi-center.png"
+          src="/logo-populi-center.png"
           alt="Populi Center"
-          className="mb-6 h-10 w-10 rounded-lg lg:hidden"
+          className="mb-6 h-12 w-12 object-contain lg:hidden"
         />
         <h2 className="text-2xl font-bold text-gray-900">Selamat datang kembali</h2>
         <p className="mt-1.5 text-sm text-gray-500">
@@ -73,13 +74,24 @@ export function LoginPage() {
 
         <Input
           label="Password"
-          type="password"
+          type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Masukkan password"
           required
           autoComplete="current-password"
           leadingIcon={<Lock className="h-4 w-4" />}
+          trailingIcon={
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+              className="text-gray-400 transition-colors hover:text-gray-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
         />
 
         <div className="flex items-center justify-end">

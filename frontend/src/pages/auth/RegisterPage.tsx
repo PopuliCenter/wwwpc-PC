@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { useAuthStore } from '@/stores/auth.store';
@@ -22,6 +23,8 @@ export function RegisterPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Step 2: OTP
@@ -48,6 +51,12 @@ export function RegisterPage() {
   const handleBasicSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Konfirmasi password tidak sama.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -168,13 +177,39 @@ export function RegisterPage() {
           />
           <Input
             label="Password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Minimal 8 karakter"
             required
             minLength={8}
             autoComplete="new-password"
+            trailingIcon={
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                className="text-gray-400 transition-colors hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            }
+          />
+          <Input
+            label="Konfirmasi Password"
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Ulangi password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            error={
+              confirmPassword.length > 0 && confirmPassword !== password
+                ? 'Password tidak sama'
+                : undefined
+            }
           />
           <div className="flex items-start gap-2">
             <input
