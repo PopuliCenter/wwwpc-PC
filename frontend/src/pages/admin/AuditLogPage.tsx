@@ -6,13 +6,22 @@ import { format } from 'date-fns';
 interface AuditLogEntry {
   id: string;
   userId: string;
-  userName?: string;
+  userName?: string | null;
+  userRole?: string | null;
   actionType: string;
   module: string;
   ipAddress: string;
   details?: Record<string, unknown> | string | null;
   createdAt: string;
 }
+
+const roleLabels: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  analyst: 'Analis',
+  viewer: 'Viewer',
+  respondent: 'Responden',
+};
 
 /** Render details (objek JSONB / string) jadi teks aman untuk React. */
 function formatDetails(details?: Record<string, unknown> | string | null): string {
@@ -333,7 +342,14 @@ export function AuditLogPage() {
                         {format(new Date(log.createdAt), 'dd/MM/yyyy HH:mm:ss')}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {log.userName || log.userId}
+                        <div className="flex flex-col">
+                          <span className="font-medium">{log.userName || 'Pengguna'}</span>
+                          {log.userRole && (
+                            <span className="text-xs text-gray-400">
+                              {roleLabels[log.userRole] ?? log.userRole}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">

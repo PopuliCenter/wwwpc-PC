@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { In, Repository, LessThan } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
+import { User } from '@modules/auth/entities/user.entity';
 import {
   AuditEvent,
   AuditFilter,
@@ -18,6 +19,8 @@ export class AuditService {
   constructor(
     @InjectRepository(AuditLog)
     private readonly auditLogRepository: Repository<AuditLog>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   /**
@@ -103,8 +106,41 @@ export class AuditService {
 
     const [data, total] = await queryBuilder.getManyAndCount();
 
+    // Kumpulkan id user yang dirujuk (pelaku + target di details) → resolve nama
+    const ids = new Set<string>();
+    for (const e of data) {
+      if (e.userId) ids.add(e.userId);
+      const t = (e.details as Record<string, any> | null)?.targetUserId;
+      if (typeof t === 'string') ids.add(t);
+    }
+
+    const userMap = new Map<string, { fullName: string; role: string }>();
+    if (ids.size > 0) {
+      const users = await this.userRepository.find({
+        where: { id: In([...ids]) },
+        select: ['id', 'fullName', 'role'],
+      });
+      for (const u of users) {
+        userMap.set(u.id, { fullName: u.fullName, role: u.role });
+      }
+    }
+
+    const enriched = data.map((e) => {
+      const actor = userMap.get(e.userId);
+      const details: Record<string, any> = { ...((e.details as Record<string, any>) ?? {}) };
+      if (typeof details.targetUserId === 'string' && userMap.has(details.targetUserId)) {
+        details.targetUserName = userMap.get(details.targetUserId)!.fullName;
+      }
+      return {
+        ...e,
+        userName: actor?.fullName ?? null,
+        userRole: actor?.role ?? null,
+        details,
+      };
+    });
+
     return {
-      data,
+      data: enriched,
       total,
       page,
       limit,
