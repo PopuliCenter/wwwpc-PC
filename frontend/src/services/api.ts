@@ -150,6 +150,9 @@ export const api = {
   upload: <T>(endpoint: string, formData: FormData) =>
     uploadRequest<T>(endpoint, formData),
 
+  put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
+    request<T>(endpoint, { ...options, method: 'PUT', body }),
+
   patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'PATCH', body }),
 
