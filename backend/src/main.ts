@@ -55,12 +55,13 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. server-to-server, curl, mobile apps).
-      // In production this is restricted to avoid abuse from non-browser clients.
+      // Allow requests with no Origin header. CORS only governs browser
+      // cross-origin requests; a missing Origin means it is NOT such a request:
+      //   - same-origin GET (frontend & API on satu domain via nginx /api proxy)
+      //   - health-check probe (wget), server-to-server, curl, mobile apps
+      // Rejecting these breaks the app & Docker healthcheck, and gives no real
+      // security (non-browser clients can spoof Origin anyway).
       if (!origin) {
-        if (isProduction) {
-          return callback(new Error('Origin header is required'));
-        }
         return callback(null, true);
       }
       if (allowedOrigins.includes(origin)) {
