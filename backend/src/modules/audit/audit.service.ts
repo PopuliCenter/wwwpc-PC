@@ -24,19 +24,27 @@ export class AuditService {
    * Log an audit event with all required fields.
    */
   async log(event: AuditEvent): Promise<void> {
-    const entry = this.auditLogRepository.create({
-      userId: event.userId,
-      actionType: event.actionType,
-      module: event.module,
-      details: event.details || {},
-      ipAddress: event.ipAddress,
-      createdAt: event.timestamp || new Date(),
-    });
+    // Audit bersifat best-effort: kegagalan menulis log TIDAK boleh
+    // menggagalkan aksi inti (mis. reset password / aktivasi user).
+    try {
+      const entry = this.auditLogRepository.create({
+        userId: event.userId,
+        actionType: event.actionType,
+        module: event.module,
+        details: event.details || {},
+        ipAddress: event.ipAddress,
+        createdAt: event.timestamp || new Date(),
+      });
 
-    await this.auditLogRepository.save(entry);
-    this.logger.debug(
-      `Audit log: ${event.actionType} by ${event.userId} in ${event.module}`,
-    );
+      await this.auditLogRepository.save(entry);
+      this.logger.debug(
+        `Audit log: ${event.actionType} by ${event.userId} in ${event.module}`,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Gagal menulis audit log (${event.actionType} di ${event.module}): ${error.message}`,
+      );
+    }
   }
 
   /**
