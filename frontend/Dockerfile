@@ -5,9 +5,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json ./
 
-RUN npm ci --ignore-scripts
+# Monorepo npm-workspaces: lock file hanya ada di root, tidak di context ini.
+RUN npm install --ignore-scripts
 
 COPY . .
 

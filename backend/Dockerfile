@@ -6,9 +6,11 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copy manifests first for better layer caching
-COPY package.json package-lock.json ./
+COPY package.json ./
 
-RUN npm ci --omit=dev --ignore-scripts
+# Monorepo npm-workspaces: tidak ada package-lock.json per-paket di context ini,
+# jadi pakai `npm install` (bukan `npm ci`) agar resolve dari package.json.
+RUN npm install --omit=dev --ignore-scripts
 
 
 # =============================================================================
@@ -18,10 +20,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Install all deps (including devDeps needed for the build)
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 COPY . .
 
