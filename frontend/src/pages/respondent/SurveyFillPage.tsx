@@ -1165,12 +1165,12 @@ export function SurveyFillPage() {
               key={question.id}
               className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}
             >
-              <div className="mb-4 flex items-start gap-2.5">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
+              <div className="mb-4 flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
                   {idx + 1}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-base font-semibold leading-snug text-gray-900">
                     {question.text}
                     {question.required && <span className="ml-1 text-red-500">*</span>}
                   </p>
