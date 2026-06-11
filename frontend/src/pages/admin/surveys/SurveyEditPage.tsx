@@ -123,26 +123,9 @@ const questionTypeLabels: Record<QuestionType, string> = {
   file_upload: 'Upload File',
   date_time: 'Tanggal & Waktu',
   date: 'Tanggal',
-  rating_scale: 'Skala Rating ⭐',
+  rating_scale: 'Skala Rating',
   unique_id: 'ID Unik',
-  indonesia_region: 'Wilayah Indonesia 🗺️',
-};
-
-const questionTypeIcons: Record<QuestionType, string> = {
-  single_choice: '⭕',
-  multiple_choice: '☑️',
-  short_text: '📝',
-  long_text: '📄',
-  phone_number: '📱',
-  numeric_scale: '🔢',
-  dropdown: '📋',
-  matrix_likert: '📊',
-  file_upload: '📎',
-  date_time: '🕐',
-  date: '📅',
-  rating_scale: '⭐',
-  unique_id: '🔖',
-  indonesia_region: '🗺️',
+  indonesia_region: 'Wilayah Indonesia',
 };
 
 const operatorLabels: Record<ConditionOperator, string> = {
@@ -767,7 +750,6 @@ function SortableQuestionCard({
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
           {index + 1}
         </span>
-        <span className="text-base">{questionTypeIcons[question.type]}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">
             {question.text || <span className="text-gray-400 italic">Pertanyaan baru</span>}
@@ -990,7 +972,7 @@ export function SurveyEditPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showTypeSelector, setShowTypeSelector] = useState(false);
+  const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   const sensors = useSensors(
@@ -1130,14 +1112,14 @@ export function SurveyEditPage() {
             onClick={() => navigate(`/admin/surveys/${id}/preview`)}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
           >
-            👁️ Preview
+            Preview
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm transition-colors"
           >
-            {saving ? 'Menyimpan...' : '💾 Simpan'}
+            {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
         </div>
       </div>
@@ -1165,52 +1147,40 @@ export function SurveyEditPage() {
         </DndContext>
 
         {questions.length === 0 && (
-          <div className="text-center py-12 text-gray-400">
-            <p className="text-4xl mb-3">📋</p>
-            <p className="text-sm">Belum ada pertanyaan. Klik tombol di bawah untuk menambahkan.</p>
+          <div className="rounded-md border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
+            Belum ada pertanyaan. Pilih tipe di bawah lalu klik &ldquo;Tambah pertanyaan&rdquo;.
           </div>
         )}
 
-        {/* Tombol tambah pertanyaan */}
-        <div className="mt-4">
-          {showTypeSelector ? (
-            <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-800">Pilih Tipe Pertanyaan</h3>
-                <button onClick={() => setShowTypeSelector(false)} className="text-gray-400 hover:text-gray-600 text-sm">
-                  ✕ Batal
-                </button>
-              </div>
-              <div className="space-y-4">
-                {typeGroups.map((group) => (
-                  <div key={group.label}>
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">{group.label}</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {group.types.map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => addQuestion(type)}
-                          className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-colors group"
-                        >
-                          <span className="text-lg">{questionTypeIcons[type]}</span>
-                          <span className="text-xs text-gray-700 group-hover:text-primary-700 leading-tight">
-                            {questionTypeLabels[type]}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowTypeSelector(true)}
-              className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors text-sm"
+        {/* Tambah pertanyaan — pilih tipe lewat dropdown */}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <label htmlFor="new-question-type" className="mb-1 block text-xs font-medium text-gray-500">
+              Tipe pertanyaan
+            </label>
+            <select
+              id="new-question-type"
+              value={newQuestionType}
+              onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             >
-              + Tambah Pertanyaan
-            </button>
-          )}
+              {typeGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.types.map((type) => (
+                    <option key={type} value={type}>
+                      {questionTypeLabels[type]}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => addQuestion(newQuestionType)}
+            className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+          >
+            + Tambah pertanyaan
+          </button>
         </div>
       </div>
     </div>

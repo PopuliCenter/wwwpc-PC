@@ -9,12 +9,25 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserStatus } from './entities';
+import { UserRole } from '@shared/enums';
 import {
   AuthResult,
   TokenPair,
   SessionInfo,
   JwtPayload,
 } from './interfaces';
+
+export interface ProfileResult {
+  id: string;
+  email: string;
+  phone: string;
+  fullName: string;
+  role: UserRole;
+  status: UserStatus;
+  emailVerified: boolean;
+  profileCompleted: boolean;
+  createdAt: Date;
+}
 
 const GENERIC_LOGIN_ERROR = 'Invalid email or password';
 const PASSWORD_RESET_TTL = 3600; // 1 hour in seconds
@@ -261,6 +274,98 @@ export class AuthService {
     await this.cacheManager.del(`${PASSWORD_RESET_PREFIX}${token}`);
 
     this.logger.log(`Password reset completed for ${email}`);
+  }
+
+  // --- Profil sendiri (semua user yang login) ---
+
+  /** Data profil user yang sedang login (tanpa hash password). */
+  async getProfile(userId: string): Promise<ProfileResult> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return this.toProfile(user);
+  }
+
+  /** Edit data diri sendiri: fullName, phone, email (cek keunikan email & phone). */
+  async updateProfile(
+    userId: string,
+    dto: { fullName?: string; phone?: string; email?: string },
+  ): Promise<ProfileResult> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const updates: Partial<User> = {};
+
+    if (dto.fullName !== undefined) {
+      updates.fullName = dto.fullName.trim();
+    }
+
+    if (dto.phone !== undefined && dto.phone !== user.phone) {
+      const existing = await this.userRepository.findOne({ where: { phone: dto.phone } });
+      if (existing && existing.id !== userId) {
+        throw new BadRequestException('Nomor telepon sudah dipakai akun lain');
+      }
+      updates.phone = dto.phone;
+    }
+
+    if (dto.email !== undefined && dto.email !== user.email) {
+      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (existing && existing.id !== userId) {
+        throw new BadRequestException('Email sudah dipakai akun lain');
+      }
+      updates.email = dto.email;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.userRepository.update(userId, updates);
+    }
+
+    const refreshed = await this.userRepository.findOne({ where: { id: userId } });
+    return this.toProfile(refreshed ?? user);
+  }
+
+  /** Ganti password sendiri — wajib verifikasi password lama. */
+  async changeOwnPassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new BadRequestException('Password lama salah');
+    }
+
+    if (!this.isValidPassword(newPassword)) {
+      throw new BadRequestException(
+        'Password baru minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+    await this.userRepository.update(userId, { passwordHash });
+    this.logger.log(`Password changed by user ${user.email}`);
+  }
+
+  private toProfile(user: User): ProfileResult {
+    return {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      fullName: user.fullName,
+      role: user.role,
+      status: user.status,
+      emailVerified: user.emailVerified,
+      profileCompleted: user.profileCompleted,
+      createdAt: user.createdAt,
+    };
   }
 
   private isValidPassword(password: string): boolean {

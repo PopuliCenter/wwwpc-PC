@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Patch,
   Body,
   HttpCode,
   HttpStatus,
@@ -8,8 +10,15 @@ import {
   Request,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
-import { LoginDto, RefreshTokenDto, RequestPasswordResetDto, ResetPasswordDto } from './dto';
+import { AuthService, ProfileResult } from './auth.service';
+import {
+  LoginDto,
+  RefreshTokenDto,
+  RequestPasswordResetDto,
+  ResetPasswordDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
+} from './dto';
 import { JwtAuthGuard } from './guards';
 import { AuthResult, TokenPair } from './interfaces';
 
@@ -52,5 +61,36 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     await this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  // --- Profil sendiri (semua user yang login) ---
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@Request() req: any): Promise<ProfileResult> {
+    return this.authService.getProfile(req.user.userId);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(
+    @Request() req: any,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<ProfileResult> {
+    return this.authService.updateProfile(req.user.userId, dto);
+  }
+
+  @Patch('profile/password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async changePassword(
+    @Request() req: any,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
+    await this.authService.changeOwnPassword(
+      req.user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }

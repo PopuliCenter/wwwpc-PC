@@ -3,6 +3,10 @@ import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { RespondentLayout } from '@/components/layouts/RespondentLayout';
 import { ProtectedRoute } from './ProtectedRoute';
+import { RequireRoles } from './RequireRoles';
+import { access } from '@/config/access';
+import { ProfilePage } from '@/pages/admin/ProfilePage';
+import { MapsPage } from '@/pages/admin/MapsPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
@@ -48,6 +52,7 @@ export const router = createBrowserRouter([
       { path: 'surveys', element: <RespondentSurveyListPage /> },
       { path: 'surveys/:id/fill', element: <SurveyFillPage /> },
       { path: 'rewards', element: <RewardPage /> },
+      { path: 'profile', element: <ProfilePage /> },
     ],
   },
 
@@ -62,15 +67,17 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'surveys', element: <SurveyListPage /> },
-      { path: 'surveys/create', element: <SurveyCreatePage /> },
-      { path: 'surveys/:id/edit', element: <SurveyEditPage /> },
-      { path: 'surveys/:id/preview', element: <SurveyPreviewPage /> },
-      { path: 'responses', element: <ResponseListPage /> },
-      { path: 'responses/:id', element: <ResponseDetailPage /> },
-      { path: 'users', element: <UserManagementPage /> },
-      { path: 'audit', element: <AuditLogPage /> },
-      { path: 'cleanup', element: <DataCleanupPage /> },
+      { path: 'surveys', element: <RequireRoles roles={access.surveys}><SurveyListPage /></RequireRoles> },
+      { path: 'surveys/create', element: <RequireRoles roles={access.surveys}><SurveyCreatePage /></RequireRoles> },
+      { path: 'surveys/:id/edit', element: <RequireRoles roles={access.surveys}><SurveyEditPage /></RequireRoles> },
+      { path: 'surveys/:id/preview', element: <RequireRoles roles={access.surveys}><SurveyPreviewPage /></RequireRoles> },
+      { path: 'responses', element: <RequireRoles roles={access.responses}><ResponseListPage /></RequireRoles> },
+      { path: 'responses/:id', element: <RequireRoles roles={access.responses}><ResponseDetailPage /></RequireRoles> },
+      { path: 'maps', element: <RequireRoles roles={access.maps}><MapsPage /></RequireRoles> },
+      { path: 'users', element: <RequireRoles roles={access.users}><UserManagementPage /></RequireRoles> },
+      { path: 'audit', element: <RequireRoles roles={access.audit}><AuditLogPage /></RequireRoles> },
+      { path: 'cleanup', element: <RequireRoles roles={access.cleanup}><DataCleanupPage /></RequireRoles> },
+      { path: 'profile', element: <ProfilePage /> },
     ],
   },
 ]);

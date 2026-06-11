@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth.store';
 const navItems = [
   { path: '/surveys', label: 'Survei' },
   { path: '/rewards', label: 'Reward' },
+  { path: '/profile', label: 'Profil' },
 ];
 
 export function RespondentLayout() {

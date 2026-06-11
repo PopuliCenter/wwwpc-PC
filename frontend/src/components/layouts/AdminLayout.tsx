@@ -3,27 +3,34 @@ import {
   LayoutDashboard,
   ClipboardList,
   MessageSquareText,
+  Map as MapIcon,
   Users,
   ScrollText,
   Trash2,
+  UserCog,
   LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { access, hasRole } from '@/config/access';
+import type { UserRole } from '@/types';
 
 interface NavItem {
   path: string;
   label: string;
   icon: LucideIcon;
+  roles: UserRole[];
 }
 
 const navItems: NavItem[] = [
-  { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/admin/surveys', label: 'Survei', icon: ClipboardList },
-  { path: '/admin/responses', label: 'Respons', icon: MessageSquareText },
-  { path: '/admin/users', label: 'Pengguna', icon: Users },
-  { path: '/admin/audit', label: 'Audit Log', icon: ScrollText },
-  { path: '/admin/cleanup', label: 'Data Cleanup', icon: Trash2 },
+  { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: access.dashboard },
+  { path: '/admin/surveys', label: 'Survei', icon: ClipboardList, roles: access.surveys },
+  { path: '/admin/responses', label: 'Respons', icon: MessageSquareText, roles: access.responses },
+  { path: '/admin/maps', label: 'Peta', icon: MapIcon, roles: access.maps },
+  { path: '/admin/users', label: 'Pengguna', icon: Users, roles: access.users },
+  { path: '/admin/audit', label: 'Audit Log', icon: ScrollText, roles: access.audit },
+  { path: '/admin/cleanup', label: 'Data Cleanup', icon: Trash2, roles: access.cleanup },
+  { path: '/admin/profile', label: 'Profil', icon: UserCog, roles: access.profile },
 ];
 
 function initials(name?: string): string {
@@ -38,6 +45,8 @@ function initials(name?: string): string {
 export function AdminLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  const visibleNav = navItems.filter((item) => hasRole(user?.role, item.roles));
 
   const handleLogout = () => {
     logout();
@@ -61,7 +70,7 @@ export function AdminLayout() {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-2">
-          {navItems.map(({ path, label, icon: Icon }) => (
+          {visibleNav.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
               to={path}
