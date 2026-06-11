@@ -1040,7 +1040,6 @@ export function SurveyEditPage() {
       ...defaults,
     };
     setQuestions((prev) => [...prev, newQ]);
-    setShowTypeSelector(false);
   };
 
   const editQuestion = useCallback((updated: Question) => {
