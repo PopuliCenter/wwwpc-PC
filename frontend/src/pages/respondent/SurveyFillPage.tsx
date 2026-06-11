@@ -14,6 +14,7 @@ import {
   Loader2,
   Star,
   MapPin,
+  Camera,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
@@ -69,7 +70,8 @@ interface Question {
     | 'rating_scale'
     | 'unique_id'
     | 'indonesia_region'
-    | 'signature';
+    | 'signature'
+    | 'photo';
   text: string;
   description?: string;
   required: boolean;
@@ -936,6 +938,92 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
   );
 }
 
+function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setError(null);
+    setUploading(true);
+    setPreview(URL.createObjectURL(file));
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const result = await api.upload<{ key: string }>(
+        `/surveys/${surveyId}/responses/upload`,
+        formData,
+      );
+      onChange(result.key);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e.message || 'Gagal mengunggah foto.');
+      onChange(null);
+      setPreview(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const clear = () => {
+    onChange(null);
+    setPreview(null);
+    setError(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      {value ? (
+        <div className="space-y-2">
+          {preview ? (
+            <img src={preview} alt="Foto" className="max-h-56 rounded-lg border border-gray-200 object-contain" />
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-gray-800">
+              <FileCheck2 className="h-5 w-5 text-emerald-600" /> Foto telah diunggah
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={clear}
+            className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-700"
+          >
+            <X className="h-3.5 w-3.5" /> Ambil ulang
+          </button>
+        </div>
+      ) : (
+        <label
+          className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:bg-gray-50 ${
+            invalid ? 'border-red-300' : 'border-gray-300'
+          }`}
+        >
+          {uploading ? (
+            <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+              <Loader2 className="h-4 w-4 animate-spin" /> Mengunggah...
+            </span>
+          ) : (
+            <>
+              <Camera className="h-6 w-6 text-gray-400" />
+              <span className="text-sm font-medium text-primary-700">Buka Kamera / Pilih Foto</span>
+              <span className="text-xs text-gray-400">Di ponsel akan langsung membuka kamera</span>
+            </>
+          )}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+        </label>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function QuestionRenderer(props: RendererProps) {
   const renderers: Record<Question['type'], React.FC<RendererProps>> = {
     single_choice: SingleChoiceQuestion,
@@ -953,6 +1041,7 @@ function QuestionRenderer(props: RendererProps) {
     unique_id: UniqueIdQuestion,
     indonesia_region: IndonesiaRegionQuestion,
     signature: SignatureQuestion,
+    photo: PhotoQuestion,
   };
 
   const Renderer = renderers[props.question.type];

@@ -19,4 +19,6 @@ export enum QuestionType {
   INDONESIA_REGION = 'indonesia_region',
   /** Tanda tangan — kanvas, disimpan sebagai gambar PNG di object storage */
   SIGNATURE = 'signature',
+  /** Foto — ambil langsung dari kamera HP/perangkat */
+  PHOTO = 'photo',
 }

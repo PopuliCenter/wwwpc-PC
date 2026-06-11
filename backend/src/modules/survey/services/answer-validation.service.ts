@@ -185,7 +185,8 @@ export class AnswerValidationService {
       }
 
       case QuestionType.FILE_UPLOAD:
-      case QuestionType.SIGNATURE: {
+      case QuestionType.SIGNATURE:
+      case QuestionType.PHOTO: {
         if (typeof value !== 'string') return 'unggahan berkas tidak valid';
         // The value must be an object key produced by the upload endpoint for
         // THIS respondent on THIS survey — prevents referencing arbitrary keys.
