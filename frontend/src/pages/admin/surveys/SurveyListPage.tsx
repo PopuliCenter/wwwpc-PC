@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PauseCircle, Archive, Trash2, ClipboardList } from 'lucide-react';
+import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -61,21 +61,33 @@ export function SurveyListPage() {
     }
   };
 
+  const handleActivate = async (id: string) => {
+    try {
+      await api.put(`/surveys/${id}/activate`);
+      fetchSurveys();
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      alert(e.message || 'Gagal mengaktifkan survei');
+    }
+  };
+
   const handleDeactivate = async (id: string) => {
     try {
-      await api.patch(`/surveys/${id}`, { status: 'inactive' });
+      await api.put(`/surveys/${id}/deactivate`);
       fetchSurveys();
-    } catch {
-      alert('Gagal menonaktifkan survei');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      alert(e.message || 'Gagal menonaktifkan survei');
     }
   };
 
   const handleArchive = async (id: string) => {
     try {
-      await api.patch(`/surveys/${id}`, { status: 'archived' });
+      await api.put(`/surveys/${id}/archive`);
       fetchSurveys();
-    } catch {
-      alert('Gagal mengarsipkan survei');
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      alert(e.message || 'Gagal mengarsipkan survei');
     }
   };
 
@@ -92,7 +104,9 @@ export function SurveyListPage() {
   const actions = (s: Survey) => [
     { icon: Pencil, label: 'Edit', cls: 'hover:text-primary-700', onClick: () => navigate(`/admin/surveys/${s.id}/edit`) },
     { icon: Copy, label: 'Duplikasi', cls: 'hover:text-emerald-700', onClick: () => handleDuplicate(s.id) },
-    { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) },
+    s.status === 'active'
+      ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }
+      : { icon: PlayCircle, label: 'Aktifkan', cls: 'hover:text-emerald-700', onClick: () => handleActivate(s.id) },
     { icon: Archive, label: 'Arsipkan', cls: 'hover:text-gray-900', onClick: () => handleArchive(s.id) },
     { icon: Trash2, label: 'Hapus', cls: 'hover:text-red-700', onClick: () => handleDelete(s.id) },
   ];

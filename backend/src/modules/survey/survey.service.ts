@@ -196,6 +196,21 @@ export class SurveyService {
     return this.createSurvey(userId, duplicateDto);
   }
 
+  async activateSurvey(surveyId: string): Promise<Survey> {
+    const survey = await this.findById(surveyId);
+
+    if (survey.status === SurveyStatus.ARCHIVED) {
+      throw new BadRequestException('Survei terarsip tidak bisa diaktifkan');
+    }
+
+    survey.status = SurveyStatus.ACTIVE;
+    await this.surveyRepository.save(survey);
+
+    this.logger.log(`Survey activated: ${surveyId}`);
+
+    return this.findById(surveyId);
+  }
+
   async deactivateSurvey(surveyId: string): Promise<Survey> {
     const survey = await this.findById(surveyId);
 

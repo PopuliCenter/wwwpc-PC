@@ -61,6 +61,11 @@ export class SurveyController {
     return this.surveyService.duplicateSurvey(id, req.user.userId);
   }
 
+  @Put(':id/activate')
+  async activateSurvey(@Param('id') id: string): Promise<Survey> {
+    return this.surveyService.activateSurvey(id);
+  }
+
   @Put(':id/deactivate')
   async deactivateSurvey(@Param('id') id: string): Promise<Survey> {
     return this.surveyService.deactivateSurvey(id);
