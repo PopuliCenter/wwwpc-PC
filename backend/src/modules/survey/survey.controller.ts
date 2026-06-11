@@ -30,6 +30,13 @@ export class SurveyController {
     return this.surveyService.findAll();
   }
 
+  /** Daftar survei aktif untuk responden. Harus DI ATAS @Get(':id'). */
+  @Get('available')
+  @Roles(UserRole.RESPONDENT, UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  async getAvailableSurveys() {
+    return this.surveyService.getAvailableSurveys();
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string): Promise<Survey> {
     return this.surveyService.findById(id);

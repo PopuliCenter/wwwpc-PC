@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Survey } from './entities/survey.entity';
 import { SurveyTimeConfig } from './entities/survey-time-config.entity';
 import { SurveyRewardConfig } from './entities/survey-reward-config.entity';
+import { Question } from './entities/question.entity';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
 import { SurveyStatus } from '@shared/enums';
@@ -24,6 +25,8 @@ export class SurveyService {
     private readonly timeConfigRepository: Repository<SurveyTimeConfig>,
     @InjectRepository(SurveyRewardConfig)
     private readonly rewardConfigRepository: Repository<SurveyRewardConfig>,
+    @InjectRepository(Question)
+    private readonly questionRepository: Repository<Question>,
   ) {}
 
   async findAll(): Promise<Survey[]> {
@@ -31,6 +34,50 @@ export class SurveyService {
       order: { createdAt: 'DESC' },
       relations: ['timeConfig', 'rewardConfig'],
     });
+  }
+
+  /**
+   * Daftar survei AKTIF untuk responden (GET /surveys/available).
+   * Mengembalikan bentuk siap-pakai: deadline, estimasi waktu, reward, jumlah pertanyaan.
+   */
+  async getAvailableSurveys(): Promise<
+    Array<{
+      id: string;
+      title: string;
+      description: string;
+      deadline: string;
+      estimatedTime: number;
+      rewardMode: 'auto_point' | 'manual';
+      rewardPoints?: number;
+      rewardDescription?: string;
+      questionCount: number;
+    }>
+  > {
+    const surveys = await this.surveyRepository.find({
+      where: { status: SurveyStatus.ACTIVE },
+      relations: ['timeConfig', 'rewardConfig'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return Promise.all(
+      surveys.map(async (s) => {
+        const questionCount = await this.questionRepository.count({
+          where: { surveyId: s.id, enabled: true },
+        });
+        const deadline = s.endDatetime ?? s.timeConfig?.endDatetime ?? null;
+        return {
+          id: s.id,
+          title: s.title,
+          description: s.description ?? '',
+          deadline: (deadline ?? new Date()).toISOString(),
+          estimatedTime: s.maxDurationMinutes ?? s.timeConfig?.maxDurationMinutes ?? 10,
+          rewardMode: s.rewardMode === 'automatic' ? ('auto_point' as const) : ('manual' as const),
+          rewardPoints: s.rewardConfig?.pointsValue ?? undefined,
+          rewardDescription: s.rewardConfig?.manualRewardType ?? undefined,
+          questionCount,
+        };
+      }),
+    );
   }
 
   async createSurvey(userId: string, dto: CreateSurveyDto): Promise<Survey> {
