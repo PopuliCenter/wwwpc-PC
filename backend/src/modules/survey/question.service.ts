@@ -107,6 +107,76 @@ export class QuestionService {
     return this.findById(savedQuestion.id);
   }
 
+  /**
+   * Ganti SELURUH pertanyaan survei sekaligus (dipakai builder "Simpan").
+   * Bersifat lunak: teks/opsi boleh kosong (draft). Hapus semua lalu buat ulang.
+   */
+  async bulkReplaceQuestions(
+    surveyId: string,
+    questions: Array<{
+      type: QuestionType;
+      text?: string;
+      required?: boolean;
+      order?: number;
+      hasOtherOption?: boolean;
+      options?: Array<{ label?: string; value?: string; orderIndex?: number }>;
+      validationRules?: Record<string, any> | null;
+    }>,
+  ): Promise<Question[]> {
+    const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+
+    // Pastikan ada minimal satu halaman (model question butuh page_id)
+    let page = await this.pageRepository.findOne({
+      where: { surveyId },
+      order: { orderIndex: 'ASC' },
+    });
+    if (!page) {
+      page = await this.pageRepository.save(
+        this.pageRepository.create({ surveyId, pageNumber: 1, orderIndex: 0, title: null }),
+      );
+    }
+
+    // Hapus semua pertanyaan lama (cascade menghapus opsi)
+    const existing = await this.questionRepository.find({ where: { surveyId } });
+    if (existing.length > 0) {
+      await this.questionRepository.remove(existing);
+    }
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const saved = await this.questionRepository.save(
+        this.questionRepository.create({
+          surveyId,
+          pageId: page.id,
+          type: q.type,
+          questionText: q.text ?? '',
+          required: q.required ?? false,
+          orderIndex: q.order ?? i,
+          validationRules: q.validationRules ?? null,
+          hasOtherOption: q.hasOtherOption ?? false,
+        }),
+      );
+
+      if (q.options && q.options.length > 0) {
+        const options = q.options.map((opt, idx) =>
+          this.optionRepository.create({
+            questionId: saved.id,
+            label: opt.label ?? '',
+            value: opt.value || opt.label || `option_${idx + 1}`,
+            orderIndex: opt.orderIndex ?? idx,
+          }),
+        );
+        await this.optionRepository.save(options);
+      }
+    }
+
+    this.logger.log(`Bulk replaced ${questions.length} questions for survey ${surveyId}`);
+    return this.getQuestionsBySurvey(surveyId);
+  }
+
   async updateQuestion(
     questionId: string,
     dto: UpdateQuestionDto,

@@ -14,6 +14,7 @@ import { QuestionService } from './question.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
+import { BulkQuestionsDto } from './dto/bulk-questions.dto';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
@@ -32,6 +33,15 @@ export class QuestionController {
     @Body() dto: CreateQuestionDto,
   ): Promise<Question> {
     return this.questionService.addQuestion(surveyId, dto);
+  }
+
+  /** Ganti seluruh pertanyaan survei sekaligus (tombol "Simpan" di builder). */
+  @Put('surveys/:surveyId/questions')
+  async bulkReplaceQuestions(
+    @Param('surveyId') surveyId: string,
+    @Body() dto: BulkQuestionsDto,
+  ): Promise<Question[]> {
+    return this.questionService.bulkReplaceQuestions(surveyId, dto.questions);
   }
 
   @Put('questions/:id')

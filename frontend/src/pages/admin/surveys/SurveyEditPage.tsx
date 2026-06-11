@@ -110,6 +110,34 @@ interface SurveyDetail {
   questions: Question[];
 }
 
+// Bentuk pertanyaan dari backend (GET /surveys/:id/questions)
+interface BackendQuestion {
+  id: string;
+  type: QuestionType;
+  questionText: string;
+  required: boolean;
+  orderIndex: number;
+  validationRules: ValidationRules | null;
+  hasOtherOption: boolean;
+  options?: { id: string; label: string; value: string; orderIndex: number }[];
+}
+
+function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
+  return {
+    id: q.id,
+    type: q.type,
+    text: q.questionText ?? '',
+    required: !!q.required,
+    order: q.orderIndex ?? idx,
+    hasOtherOption: !!q.hasOtherOption,
+    validationRules: q.validationRules ?? undefined,
+    options: (q.options ?? [])
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((o) => ({ id: o.id, label: o.label, value: o.value, order: o.orderIndex })),
+  };
+}
+
 // ─── Metadata tipe pertanyaan ─────────────────────────────────────────────────
 const questionTypeLabels: Record<QuestionType, string> = {
   single_choice: 'Pilihan Tunggal',
@@ -984,9 +1012,13 @@ export function SurveyEditPage() {
   useEffect(() => {
     const fetchSurvey = async () => {
       try {
-        const result = await api.get<SurveyDetail>(`/surveys/${id}`);
-        setSurvey(result);
-        setQuestions(result.questions ?? []);
+        const [survey, rawQuestions] = await Promise.all([
+          api.get<{ id: string; title: string; description: string }>(`/surveys/${id}`),
+          api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
+        ]);
+        const mapped = (rawQuestions ?? []).map(mapBackendQuestion);
+        setSurvey({ id: survey.id, title: survey.title, description: survey.description, questions: mapped });
+        setQuestions(mapped);
       } catch {
         alert('Gagal memuat survei');
         navigate('/admin/surveys');
@@ -1068,11 +1100,26 @@ export function SurveyEditPage() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      await api.patch(`/surveys/${id}`, { questions });
+      const payload = questions.map((q, idx) => ({
+        type: q.type,
+        text: q.text ?? '',
+        required: !!q.required,
+        order: idx,
+        hasOtherOption: !!q.hasOtherOption,
+        options: (q.options ?? []).map((o, i) => ({
+          label: o.label,
+          value: o.value || o.label,
+          orderIndex: i,
+        })),
+        validationRules: q.validationRules ?? null,
+      }));
+      await api.put(`/surveys/${id}/questions`, { questions: payload });
       setSaveMessage({ ok: true, text: 'Survei berhasil disimpan' });
       setTimeout(() => setSaveMessage(null), 3000);
-    } catch {
-      setSaveMessage({ ok: false, text: 'Gagal menyimpan survei' });
+    } catch (err: unknown) {
+      const e = err as { message?: string | string[] };
+      const msg = Array.isArray(e.message) ? e.message.join(', ') : e.message;
+      setSaveMessage({ ok: false, text: msg || 'Gagal menyimpan survei' });
     } finally {
       setSaving(false);
     }
@@ -1151,37 +1198,37 @@ export function SurveyEditPage() {
             Belum ada pertanyaan. Pilih tipe di bawah lalu klik &ldquo;Tambah pertanyaan&rdquo;.
           </div>
         )}
+      </div>
 
-        {/* Tambah pertanyaan — pilih tipe lewat dropdown */}
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-          <div className="flex-1">
-            <label htmlFor="new-question-type" className="mb-1 block text-xs font-medium text-gray-500">
-              Tipe pertanyaan
-            </label>
-            <select
-              id="new-question-type"
-              value={newQuestionType}
-              onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
-              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            >
-              {typeGroups.map((group) => (
-                <optgroup key={group.label} label={group.label}>
-                  {group.types.map((type) => (
-                    <option key={type} value={type}>
-                      {questionTypeLabels[type]}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={() => addQuestion(newQuestionType)}
-            className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+      {/* Tambah pertanyaan — di LUAR kotak, mudah dijangkau */}
+      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <label htmlFor="new-question-type" className="mb-1 block text-xs font-medium text-gray-500">
+            Tipe pertanyaan
+          </label>
+          <select
+            id="new-question-type"
+            value={newQuestionType}
+            onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
           >
-            + Tambah pertanyaan
-          </button>
+            {typeGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.types.map((type) => (
+                  <option key={type} value={type}>
+                    {questionTypeLabels[type]}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
+        <button
+          onClick={() => addQuestion(newQuestionType)}
+          className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+        >
+          + Tambah pertanyaan
+        </button>
       </div>
     </div>
   );
