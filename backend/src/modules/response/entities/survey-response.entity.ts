@@ -59,6 +59,13 @@ export class SurveyResponse {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'questionnaire_number' })
   questionnaireNumber: string | null;
 
+  /**
+   * Kunci idempotensi yang dibuat klien (untuk pengisian offline → sync).
+   * Mencegah duplikat bila pengiriman terulang setelah koneksi kembali.
+   */
+  @Column({ type: 'uuid', nullable: true, name: 'client_submission_id' })
+  clientSubmissionId: string | null;
+
   // ── Geolokasi pengisian (start saat buka form, end saat submit) ────────────
   @Column({ type: 'double precision', nullable: true, name: 'start_latitude' })
   startLatitude: number | null;

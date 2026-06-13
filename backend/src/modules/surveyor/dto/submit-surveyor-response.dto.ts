@@ -32,6 +32,11 @@ export class SubmitSurveyorResponseDto {
   @IsString()
   deviceType?: string;
 
+  /** Kunci idempotensi dari klien (UUID) untuk pengisian offline → sync. */
+  @IsOptional()
+  @IsUUID()
+  clientSubmissionId?: string;
+
   @IsOptional()
   @IsNumber()
   startLatitude?: number;

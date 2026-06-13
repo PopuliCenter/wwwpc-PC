@@ -236,6 +236,22 @@ export class SurveyorService {
     const quota = await this.getAssignmentOrThrow(surveyId, surveyorId);
 
     const number = dto.questionnaireNumber.trim();
+
+    // Idempotensi offline → sync: jika pengiriman dengan kunci yang sama sudah
+    // tercatat (mis. retry setelah online kembali), kembalikan respons yang ada
+    // tanpa membuat duplikat dan tanpa menolak nomor yang "sudah dipakai".
+    if (dto.clientSubmissionId) {
+      const existing = await this.responseRepository.findOne({
+        where: { clientSubmissionId: dto.clientSubmissionId },
+      });
+      if (existing) {
+        return {
+          id: existing.id,
+          questionnaireNumber: existing.questionnaireNumber ?? number,
+        };
+      }
+    }
+
     if (!quota.assignedNumbers.includes(number)) {
       throw new BadRequestException(
         'Nomor kuesioner tidak termasuk dalam alokasi Anda',
@@ -257,36 +273,54 @@ export class SurveyorService {
       enforceTypes: true,
     });
 
-    const responseId = await this.dataSource.transaction(async (manager) => {
-      const response = manager.create(SurveyResponse, {
-        surveyId,
-        respondentId: surveyorId,
-        surveyorId,
-        questionnaireNumber: number,
-        status: ResponseStatus.COMPLETE,
-        deviceType: dto.deviceType || null,
-        startedAt: new Date(),
-        submittedAt: new Date(),
-        startLatitude: dto.startLatitude ?? null,
-        startLongitude: dto.startLongitude ?? null,
-        endLatitude: dto.endLatitude ?? null,
-        endLongitude: dto.endLongitude ?? null,
-      });
-      const saved = await manager.save(response);
+    let responseId: string;
+    try {
+      responseId = await this.dataSource.transaction(async (manager) => {
+        const response = manager.create(SurveyResponse, {
+          surveyId,
+          respondentId: surveyorId,
+          surveyorId,
+          questionnaireNumber: number,
+          clientSubmissionId: dto.clientSubmissionId ?? null,
+          status: ResponseStatus.COMPLETE,
+          deviceType: dto.deviceType || null,
+          startedAt: new Date(),
+          submittedAt: new Date(),
+          startLatitude: dto.startLatitude ?? null,
+          startLongitude: dto.startLongitude ?? null,
+          endLatitude: dto.endLatitude ?? null,
+          endLongitude: dto.endLongitude ?? null,
+        });
+        const saved = await manager.save(response);
 
-      if (dto.answers.length > 0) {
-        const answerEntities = dto.answers.map((a) =>
-          manager.create(Answer, {
-            responseId: saved.id,
-            questionId: a.questionId,
-            value: a.value,
-            answeredAt: new Date(),
-          }),
-        );
-        await manager.save(answerEntities);
+        if (dto.answers.length > 0) {
+          const answerEntities = dto.answers.map((a) =>
+            manager.create(Answer, {
+              responseId: saved.id,
+              questionId: a.questionId,
+              value: a.value,
+              answeredAt: new Date(),
+            }),
+          );
+          await manager.save(answerEntities);
+        }
+        return saved.id;
+      });
+    } catch (error: any) {
+      // Race sync: dua retry kunci yang sama bersamaan; unique index menjaga.
+      if (error?.code === '23505' && dto.clientSubmissionId) {
+        const raced = await this.responseRepository.findOne({
+          where: { clientSubmissionId: dto.clientSubmissionId },
+        });
+        if (raced) {
+          return {
+            id: raced.id,
+            questionnaireNumber: raced.questionnaireNumber ?? number,
+          };
+        }
       }
-      return saved.id;
-    });
+      throw error;
+    }
 
     this.logger.log(
       `Surveyor ${surveyorId} submit kuesioner #${number} survei ${surveyId}`,
