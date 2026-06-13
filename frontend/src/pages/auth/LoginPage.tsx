@@ -25,7 +25,13 @@ export function LoginPage() {
       const response = await api.post<LoginResponse>('/auth/login', { email, password });
       login(response.user, response.accessToken, response.refreshToken);
 
-      const redirectPath = (response.user.role === 'admin' || response.user.role === 'super_admin') ? '/admin/dashboard' : '/surveys';
+      const role = response.user.role;
+      const redirectPath =
+        role === 'admin' || role === 'super_admin'
+          ? '/admin/dashboard'
+          : role === 'surveyor'
+            ? '/surveyor/surveys'
+            : '/surveys';
       navigate(redirectPath);
     } catch (err: unknown) {
       const apiError = err as { message?: string; statusCode?: number };

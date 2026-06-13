@@ -37,7 +37,8 @@ type QuestionType =
   | 'indonesia_region'
   | 'signature'
   | 'photo'
-  | 'gps';
+  | 'gps'
+  | 'audio';
 
 interface QuestionOption {
   id: string;
@@ -112,6 +113,9 @@ interface SurveyDetail {
   id: string;
   title: string;
   description: string;
+  surveyType: 'nasional' | 'daerah' | 'lainnya';
+  category: string | null;
+  formMode: 'paginated' | 'scroll' | 'wizard';
   questions: Question[];
 }
 
@@ -164,6 +168,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
   signature: 'Tanda Tangan',
   photo: 'Foto (Kamera)',
   gps: 'Titik GPS',
+  audio: 'Rekaman Audio',
 };
 
 const operatorLabels: Record<ConditionOperator, string> = {
@@ -1043,6 +1048,28 @@ export function SurveyEditPage() {
   const [saving, setSaving] = useState(false);
   const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Pengaturan survei (tipe, kategori, mode form)
+  const [settingsType, setSettingsType] = useState<'nasional' | 'daerah' | 'lainnya'>('lainnya');
+  const [settingsCategory, setSettingsCategory] = useState('');
+  const [settingsFormMode, setSettingsFormMode] = useState<'paginated' | 'scroll' | 'wizard'>('paginated');
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    setSaveMessage(null);
+    try {
+      await api.put(`/surveys/${id}`, {
+        surveyType: settingsType,
+        category: settingsCategory || undefined,
+        formMode: settingsFormMode,
+      });
+      setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan ✓' });
+    } catch {
+      setSaveMessage({ ok: false, text: 'Gagal menyimpan pengaturan ✗' });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1053,11 +1080,29 @@ export function SurveyEditPage() {
     const fetchSurvey = async () => {
       try {
         const [survey, rawQuestions] = await Promise.all([
-          api.get<{ id: string; title: string; description: string }>(`/surveys/${id}`),
+          api.get<{
+            id: string;
+            title: string;
+            description: string;
+            surveyType?: 'nasional' | 'daerah' | 'lainnya';
+            category?: string | null;
+            formMode?: 'paginated' | 'scroll' | 'wizard';
+          }>(`/surveys/${id}`),
           api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
         ]);
         const mapped = (rawQuestions ?? []).map(mapBackendQuestion);
-        setSurvey({ id: survey.id, title: survey.title, description: survey.description, questions: mapped });
+        setSurvey({
+          id: survey.id,
+          title: survey.title,
+          description: survey.description,
+          surveyType: survey.surveyType ?? 'lainnya',
+          category: survey.category ?? null,
+          formMode: survey.formMode ?? 'paginated',
+          questions: mapped,
+        });
+        setSettingsType(survey.surveyType ?? 'lainnya');
+        setSettingsCategory(survey.category ?? '');
+        setSettingsFormMode(survey.formMode ?? 'paginated');
         setQuestions(mapped);
       } catch {
         alert('Gagal memuat survei');
@@ -1178,7 +1223,7 @@ export function SurveyEditPage() {
     { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
     { label: 'Waktu', types: ['date', 'date_time'] },
     { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature', 'photo', 'gps'] },
+    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature', 'photo', 'gps', 'audio'] },
   ];
 
   return (
@@ -1209,6 +1254,65 @@ export function SurveyEditPage() {
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm transition-colors"
           >
             {saving ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </div>
+
+      {/* Pengaturan Survei */}
+      <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold text-gray-900">Pengaturan Survei</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Tipe Survei</label>
+            <select
+              value={settingsType}
+              onChange={(e) => setSettingsType(e.target.value as typeof settingsType)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="nasional">Nasional</option>
+              <option value="daerah">Daerah</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Kategori (tema)</label>
+            <input
+              type="text"
+              list="survey-category-options"
+              value={settingsCategory}
+              onChange={(e) => setSettingsCategory(e.target.value)}
+              placeholder="Contoh: Politik, Ekonomi"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <datalist id="survey-category-options">
+              <option value="Politik" />
+              <option value="Ekonomi" />
+              <option value="Sosial" />
+              <option value="Kesehatan" />
+              <option value="Pendidikan" />
+              <option value="Lingkungan" />
+            </datalist>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Mode Tampilan Form</label>
+            <select
+              value={settingsFormMode}
+              onChange={(e) => setSettingsFormMode(e.target.value as typeof settingsFormMode)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="paginated">Paginasi</option>
+              <option value="scroll">Scroll</option>
+              <option value="wizard">Wizard (1 pertanyaan/langkah)</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-3">
+          <button
+            onClick={saveSettings}
+            disabled={savingSettings}
+            className="rounded-md border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
           </button>
         </div>
       </div>

@@ -43,6 +43,8 @@ export interface AdminResponseItem {
   status: 'completed' | 'partial' | 'abandoned';
   submittedAt: string;
   deviceType: string;
+  surveyType: string;
+  category: string | null;
   rewardMode: 'automatic' | 'manual';
   rewardType: string | null;
   destinationNumber: string | null;
@@ -136,6 +138,16 @@ export class ResponseService {
         if (dto.rewardType !== undefined) {
           existingResponse.rewardType = dto.rewardType || null;
         }
+        // Geolokasi: start hanya diisi jika belum ada (direkam saat buka form),
+        // end direkam saat submit.
+        if (dto.startLatitude != null && existingResponse.startLatitude == null) {
+          existingResponse.startLatitude = dto.startLatitude;
+          existingResponse.startLongitude = dto.startLongitude ?? null;
+        }
+        if (dto.endLatitude != null) {
+          existingResponse.endLatitude = dto.endLatitude;
+          existingResponse.endLongitude = dto.endLongitude ?? null;
+        }
         const saved = await manager.save(existingResponse);
 
         // Upsert answers within the same transaction
@@ -155,6 +167,10 @@ export class ResponseService {
             submittedAt: new Date(),
             destinationNumber: dto.destinationNumber || null,
             rewardType: dto.rewardType || null,
+            startLatitude: dto.startLatitude ?? null,
+            startLongitude: dto.startLongitude ?? null,
+            endLatitude: dto.endLatitude ?? null,
+            endLongitude: dto.endLongitude ?? null,
           });
 
           const saved = await manager.save(response);
@@ -220,6 +236,8 @@ export class ResponseService {
           status: ResponseStatus.IN_PROGRESS,
           deviceType: dto.deviceType || null,
           startedAt: new Date(),
+          startLatitude: dto.startLatitude ?? null,
+          startLongitude: dto.startLongitude ?? null,
         });
         response = await this.responseRepository.save(response);
       } catch (error: any) {
@@ -309,6 +327,12 @@ export class ResponseService {
     if (filters.surveyId) {
       qb.andWhere('r.survey_id = :surveyId', { surveyId: filters.surveyId });
     }
+    if (filters.surveyType) {
+      qb.andWhere('survey.survey_type = :surveyType', { surveyType: filters.surveyType });
+    }
+    if (filters.category) {
+      qb.andWhere('survey.category ILIKE :category', { category: `%${filters.category}%` });
+    }
     if (filters.status && statusMap[filters.status]) {
       qb.andWhere('r.status = :status', { status: statusMap[filters.status] });
     }
@@ -359,6 +383,8 @@ export class ResponseService {
       status: reverseStatus[r.status],
       submittedAt: (r.submittedAt ?? r.startedAt).toISOString(),
       deviceType: r.deviceType ?? '-',
+      surveyType: r.survey?.surveyType ?? 'lainnya',
+      category: r.survey?.category ?? null,
       rewardMode: (r.survey?.rewardMode ?? 'automatic') as 'automatic' | 'manual',
       rewardType: r.rewardType,
       destinationNumber: r.destinationNumber,

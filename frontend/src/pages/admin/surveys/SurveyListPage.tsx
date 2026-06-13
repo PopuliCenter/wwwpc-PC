@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList } from 'lucide-react';
+import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, Users } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -12,10 +12,18 @@ interface Survey {
   title: string;
   status: 'draft' | 'active' | 'inactive' | 'archived';
   rewardMode: 'automatic' | 'manual';
+  surveyType?: 'nasional' | 'daerah' | 'lainnya';
+  category?: string | null;
   createdAt: string;
   startDate?: string;
   endDate?: string;
 }
+
+const surveyTypeBadge: Record<'nasional' | 'daerah' | 'lainnya', { label: string; cls: string }> = {
+  nasional: { label: 'Nasional', cls: 'bg-primary-100 text-primary-700' },
+  daerah: { label: 'Daerah', cls: 'bg-emerald-100 text-emerald-700' },
+  lainnya: { label: 'Lainnya', cls: 'bg-gray-100 text-gray-600' },
+};
 
 const statusTone: Record<Survey['status'], 'neutral' | 'success' | 'warning' | 'danger'> = {
   draft: 'neutral',
@@ -34,7 +42,16 @@ const statusLabels: Record<Survey['status'], string> = {
 export function SurveyListPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const navigate = useNavigate();
+
+  const categories = [...new Set(surveys.map((s) => s.category).filter(Boolean) as string[])].sort();
+  const filtered = surveys.filter(
+    (s) =>
+      (!typeFilter || (s.surveyType ?? 'lainnya') === typeFilter) &&
+      (!categoryFilter || s.category === categoryFilter),
+  );
 
   const fetchSurveys = async () => {
     setLoading(true);
@@ -103,6 +120,7 @@ export function SurveyListPage() {
 
   const actions = (s: Survey) => [
     { icon: Pencil, label: 'Edit', cls: 'hover:text-primary-700', onClick: () => navigate(`/admin/surveys/${s.id}/edit`) },
+    { icon: Users, label: 'Surveyor', cls: 'hover:text-indigo-700', onClick: () => navigate(`/admin/surveys/${s.id}/surveyors`) },
     { icon: Copy, label: 'Duplikasi', cls: 'hover:text-emerald-700', onClick: () => handleDuplicate(s.id) },
     s.status === 'active'
       ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }
@@ -123,6 +141,45 @@ export function SurveyListPage() {
         </Button>
       </div>
 
+      {surveys.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">Semua Tipe</option>
+            <option value="nasional">Nasional</option>
+            <option value="daerah">Daerah</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+          >
+            <option value="">Semua Kategori</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          {(typeFilter || categoryFilter) && (
+            <button
+              onClick={() => {
+                setTypeFilter('');
+                setCategoryFilter('');
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Reset
+            </button>
+          )}
+          <span className="text-sm text-gray-400">{filtered.length} survei</span>
+        </div>
+      )}
+
       <Card flush>
         {loading ? (
           <div className="p-10 text-center text-sm text-gray-500">Memuat...</div>
@@ -141,6 +198,7 @@ export function SurveyListPage() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/60">
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Judul</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tipe / Kategori</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Reward</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Dibuat</th>
@@ -148,9 +206,21 @@ export function SurveyListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {surveys.map((survey) => (
+                {filtered.map((survey) => {
+                  const t = surveyTypeBadge[survey.surveyType ?? 'lainnya'];
+                  return (
                   <tr key={survey.id} className="transition-colors hover:bg-gray-50/60">
                     <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{survey.title}</td>
+                    <td className="px-6 py-3.5">
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.cls}`}>
+                          {t.label}
+                        </span>
+                        {survey.category && (
+                          <span className="text-xs text-gray-500">{survey.category}</span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-3.5">
                       <Badge tone={statusTone[survey.status]} dot>
                         {statusLabels[survey.status]}
@@ -176,7 +246,8 @@ export function SurveyListPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

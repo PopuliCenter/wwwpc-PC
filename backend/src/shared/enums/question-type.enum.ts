@@ -23,4 +23,6 @@ export enum QuestionType {
   PHOTO = 'photo',
   /** Titik GPS — koordinat (latitude/longitude) direkam saat mengisi */
   GPS = 'gps',
+  /** Rekaman audio — direkam langsung lewat mikrofon, disimpan di object storage */
+  AUDIO = 'audio',
 }

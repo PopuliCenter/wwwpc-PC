@@ -51,6 +51,8 @@ export class SurveyService {
       rewardPoints?: number;
       rewardDescription?: string;
       questionCount: number;
+      surveyType: string;
+      category: string | null;
     }>
   > {
     const surveys = await this.surveyRepository.find({
@@ -75,6 +77,8 @@ export class SurveyService {
           rewardPoints: s.rewardConfig?.pointsValue ?? undefined,
           rewardDescription: s.rewardConfig?.manualRewardType ?? undefined,
           questionCount,
+          surveyType: s.surveyType ?? 'lainnya',
+          category: s.category ?? null,
         };
       }),
     );
@@ -87,6 +91,9 @@ export class SurveyService {
       description: dto.description || null,
       rewardMode: dto.rewardMode,
       randomizeOptions: dto.randomizeOptions ?? false,
+      formMode: dto.formMode ?? 'paginated',
+      surveyType: dto.surveyType ?? 'lainnya',
+      category: dto.category?.trim() || null,
       startDatetime: dto.timeConfig?.startDatetime
         ? new Date(dto.timeConfig.startDatetime)
         : null,
@@ -138,6 +145,9 @@ export class SurveyService {
     if (dto.description !== undefined) survey.description = dto.description;
     if (dto.rewardMode !== undefined) survey.rewardMode = dto.rewardMode;
     if (dto.randomizeOptions !== undefined) survey.randomizeOptions = dto.randomizeOptions;
+    if (dto.formMode !== undefined) survey.formMode = dto.formMode;
+    if (dto.surveyType !== undefined) survey.surveyType = dto.surveyType;
+    if (dto.category !== undefined) survey.category = dto.category?.trim() || null;
 
     // Update time-related fields on survey
     if (dto.timeConfig) {
@@ -222,6 +232,9 @@ export class SurveyService {
       description: original.description ?? undefined,
       rewardMode: original.rewardMode,
       randomizeOptions: original.randomizeOptions,
+      formMode: original.formMode,
+      surveyType: original.surveyType,
+      category: original.category ?? undefined,
       timeConfig: {
         startDatetime: original.timeConfig?.startDatetime?.toISOString(),
         endDatetime: original.timeConfig?.endDatetime?.toISOString(),

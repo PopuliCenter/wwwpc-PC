@@ -15,6 +15,9 @@ import {
   Star,
   MapPin,
   Camera,
+  Mic,
+  Square,
+  Trash2,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
@@ -53,7 +56,7 @@ interface RatingConfig {
   ratingMaxLabel?: string;
 }
 
-interface Question {
+export interface Question {
   id: string;
   type:
     | 'single_choice'
@@ -72,7 +75,8 @@ interface Question {
     | 'indonesia_region'
     | 'signature'
     | 'photo'
-    | 'gps';
+    | 'gps'
+    | 'audio';
   text: string;
   description?: string;
   required: boolean;
@@ -96,6 +100,8 @@ interface SurveyFillData {
   description: string;
   questions: Question[];
   totalPages: number;
+  /** Mode tampilan form: paginated (default), scroll, atau wizard (1 pertanyaan/langkah). */
+  formMode?: 'paginated' | 'scroll' | 'wizard';
   maxDuration?: number; // in minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -103,13 +109,31 @@ interface SurveyFillData {
   responseId: string;
 }
 
-type AnswerValue = string | string[] | Record<string, any> | null;
+export type AnswerValue = string | string[] | Record<string, any> | null;
 
-const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
+export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : '',
 )
   ? 'mobile'
   : 'desktop';
+
+/**
+ * Rekam koordinat GPS sekali (best-effort). Tidak pernah throw — resolve null
+ * bila izin ditolak / tidak didukung / timeout, agar pengisian tetap berjalan.
+ */
+export function captureGeo(): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+}
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -120,7 +144,7 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-function isAnswered(value: AnswerValue): boolean {
+export function isAnswered(value: AnswerValue): boolean {
   if (value === null || value === undefined) return false;
   if (typeof value === 'string') return value.trim() !== '';
   if (Array.isArray(value)) return value.length > 0;
@@ -1097,7 +1121,170 @@ function GpsQuestion({ value, onChange, invalid }: RendererProps) {
   );
 }
 
-function QuestionRenderer(props: RendererProps) {
+function pickAudioMimeType(): string {
+  const candidates = ['audio/webm', 'audio/ogg', 'audio/mp4'];
+  if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+    for (const t of candidates) {
+      if (MediaRecorder.isTypeSupported(t)) return t;
+    }
+  }
+  return '';
+}
+
+function AudioQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
+  const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopTracks = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  // Bersihkan stream/timer & URL preview saat unmount.
+  useEffect(() => {
+    return () => {
+      stopTracks();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const uploadBlob = async (blob: Blob, ext: string) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', blob, `rekaman.${ext}`);
+      const result = await api.upload<{ key: string }>(
+        `/surveys/${surveyId}/responses/upload`,
+        formData,
+      );
+      onChange(result.key);
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      setError(e.message || 'Gagal mengunggah rekaman.');
+      onChange(null);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const start = async () => {
+    setError(null);
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setError('Perangkat tidak mendukung perekaman audio.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = pickAudioMimeType();
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const type = recorder.mimeType || mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type });
+        const ext = type.includes('ogg') ? 'ogg' : type.includes('mp4') ? 'm4a' : 'webm';
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(URL.createObjectURL(blob));
+        void uploadBlob(blob, ext);
+        stopTracks();
+      };
+      recorder.start();
+      recorderRef.current = recorder;
+      setRecording(true);
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
+    } catch {
+      setError('Tidak bisa mengakses mikrofon. Izinkan akses mikrofon di browser.');
+      stopTracks();
+    }
+  };
+
+  const stop = () => {
+    recorderRef.current?.stop();
+    setRecording(false);
+  };
+
+  const clear = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    onChange(null);
+    setError(null);
+    setElapsed(0);
+  };
+
+  const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const secs = String(elapsed % 60).padStart(2, '0');
+
+  return (
+    <div className="space-y-2">
+      {recording ? (
+        <button
+          type="button"
+          onClick={stop}
+          className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-100"
+        >
+          <Square className="h-4 w-4 fill-current" /> Stop ({mins}:{secs})
+        </button>
+      ) : value ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-gray-800">
+            {uploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-gray-500" /> Mengunggah rekaman...
+              </>
+            ) : (
+              <>
+                <FileCheck2 className="h-5 w-5 text-emerald-600" /> Rekaman tersimpan
+              </>
+            )}
+          </div>
+          {previewUrl && (
+            <audio controls src={previewUrl} className="w-full">
+              <track kind="captions" />
+            </audio>
+          )}
+          <button
+            type="button"
+            onClick={clear}
+            className="inline-flex items-center gap-1 text-sm text-red-500 hover:text-red-700"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Rekam ulang
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={start}
+          disabled={uploading}
+          className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 ${
+            invalid ? 'border-red-300' : 'border-gray-300'
+          }`}
+        >
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />} Mulai Rekam
+        </button>
+      )}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+export function QuestionRenderer(props: RendererProps) {
   const renderers: Record<Question['type'], React.FC<RendererProps>> = {
     single_choice: SingleChoiceQuestion,
     multiple_choice: MultipleChoiceQuestion,
@@ -1116,6 +1303,7 @@ function QuestionRenderer(props: RendererProps) {
     signature: SignatureQuestion,
     photo: PhotoQuestion,
     gps: GpsQuestion,
+    audio: AudioQuestion,
   };
 
   const Renderer = renderers[props.question.type];
@@ -1161,13 +1349,21 @@ function CountdownTimer({ minutes, onExpire }: { minutes: number; onExpire: () =
   );
 }
 
-function ProgressBar({ current, total }: { current: number; total: number }) {
+function ProgressBar({
+  current,
+  total,
+  unit = 'Halaman',
+}: {
+  current: number;
+  total: number;
+  unit?: string;
+}) {
   const percentage = Math.round((current / total) * 100);
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-sm">
         <span className="font-medium text-gray-700">
-          Halaman {current} dari {total}
+          {unit} {current} dari {total}
         </span>
         <span className="text-gray-500">{percentage}%</span>
       </div>
@@ -1199,6 +1395,8 @@ export function SurveyFillPage() {
   const [rewardType, setRewardType] = useState('pulsa');
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
+  /** Lokasi GPS saat form dibuka (best-effort), dikirim bersama jawaban. */
+  const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const fetchSurvey = async () => {
@@ -1213,6 +1411,13 @@ export function SurveyFillPage() {
     };
     fetchSurvey();
   }, [id]);
+
+  // Rekam lokasi awal sekali saat form dibuka (tidak memblokir pengisian).
+  useEffect(() => {
+    void captureGeo().then((geo) => {
+      if (geo) startGeoRef.current = geo;
+    });
+  }, []);
 
   const answersToArray = useCallback(
     () => Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
@@ -1229,6 +1434,12 @@ export function SurveyFillPage() {
           .post(`/surveys/${survey.id}/responses/save-progress`, {
             answers: answersToArray(),
             deviceType: DEVICE_TYPE,
+            ...(startGeoRef.current
+              ? {
+                  startLatitude: startGeoRef.current.lat,
+                  startLongitude: startGeoRef.current.lng,
+                }
+              : {}),
           })
           .catch(() => {
             /* silent auto-save failure */
@@ -1291,8 +1502,16 @@ export function SurveyFillPage() {
 
     if (missing.length > 0) {
       setMissingIds(new Set(missing));
-      const firstPage = survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
-      setCurrentPage(firstPage);
+      if (survey.formMode === 'wizard') {
+        // Lompat ke langkah (indeks pertanyaan aktif) yang memuat pertanyaan wajib pertama.
+        const active = survey.questions.filter(isActive);
+        const stepIdx = active.findIndex((q) => q.id === missing[0]);
+        setCurrentPage(stepIdx >= 0 ? stepIdx + 1 : 1);
+      } else {
+        const firstPage =
+          survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
+        setCurrentPage(firstPage);
+      }
       setError(`Masih ada ${missing.length} pertanyaan wajib yang belum diisi.`);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -1307,11 +1526,20 @@ export function SurveyFillPage() {
     setMissingIds(new Set());
     setSubmitting(true);
     try {
+      // Rekam lokasi akhir (best-effort) saat submit.
+      const endGeo = await captureGeo();
       const result = await api.post<{ pointsEarned?: number }>(
         `/surveys/${survey.id}/responses/submit`,
         {
           answers: answersToArray(),
           deviceType: DEVICE_TYPE,
+          ...(startGeoRef.current
+            ? {
+                startLatitude: startGeoRef.current.lat,
+                startLongitude: startGeoRef.current.lng,
+              }
+            : {}),
+          ...(endGeo ? { endLatitude: endGeo.lat, endLongitude: endGeo.lng } : {}),
           ...(survey.rewardMode === 'manual' && destinationNumber
             ? { destinationNumber, rewardType }
             : {}),
@@ -1378,9 +1606,14 @@ export function SurveyFillPage() {
 
   if (!survey) return null;
 
-  const pageQuestions = survey.questions
-    .filter((q) => q.page === currentPage)
-    .filter(isActive);
+  // Mode wizard: satu pertanyaan aktif per langkah; selain itu paginasi per halaman.
+  const isWizard = survey.formMode === 'wizard';
+  const activeQuestions = survey.questions.filter(isActive);
+  const totalSteps = isWizard ? Math.max(activeQuestions.length, 1) : survey.totalPages;
+  const pageQuestions = isWizard
+    ? activeQuestions.slice(currentPage - 1, currentPage)
+    : survey.questions.filter((q) => q.page === currentPage).filter(isActive);
+  const isLastPage = currentPage >= totalSteps;
 
   const handleAnswerChange = (questionId: string, value: AnswerValue) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -1394,7 +1627,7 @@ export function SurveyFillPage() {
   };
 
   const goToNextPage = () => {
-    if (currentPage < survey.totalPages) {
+    if (currentPage < totalSteps) {
       setCurrentPage((p) => p + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1406,8 +1639,6 @@ export function SurveyFillPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  const isLastPage = currentPage === survey.totalPages;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -1440,7 +1671,11 @@ export function SurveyFillPage() {
         )}
       </Card>
 
-      <ProgressBar current={currentPage} total={survey.totalPages} />
+      <ProgressBar
+        current={currentPage}
+        total={totalSteps}
+        unit={isWizard ? 'Pertanyaan' : 'Halaman'}
+      />
 
       {error && (
         <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
@@ -1460,7 +1695,7 @@ export function SurveyFillPage() {
             >
               <div className="mb-4 flex items-start gap-3">
                 <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
-                  {idx + 1}
+                  {isWizard ? currentPage : idx + 1}
                 </span>
                 <div className="flex-1">
                   <p className="text-base font-semibold leading-snug text-gray-900">

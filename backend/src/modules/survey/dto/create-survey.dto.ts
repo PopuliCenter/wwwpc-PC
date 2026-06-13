@@ -65,6 +65,18 @@ export class CreateSurveyDto {
   randomizeOptions?: boolean;
 
   @IsOptional()
+  @IsIn(['paginated', 'scroll', 'wizard'])
+  formMode?: 'paginated' | 'scroll' | 'wizard';
+
+  @IsOptional()
+  @IsIn(['nasional', 'daerah', 'lainnya'])
+  surveyType?: 'nasional' | 'daerah' | 'lainnya';
+
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => TimeConfigDto)
   timeConfig?: TimeConfigDto;

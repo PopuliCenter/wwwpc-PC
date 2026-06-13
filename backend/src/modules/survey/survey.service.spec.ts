@@ -6,6 +6,7 @@ import { SurveyService } from './survey.service';
 import { Survey } from './entities/survey.entity';
 import { SurveyTimeConfig } from './entities/survey-time-config.entity';
 import { SurveyRewardConfig } from './entities/survey-reward-config.entity';
+import { Question } from './entities/question.entity';
 import { SurveyStatus } from '@shared/enums';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
@@ -15,6 +16,7 @@ describe('SurveyService', () => {
   let surveyRepository: any;
   let timeConfigRepository: any;
   let rewardConfigRepository: any;
+  let questionRepository: any;
 
   const mockUserId = 'user-uuid-123';
 
@@ -78,12 +80,18 @@ describe('SurveyService', () => {
       findOne: vi.fn().mockResolvedValue(mockSurvey.rewardConfig),
     };
 
+    questionRepository = {
+      count: vi.fn().mockResolvedValue(0),
+      find: vi.fn().mockResolvedValue([]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SurveyService,
         { provide: getRepositoryToken(Survey), useValue: surveyRepository },
         { provide: getRepositoryToken(SurveyTimeConfig), useValue: timeConfigRepository },
         { provide: getRepositoryToken(SurveyRewardConfig), useValue: rewardConfigRepository },
+        { provide: getRepositoryToken(Question), useValue: questionRepository },
       ],
     }).compile();
 

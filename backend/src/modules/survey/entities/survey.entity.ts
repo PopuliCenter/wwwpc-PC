@@ -15,6 +15,17 @@ import { SurveyRewardConfig } from './survey-reward-config.entity';
 
 export type RewardMode = 'automatic' | 'manual';
 
+/**
+ * Mode tampilan form pengisian:
+ * - `paginated`: beberapa pertanyaan per halaman (perilaku default lama)
+ * - `scroll`: semua pertanyaan dalam satu halaman scroll
+ * - `wizard`: satu pertanyaan per langkah (gaya survei lapangan)
+ */
+export type FormMode = 'paginated' | 'scroll' | 'wizard';
+
+/** Tipe survei (mengikuti referensi): nasional, daerah, atau lainnya. */
+export type SurveyType = 'nasional' | 'daerah' | 'lainnya';
+
 @Entity('survey')
 export class Survey {
   @PrimaryGeneratedColumn('uuid')
@@ -63,6 +74,28 @@ export class Survey {
 
   @Column({ type: 'boolean', default: false, name: 'randomize_options' })
   randomizeOptions: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: ['paginated', 'scroll', 'wizard'],
+    enumName: 'survey_form_mode_enum',
+    name: 'form_mode',
+    default: 'paginated',
+  })
+  formMode: FormMode;
+
+  @Column({
+    type: 'enum',
+    enum: ['nasional', 'daerah', 'lainnya'],
+    enumName: 'survey_type_enum',
+    name: 'survey_type',
+    default: 'lainnya',
+  })
+  surveyType: SurveyType;
+
+  /** Kategori tematik survei (mis. Politik, Ekonomi, Sosial, Kesehatan). */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  category: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

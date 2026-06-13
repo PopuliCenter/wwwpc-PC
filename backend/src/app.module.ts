@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth';
 import { RegistrationModule } from './modules/registration';
 import { SurveyModule } from './modules/survey';
 import { ResponseModule } from './modules/response';
+import { SurveyorModule } from './modules/surveyor';
 import { RewardModule } from './modules/reward';
 import { NotificationModule } from './modules/notification';
 import { GeolocationModule } from './modules/geolocation';
@@ -31,6 +32,7 @@ import { EventsModule } from './modules/events';
     RegistrationModule,
     SurveyModule,
     ResponseModule,
+    SurveyorModule,
     RewardModule,
     NotificationModule,
     GeolocationModule,

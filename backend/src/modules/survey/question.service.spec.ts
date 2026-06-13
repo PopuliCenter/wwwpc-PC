@@ -351,9 +351,10 @@ describe('QuestionService', () => {
       );
     });
 
-    it('should support all 14 question types', async () => {
+    it('should support all question types', async () => {
       const allTypes = Object.values(QuestionType);
-      expect(allTypes).toHaveLength(14);
+      // Lower bound, bukan angka pasti, agar tidak rapuh saat tipe baru ditambah.
+      expect(allTypes.length).toBeGreaterThanOrEqual(18);
 
       for (const type of allTypes) {
         questionRepository.create.mockClear();

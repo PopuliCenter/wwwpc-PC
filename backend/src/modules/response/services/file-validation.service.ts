@@ -62,6 +62,36 @@ const SIGNATURES: Signature[] = [
     // "%PDF"
     match: (b) => b.length >= 4 && b.toString('ascii', 0, 4) === '%PDF',
   },
+  // ── Audio (rekaman MediaRecorder) ─────────────────────────────────────────
+  {
+    contentType: 'audio/webm',
+    ext: 'webm',
+    // EBML header (1A 45 DF A3) — kontainer WebM/Matroska.
+    match: (b) =>
+      b.length >= 4 &&
+      b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3,
+  },
+  {
+    contentType: 'audio/ogg',
+    ext: 'ogg',
+    // "OggS"
+    match: (b) => b.length >= 4 && b.toString('ascii', 0, 4) === 'OggS',
+  },
+  {
+    contentType: 'audio/wav',
+    ext: 'wav',
+    // RIFF....WAVE
+    match: (b) =>
+      b.length >= 12 &&
+      b.toString('ascii', 0, 4) === 'RIFF' &&
+      b.toString('ascii', 8, 12) === 'WAVE',
+  },
+  {
+    contentType: 'audio/mp4',
+    ext: 'm4a',
+    // box "ftyp" pada offset 4 (kontainer MP4/M4A — dipakai Safari).
+    match: (b) => b.length >= 8 && b.toString('ascii', 4, 8) === 'ftyp',
+  },
 ];
 
 @Injectable()
@@ -93,10 +123,14 @@ export class FileValidationService {
       throw new BadRequestException(`Ukuran berkas melebihi batas maksimal ${mb} MB`);
     }
 
+    // Normalisasi: buang parameter (mis. "audio/webm;codecs=opus" dari
+    // MediaRecorder) dan samakan ke huruf kecil sebelum dibandingkan.
+    const declaredType = file.mimetype.split(';')[0].trim().toLowerCase();
+
     // The declared MIME type must be on the allowlist...
-    if (!this.allowedContentTypes.has(file.mimetype)) {
+    if (!this.allowedContentTypes.has(declaredType)) {
       throw new BadRequestException(
-        'Tipe berkas tidak diizinkan. Hanya gambar (PNG, JPG, GIF, WEBP) dan PDF.',
+        'Tipe berkas tidak diizinkan. Hanya gambar (PNG, JPG, GIF, WEBP), PDF, dan audio (WEBM, OGG, WAV, M4A).',
       );
     }
 
@@ -107,7 +141,7 @@ export class FileValidationService {
     }
 
     // The declared type must agree with the detected type (anti-spoofing).
-    if (detected.contentType !== file.mimetype) {
+    if (detected.contentType !== declaredType) {
       throw new BadRequestException('Tipe berkas tidak sesuai dengan isinya');
     }
 

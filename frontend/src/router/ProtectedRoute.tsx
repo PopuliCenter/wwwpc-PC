@@ -28,7 +28,12 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     if (requiredRole === 'admin' && (user?.role === 'super_admin' || user?.role === 'analyst' || user?.role === 'viewer')) {
       return <>{children}</>;
     }
-    const redirectPath = (user?.role === 'admin' || user?.role === 'super_admin') ? '/admin/dashboard' : '/surveys';
+    const redirectPath =
+      user?.role === 'admin' || user?.role === 'super_admin'
+        ? '/admin/dashboard'
+        : user?.role === 'surveyor'
+          ? '/surveyor/surveys'
+          : '/surveys';
     return <Navigate to={redirectPath} replace />;
   }
 

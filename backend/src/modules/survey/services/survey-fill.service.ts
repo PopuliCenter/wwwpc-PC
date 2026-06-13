@@ -81,6 +81,8 @@ export interface SurveyFillData {
   description: string;
   questions: FillQuestion[];
   totalPages: number;
+  /** Mode tampilan form: paginated (default), scroll, atau wizard. */
+  formMode: 'paginated' | 'scroll' | 'wizard';
   maxDuration?: number; // minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -144,6 +146,29 @@ export class SurveyFillService {
       existing,
     );
 
+    const data = await this.assembleFillData(survey);
+    return { ...data, responseId };
+  }
+
+  /**
+   * Data pengisian untuk surveyor (TPD): pertanyaan + konfigurasi survei, TANPA
+   * membuat baris respons (surveyor mengisi banyak kuesioner, dikirim sekali jadi).
+   */
+  async getSurveyorFillData(
+    surveyId: string,
+  ): Promise<Omit<SurveyFillData, 'responseId'>> {
+    const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+    return this.assembleFillData(survey);
+  }
+
+  /** Rakit pertanyaan + konfigurasi survei (dipakai responden & surveyor). */
+  private async assembleFillData(
+    survey: Survey,
+  ): Promise<Omit<SurveyFillData, 'responseId'>> {
+    const surveyId = survey.id;
     const [pages, questions] = await Promise.all([
       this.pageRepository.find({ where: { surveyId }, order: { pageNumber: 'ASC' } }),
       this.questionRepository.find({
@@ -188,8 +213,8 @@ export class SurveyFillService {
       description: survey.description ?? '',
       questions: fillQuestions,
       totalPages,
+      formMode: survey.formMode ?? 'paginated',
       maxDuration: maxDuration ?? undefined,
-      responseId,
       ...reward,
     };
   }

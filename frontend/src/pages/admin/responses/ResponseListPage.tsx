@@ -13,6 +13,8 @@ interface ResponseItem {
   submittedAt: string;
   deviceType: string;
   surveyId: string;
+  surveyType?: string;
+  category?: string | null;
   rewardMode?: 'automatic' | 'manual';
   rewardType?: string | null;
   rewardDistributed?: boolean;
@@ -33,6 +35,8 @@ interface FilterState {
   status: string;
   deviceType: string;
   surveyId: string;
+  surveyType: string;
+  category: string;
   search: string;
 }
 
@@ -154,6 +158,8 @@ export function ResponseListPage() {
     status: '',
     deviceType: '',
     surveyId: '',
+    surveyType: '',
+    category: '',
     search: '',
   });
 
@@ -167,6 +173,8 @@ export function ResponseListPage() {
       if (filters.status) params.set('status', filters.status);
       if (filters.deviceType) params.set('deviceType', filters.deviceType);
       if (filters.surveyId) params.set('surveyId', filters.surveyId);
+      if (filters.surveyType) params.set('surveyType', filters.surveyType);
+      if (filters.category) params.set('category', filters.category);
       if (filters.search) params.set('search', filters.search);
 
       const query = params.toString();
@@ -348,6 +356,31 @@ export function ResponseListPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Tipe Survei</label>
+            <select
+              name="surveyType"
+              value={filters.surveyType}
+              onChange={handleFilterChange}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+            >
+              <option value="">Semua</option>
+              <option value="nasional">Nasional</option>
+              <option value="daerah">Daerah</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Kategori</label>
+            <input
+              type="text"
+              name="category"
+              value={filters.category}
+              onChange={handleFilterChange}
+              placeholder="Semua"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+            />
           </div>
         </div>
         <button

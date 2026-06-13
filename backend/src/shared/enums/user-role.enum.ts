@@ -4,4 +4,6 @@ export enum UserRole {
   ANALYST = 'analyst',
   VIEWER = 'viewer',
   RESPONDENT = 'respondent',
+  /** Surveyor / Tenaga Pengumpul Data (TPD) — petugas pengisian survei lapangan. */
+  SURVEYOR = 'surveyor',
 }

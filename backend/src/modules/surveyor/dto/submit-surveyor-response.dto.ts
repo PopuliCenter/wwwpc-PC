@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -8,33 +9,29 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class AnswerDto {
+export class SurveyorAnswerDto {
   @IsUUID()
   questionId: string;
 
   value: any;
 }
 
-export class SubmitResponseDto {
+/** Pengiriman satu kuesioner lapangan oleh surveyor (TPD). */
+export class SubmitSurveyorResponseDto {
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => AnswerDto)
-  answers: AnswerDto[];
+  @Type(() => SurveyorAnswerDto)
+  answers: SurveyorAnswerDto[];
+
+  /** Nomor kuesioner yang dipakai (harus dari nomor ter-assign & belum dipakai). */
+  @IsString()
+  @IsNotEmpty()
+  questionnaireNumber: string;
 
   @IsOptional()
   @IsString()
   deviceType?: string;
 
-  @IsOptional()
-  @IsString()
-  destinationNumber?: string;
-
-  @IsOptional()
-  @IsString()
-  rewardType?: string;
-
-  // ── Geolokasi pengisian ──────────────────────────────────────────────────
-  /** Lokasi saat form dibuka (dikirim dari klien yang menyimpan sejak awal). */
   @IsOptional()
   @IsNumber()
   startLatitude?: number;
@@ -43,7 +40,6 @@ export class SubmitResponseDto {
   @IsNumber()
   startLongitude?: number;
 
-  /** Lokasi saat submit. */
   @IsOptional()
   @IsNumber()
   endLatitude?: number;

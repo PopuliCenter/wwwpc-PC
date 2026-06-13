@@ -21,6 +21,7 @@ const roleLabels: Record<UserRole, string> = {
   analyst: 'Analis',
   viewer: 'Viewer',
   respondent: 'Responden',
+  surveyor: 'Surveyor (TPD)',
 };
 
 function errMessage(e: unknown): string {

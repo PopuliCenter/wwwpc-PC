@@ -46,6 +46,32 @@ export class SurveyResponse {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'device_type' })
   deviceType: string | null;
 
+  // ── Surveyor / TPD (pengisian lapangan) ───────────────────────────────────
+  /** Surveyor (TPD) yang mengisi respons ini; null untuk respons mandiri responden. */
+  @Column({ type: 'uuid', nullable: true, name: 'surveyor_id' })
+  surveyorId: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'surveyor_id' })
+  surveyor: User | null;
+
+  /** Nomor kuesioner yang dipakai surveyor untuk respons ini (dari kuota ter-assign). */
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'questionnaire_number' })
+  questionnaireNumber: string | null;
+
+  // ── Geolokasi pengisian (start saat buka form, end saat submit) ────────────
+  @Column({ type: 'double precision', nullable: true, name: 'start_latitude' })
+  startLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true, name: 'start_longitude' })
+  startLongitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true, name: 'end_latitude' })
+  endLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true, name: 'end_longitude' })
+  endLongitude: number | null;
+
   @Column({ type: 'timestamp', name: 'started_at', default: () => 'NOW()' })
   startedAt: Date;
 

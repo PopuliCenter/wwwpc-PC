@@ -12,6 +12,9 @@ interface SurveyFormData {
   rewardMode: 'automatic' | 'manual';
   rewardPoints: number;
   rewardDescription: string;
+  formMode: 'paginated' | 'scroll' | 'wizard';
+  surveyType: 'nasional' | 'daerah' | 'lainnya';
+  category: string;
 }
 
 export function SurveyCreatePage() {
@@ -28,6 +31,9 @@ export function SurveyCreatePage() {
     rewardMode: 'automatic',
     rewardPoints: 0,
     rewardDescription: '',
+    formMode: 'paginated',
+    surveyType: 'lainnya',
+    category: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -48,6 +54,9 @@ export function SurveyCreatePage() {
         title: form.title,
         description: form.description || undefined,
         rewardMode: form.rewardMode,
+        formMode: form.formMode,
+        surveyType: form.surveyType,
+        category: form.category || undefined,
         timeConfig: {
           startDatetime: form.startDate || undefined,
           endDatetime: form.endDate || undefined,
@@ -117,6 +126,48 @@ export function SurveyCreatePage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             placeholder="Deskripsi survei"
           />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="surveyType" className="block text-sm font-medium text-gray-700 mb-1">
+              Tipe Survei
+            </label>
+            <select
+              id="surveyType"
+              name="surveyType"
+              value={form.surveyType}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              <option value="nasional">Nasional</option>
+              <option value="daerah">Daerah</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+              Kategori (tema)
+            </label>
+            <input
+              id="category"
+              name="category"
+              type="text"
+              list="survey-category-options"
+              value={form.category}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="Contoh: Politik, Ekonomi, Sosial"
+            />
+            <datalist id="survey-category-options">
+              <option value="Politik" />
+              <option value="Ekonomi" />
+              <option value="Sosial" />
+              <option value="Kesehatan" />
+              <option value="Pendidikan" />
+              <option value="Lingkungan" />
+            </datalist>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,6 +244,26 @@ export function SurveyCreatePage() {
             <option value="automatic">Otomatis</option>
             <option value="manual">Manual</option>
           </select>
+        </div>
+
+        <div>
+          <label htmlFor="formMode" className="block text-sm font-medium text-gray-700 mb-1">
+            Mode Tampilan Form
+          </label>
+          <select
+            id="formMode"
+            name="formMode"
+            value={form.formMode}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="paginated">Paginasi (beberapa pertanyaan per halaman)</option>
+            <option value="scroll">Scroll (semua pertanyaan dalam satu halaman)</option>
+            <option value="wizard">Wizard (satu pertanyaan per langkah)</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Mode <strong>wizard</strong> cocok untuk pengisian lapangan oleh surveyor.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -67,6 +67,7 @@ import { AuthModule } from '@modules/auth';
     OptionRandomizerService,
     SurveyTimeService,
     AnswerValidationService,
+    SurveyFillService,
   ],
 })
 export class SurveyModule {}

@@ -7,3 +7,4 @@ export { QuestionOption } from './question-option.entity';
 export { SkipLogicRule } from './skip-logic-rule.entity';
 export { VisibilityRule } from './visibility-rule.entity';
 export { BranchingRule } from './branching-rule.entity';
+export { SurveyorQuota } from './surveyor-quota.entity';
