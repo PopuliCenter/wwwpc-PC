@@ -21,6 +21,13 @@ export class S3StorageService {
   /** How long (seconds) a pre-signed download URL stays valid. Default: 15 minutes. */
   private readonly presignedUrlExpiresIn: number;
 
+  /**
+   * Enkripsi sisi-server saat menyimpan objek (encryption at rest). Opsional via
+   * env `S3_SERVER_SIDE_ENCRYPTION` ('AES256' atau 'aws:kms'); dibiarkan kosong
+   * untuk MinIO/dev yang belum mengonfigurasi KMS.
+   */
+  private readonly serverSideEncryption: 'AES256' | 'aws:kms' | undefined;
+
   constructor(private readonly configService: ConfigService) {
     const endpoint = this.configService.get<string>('S3_ENDPOINT');
     const accessKeyId = this.configService.get<string>('S3_ACCESS_KEY');
@@ -33,6 +40,10 @@ export class S3StorageService {
       this.configService.get<string>('S3_PRESIGNED_URL_EXPIRES_IN') ?? '900',
       10,
     );
+
+    const sse = this.configService.get<string>('S3_SERVER_SIDE_ENCRYPTION');
+    this.serverSideEncryption =
+      sse === 'AES256' || sse === 'aws:kms' ? sse : undefined;
 
     this.s3Client = new S3Client({
       region,
@@ -80,6 +91,9 @@ export class S3StorageService {
           Key: s3Key,
           Body: fileBuffer,
           ContentType: contentType,
+          ...(this.serverSideEncryption
+            ? { ServerSideEncryption: this.serverSideEncryption }
+            : {}),
           // No ACL → bucket/object remains private (server-side default)
         }),
       );
@@ -118,6 +132,9 @@ export class S3StorageService {
           Key: s3Key,
           Body: buffer,
           ContentType: contentType,
+          ...(this.serverSideEncryption
+            ? { ServerSideEncryption: this.serverSideEncryption }
+            : {}),
           // No ACL → object remains private (served via pre-signed URLs only)
         }),
       );

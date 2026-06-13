@@ -11,6 +11,7 @@ import { User } from '@modules/auth/entities/user.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
 import { AuditModule } from '@modules/audit/audit.module';
+import { ExportModule } from '@modules/export';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AuditModule } from '@modules/audit/audit.module';
     ]),
     ScheduleModule.forRoot(),
     AuditModule,
+    ExportModule, // S3StorageService untuk backup sebelum hard-delete
   ],
   controllers: [DataCleanupController],
   providers: [DataCleanupService],

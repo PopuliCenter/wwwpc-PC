@@ -5,9 +5,11 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not, LessThan } from 'typeorm';
+import { S3StorageService } from '@modules/export/s3-storage.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { v4 as uuidv4 } from 'uuid';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
@@ -49,6 +51,7 @@ export class DataCleanupService {
     @InjectRepository(ScheduledPurgeConfig)
     private readonly purgeConfigRepository: Repository<ScheduledPurgeConfig>,
     private readonly auditService: AuditService,
+    private readonly s3: S3StorageService,
   ) {}
 
   /**
@@ -185,6 +188,10 @@ export class DataCleanupService {
     // Only delete exported responses
     queryBuilder.andWhere('response.exported_at IS NOT NULL');
 
+    // Backup SEBELUM hard-delete: snapshot JSON respons + jawaban yang akan
+    // dihapus ke object storage. Bila backup gagal, penghapusan DIBATALKAN.
+    const backupKey = await this.backupBeforeDeletion(requestId, pending.filters);
+
     const result = await queryBuilder.delete().execute();
     const deletedCount = result.affected || 0;
 
@@ -198,11 +205,68 @@ export class DataCleanupService {
         action: 'deletion_confirmed',
         requestId,
         deletedCount,
+        backupKey,
       },
       ipAddress,
     });
 
     return { deletedCount };
+  }
+
+  /**
+   * Snapshot respons + jawaban yang akan dihapus ke object storage (JSON)
+   * sebelum penghapusan permanen. Mengembalikan key backup; MELEMPAR bila gagal
+   * agar penghapusan tidak berjalan tanpa cadangan.
+   */
+  private async backupBeforeDeletion(
+    requestId: string,
+    filters: { surveyId?: string; dateRange?: { start: unknown; end: unknown } },
+  ): Promise<string> {
+    const qb = this.responseRepository
+      .createQueryBuilder('response')
+      .leftJoinAndSelect('response.answers', 'answer')
+      .where('response.exported_at IS NOT NULL');
+    if (filters.surveyId) {
+      qb.andWhere('response.survey_id = :surveyId', { surveyId: filters.surveyId });
+    }
+    if (filters.dateRange) {
+      qb.andWhere('response.submitted_at >= :start', {
+        start: new Date(filters.dateRange.start as string),
+      });
+      qb.andWhere('response.submitted_at <= :end', {
+        end: new Date(filters.dateRange.end as string),
+      });
+    }
+    const responses = await qb.getMany();
+
+    const backupKey = `backups/deletion-${requestId}-${Date.now()}.json`;
+    try {
+      const snapshot = JSON.stringify(
+        {
+          requestId,
+          backedUpAt: new Date().toISOString(),
+          filters,
+          count: responses.length,
+          responses,
+        },
+        null,
+        2,
+      );
+      await this.s3.uploadBuffer(
+        Buffer.from(snapshot, 'utf-8'),
+        backupKey,
+        'application/json',
+      );
+    } catch (err: any) {
+      this.logger.error(`Backup gagal untuk ${requestId}: ${err.message}`);
+      throw new InternalServerErrorException(
+        'Backup data gagal — penghapusan dibatalkan demi keamanan data.',
+      );
+    }
+    this.logger.log(
+      `Backup ${responses.length} respons → ${backupKey} sebelum penghapusan ${requestId}`,
+    );
+    return backupKey;
   }
 
   /**

@@ -11,6 +11,7 @@ import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
 import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
 import { PendingDeletion } from './entities/pending-deletion.entity';
 import { AuditService } from '@modules/audit/audit.service';
+import { S3StorageService } from '@modules/export/s3-storage.service';
 import { SurveyStatus, UserRole } from '@shared/enums';
 
 describe('DataCleanupService', () => {
@@ -30,6 +31,7 @@ describe('DataCleanupService', () => {
     delete: vi.fn().mockReturnThis(),
     execute: vi.fn().mockResolvedValue({ affected: 0 }),
     leftJoin: vi.fn().mockReturnThis(),
+    leftJoinAndSelect: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     addSelect: vi.fn().mockReturnThis(),
     groupBy: vi.fn().mockReturnThis(),
@@ -105,6 +107,14 @@ describe('DataCleanupService', () => {
           provide: AuditService,
           useValue: {
             log: vi.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: S3StorageService,
+          useValue: {
+            uploadBuffer: vi
+              .fn()
+              .mockResolvedValue('backups/deletion-test.json'),
           },
         },
       ],

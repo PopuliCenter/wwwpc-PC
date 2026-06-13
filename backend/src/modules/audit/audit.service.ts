@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { In, Repository, LessThan } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -173,5 +174,18 @@ export class AuditService {
     );
 
     return deletedCount;
+  }
+
+  /**
+   * Pembersihan otomatis audit log lama (tanggal 1 tiap bulan, tengah malam)
+   * sesuai periode retensi default. Best-effort — kegagalan hanya dicatat.
+   */
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  async scheduledAuditCleanup(): Promise<void> {
+    try {
+      await this.cleanupOldLogs();
+    } catch (err: any) {
+      this.logger.error(`Gagal cleanup audit log terjadwal: ${err.message}`);
+    }
   }
 }

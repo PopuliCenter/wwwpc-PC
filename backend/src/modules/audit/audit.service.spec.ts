@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuditService } from './audit.service';
 import { AuditLog } from './entities/audit-log.entity';
+import { User } from '@modules/auth/entities/user.entity';
 import { AuditActionType } from '@shared/enums';
 
 describe('AuditService', () => {
@@ -21,6 +22,10 @@ describe('AuditService', () => {
       providers: [
         AuditService,
         { provide: getRepositoryToken(AuditLog), useValue: repository },
+        {
+          provide: getRepositoryToken(User),
+          useValue: { find: vi.fn().mockResolvedValue([]), findOne: vi.fn() },
+        },
       ],
     }).compile();
 
@@ -113,8 +118,11 @@ describe('AuditService', () => {
 
       const result = await service.query({});
 
+      // query() memperkaya tiap entri dengan actor (userName/userRole) & details.
       expect(result).toEqual({
-        data: mockData,
+        data: [
+          { ...mockData[0], userName: null, userRole: null, details: {} },
+        ],
         total: 1,
         page: 1,
         limit: 20,
