@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, MapPin, Send } from 'lucide-react';
+import { AlertCircle, CheckCircle2, MapPin, Send, WifiOff, RefreshCw, CloudUpload } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useSurveyorSync } from '@/hooks/useSurveyorSync';
+import { cachePut, cacheGet, queueAdd, makeLocalId } from '@/utils/offlineQueue';
 import {
   QuestionRenderer,
   isAnswered,
@@ -45,26 +48,50 @@ export function SurveyorCollectPage() {
   const [error, setError] = useState<string | null>(null);
   const [collectedCount, setCollectedCount] = useState(0);
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  const online = useOnlineStatus();
+  const sync = useSurveyorSync();
 
   const loadNumbers = useCallback(async () => {
     const list = await api.get<NumberItem[]>(`/surveyor/surveys/${id}/numbers`);
     setNumbers(list);
+    void cachePut(`numbers:${id}`, list);
     return list;
   }, [id]);
 
   useEffect(() => {
-    Promise.all([
-      api.get<SurveyorFillData>(`/surveyor/surveys/${id}/fill`),
-      loadNumbers(),
-    ])
-      .then(([fill, list]) => {
+    const init = async () => {
+      try {
+        const [fill, list] = await Promise.all([
+          api.get<SurveyorFillData>(`/surveyor/surveys/${id}/fill`),
+          api.get<NumberItem[]>(`/surveyor/surveys/${id}/numbers`),
+        ]);
         setData(fill);
+        setNumbers(list);
+        // Simpan ke cache offline agar bisa dibuka tanpa internet nanti.
+        void cachePut(`fill:${id}`, fill);
+        void cachePut(`numbers:${id}`, list);
         const firstAvailable = list.find((n) => !n.used);
         if (firstAvailable) setSelectedNumber(firstAvailable.number);
-      })
-      .catch(() => setError('Gagal memuat survei.'))
-      .finally(() => setLoading(false));
-  }, [id, loadNumbers]);
+      } catch {
+        // Offline / gagal jaringan → coba muat dari cache IndexedDB.
+        const [cachedFill, cachedNumbers] = await Promise.all([
+          cacheGet<SurveyorFillData>(`fill:${id}`),
+          cacheGet<NumberItem[]>(`numbers:${id}`),
+        ]);
+        if (cachedFill) {
+          setData(cachedFill);
+          setNumbers(cachedNumbers ?? []);
+          const firstAvailable = (cachedNumbers ?? []).find((n) => !n.used);
+          if (firstAvailable) setSelectedNumber(firstAvailable.number);
+        } else {
+          setError('Gagal memuat survei dan tidak ada salinan offline.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    void init();
+  }, [id]);
 
   useEffect(() => {
     void captureGeo().then((geo) => {
@@ -154,18 +181,43 @@ export function SurveyorCollectPage() {
     setSubmitting(true);
     try {
       const endGeo = await captureGeo();
-      await api.post(`/surveyor/surveys/${data.id}/responses`, {
+      // clientSubmissionId = localId → server idempoten saat sync mengirim ulang.
+      const localId = makeLocalId();
+      const payload = {
         answers: Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
         questionnaireNumber: selectedNumber,
         deviceType: DEVICE_TYPE,
+        clientSubmissionId: localId,
         ...(startGeoRef.current
           ? { startLatitude: startGeoRef.current.lat, startLongitude: startGeoRef.current.lng }
           : {}),
         ...(endGeo ? { endLatitude: endGeo.lat, endLongitude: endGeo.lng } : {}),
-      });
-      setCollectedCount((c) => c + 1);
-      const list = await loadNumbers();
-      resetForm(list);
+      };
+
+      if (online) {
+        await api.post(`/surveyor/surveys/${data.id}/responses`, payload);
+        setCollectedCount((c) => c + 1);
+        const list = await loadNumbers();
+        resetForm(list);
+      } else {
+        // Offline: simpan ke antrian IndexedDB & tandai nomor terpakai lokal.
+        await queueAdd({
+          localId,
+          surveyId: data.id,
+          surveyTitle: data.title,
+          payload,
+          createdAt: Date.now(),
+          attempts: 0,
+        });
+        const nextNumbers = numbers.map((n) =>
+          n.number === selectedNumber ? { ...n, used: true } : n,
+        );
+        setNumbers(nextNumbers);
+        void cachePut(`numbers:${data.id}`, nextNumbers);
+        setCollectedCount((c) => c + 1);
+        await sync.refresh();
+        resetForm(nextNumbers);
+      }
     } catch (err: unknown) {
       const e = err as { message?: string; errors?: string[] };
       setError(e.errors?.[0] || e.message || 'Gagal mengirim kuesioner.');
@@ -233,6 +285,52 @@ export function SurveyorCollectPage() {
           )}
         </div>
       </Card>
+
+      {/* Status offline & antrian sinkron */}
+      {(!online || sync.queuedCount > 0) && (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
+            !online
+              ? 'bg-amber-50 text-amber-800 ring-amber-100'
+              : 'bg-primary-50 text-primary-700 ring-primary-100'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            {!online ? (
+              <>
+                <WifiOff className="h-4 w-4" /> Mode offline — respons disimpan & dikirim saat online
+              </>
+            ) : (
+              <>
+                <CloudUpload className="h-4 w-4" /> {sync.queuedCount} respons menunggu sinkron
+              </>
+            )}
+          </span>
+          {sync.queuedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => sync.syncNow()}
+              disabled={!online || sync.syncing}
+              className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
+              {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!online && data.questions.some((q) => ['photo', 'audio', 'signature', 'file_upload'].includes(q.type)) && (
+        <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 ring-1 ring-gray-100">
+          Catatan: pertanyaan foto, audio, tanda tangan, dan unggah berkas membutuhkan koneksi internet untuk mengunggah berkas.
+        </div>
+      )}
+
+      {sync.lastResult && (
+        <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-700 ring-1 ring-emerald-100">
+          {sync.lastResult}
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">

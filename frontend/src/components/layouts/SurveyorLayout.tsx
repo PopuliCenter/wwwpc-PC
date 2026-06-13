@@ -1,5 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { WifiOff, CloudUpload } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useSurveyorSync } from '@/hooks/useSurveyorSync';
 
 const navItems = [
   { path: '/surveyor/surveys', label: 'Survei Saya' },
@@ -9,6 +12,8 @@ const navItems = [
 export function SurveyorLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const online = useOnlineStatus();
+  const sync = useSurveyorSync();
 
   const handleLogout = () => {
     logout();
@@ -44,6 +49,21 @@ export function SurveyorLayout() {
               </nav>
             </div>
             <div className="flex items-center gap-4">
+              {!online && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                  <WifiOff className="h-3.5 w-3.5" /> Offline
+                </span>
+              )}
+              {sync.queuedCount > 0 && (
+                <button
+                  onClick={() => sync.syncNow()}
+                  disabled={!online || sync.syncing}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 disabled:opacity-60"
+                  title="Sinkronkan respons offline"
+                >
+                  <CloudUpload className="h-3.5 w-3.5" /> {sync.queuedCount}
+                </button>
+              )}
               <span className="text-sm text-gray-600">{user?.fullName}</span>
               <button
                 onClick={handleLogout}
