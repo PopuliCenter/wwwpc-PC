@@ -97,6 +97,17 @@ export class Survey {
   @Column({ type: 'varchar', length: 100, nullable: true })
   category: string | null;
 
+  /**
+   * Setelan alat pendukung (bukan tipe pertanyaan):
+   * - `captureGps`: rekam lokasi GPS otomatis di awal & akhir pengisian.
+   * - `requireSignature`: minta tanda tangan responden di akhir pengisian.
+   */
+  @Column({ type: 'boolean', default: false, name: 'capture_gps' })
+  captureGps: boolean;
+
+  @Column({ type: 'boolean', default: false, name: 'require_signature' })
+  requireSignature: boolean;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

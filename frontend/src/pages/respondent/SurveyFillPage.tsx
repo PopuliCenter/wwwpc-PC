@@ -120,6 +120,10 @@ interface SurveyFillData {
   totalPages: number;
   /** Mode tampilan form: paginated (default), scroll, atau wizard (1 pertanyaan/langkah). */
   formMode?: 'paginated' | 'scroll' | 'wizard';
+  /** Rekam lokasi GPS otomatis (awal & akhir). Default false bila tak diset. */
+  captureGps?: boolean;
+  /** Minta tanda tangan responden di akhir pengisian. */
+  requireSignature?: boolean;
   maxDuration?: number; // in minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -1445,12 +1449,14 @@ export function SurveyFillPage() {
     fetchSurvey();
   }, [id]);
 
-  // Rekam lokasi awal sekali saat form dibuka (tidak memblokir pengisian).
+  // Rekam lokasi awal saat form dibuka — HANYA bila survei mengaktifkan
+  // setelan "Rekam lokasi GPS" (alat pendukung). Tidak memblokir pengisian.
   useEffect(() => {
+    if (!survey?.captureGps) return;
     void captureGeo().then((geo) => {
       if (geo) startGeoRef.current = geo;
     });
-  }, []);
+  }, [survey?.captureGps]);
 
   const answersToArray = useCallback(
     () => Object.entries(answers).map(([questionId, value]) => ({ questionId, value })),
@@ -1559,8 +1565,8 @@ export function SurveyFillPage() {
     setMissingIds(new Set());
     setSubmitting(true);
     try {
-      // Rekam lokasi akhir (best-effort) saat submit.
-      const endGeo = await captureGeo();
+      // Rekam lokasi akhir (best-effort) saat submit — hanya bila diaktifkan.
+      const endGeo = survey.captureGps ? await captureGeo() : null;
       const localId = makeLocalId();
       const payload = {
         answers: answersToArray(),

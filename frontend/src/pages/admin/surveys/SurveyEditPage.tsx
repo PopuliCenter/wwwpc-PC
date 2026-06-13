@@ -116,6 +116,8 @@ interface SurveyDetail {
   surveyType: 'nasional' | 'daerah' | 'lainnya';
   category: string | null;
   formMode: 'paginated' | 'scroll' | 'wizard';
+  captureGps: boolean;
+  requireSignature: boolean;
   questions: Question[];
 }
 
@@ -1046,12 +1048,14 @@ export function SurveyEditPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
   // Pengaturan survei (tipe, kategori, mode form)
   const [settingsType, setSettingsType] = useState<'nasional' | 'daerah' | 'lainnya'>('lainnya');
   const [settingsCategory, setSettingsCategory] = useState('');
   const [settingsFormMode, setSettingsFormMode] = useState<'paginated' | 'scroll' | 'wizard'>('paginated');
+  // Alat pendukung (bukan tipe pertanyaan): rekam GPS & minta tanda tangan.
+  const [settingsCaptureGps, setSettingsCaptureGps] = useState(false);
+  const [settingsRequireSignature, setSettingsRequireSignature] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const saveSettings = async () => {
@@ -1062,6 +1066,8 @@ export function SurveyEditPage() {
         surveyType: settingsType,
         category: settingsCategory || undefined,
         formMode: settingsFormMode,
+        captureGps: settingsCaptureGps,
+        requireSignature: settingsRequireSignature,
       });
       setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan ✓' });
     } catch {
@@ -1087,6 +1093,8 @@ export function SurveyEditPage() {
             surveyType?: 'nasional' | 'daerah' | 'lainnya';
             category?: string | null;
             formMode?: 'paginated' | 'scroll' | 'wizard';
+            captureGps?: boolean;
+            requireSignature?: boolean;
           }>(`/surveys/${id}`),
           api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
         ]);
@@ -1098,11 +1106,15 @@ export function SurveyEditPage() {
           surveyType: survey.surveyType ?? 'lainnya',
           category: survey.category ?? null,
           formMode: survey.formMode ?? 'paginated',
+          captureGps: survey.captureGps ?? false,
+          requireSignature: survey.requireSignature ?? false,
           questions: mapped,
         });
         setSettingsType(survey.surveyType ?? 'lainnya');
         setSettingsCategory(survey.category ?? '');
         setSettingsFormMode(survey.formMode ?? 'paginated');
+        setSettingsCaptureGps(survey.captureGps ?? false);
+        setSettingsRequireSignature(survey.requireSignature ?? false);
         setQuestions(mapped);
       } catch {
         alert('Gagal memuat survei');
@@ -1216,14 +1228,18 @@ export function SurveyEditPage() {
     return <div className="p-6 text-center text-gray-500">Memuat survei...</div>;
   }
 
-  // Kelompokkan tipe pertanyaan dalam kategori untuk selector
+  // Kelompokkan tipe pertanyaan dalam kategori untuk palette tambah-cepat.
+  // Catatan: 'gps' & 'signature' SENGAJA tidak ada di sini — keduanya kini
+  // setelan survei (alat pendukung), bukan tipe pertanyaan. Tipe lama tetap
+  // dirender pada survei yang sudah memilikinya demi kompatibilitas.
   const typeGroups: { label: string; types: QuestionType[] }[] = [
     { label: 'Pilihan', types: ['single_choice', 'multiple_choice', 'dropdown'] },
     { label: 'Teks', types: ['short_text', 'long_text'] },
     { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
     { label: 'Waktu', types: ['date', 'date_time'] },
     { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region', 'file_upload', 'signature', 'photo', 'gps', 'audio'] },
+    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region'] },
+    { label: 'Media', types: ['photo', 'audio', 'file_upload'] },
   ];
 
   return (
@@ -1306,6 +1322,44 @@ export function SurveyEditPage() {
             </select>
           </div>
         </div>
+
+        {/* Alat pendukung — bukan tipe pertanyaan, melainkan setelan survei */}
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Alat Pendukung
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={settingsCaptureGps}
+                onChange={(e) => setSettingsCaptureGps(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm">
+                <span className="block font-medium text-gray-800">Rekam lokasi GPS</span>
+                <span className="block text-xs text-gray-500">
+                  Tangkap koordinat otomatis di awal &amp; akhir pengisian.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={settingsRequireSignature}
+                onChange={(e) => setSettingsRequireSignature(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm">
+                <span className="block font-medium text-gray-800">Tanda tangan responden</span>
+                <span className="block text-xs text-gray-500">
+                  Minta tanda tangan di akhir sebagai verifikasi/persetujuan.
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div className="mt-3">
           <button
             onClick={saveSettings}
@@ -1341,40 +1395,36 @@ export function SurveyEditPage() {
 
         {questions.length === 0 && (
           <div className="rounded-md border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            Belum ada pertanyaan. Pilih tipe di bawah lalu klik &ldquo;Tambah pertanyaan&rdquo;.
+            Belum ada pertanyaan. Klik salah satu tipe di bawah untuk menambahkannya.
           </div>
         )}
       </div>
 
-      {/* Tambah pertanyaan — di LUAR kotak, mudah dijangkau */}
-      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <label htmlFor="new-question-type" className="mb-1 block text-xs font-medium text-gray-500">
-            Tipe pertanyaan
-          </label>
-          <select
-            id="new-question-type"
-            value={newQuestionType}
-            onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-          >
-            {typeGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
+      {/* Palette tambah pertanyaan — klik tipe = langsung tertambah */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <p className="mb-3 text-sm font-semibold text-gray-700">Tambah pertanyaan</p>
+        <div className="space-y-3">
+          {typeGroups.map((group) => (
+            <div key={group.label}>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
+                {group.label}
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {group.types.map((type) => (
-                  <option key={type} value={type}>
-                    {questionTypeLabels[type]}
-                  </option>
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => addQuestion(type)}
+                    className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+                  >
+                    <span className="text-base leading-none text-gray-400">+</span>
+                    <span className="truncate">{questionTypeLabels[type]}</span>
+                  </button>
                 ))}
-              </optgroup>
-            ))}
-          </select>
+              </div>
+            </div>
+          ))}
         </div>
-        <button
-          onClick={() => addQuestion(newQuestionType)}
-          className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-        >
-          + Tambah pertanyaan
-        </button>
       </div>
     </div>
   );

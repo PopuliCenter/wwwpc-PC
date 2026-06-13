@@ -94,6 +94,8 @@ export class SurveyService {
       formMode: dto.formMode ?? 'paginated',
       surveyType: dto.surveyType ?? 'lainnya',
       category: dto.category?.trim() || null,
+      captureGps: dto.captureGps ?? false,
+      requireSignature: dto.requireSignature ?? false,
       startDatetime: dto.timeConfig?.startDatetime
         ? new Date(dto.timeConfig.startDatetime)
         : null,
@@ -148,6 +150,9 @@ export class SurveyService {
     if (dto.formMode !== undefined) survey.formMode = dto.formMode;
     if (dto.surveyType !== undefined) survey.surveyType = dto.surveyType;
     if (dto.category !== undefined) survey.category = dto.category?.trim() || null;
+    if (dto.captureGps !== undefined) survey.captureGps = dto.captureGps;
+    if (dto.requireSignature !== undefined)
+      survey.requireSignature = dto.requireSignature;
 
     // Update time-related fields on survey
     if (dto.timeConfig) {
@@ -235,6 +240,8 @@ export class SurveyService {
       formMode: original.formMode,
       surveyType: original.surveyType,
       category: original.category ?? undefined,
+      captureGps: original.captureGps,
+      requireSignature: original.requireSignature,
       timeConfig: {
         startDatetime: original.timeConfig?.startDatetime?.toISOString(),
         endDatetime: original.timeConfig?.endDatetime?.toISOString(),

@@ -77,6 +77,14 @@ export class CreateSurveyDto {
   category?: string;
 
   @IsOptional()
+  @IsBoolean()
+  captureGps?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireSignature?: boolean;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => TimeConfigDto)
   timeConfig?: TimeConfigDto;

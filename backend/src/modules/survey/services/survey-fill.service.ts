@@ -83,6 +83,10 @@ export interface SurveyFillData {
   totalPages: number;
   /** Mode tampilan form: paginated (default), scroll, atau wizard. */
   formMode: 'paginated' | 'scroll' | 'wizard';
+  /** Rekam lokasi GPS otomatis (awal & akhir pengisian). */
+  captureGps: boolean;
+  /** Minta tanda tangan responden di akhir pengisian. */
+  requireSignature: boolean;
   maxDuration?: number; // minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -214,6 +218,8 @@ export class SurveyFillService {
       questions: fillQuestions,
       totalPages,
       formMode: survey.formMode ?? 'paginated',
+      captureGps: survey.captureGps ?? false,
+      requireSignature: survey.requireSignature ?? false,
       maxDuration: maxDuration ?? undefined,
       ...reward,
     };
