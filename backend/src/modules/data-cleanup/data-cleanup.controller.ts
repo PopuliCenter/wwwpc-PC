@@ -103,7 +103,9 @@ export class DataCleanupController {
     );
   }
 
+  // Kebijakan auto-hapus terjadwal berisiko tinggi → khusus super admin.
   @Post('purge-config')
+  @Roles(UserRole.SUPER_ADMIN)
   async configureScheduledPurge(@Body() dto: PurgeConfigDto) {
     return this.dataCleanupService.configureScheduledPurge(dto);
   }

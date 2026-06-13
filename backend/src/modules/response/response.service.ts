@@ -406,8 +406,10 @@ export class ResponseService {
     if (!responseIds || responseIds.length === 0) {
       return { updated: 0 };
     }
+    // Idempoten: hanya tandai yang BELUM terdistribusi, agar penandaan ulang
+    // tidak menimpa waktu/pelaku distribusi awal.
     const result = await this.responseRepository.update(
-      { id: In(responseIds) },
+      { id: In(responseIds), rewardDistributed: false },
       {
         rewardDistributed: true,
         rewardDistributedAt: new Date(),

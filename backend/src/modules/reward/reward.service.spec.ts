@@ -39,6 +39,7 @@ describe('RewardService', () => {
           useValue: {
             create: vi.fn((data) => ({ id: 'tx-1', ...data })),
             save: vi.fn((entity) => Promise.resolve({ id: 'tx-1', ...entity })),
+            findOne: vi.fn().mockResolvedValue(null),
             findAndCount: vi.fn(),
             createQueryBuilder: vi.fn(() => mockQueryBuilder),
           },
@@ -166,6 +167,31 @@ describe('RewardService', () => {
           referenceId: 'survey-1',
         }),
       );
+    });
+
+    it('idempoten: tidak mengkredit ulang bila sudah ada kredit untuk survei yang sama', async () => {
+      const existingTx = {
+        id: 'tx-existing',
+        userId: 'user-1',
+        amount: 7500,
+        reason: PointCreditReason.SURVEY_COMPLETION,
+        referenceId: 'survey-1',
+      };
+      vi.mocked(pointTransactionRepo.findOne).mockResolvedValue(
+        existingTx as PointTransaction,
+      );
+
+      const result = await service.creditSurveyCompletion(
+        'user-1',
+        'survey-1',
+        5000,
+        'complete',
+      );
+
+      // Mengembalikan transaksi yang ada, TANPA membuat kredit baru / menyentuh streak.
+      expect(result).toBe(existingTx);
+      expect(pointTransactionRepo.create).not.toHaveBeenCalled();
+      expect(streakTrackerRepo.findOne).not.toHaveBeenCalled();
     });
   });
 

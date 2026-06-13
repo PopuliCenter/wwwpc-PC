@@ -135,25 +135,60 @@ export class RewardService {
       );
     }
 
+    // Idempotensi: satu responden hanya boleh dikreditkan SEKALI per survei.
+    // Mencegah poin (dan streak) dobel bila event RESPONSE_SUBMITTED terkirim
+    // atau diproses ulang. Pengecekan ini dijalankan SEBELUM updateStreak.
+    const existing = await this.findSurveyCompletionCredit(userId, surveyId);
+    if (existing) {
+      this.logger.warn(
+        `Survey completion sudah dikreditkan (idempotent skip): userId=${userId}, surveyId=${surveyId}`,
+      );
+      return existing;
+    }
+
     // Update streak and get multiplier
     const streakInfo = await this.updateStreak(userId);
     const finalPoints = Math.floor(basePoints * streakInfo.currentMultiplier);
 
-    const transaction = await this.creditPoints(
-      userId,
-      finalPoints,
-      PointCreditReason.SURVEY_COMPLETION,
-      surveyId,
-    );
-
-    // If streak bonus was applied, log it
-    if (streakInfo.currentMultiplier > 1.0) {
-      this.logger.log(
-        `Streak multiplier applied: userId=${userId}, base=${basePoints}, multiplier=${streakInfo.currentMultiplier}, final=${finalPoints}`,
+    try {
+      const transaction = await this.creditPoints(
+        userId,
+        finalPoints,
+        PointCreditReason.SURVEY_COMPLETION,
+        surveyId,
       );
-    }
 
-    return transaction;
+      // If streak bonus was applied, log it
+      if (streakInfo.currentMultiplier > 1.0) {
+        this.logger.log(
+          `Streak multiplier applied: userId=${userId}, base=${basePoints}, multiplier=${streakInfo.currentMultiplier}, final=${finalPoints}`,
+        );
+      }
+
+      return transaction;
+    } catch (error: any) {
+      // Race: dua proses melewati pengecekan bersamaan; unique index parsial
+      // (uq_point_tx_survey_completion) menolak duplikat — kembalikan yang ada.
+      if (error?.code === '23505') {
+        const raced = await this.findSurveyCompletionCredit(userId, surveyId);
+        if (raced) return raced;
+      }
+      throw error;
+    }
+  }
+
+  /** Cari kredit penyelesaian survei yang sudah ada untuk (user, survei). */
+  private findSurveyCompletionCredit(
+    userId: string,
+    surveyId: string,
+  ): Promise<PointTransaction | null> {
+    return this.pointTransactionRepository.findOne({
+      where: {
+        userId,
+        reason: PointCreditReason.SURVEY_COMPLETION,
+        referenceId: surveyId,
+      },
+    });
   }
 
   /**

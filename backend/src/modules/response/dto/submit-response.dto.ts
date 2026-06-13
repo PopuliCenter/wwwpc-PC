@@ -1,9 +1,11 @@
 import {
   IsArray,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -25,12 +27,16 @@ export class SubmitResponseDto {
   @IsString()
   deviceType?: string;
 
+  /** Nomor tujuan reward (pulsa/e-wallet): hanya angka, 8–15 digit. */
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9]{8,15}$/, {
+    message: 'Nomor tujuan harus berupa 8–15 digit angka',
+  })
   destinationNumber?: string;
 
   @IsOptional()
-  @IsString()
+  @IsIn(['pulsa', 'gopay', 'ovo', 'dana', 'shopeepay'])
   rewardType?: string;
 
   // ── Geolokasi pengisian ──────────────────────────────────────────────────
