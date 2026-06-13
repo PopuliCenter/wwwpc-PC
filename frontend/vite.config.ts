@@ -7,7 +7,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // Mode 'prompt' (pra-produksi): versi baru TIDAK langsung aktif diam-diam.
+      // Pengguna diberi tahu lewat banner & memilih "Muat ulang" → selalu sadar
+      // melihat perubahan terbaru, tidak terjebak versi lama yang ter-cache.
+      registerType: 'prompt',
       includeAssets: ['logo-populi-center.png'],
       manifest: {
         name: 'Populi Survei',

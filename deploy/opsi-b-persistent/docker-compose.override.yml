@@ -1,0 +1,32 @@
+# =============================================================================
+# docker-compose.override.yml — untuk APP LAMA (survey-populicenter)
+# =============================================================================
+# Letakkan file ini di /var/www/survey-populicenter/ (di samping
+# docker-compose.yml app lama). Docker Compose otomatis MENGGABUNGKANNYA,
+# sehingga perubahan berikut PERSISTEN setiap `docker compose up`:
+#
+#   1) nginx app lama tetap tergabung ke network "web"
+#      → bisa menjangkau container survei_frontend.
+#   2) server block survei.risetcenter.com tetap ter-mount ke conf.d
+#      → routing survei tidak hilang lagi.
+#
+# PENTING — sesuaikan dengan app lama:
+#   - Ganti "nginx" bila nama service nginx app lama berbeda.
+#     Cek: `docker compose config --services` di /var/www/survey-populicenter
+#   - Pastikan service nginx app lama meng-`include /etc/nginx/conf.d/*.conf;`
+#     di dalam blok http{} nginx.conf-nya. Jika TIDAK, lihat README (opsi B2).
+#   - JANGAN hapus network asli service nginx app lama; override menambah, bukan
+#     mengganti. Bila app lama memakai network bernama khusus, tambahkan di sini.
+# =============================================================================
+
+services:
+  nginx:
+    networks:
+      - default
+      - web
+    volumes:
+      - ./survei.risetcenter.com.conf:/etc/nginx/conf.d/survei.risetcenter.com.conf:ro
+
+networks:
+  web:
+    external: true
