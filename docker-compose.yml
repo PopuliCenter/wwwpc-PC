@@ -207,7 +207,9 @@ services:
       - survei_network   # internal: ke backend/postgres/redis/minio
       - web              # bersama: tempat reverse proxy menjangkau frontend
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost/health || exit 1"]
+      # 127.0.0.1 (bukan localhost): nginx hanya listen IPv4; localhost di Alpine
+      # bisa resolve ke ::1 (IPv6) lebih dulu → "Connection refused" palsu.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
