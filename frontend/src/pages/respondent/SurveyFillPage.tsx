@@ -18,9 +18,26 @@ import {
   Mic,
   Square,
   Trash2,
+  WifiOff,
+  CloudUpload,
+  RefreshCw,
 } from 'lucide-react';
 import { api } from '@/services/api';
-import { useMediaUpload } from '@/contexts/MediaUploadContext';
+import {
+  useMediaUpload,
+  MediaUploadProvider,
+  type UploadMediaFn,
+} from '@/contexts/MediaUploadContext';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import {
+  cachePut,
+  cacheGet,
+  queueAdd,
+  makeLocalId,
+  mediaPut,
+  LOCAL_MEDIA_PREFIX,
+} from '@/utils/offlineQueue';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import {
@@ -1382,18 +1399,45 @@ export function SurveyFillPage() {
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [destinationNumber, setDestinationNumber] = useState('');
   const [rewardType, setRewardType] = useState('pulsa');
+  const [queuedOffline, setQueuedOffline] = useState(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
   /** Lokasi GPS saat form dibuka (best-effort), dikirim bersama jawaban. */
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  const online = useOnlineStatus();
+  const sync = useOfflineSync();
+
+  // Upload media: online → endpoint responden; offline → simpan blob lokal,
+  // kembalikan referensi local-media:// yang di-resolve saat sinkron.
+  const uploadMedia = useCallback<UploadMediaFn>(
+    async (file, sId, filename = 'upload') => {
+      if (navigator.onLine) {
+        const fd = new FormData();
+        fd.append('file', file, filename);
+        const r = await api.upload<{ key: string }>(
+          `/surveys/${sId}/responses/upload`,
+          fd,
+        );
+        return r.key;
+      }
+      const mediaId = makeLocalId();
+      await mediaPut({ id: mediaId, blob: file, filename });
+      return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
+    },
+    [],
+  );
 
   useEffect(() => {
     const fetchSurvey = async () => {
       try {
         const result = await api.get<SurveyFillData>(`/surveys/${id}/fill`);
         setSurvey(result);
+        void cachePut(`respondent-fill:${id}`, result);
       } catch {
-        setError('Gagal memuat survei');
+        // Offline / gagal jaringan → coba muat dari cache.
+        const cached = await cacheGet<SurveyFillData>(`respondent-fill:${id}`);
+        if (cached) setSurvey(cached);
+        else setError('Gagal memuat survei dan tidak ada salinan offline.');
       } finally {
         setLoading(false);
       }
@@ -1517,32 +1561,53 @@ export function SurveyFillPage() {
     try {
       // Rekam lokasi akhir (best-effort) saat submit.
       const endGeo = await captureGeo();
-      const result = await api.post<{ pointsEarned?: number }>(
-        `/surveys/${survey.id}/responses/submit`,
-        {
-          answers: answersToArray(),
-          deviceType: DEVICE_TYPE,
-          ...(startGeoRef.current
-            ? {
-                startLatitude: startGeoRef.current.lat,
-                startLongitude: startGeoRef.current.lng,
-              }
-            : {}),
-          ...(endGeo ? { endLatitude: endGeo.lat, endLongitude: endGeo.lng } : {}),
-          ...(survey.rewardMode === 'manual' && destinationNumber
-            ? { destinationNumber, rewardType }
-            : {}),
-        },
-      );
-      setEarnedPoints(result?.pointsEarned ?? survey.rewardPoints ?? 0);
-      setSubmitted(true);
+      const localId = makeLocalId();
+      const payload = {
+        answers: answersToArray(),
+        deviceType: DEVICE_TYPE,
+        clientSubmissionId: localId,
+        ...(startGeoRef.current
+          ? {
+              startLatitude: startGeoRef.current.lat,
+              startLongitude: startGeoRef.current.lng,
+            }
+          : {}),
+        ...(endGeo ? { endLatitude: endGeo.lat, endLongitude: endGeo.lng } : {}),
+        ...(survey.rewardMode === 'manual' && destinationNumber
+          ? { destinationNumber, rewardType }
+          : {}),
+      };
+
+      if (online) {
+        const result = await api.post<{ pointsEarned?: number }>(
+          `/surveys/${survey.id}/responses/submit`,
+          payload,
+        );
+        setEarnedPoints(result?.pointsEarned ?? survey.rewardPoints ?? 0);
+        setSubmitted(true);
+      } else {
+        // Offline: antrikan submit; media (local-media://) di-resolve saat sync.
+        await queueAdd({
+          localId,
+          surveyId: survey.id,
+          surveyTitle: survey.title,
+          submitPath: `/surveys/${survey.id}/responses/submit`,
+          uploadPath: `/surveys/${survey.id}/responses/upload`,
+          payload,
+          createdAt: Date.now(),
+          attempts: 0,
+        });
+        await sync.refresh();
+        setQueuedOffline(true);
+        setSubmitted(true);
+      }
     } catch (err: unknown) {
       const e = err as { message?: string; errors?: string[] };
       setError(e.errors?.[0] || e.message || 'Gagal mengirim jawaban. Silakan coba lagi.');
     } finally {
       setSubmitting(false);
     }
-  }, [survey, answers, destinationNumber, rewardType, isActive, answersToArray, currentPage]);
+  }, [survey, answers, destinationNumber, rewardType, isActive, answersToArray, currentPage, online, sync]);
 
   const handleTimerExpire = useCallback(() => {
     void handleSubmit();
@@ -1576,8 +1641,19 @@ export function SurveyFillPage() {
             <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={1.75} />
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Terima kasih!</h2>
-          <p className="mt-1.5 text-gray-600">Jawaban Anda telah berhasil dikirim.</p>
-          {earnedPoints > 0 && (
+          {queuedOffline ? (
+            <p className="mt-1.5 text-gray-600">
+              Jawaban Anda tersimpan dan akan dikirim otomatis saat perangkat kembali online.
+            </p>
+          ) : (
+            <p className="mt-1.5 text-gray-600">Jawaban Anda telah berhasil dikirim.</p>
+          )}
+          {queuedOffline && (
+            <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2.5 text-amber-700 ring-1 ring-amber-100">
+              <CloudUpload className="h-4 w-4" /> Menunggu sinkronisasi
+            </div>
+          )}
+          {!queuedOffline && earnedPoints > 0 && (
             <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-lg bg-primary-50 px-4 py-2.5 text-primary-700 ring-1 ring-primary-100">
               <Gift className="h-4 w-4" />
               <span className="font-semibold">+{earnedPoints} poin</span> ditambahkan ke saldo Anda
@@ -1630,9 +1706,43 @@ export function SurveyFillPage() {
   };
 
   return (
+    <MediaUploadProvider value={uploadMedia}>
     <div className="mx-auto max-w-3xl space-y-5">
       {survey.maxDuration && (
         <CountdownTimer minutes={survey.maxDuration} onExpire={handleTimerExpire} />
+      )}
+
+      {(!online || sync.queuedCount > 0) && (
+        <div
+          className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
+            !online
+              ? 'bg-amber-50 text-amber-800 ring-amber-100'
+              : 'bg-primary-50 text-primary-700 ring-primary-100'
+          }`}
+        >
+          <span className="inline-flex items-center gap-2">
+            {!online ? (
+              <>
+                <WifiOff className="h-4 w-4" /> Mode offline — jawaban disimpan & dikirim saat online
+              </>
+            ) : (
+              <>
+                <CloudUpload className="h-4 w-4" /> {sync.queuedCount} jawaban menunggu sinkron
+              </>
+            )}
+          </span>
+          {sync.queuedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => sync.syncNow()}
+              disabled={!online || sync.syncing}
+              className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
+              {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Header */}
@@ -1765,5 +1875,6 @@ export function SurveyFillPage() {
         )}
       </div>
     </div>
+    </MediaUploadProvider>
   );
 }

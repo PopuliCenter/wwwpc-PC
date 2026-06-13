@@ -11,9 +11,17 @@ import {
 } from '@/utils/offlineQueue';
 import { useOnlineStatus } from './useOnlineStatus';
 
+interface SyncState {
+  queuedCount: number;
+  syncing: boolean;
+  lastResult: string | null;
+  syncNow: () => Promise<void>;
+  refresh: () => Promise<void>;
+}
+
 /**
- * Unggah blob media yang masih lokal (local-media://<id>) lalu ganti nilai
- * jawaban dengan object key dari server. Dijalankan sebelum mengirim respons.
+ * Unggah blob media yang masih lokal (local-media://<id>) ke endpoint upload
+ * milik item, lalu ganti nilai jawaban dengan object key dari server.
  */
 async function resolveLocalMedia(item: QueuedResponse): Promise<void> {
   const answers = (item.payload as { answers?: Array<{ questionId: string; value: unknown }> })
@@ -26,29 +34,19 @@ async function resolveLocalMedia(item: QueuedResponse): Promise<void> {
       if (!media) continue;
       const fd = new FormData();
       fd.append('file', media.blob, media.filename);
-      const r = await api.upload<{ key: string }>(
-        `/surveyor/surveys/${item.surveyId}/responses/upload`,
-        fd,
-      );
+      const r = await api.upload<{ key: string }>(item.uploadPath, fd);
       a.value = r.key;
       await mediaDelete(mediaId);
     }
   }
 }
 
-interface SyncState {
-  queuedCount: number;
-  syncing: boolean;
-  lastResult: string | null;
-  syncNow: () => Promise<void>;
-  refresh: () => Promise<void>;
-}
-
 /**
- * Manajer sinkronisasi antrian respons surveyor offline. Saat online, mengirim
- * tiap respons antri ke server (idempoten via clientSubmissionId = localId).
+ * Manajer sinkronisasi antrian respons offline (surveyor & responden). Saat
+ * online, mengirim tiap respons antri ke endpoint-nya sendiri, idempoten via
+ * clientSubmissionId.
  */
-export function useSurveyorSync(): SyncState {
+export function useOfflineSync(): SyncState {
   const online = useOnlineStatus();
   const [queuedCount, setQueuedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -69,29 +67,21 @@ export function useSurveyorSync(): SyncState {
       let failed = 0;
       for (const item of items) {
         try {
-          // Unggah dulu media offline (foto/audio/ttd/berkas) → ganti ke key.
           await resolveLocalMedia(item);
-          await api.post(
-            `/surveyor/surveys/${item.surveyId}/responses`,
-            item.payload,
-          );
+          await api.post(item.submitPath, item.payload);
           await queueDelete(item.localId);
           ok += 1;
         } catch (err: unknown) {
-          // Simpan pesan error & tetap di antrian untuk dicoba lagi nanti.
-          const updated: QueuedResponse = {
+          await queueAdd({
             ...item,
             attempts: item.attempts + 1,
             lastError: (err as { message?: string }).message ?? 'Gagal sinkron',
-          };
-          await queueAdd(updated);
+          });
           failed += 1;
         }
       }
       if (ok > 0 || failed > 0) {
-        setLastResult(
-          `Tersinkron: ${ok}${failed ? `, gagal: ${failed}` : ''}`,
-        );
+        setLastResult(`Tersinkron: ${ok}${failed ? `, gagal: ${failed}` : ''}`);
       }
     } finally {
       setSyncing(false);
@@ -99,7 +89,6 @@ export function useSurveyorSync(): SyncState {
     }
   }, [syncing, refresh]);
 
-  // Sinkron otomatis saat kembali online & saat pertama dimuat.
   useEffect(() => {
     void refresh();
   }, [refresh]);

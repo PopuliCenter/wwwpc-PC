@@ -19,6 +19,10 @@ export interface QueuedResponse {
   localId: string;
   surveyId: string;
   surveyTitle: string;
+  /** Endpoint pengiriman respons (surveyor atau responden). */
+  submitPath: string;
+  /** Endpoint unggah media untuk me-resolve local-media://. */
+  uploadPath: string;
   payload: Record<string, unknown>;
   createdAt: number;
   attempts: number;

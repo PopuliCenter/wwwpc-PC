@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { WifiOff, CloudUpload } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { useSurveyorSync } from '@/hooks/useSurveyorSync';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 const navItems = [
   { path: '/surveyor/surveys', label: 'Survei Saya' },
@@ -13,7 +13,7 @@ export function SurveyorLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const online = useOnlineStatus();
-  const sync = useSurveyorSync();
+  const sync = useOfflineSync();
 
   const handleLogout = () => {
     logout();

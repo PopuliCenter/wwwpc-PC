@@ -5,7 +5,7 @@ import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { useSurveyorSync } from '@/hooks/useSurveyorSync';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { MediaUploadProvider, type UploadMediaFn } from '@/contexts/MediaUploadContext';
 import {
   cachePut,
@@ -57,7 +57,7 @@ export function SurveyorCollectPage() {
   const [collectedCount, setCollectedCount] = useState(0);
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const online = useOnlineStatus();
-  const sync = useSurveyorSync();
+  const sync = useOfflineSync();
 
   // Upload media: online → endpoint surveyor; offline → simpan blob lokal,
   // kembalikan referensi local-media:// yang di-resolve saat sinkron.
@@ -233,6 +233,8 @@ export function SurveyorCollectPage() {
           localId,
           surveyId: data.id,
           surveyTitle: data.title,
+          submitPath: `/surveyor/surveys/${data.id}/responses`,
+          uploadPath: `/surveyor/surveys/${data.id}/responses/upload`,
           payload,
           createdAt: Date.now(),
           attempts: 0,

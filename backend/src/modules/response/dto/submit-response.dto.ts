@@ -39,6 +39,11 @@ export class SubmitResponseDto {
   @IsIn(['pulsa', 'gopay', 'ovo', 'dana', 'shopeepay'])
   rewardType?: string;
 
+  /** Kunci idempotensi dari klien (UUID) untuk pengisian offline → sync. */
+  @IsOptional()
+  @IsUUID()
+  clientSubmissionId?: string;
+
   // ── Geolokasi pengisian ──────────────────────────────────────────────────
   /** Lokasi saat form dibuka (dikirim dari klien yang menyimpan sejak awal). */
   @IsOptional()

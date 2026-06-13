@@ -84,6 +84,16 @@ export class ResponseService {
     respondentId: string,
     dto: SubmitResponseDto,
   ): Promise<SurveyResponse> {
+    // Idempotensi offline → sync: jika pengiriman dengan kunci yang sama sudah
+    // tercatat (retry setelah online kembali), kembalikan respons yang ada
+    // tanpa menimbulkan Conflict atau memproses ulang reward.
+    if (dto.clientSubmissionId) {
+      const byKey = await this.responseRepository.findOne({
+        where: { clientSubmissionId: dto.clientSubmissionId },
+      });
+      if (byKey) return this.findResponseById(byKey.id);
+    }
+
     // Check if respondent already has a complete response
     const existingResponse = await this.responseRepository.findOne({
       where: { surveyId, respondentId },
@@ -148,6 +158,9 @@ export class ResponseService {
           existingResponse.endLatitude = dto.endLatitude;
           existingResponse.endLongitude = dto.endLongitude ?? null;
         }
+        if (dto.clientSubmissionId && !existingResponse.clientSubmissionId) {
+          existingResponse.clientSubmissionId = dto.clientSubmissionId;
+        }
         const saved = await manager.save(existingResponse);
 
         // Upsert answers within the same transaction
@@ -171,6 +184,7 @@ export class ResponseService {
             startLongitude: dto.startLongitude ?? null,
             endLatitude: dto.endLatitude ?? null,
             endLongitude: dto.endLongitude ?? null,
+            clientSubmissionId: dto.clientSubmissionId ?? null,
           });
 
           const saved = await manager.save(response);
@@ -180,6 +194,13 @@ export class ResponseService {
       } catch (error: any) {
         // Handle unique constraint violation
         if (error.code === '23505' || error.message?.includes('uq_one_response_per_survey')) {
+          // Race sync: bentrok karena clientSubmissionId yang sama → idempoten.
+          if (dto.clientSubmissionId) {
+            const raced = await this.responseRepository.findOne({
+              where: { clientSubmissionId: dto.clientSubmissionId },
+            });
+            if (raced) return this.findResponseById(raced.id);
+          }
           throw new ConflictException(
             'Anda sudah mengirim respons untuk survei ini. Satu responden hanya boleh mengirim satu respons per survei.',
           );
