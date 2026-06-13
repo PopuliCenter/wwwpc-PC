@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { DataCleanupService } from './data-cleanup.service';
 import { DataCleanupController } from './data-cleanup.controller';
 import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
+import { PendingDeletion } from './entities/pending-deletion.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -15,6 +16,7 @@ import { AuditModule } from '@modules/audit/audit.module';
   imports: [
     TypeOrmModule.forFeature([
       ScheduledPurgeConfig,
+      PendingDeletion,
       SurveyResponse,
       Survey,
       User,

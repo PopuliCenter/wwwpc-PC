@@ -9,6 +9,7 @@ import { User } from '@modules/auth/entities/user.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
 import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
+import { PendingDeletion } from './entities/pending-deletion.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { SurveyStatus, UserRole } from '@shared/enums';
 
@@ -37,9 +38,28 @@ describe('DataCleanupService', () => {
   };
 
   beforeEach(async () => {
+    // Penyimpanan in-memory stateful untuk meniru tabel pending_deletion.
+    const pendingStore = new Map<string, any>();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DataCleanupService,
+        {
+          provide: getRepositoryToken(PendingDeletion),
+          useValue: {
+            create: vi.fn((data) => data),
+            save: vi.fn((entity) => {
+              pendingStore.set(entity.id, entity);
+              return Promise.resolve(entity);
+            }),
+            findOne: vi.fn(({ where }) =>
+              Promise.resolve(pendingStore.get(where.id) ?? null),
+            ),
+            delete: vi.fn((criteria) => {
+              if (typeof criteria === 'string') pendingStore.delete(criteria);
+              return Promise.resolve({ affected: 1 });
+            }),
+          },
+        },
         {
           provide: getRepositoryToken(SurveyResponse),
           useValue: {

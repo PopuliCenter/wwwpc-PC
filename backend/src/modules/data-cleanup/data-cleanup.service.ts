@@ -17,6 +17,7 @@ import { UserProfile } from '@modules/registration/entities/user-profile.entity'
 import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
+import { PendingDeletion } from './entities/pending-deletion.entity';
 import { AuditActionType, SurveyStatus, UserRole } from '@shared/enums';
 import {
   DeletionRequest,
@@ -24,7 +25,6 @@ import {
   CleanupFilter,
   CleanupCandidate,
   PurgeConfig,
-  PendingDeletion,
 } from './interfaces';
 
 const CONFIRMATION_EXPIRY_MINUTES = 30;
@@ -32,9 +32,10 @@ const CONFIRMATION_EXPIRY_MINUTES = 30;
 @Injectable()
 export class DataCleanupService {
   private readonly logger = new Logger(DataCleanupService.name);
-  private readonly pendingDeletions = new Map<string, PendingDeletion>();
 
   constructor(
+    @InjectRepository(PendingDeletion)
+    private readonly pendingDeletionRepository: Repository<PendingDeletion>,
     @InjectRepository(SurveyResponse)
     private readonly responseRepository: Repository<SurveyResponse>,
     @InjectRepository(Survey)
@@ -96,18 +97,20 @@ export class DataCleanupService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + CONFIRMATION_EXPIRY_MINUTES);
 
-    const pendingDeletion: PendingDeletion = {
-      id: requestId,
-      filters: request,
-      confirmationToken,
-      affectedCount: responses.length,
-      createdAt: new Date(),
-      expiresAt,
-      confirmed: false,
-      adminUserId,
-    };
+    // Bersihkan permintaan kedaluwarsa (best-effort) agar tabel tetap ramping.
+    await this.pendingDeletionRepository.delete({ expiresAt: LessThan(new Date()) });
 
-    this.pendingDeletions.set(requestId, pendingDeletion);
+    await this.pendingDeletionRepository.save(
+      this.pendingDeletionRepository.create({
+        id: requestId,
+        filters: request as Record<string, any>,
+        confirmationToken,
+        affectedCount: responses.length,
+        expiresAt,
+        confirmed: false,
+        adminUserId,
+      }),
+    );
 
     await this.auditService.log({
       userId: adminUserId,
@@ -140,7 +143,9 @@ export class DataCleanupService {
     adminUserId: string,
     ipAddress: string,
   ): Promise<{ deletedCount: number }> {
-    const pending = this.pendingDeletions.get(requestId);
+    const pending = await this.pendingDeletionRepository.findOne({
+      where: { id: requestId },
+    });
 
     if (!pending) {
       throw new NotFoundException('Deletion request not found or has expired');
@@ -150,8 +155,8 @@ export class DataCleanupService {
       throw new BadRequestException('Invalid confirmation token');
     }
 
-    if (new Date() > pending.expiresAt) {
-      this.pendingDeletions.delete(requestId);
+    if (new Date() > new Date(pending.expiresAt)) {
+      await this.pendingDeletionRepository.delete(requestId);
       throw new BadRequestException('Deletion request has expired');
     }
 
@@ -170,10 +175,10 @@ export class DataCleanupService {
 
     if (pending.filters.dateRange) {
       queryBuilder.andWhere('response.submitted_at >= :start', {
-        start: pending.filters.dateRange.start,
+        start: new Date(pending.filters.dateRange.start),
       });
       queryBuilder.andWhere('response.submitted_at <= :end', {
-        end: pending.filters.dateRange.end,
+        end: new Date(pending.filters.dateRange.end),
       });
     }
 
@@ -183,8 +188,7 @@ export class DataCleanupService {
     const result = await queryBuilder.delete().execute();
     const deletedCount = result.affected || 0;
 
-    pending.confirmed = true;
-    this.pendingDeletions.delete(requestId);
+    await this.pendingDeletionRepository.delete(requestId);
 
     await this.auditService.log({
       userId: adminUserId,

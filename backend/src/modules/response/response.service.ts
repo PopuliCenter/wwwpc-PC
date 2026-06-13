@@ -360,13 +360,10 @@ export class ResponseService {
 
     const rows = await qb.getMany();
 
-    // Hitung kemunculan nomor tujuan → penanda dugaan duplikat (fraud)
-    const destCounts = new Map<string, number>();
-    for (const r of rows) {
-      if (r.destinationNumber) {
-        destCounts.set(r.destinationNumber, (destCounts.get(r.destinationNumber) ?? 0) + 1);
-      }
-    }
+    // Penanda dugaan duplikat (fraud): nomor tujuan yang dipakai >1 kali di
+    // SELURUH respons (lintas survei), dihitung via agregasi DB — akurat &
+    // tidak terbatas pada 500 baris yang ditampilkan.
+    const duplicateNumbers = await this.getDuplicateDestinationNumbers();
 
     const reverseStatus: Record<ResponseStatus, 'completed' | 'partial' | 'abandoned'> = {
       [ResponseStatus.COMPLETE]: 'completed',
@@ -390,7 +387,7 @@ export class ResponseService {
       destinationNumber: r.destinationNumber,
       rewardDistributed: r.rewardDistributed,
       duplicateFlag: r.destinationNumber
-        ? (destCounts.get(r.destinationNumber) ?? 0) > 1
+        ? duplicateNumbers.has(r.destinationNumber)
         : false,
     }));
   }
@@ -527,6 +524,22 @@ export class ResponseService {
   }
 
   // --- Private helpers ---
+
+  /**
+   * Nomor tujuan reward yang dipakai lebih dari satu kali di seluruh respons
+   * (indikasi dugaan fraud). Dihitung via GROUP BY/HAVING agar akurat lintas
+   * survei dan tidak terbatas pada baris yang ditampilkan.
+   */
+  private async getDuplicateDestinationNumbers(): Promise<Set<string>> {
+    const rows: Array<{ destination_number: string }> = await this.responseRepository
+      .createQueryBuilder('r')
+      .select('r.destination_number', 'destination_number')
+      .where('r.destination_number IS NOT NULL')
+      .groupBy('r.destination_number')
+      .having('COUNT(*) > 1')
+      .getRawMany();
+    return new Set(rows.map((x) => x.destination_number));
+  }
 
   /**
    * Reject submissions completed faster than the configured minimum time.
