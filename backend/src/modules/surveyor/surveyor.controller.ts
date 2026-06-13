@@ -6,21 +6,50 @@ import {
   Body,
   Request,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
+import { FileUploadService } from '@modules/response/services/file-upload.service';
+import { UploadedFileLike } from '@modules/response/services/file-validation.service';
 import { SurveyorService } from './surveyor.service';
 import { SubmitSurveyorResponseDto } from './dto/submit-surveyor-response.dto';
+
+// Batas ukuran upload (selaras dengan endpoint responden).
+const MAX_UPLOAD_BYTES = Number(process.env.UPLOAD_MAX_BYTES ?? 5 * 1024 * 1024);
 
 /** Endpoint untuk surveyor (TPD): survei saya, nomor saya, pengisian lapangan. */
 @Controller('surveyor')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SURVEYOR)
 export class SurveyorController {
-  constructor(private readonly surveyorService: SurveyorService) {}
+  constructor(
+    private readonly surveyorService: SurveyorService,
+    private readonly fileUploadService: FileUploadService,
+  ) {}
+
+  /** Upload berkas media (foto/audio/tanda tangan/berkas) oleh surveyor. */
+  @Post('surveys/:surveyId/responses/upload')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
+  )
+  async uploadFile(
+    @Param('surveyId') surveyId: string,
+    @Request() req: any,
+    @UploadedFile() file: UploadedFileLike,
+  ) {
+    return this.fileUploadService.uploadAnswerFile(
+      surveyId,
+      req.user.userId,
+      file,
+    );
+  }
 
   @Get('surveys')
   async mySurveys(@Request() req: any) {

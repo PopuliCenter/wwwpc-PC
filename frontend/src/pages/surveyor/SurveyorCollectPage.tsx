@@ -6,7 +6,15 @@ import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSurveyorSync } from '@/hooks/useSurveyorSync';
-import { cachePut, cacheGet, queueAdd, makeLocalId } from '@/utils/offlineQueue';
+import { MediaUploadProvider, type UploadMediaFn } from '@/contexts/MediaUploadContext';
+import {
+  cachePut,
+  cacheGet,
+  queueAdd,
+  makeLocalId,
+  mediaPut,
+  LOCAL_MEDIA_PREFIX,
+} from '@/utils/offlineQueue';
 import {
   QuestionRenderer,
   isAnswered,
@@ -50,6 +58,26 @@ export function SurveyorCollectPage() {
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const online = useOnlineStatus();
   const sync = useSurveyorSync();
+
+  // Upload media: online → endpoint surveyor; offline → simpan blob lokal,
+  // kembalikan referensi local-media:// yang di-resolve saat sinkron.
+  const uploadMedia = useCallback<UploadMediaFn>(
+    async (file, sId, filename = 'upload') => {
+      if (navigator.onLine) {
+        const fd = new FormData();
+        fd.append('file', file, filename);
+        const r = await api.upload<{ key: string }>(
+          `/surveyor/surveys/${sId}/responses/upload`,
+          fd,
+        );
+        return r.key;
+      }
+      const mediaId = makeLocalId();
+      await mediaPut({ id: mediaId, blob: file, filename });
+      return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
+    },
+    [],
+  );
 
   const loadNumbers = useCallback(async () => {
     const list = await api.get<NumberItem[]>(`/surveyor/surveys/${id}/numbers`);
@@ -248,6 +276,7 @@ export function SurveyorCollectPage() {
   if (!data) return null;
 
   return (
+    <MediaUploadProvider value={uploadMedia}>
     <div className="mx-auto max-w-3xl space-y-5">
       <Card>
         <div className="flex items-center justify-between gap-3">
@@ -322,7 +351,7 @@ export function SurveyorCollectPage() {
 
       {!online && data.questions.some((q) => ['photo', 'audio', 'signature', 'file_upload'].includes(q.type)) && (
         <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 ring-1 ring-gray-100">
-          Catatan: pertanyaan foto, audio, tanda tangan, dan unggah berkas membutuhkan koneksi internet untuk mengunggah berkas.
+          Media (foto, audio, tanda tangan, berkas) disimpan di perangkat dan akan diunggah otomatis saat sinkron.
         </div>
       )}
 
@@ -387,5 +416,6 @@ export function SurveyorCollectPage() {
         </div>
       )}
     </div>
+    </MediaUploadProvider>
   );
 }

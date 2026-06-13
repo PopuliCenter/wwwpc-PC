@@ -4,9 +4,37 @@ import {
   queueGetAll,
   queueDelete,
   queueAdd,
+  mediaGet,
+  mediaDelete,
+  LOCAL_MEDIA_PREFIX,
   type QueuedResponse,
 } from '@/utils/offlineQueue';
 import { useOnlineStatus } from './useOnlineStatus';
+
+/**
+ * Unggah blob media yang masih lokal (local-media://<id>) lalu ganti nilai
+ * jawaban dengan object key dari server. Dijalankan sebelum mengirim respons.
+ */
+async function resolveLocalMedia(item: QueuedResponse): Promise<void> {
+  const answers = (item.payload as { answers?: Array<{ questionId: string; value: unknown }> })
+    .answers;
+  if (!Array.isArray(answers)) return;
+  for (const a of answers) {
+    if (typeof a.value === 'string' && a.value.startsWith(LOCAL_MEDIA_PREFIX)) {
+      const mediaId = a.value.slice(LOCAL_MEDIA_PREFIX.length);
+      const media = await mediaGet(mediaId);
+      if (!media) continue;
+      const fd = new FormData();
+      fd.append('file', media.blob, media.filename);
+      const r = await api.upload<{ key: string }>(
+        `/surveyor/surveys/${item.surveyId}/responses/upload`,
+        fd,
+      );
+      a.value = r.key;
+      await mediaDelete(mediaId);
+    }
+  }
+}
 
 interface SyncState {
   queuedCount: number;
@@ -41,6 +69,8 @@ export function useSurveyorSync(): SyncState {
       let failed = 0;
       for (const item of items) {
         try {
+          // Unggah dulu media offline (foto/audio/ttd/berkas) → ganti ke key.
+          await resolveLocalMedia(item);
           await api.post(
             `/surveyor/surveys/${item.surveyId}/responses`,
             item.payload,

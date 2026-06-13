@@ -28,6 +28,6 @@ import { ExportModule } from '@modules/export';
     RewardDistributionController,
   ],
   providers: [ResponseService, FileValidationService, FileUploadService],
-  exports: [ResponseService],
+  exports: [ResponseService, FileUploadService],
 })
 export class ResponseModule {}

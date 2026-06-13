@@ -9,11 +9,13 @@ import { User } from '@modules/auth/entities';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { SurveyModule } from '@modules/survey';
 import { AuthModule } from '@modules/auth';
+import { ResponseModule } from '@modules/response';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([SurveyorQuota, Survey, User, SurveyResponse]),
     SurveyModule, // SurveyFillService + AnswerValidationService
+    ResponseModule, // FileUploadService (upload media surveyor)
     AuthModule,
   ],
   controllers: [SurveyorAdminController, SurveyorController],

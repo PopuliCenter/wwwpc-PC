@@ -20,6 +20,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { useMediaUpload } from '@/contexts/MediaUploadContext';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import {
@@ -391,19 +392,15 @@ function FileUploadQuestion({ question, value, onChange, surveyId, invalid }: Re
   const [uploading, setUploading] = useState(false);
   const [fileName, setFileName] = useState<string>(value ? 'Berkas terunggah' : '');
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const uploadMedia = useMediaUpload();
 
   const uploadFile = async (file: File) => {
     setUploadError(null);
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const result = await api.upload<{ key: string; originalName: string }>(
-        `/surveys/${surveyId}/responses/upload`,
-        formData,
-      );
-      onChange(result.key); // store the object key as the answer value
-      setFileName(result.originalName || file.name);
+      const answerValue = await uploadMedia(file, surveyId, file.name);
+      onChange(answerValue); // object key (online) atau referensi lokal (offline)
+      setFileName(file.name);
     } catch (err: unknown) {
       const e = err as { message?: string };
       setUploadError(e.message || 'Gagal mengunggah berkas.');
@@ -841,6 +838,7 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState<boolean>(!!value);
   const [error, setError] = useState<string | null>(null);
+  const uploadMedia = useMediaUpload();
 
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const c = canvasRef.current!;
@@ -893,13 +891,12 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
     try {
       const blob = await new Promise<Blob | null>((resolve) => c.toBlob(resolve, 'image/png'));
       if (!blob) throw new Error('Gagal membuat gambar tanda tangan.');
-      const formData = new FormData();
-      formData.append('file', new File([blob], 'signature.png', { type: 'image/png' }));
-      const result = await api.upload<{ key: string }>(
-        `/surveys/${surveyId}/responses/upload`,
-        formData,
+      const answerValue = await uploadMedia(
+        new File([blob], 'signature.png', { type: 'image/png' }),
+        surveyId,
+        'signature.png',
       );
-      onChange(result.key);
+      onChange(answerValue);
       setSaved(true);
     } catch (err: unknown) {
       const e = err as { message?: string };
@@ -967,19 +964,15 @@ function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const uploadMedia = useMediaUpload();
 
   const handleFile = async (file: File) => {
     setError(null);
     setUploading(true);
     setPreview(URL.createObjectURL(file));
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const result = await api.upload<{ key: string }>(
-        `/surveys/${surveyId}/responses/upload`,
-        formData,
-      );
-      onChange(result.key);
+      const answerValue = await uploadMedia(file, surveyId, file.name);
+      onChange(answerValue);
     } catch (err: unknown) {
       const e = err as { message?: string };
       setError(e.message || 'Gagal mengunggah foto.');
@@ -1141,6 +1134,7 @@ function AudioQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const uploadMedia = useMediaUpload();
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -1164,13 +1158,8 @@ function AudioQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
     setUploading(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append('file', blob, `rekaman.${ext}`);
-      const result = await api.upload<{ key: string }>(
-        `/surveys/${surveyId}/responses/upload`,
-        formData,
-      );
-      onChange(result.key);
+      const answerValue = await uploadMedia(blob, surveyId, `rekaman.${ext}`);
+      onChange(answerValue);
     } catch (err: unknown) {
       const e = err as { message?: string };
       setError(e.message || 'Gagal mengunggah rekaman.');

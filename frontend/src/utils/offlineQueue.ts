@@ -6,9 +6,13 @@
  */
 
 const DB_NAME = 'survei-offline';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const QUEUE_STORE = 'queue';
 const CACHE_STORE = 'cache';
+const MEDIA_STORE = 'media';
+
+/** Prefiks nilai jawaban media yang masih lokal (belum terunggah). */
+export const LOCAL_MEDIA_PREFIX = 'local-media://';
 
 export interface QueuedResponse {
   /** Kunci lokal unik (juga dipakai sebagai clientSubmissionId idempotensi). */
@@ -34,6 +38,9 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(CACHE_STORE)) {
         db.createObjectStore(CACHE_STORE, { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains(MEDIA_STORE)) {
+        db.createObjectStore(MEDIA_STORE, { keyPath: 'id' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -96,6 +103,30 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
     (s) => s.get(key),
   );
   return row ? row.value : null;
+}
+
+// ─── Media (blob foto/audio/ttd/berkas yang diisi offline) ──────────────────
+
+export interface StoredMedia {
+  id: string;
+  blob: Blob;
+  filename: string;
+}
+
+export function mediaPut(media: StoredMedia): Promise<void> {
+  return tx<IDBValidKey>(MEDIA_STORE, 'readwrite', (s) => s.put(media)).then(
+    () => undefined,
+  );
+}
+
+export function mediaGet(id: string): Promise<StoredMedia | undefined> {
+  return tx<StoredMedia | undefined>(MEDIA_STORE, 'readonly', (s) => s.get(id));
+}
+
+export function mediaDelete(id: string): Promise<void> {
+  return tx<undefined>(MEDIA_STORE, 'readwrite', (s) => s.delete(id)).then(
+    () => undefined,
+  );
 }
 
 /** UUID v4 (pakai crypto bila tersedia, fallback sederhana). */
