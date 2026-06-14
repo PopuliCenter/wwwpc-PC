@@ -131,13 +131,22 @@ export class EmailTemplateService {
 
   private renderOtp(context: OtpContext) {
     const isReset = context.purpose === 'reset';
+    const isRedeem = context.purpose === 'redeem';
     const subject = isReset
       ? 'Kode Reset Kata Sandi — Populi Center'
-      : 'Kode Verifikasi Akun — Populi Center';
-    const heading = isReset ? 'Reset Kata Sandi' : 'Verifikasi Akun';
+      : isRedeem
+        ? 'Kode Konfirmasi Penukaran — Populi Center'
+        : 'Kode Verifikasi Akun — Populi Center';
+    const heading = isReset
+      ? 'Reset Kata Sandi'
+      : isRedeem
+        ? 'Konfirmasi Penukaran Reward'
+        : 'Verifikasi Akun';
     const intro = isReset
       ? 'Gunakan kode berikut untuk mereset kata sandi akun Anda:'
-      : 'Gunakan kode berikut untuk memverifikasi email dan mengaktifkan akun Anda:';
+      : isRedeem
+        ? 'Gunakan kode berikut untuk mengonfirmasi penukaran reward Anda:'
+        : 'Gunakan kode berikut untuk memverifikasi email dan mengaktifkan akun Anda:';
     const appUrl = process.env.APP_URL || 'https://survei.risetcenter.com';
 
     const html = `
@@ -177,7 +186,7 @@ export class EmailTemplateService {
         </table>
       </div>
     `;
-    const text = `Halo ${context.recipientName}, kode ${isReset ? 'reset kata sandi' : 'verifikasi'} Anda: ${context.otpCode}. Berlaku ${context.expiresInMinutes} menit. Jangan bagikan kode ini kepada siapa pun.`;
+    const text = `Halo ${context.recipientName}, kode ${isReset ? 'reset kata sandi' : isRedeem ? 'konfirmasi penukaran' : 'verifikasi'} Anda: ${context.otpCode}. Berlaku ${context.expiresInMinutes} menit. Jangan bagikan kode ini kepada siapa pun.`;
     return { subject, html, text };
   }
 

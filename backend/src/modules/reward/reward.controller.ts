@@ -16,6 +16,7 @@ import { ManualCreditPointsDto } from './dto/credit-points.dto';
 import { InitiateRedemptionDto } from './dto/initiate-redemption.dto';
 import { ConfirmRedemptionDto } from './dto/confirm-redemption.dto';
 import { TransactionHistoryQueryDto } from './dto/transaction-history.dto';
+import { FinalizeRedemptionDto } from './dto/finalize-redemption.dto';
 
 @Controller('rewards')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -125,5 +126,23 @@ export class RewardController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async processExpired() {
     return this.rewardService.processExpiredPoints();
+  }
+
+  /**
+   * Finalisasi redemption manual (admin): tandai berhasil/gagal.
+   * Dipakai utk provider 'manual' atau intervensi saat callback gagal.
+   */
+  @Post('admin/redemptions/:id/finalize')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  async finalizeRedemption(
+    @Param('id') id: string,
+    @Body() dto: FinalizeRedemptionDto,
+  ) {
+    return this.rewardService.adminFinalizeRedemption(
+      id,
+      dto.success,
+      dto.note,
+      dto.sn,
+    );
   }
 }

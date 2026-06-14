@@ -7,6 +7,9 @@ import { RewardService } from './reward.service';
 import { PointTransaction, TransactionType } from './entities/point-transaction.entity';
 import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption.entity';
 import { StreakTracker } from './entities/streak-tracker.entity';
+import { User } from '@modules/auth/entities';
+import { NotificationService } from '@modules/notification/notification.service';
+import { REWARD_FULFILLMENT_PROVIDER } from './fulfillment';
 import { PointCreditReason } from '@shared/enums';
 import {
   POINT_VALUES,
@@ -60,6 +63,29 @@ describe('RewardService', () => {
             create: vi.fn((data) => ({ id: 'streak-1', ...data })),
             save: vi.fn((entity) => Promise.resolve({ id: 'streak-1', ...entity })),
             findOne: vi.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: vi.fn().mockResolvedValue({
+              id: 'user-1',
+              email: 'user@example.com',
+              fullName: 'Test User',
+            }),
+          },
+        },
+        {
+          provide: NotificationService,
+          useValue: { sendOtpEmail: vi.fn().mockResolvedValue(undefined) },
+        },
+        {
+          // Provider fulfillment default utk test: kembalikan 'pending'.
+          provide: REWARD_FULFILLMENT_PROVIDER,
+          useValue: {
+            name: 'manual',
+            fulfill: vi.fn().mockResolvedValue({ status: 'pending' }),
+            parseCallback: vi.fn().mockReturnValue(null),
           },
         },
       ],

@@ -206,14 +206,16 @@ export class NotificationService {
     recipientName: string,
     otpCode: string,
     expiresInMinutes: number = 15,
-    purpose: 'verify' | 'reset' = 'verify',
+    purpose: 'verify' | 'reset' | 'redeem' = 'verify',
   ): Promise<void> {
     this.logger.log(`Sending OTP email to ${email}`);
 
     const subject =
       purpose === 'reset'
         ? 'Kode Reset Kata Sandi — Populi Center'
-        : 'Kode Verifikasi Akun — Populi Center';
+        : purpose === 'redeem'
+          ? 'Kode Konfirmasi Penukaran — Populi Center'
+          : 'Kode Verifikasi Akun — Populi Center';
 
     const payload: EmailPayload = {
       to: email,

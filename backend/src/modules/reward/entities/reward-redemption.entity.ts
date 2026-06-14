@@ -54,4 +54,25 @@ export class RewardRedemption {
 
   @Column({ type: 'timestamp', nullable: true, name: 'otp_expires_at' })
   otpExpiresAt: Date | null;
+
+  // ── Integrasi provider fulfillment (mis. IAK) ─────────────────────────────
+  /** Nama provider yang memproses ('manual' | 'iak'). */
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'provider' })
+  provider: string | null;
+
+  /** ID transaksi di sisi provider (mis. tr_id IAK). */
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'provider_trx_id' })
+  providerTrxId: string | null;
+
+  /** Serial number / token hasil (mis. SN pulsa, kode voucher). */
+  @Column({ type: 'varchar', length: 255, nullable: true, name: 'provider_sn' })
+  providerSn: string | null;
+
+  /** Pesan/keterangan terakhir dari provider. */
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'provider_message' })
+  providerMessage: string | null;
+
+  /** Penanda poin sudah dikembalikan (anti refund ganda saat gagal). */
+  @Column({ type: 'boolean', default: false, name: 'refunded' })
+  refunded: boolean;
 }

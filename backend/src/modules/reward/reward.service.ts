@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  Inject,
 } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,7 +12,14 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointTransaction, TransactionType } from './entities/point-transaction.entity';
 import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption.entity';
 import { StreakTracker } from './entities/streak-tracker.entity';
+import { User } from '@modules/auth/entities';
+import { NotificationService } from '@modules/notification/notification.service';
 import { PointCreditReason } from '@shared/enums';
+import {
+  REWARD_FULFILLMENT_PROVIDER,
+  RewardFulfillmentProvider,
+  FulfillmentOutcome,
+} from './fulfillment';
 import {
   PointBalance,
   StreakInfo,
@@ -46,6 +54,11 @@ export class RewardService {
     private readonly redemptionRepository: Repository<RewardRedemption>,
     @InjectRepository(StreakTracker)
     private readonly streakTrackerRepository: Repository<StreakTracker>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly notificationService: NotificationService,
+    @Inject(REWARD_FULFILLMENT_PROVIDER)
+    private readonly fulfillmentProvider: RewardFulfillmentProvider,
   ) {
     this.fulfillmentCircuitBreaker = new CircuitBreaker({
       name: 'reward-fulfillment',
@@ -496,8 +509,23 @@ export class RewardService {
 
     const saved = await this.redemptionRepository.save(redemption);
 
-    // In production, send OTP via email/SMS through NotificationService
-    // OTP code is intentionally NOT logged to prevent credential leakage
+    // Kirim OTP konfirmasi penukaran via email (best-effort; OTP TIDAK di-log).
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.email) {
+      await this.notificationService
+        .sendOtpEmail(
+          user.email,
+          user.fullName || 'Pengguna',
+          otpCode,
+          REDEMPTION_OTP_TTL_MINUTES,
+          'redeem',
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Gagal mengirim OTP penukaran ke ${user.email}: ${err?.message}`,
+          ),
+        );
+    }
     this.logger.log(
       `[NOTIFICATION] Redemption OTP issued: userId=${userId}, redemptionId=${saved.id}`,
     );
@@ -505,7 +533,7 @@ export class RewardService {
     return {
       redemptionId: saved.id,
       status: saved.status,
-      message: 'Kode OTP telah dikirim. Silakan konfirmasi penukaran.',
+      message: 'Kode OTP telah dikirim ke email Anda. Silakan konfirmasi penukaran.',
       otpRequired: true,
     };
   }
@@ -565,25 +593,125 @@ export class RewardService {
     });
     await this.pointTransactionRepository.save(debitTransaction);
 
-    // Update redemption status
+    // Update redemption status → PROCESSING (poin sudah terpotong di atas).
     redemption.status = RedemptionStatus.PROCESSING;
     redemption.processedAt = new Date();
     redemption.otpCode = null; // Clear OTP after use
+    redemption.provider = this.fulfillmentProvider.name;
     await this.redemptionRepository.save(redemption);
 
-    // Trigger notification
     this.logger.log(
-      `[NOTIFICATION] Redemption confirmed: userId=${userId}, redemptionId=${redemptionId}, points=${redemption.pointsSpent}`,
-    );
-    this.logger.log(
-      `[AUDIT] Reward redemption: userId=${userId}, rewardType=${redemption.rewardType}, points=${redemption.pointsSpent}, destination=${redemption.destinationNumber}`,
+      `[AUDIT] Reward redemption: userId=${userId}, rewardType=${redemption.rewardType}, points=${redemption.pointsSpent}, destination=${redemption.destinationNumber}, provider=${this.fulfillmentProvider.name}`,
     );
 
-    return {
-      redemptionId: redemption.id,
-      status: redemption.status,
-      message: 'Penukaran berhasil dikonfirmasi. Reward sedang diproses.',
-    };
+    // Kirim ke provider fulfillment (mis. IAK). Dilindungi circuit breaker:
+    // bila layanan tumbang, kembalikan 'pending' (tetap PROCESSING, bukan refund).
+    const outcome = await this.fulfillmentCircuitBreaker.execute(
+      () =>
+        this.fulfillmentProvider.fulfill({
+          redemptionId: redemption.id,
+          rewardId: redemption.rewardType,
+          category: this.categoryOf(redemption.rewardType),
+          destinationNumber: redemption.destinationNumber ?? '',
+          pointsSpent: redemption.pointsSpent,
+        }),
+      { status: 'pending', message: 'Layanan reward sedang sibuk, akan diproses ulang.' } as FulfillmentOutcome,
+    );
+
+    const finalStatus = await this.applyOutcome(redemption, outcome);
+
+    const message =
+      finalStatus === RedemptionStatus.COMPLETED
+        ? 'Penukaran berhasil. Reward telah dikirim.'
+        : finalStatus === RedemptionStatus.FAILED
+          ? `Penukaran gagal: ${redemption.providerMessage ?? 'silakan coba lagi.'} Poin Anda telah dikembalikan.`
+          : 'Penukaran dikonfirmasi. Reward sedang diproses.';
+
+    return { redemptionId: redemption.id, status: finalStatus, message };
+  }
+
+  /** Tentukan kategori dari id katalog (mis. 'pulsa-10000' → 'pulsa'). */
+  private categoryOf(rewardId: string): string {
+    return REWARD_CATALOG.find((r) => r.id === rewardId)?.category ?? '';
+  }
+
+  /**
+   * Terapkan hasil fulfillment ke redemption + refund bila gagal.
+   * Dipakai oleh confirmRedemption (sinkron) maupun callback (async).
+   */
+  private async applyOutcome(
+    redemption: RewardRedemption,
+    outcome: FulfillmentOutcome,
+  ): Promise<RedemptionStatus> {
+    redemption.providerMessage = outcome.message ?? null;
+    if ('providerTrxId' in outcome && outcome.providerTrxId) {
+      redemption.providerTrxId = outcome.providerTrxId;
+    }
+
+    if (outcome.status === 'completed') {
+      redemption.status = RedemptionStatus.COMPLETED;
+      redemption.providerSn = outcome.sn ?? redemption.providerSn ?? null;
+    } else if (outcome.status === 'failed') {
+      redemption.status = RedemptionStatus.FAILED;
+      await this.refundRedemption(redemption);
+    } else {
+      redemption.status = RedemptionStatus.PROCESSING;
+    }
+
+    await this.redemptionRepository.save(redemption);
+    return redemption.status;
+  }
+
+  /**
+   * Kembalikan poin yang sudah terpotong saat fulfillment gagal.
+   * Idempoten: ditandai dgn flag `refunded` agar tidak dobel.
+   */
+  private async refundRedemption(redemption: RewardRedemption): Promise<void> {
+    if (redemption.refunded) return;
+    await this.creditPoints(
+      redemption.userId,
+      redemption.pointsSpent,
+      PointCreditReason.MANUAL_CREDIT,
+      redemption.id,
+    );
+    redemption.refunded = true;
+    this.logger.warn(
+      `[REFUND] ${redemption.pointsSpent} poin dikembalikan ke user=${redemption.userId} (redemption=${redemption.id} gagal).`,
+    );
+  }
+
+  /**
+   * Proses callback async dari provider (mis. IAK) → finalisasi status.
+   * Mengabaikan callback bila redemption tidak ditemukan / sudah selesai.
+   */
+  async handleProviderCallback(payload: unknown): Promise<{ received: boolean }> {
+    const parsed = this.fulfillmentProvider.parseCallback?.(payload);
+    if (!parsed) {
+      this.logger.warn('Callback provider tidak dapat diparse — diabaikan.');
+      return { received: false };
+    }
+
+    const redemption = await this.redemptionRepository.findOne({
+      where: { id: parsed.redemptionId },
+    });
+    if (!redemption) {
+      this.logger.warn(`Callback utk redemption tak dikenal: ${parsed.redemptionId}`);
+      return { received: false };
+    }
+
+    // Hanya finalisasi bila masih PROCESSING (hindari ubah yg sudah selesai/gagal).
+    if (redemption.status !== RedemptionStatus.PROCESSING) {
+      this.logger.log(
+        `Callback diabaikan: redemption ${redemption.id} sudah '${redemption.status}'.`,
+      );
+      return { received: true };
+    }
+
+    await this.applyOutcome(redemption, parsed.outcome);
+    this.logger.log(
+      `Callback diterapkan: redemption ${redemption.id} → '${redemption.status}'.`,
+    );
+    return { received: true };
   }
 
   /**
@@ -606,34 +734,35 @@ export class RewardService {
   }
 
   /**
-   * Fulfill a reward through external service (e.g., pulsa top-up, e-wallet transfer).
-   * Protected by circuit breaker to handle external service failures gracefully.
+   * Finalisasi redemption secara manual oleh admin (untuk provider 'manual'
+   * atau intervensi saat callback gagal). success=true → COMPLETED;
+   * success=false → FAILED + poin dikembalikan otomatis.
    */
-  async fulfillReward(redemptionId: string): Promise<{ success: boolean; message: string }> {
-    const fallback = { success: false, message: 'Reward fulfillment service temporarily unavailable. Will retry later.' };
+  async adminFinalizeRedemption(
+    redemptionId: string,
+    success: boolean,
+    note?: string,
+    sn?: string,
+  ): Promise<RewardRedemption> {
+    const redemption = await this.redemptionRepository.findOne({
+      where: { id: redemptionId },
+    });
+    if (!redemption) {
+      throw new NotFoundException('Redemption tidak ditemukan');
+    }
+    if (redemption.status !== RedemptionStatus.PROCESSING) {
+      throw new BadRequestException(
+        `Hanya redemption berstatus 'processing' yang bisa difinalisasi (sekarang: ${redemption.status}).`,
+      );
+    }
 
-    return this.fulfillmentCircuitBreaker.execute(
-      async () => {
-        // In production, this would call an external API (e.g., pulsa provider, e-wallet API)
-        this.logger.log(`Fulfilling reward for redemption: ${redemptionId}`);
-
-        // Simulate external API call
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        // Update redemption status to completed
-        const redemption = await this.redemptionRepository.findOne({
-          where: { id: redemptionId },
-        });
-
-        if (redemption && redemption.status === RedemptionStatus.PROCESSING) {
-          redemption.status = RedemptionStatus.COMPLETED;
-          await this.redemptionRepository.save(redemption);
-        }
-
-        return { success: true, message: 'Reward fulfilled successfully' };
-      },
-      fallback,
+    await this.applyOutcome(
+      redemption,
+      success
+        ? { status: 'completed', sn, message: note }
+        : { status: 'failed', message: note || 'Dibatalkan oleh admin.' },
     );
+    return redemption;
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
