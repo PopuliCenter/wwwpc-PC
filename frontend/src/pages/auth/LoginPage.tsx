@@ -26,12 +26,9 @@ export function LoginPage() {
       login(response.user, response.accessToken, response.refreshToken);
 
       const role = response.user.role;
+      // Role surveyor dinonaktifkan — akun lama diarahkan ke tampilan responden.
       const redirectPath =
-        role === 'admin' || role === 'super_admin'
-          ? '/admin/dashboard'
-          : role === 'surveyor'
-            ? '/surveyor/surveys'
-            : '/surveys';
+        role === 'admin' || role === 'super_admin' ? '/admin/dashboard' : '/surveys';
       navigate(redirectPath);
     } catch (err: unknown) {
       const apiError = err as { message?: string; statusCode?: number };

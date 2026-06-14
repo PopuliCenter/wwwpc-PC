@@ -262,7 +262,7 @@ export function SurveyCreatePage() {
             <option value="wizard">Wizard (satu pertanyaan per langkah)</option>
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            Mode <strong>wizard</strong> cocok untuk pengisian lapangan oleh surveyor.
+            Mode <strong>wizard</strong> cocok untuk pengisian lapangan (satu pertanyaan per layar).
           </p>
         </div>
 

@@ -31,9 +31,7 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     const redirectPath =
       user?.role === 'admin' || user?.role === 'super_admin'
         ? '/admin/dashboard'
-        : user?.role === 'surveyor'
-          ? '/surveyor/surveys'
-          : '/surveys';
+        : '/surveys';
     return <Navigate to={redirectPath} replace />;
   }
 

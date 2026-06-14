@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
 import { RespondentLayout } from '@/components/layouts/RespondentLayout';
-import { SurveyorLayout } from '@/components/layouts/SurveyorLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireRoles } from './RequireRoles';
 import { access } from '@/config/access';
@@ -17,7 +16,6 @@ import { SurveyListPage } from '@/pages/admin/surveys/SurveyListPage';
 import { SurveyCreatePage } from '@/pages/admin/surveys/SurveyCreatePage';
 import { SurveyEditPage } from '@/pages/admin/surveys/SurveyEditPage';
 import { SurveyPreviewPage } from '@/pages/admin/surveys/SurveyPreviewPage';
-import { SurveySurveyorsPage } from '@/pages/admin/surveys/SurveySurveyorsPage';
 import { ResponseListPage } from '@/pages/admin/responses/ResponseListPage';
 import { ResponseDetailPage } from '@/pages/admin/responses/ResponseDetailPage';
 import { UserManagementPage } from '@/pages/admin/UserManagementPage';
@@ -26,8 +24,6 @@ import { DataCleanupPage } from '@/pages/admin/DataCleanupPage';
 import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/SurveyListPage';
 import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
 import { RewardPage } from '@/pages/respondent/RewardPage';
-import { MySurveysPage } from '@/pages/surveyor/MySurveysPage';
-import { SurveyorCollectPage } from '@/pages/surveyor/SurveyorCollectPage';
 
 
 export const router = createBrowserRouter([
@@ -60,21 +56,6 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Protected surveyor (TPD) routes
-  {
-    path: '/surveyor',
-    element: (
-      <ProtectedRoute requiredRole="surveyor">
-        <SurveyorLayout />
-      </ProtectedRoute>
-    ),
-    children: [
-      { index: true, element: <Navigate to="/surveyor/surveys" replace /> },
-      { path: 'surveys', element: <MySurveysPage /> },
-      { path: 'surveys/:id/collect', element: <SurveyorCollectPage /> },
-    ],
-  },
-
   // Protected admin routes
   {
     path: '/admin',
@@ -90,7 +71,6 @@ export const router = createBrowserRouter([
       { path: 'surveys/create', element: <RequireRoles roles={access.surveys}><SurveyCreatePage /></RequireRoles> },
       { path: 'surveys/:id/edit', element: <RequireRoles roles={access.surveys}><SurveyEditPage /></RequireRoles> },
       { path: 'surveys/:id/preview', element: <RequireRoles roles={access.surveys}><SurveyPreviewPage /></RequireRoles> },
-      { path: 'surveys/:id/surveyors', element: <RequireRoles roles={access.surveys}><SurveySurveyorsPage /></RequireRoles> },
       { path: 'responses', element: <RequireRoles roles={access.responses}><ResponseListPage /></RequireRoles> },
       { path: 'responses/:id', element: <RequireRoles roles={access.responses}><ResponseDetailPage /></RequireRoles> },
       { path: 'maps', element: <RequireRoles roles={access.maps}><MapsPage /></RequireRoles> },

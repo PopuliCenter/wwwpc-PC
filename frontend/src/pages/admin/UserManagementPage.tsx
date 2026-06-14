@@ -186,7 +186,6 @@ function CreateUserModal({
               <option value="admin">Admin</option>
               <option value="analyst">Analyst</option>
               <option value="viewer">Viewer</option>
-              <option value="surveyor">Surveyor (TPD)</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
@@ -580,7 +579,6 @@ export function UserManagementPage() {
               <option value="admin">Admin</option>
               <option value="analyst">Analyst</option>
               <option value="viewer">Viewer</option>
-              <option value="surveyor">Surveyor (TPD)</option>
               <option value="respondent">Responden</option>
             </select>
           </div>
@@ -667,7 +665,6 @@ export function UserManagementPage() {
                           <option value="admin">Admin</option>
                           <option value="analyst">Analyst</option>
                           <option value="viewer">Viewer</option>
-                          <option value="surveyor">Surveyor (TPD)</option>
                         </select>
                       </td>
                       <td className="px-4 py-3 text-sm">
