@@ -407,13 +407,21 @@ export class UserManagerService {
         id,
       );
       await manager.query('DELETE FROM export_job WHERE requested_by = $1', id);
+      // Jawaban tertaut → hapus dulu sebelum survey_response (jaga-jaga bila FK
+      // tidak CASCADE di DB).
+      await manager.query(
+        'DELETE FROM answer WHERE response_id IN (SELECT id FROM survey_response WHERE respondent_id = $1)',
+        id,
+      );
       await manager.query('DELETE FROM survey_response WHERE respondent_id = $1', id);
       await manager.query(
         'UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1',
         id,
       );
+      await manager.query('DELETE FROM surveyor_quota WHERE surveyor_id = $1', id);
       await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
-      await manager.query('DELETE FROM "user" WHERE id = $1', id);
+      // Tabel user bernama "users".
+      await manager.query('DELETE FROM "users" WHERE id = $1', id);
     });
 
     await this.auditService.log({
