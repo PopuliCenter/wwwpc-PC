@@ -185,6 +185,13 @@ interface RendererProps {
   onChange: (val: AnswerValue) => void;
   surveyId: string;
   invalid?: boolean;
+  /** Setelan survei: jadikan jawaban teks bebas HURUF BESAR saat diketik. */
+  uppercase?: boolean;
+}
+
+/** Terapkan UPPERCASE bila setelan aktif (untuk input teks bebas). */
+function maybeUpper(text: string, uppercase?: boolean): string {
+  return uppercase ? text.toUpperCase() : text;
 }
 
 /**
@@ -209,7 +216,7 @@ const choiceRowClasses = (selected: boolean) =>
       : 'border-gray-200 hover:bg-gray-50'
   }`;
 
-function SingleChoiceQuestion({ question, value, onChange }: RendererProps) {
+function SingleChoiceQuestion({ question, value, onChange, uppercase }: RendererProps) {
   const options = useOrderedOptions(question);
   const optionValues = (question.options ?? []).map((o) => o.value);
   const strVal = typeof value === 'string' ? value : '';
@@ -259,7 +266,7 @@ function SingleChoiceQuestion({ question, value, onChange }: RendererProps) {
             value={otherText}
             placeholder="tulis jawaban Anda…"
             onChange={(e) => {
-              const t = e.target.value;
+              const t = maybeUpper(e.target.value, uppercase);
               setOtherText(t);
               setOtherActive(true);
               onChange(t.trim() ? t : '');
@@ -273,7 +280,7 @@ function SingleChoiceQuestion({ question, value, onChange }: RendererProps) {
   );
 }
 
-function MultipleChoiceQuestion({ question, value, onChange }: RendererProps) {
+function MultipleChoiceQuestion({ question, value, onChange, uppercase }: RendererProps) {
   const selected = Array.isArray(value) ? value : [];
   const options = useOrderedOptions(question);
   const optionValues = (question.options ?? []).map((o) => o.value);
@@ -331,7 +338,7 @@ function MultipleChoiceQuestion({ question, value, onChange }: RendererProps) {
             value={otherText}
             placeholder="tulis jawaban Anda…"
             onChange={(e) => {
-              const t = e.target.value;
+              const t = maybeUpper(e.target.value, uppercase);
               setOtherText(t);
               setOtherChecked(true);
               commit(predefinedSelected, true, t);
@@ -356,12 +363,12 @@ function fieldClasses(invalid?: boolean): string {
   }`;
 }
 
-function ShortTextQuestion({ question, value, onChange, invalid }: RendererProps) {
+function ShortTextQuestion({ question, value, onChange, invalid, uppercase }: RendererProps) {
   return (
     <input
       type="text"
       value={(value as string) ?? ''}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(maybeUpper(e.target.value, uppercase))}
       placeholder="Ketik jawaban Anda..."
       className={fieldClasses(invalid)}
       aria-label={question.text}
@@ -369,11 +376,11 @@ function ShortTextQuestion({ question, value, onChange, invalid }: RendererProps
   );
 }
 
-function LongTextQuestion({ question, value, onChange, invalid }: RendererProps) {
+function LongTextQuestion({ question, value, onChange, invalid, uppercase }: RendererProps) {
   return (
     <textarea
       value={(value as string) ?? ''}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(maybeUpper(e.target.value, uppercase))}
       placeholder="Ketik jawaban Anda..."
       rows={4}
       className={`${fieldClasses(invalid)} resize-y`}
@@ -382,21 +389,34 @@ function LongTextQuestion({ question, value, onChange, invalid }: RendererProps)
   );
 }
 
+// Panjang maksimum nomor (tanpa +62). Nomor Indonesia umumnya 9–13 digit;
+// 15 sebagai batas aman untuk mengurangi salah ketik.
+const PHONE_MAX_DIGITS = 15;
+
 function PhoneNumberQuestion({ question, value, onChange, invalid }: RendererProps) {
+  const current = (value as string) ?? '';
   return (
-    <div className="flex items-center gap-2">
-      <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
-        +62
-      </span>
-      <input
-        type="tel"
-        inputMode="numeric"
-        value={(value as string) ?? ''}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-        placeholder="8xxxxxxxxxx"
-        className={`flex-1 ${fieldClasses(invalid)}`}
-        aria-label={question.text}
-      />
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
+          +62
+        </span>
+        <input
+          type="tel"
+          inputMode="numeric"
+          maxLength={PHONE_MAX_DIGITS}
+          value={current}
+          onChange={(e) =>
+            onChange(e.target.value.replace(/[^0-9]/g, '').slice(0, PHONE_MAX_DIGITS))
+          }
+          placeholder="8xxxxxxxxxx"
+          className={`flex-1 ${fieldClasses(invalid)}`}
+          aria-label={question.text}
+        />
+      </div>
+      <p className="mt-1 text-xs text-gray-400">
+        Hanya angka, maksimal {PHONE_MAX_DIGITS} digit ({current.length}/{PHONE_MAX_DIGITS}).
+      </p>
     </div>
   );
 }
@@ -408,19 +428,24 @@ function NumericScaleQuestion({ question, value, onChange, invalid }: RendererPr
   const numbers = Array.from({ length: count }, (_, i) => min + i);
 
   return (
-    <select
-      value={(value as string) ?? ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      className={fieldClasses(invalid)}
-      aria-label={question.text}
-    >
-      <option value="">Pilih angka...</option>
-      {numbers.map((num) => (
-        <option key={num} value={String(num)}>
-          {num}
-        </option>
-      ))}
-    </select>
+    <div>
+      <select
+        value={(value as string) ?? ''}
+        onChange={(e) => onChange(e.target.value || null)}
+        className={fieldClasses(invalid)}
+        aria-label={question.text}
+      >
+        <option value="">Pilih angka...</option>
+        {numbers.map((num) => (
+          <option key={num} value={String(num)}>
+            {num}
+          </option>
+        ))}
+      </select>
+      <p className="mt-1 text-xs text-gray-400">
+        Pilih angka {min} sampai {max}.
+      </p>
+    </div>
   );
 }
 
@@ -1772,16 +1797,9 @@ export function SurveyFillPage() {
   const isLastPage = currentPage >= totalSteps;
 
   const handleAnswerChange = (questionId: string, value: AnswerValue) => {
-    // Setelan survei "huruf besar": ubah jawaban teks bebas (short/long text)
-    // jadi UPPERCASE. Tidak menyentuh tipe lain (nilai opsi pilihan harus utuh).
-    let nextValue = value;
-    if (survey?.uppercaseAnswers && typeof value === 'string') {
-      const qType = survey.questions.find((q) => q.id === questionId)?.type;
-      if (qType === 'short_text' || qType === 'long_text') {
-        nextValue = value.toUpperCase();
-      }
-    }
-    setAnswers((prev) => ({ ...prev, [questionId]: nextValue }));
+    // UPPERCASE jawaban teks bebas ditangani di tiap komponen input (lihat
+    // prop `uppercase`) agar nilai yang TAMPIL ikut huruf besar saat diketik.
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
     if (missingIds.has(questionId) && isAnswered(value)) {
       setMissingIds((prev) => {
         const next = new Set(prev);
@@ -1921,6 +1939,7 @@ export function SurveyFillPage() {
                 onChange={(val) => handleAnswerChange(question.id, val)}
                 surveyId={survey.id}
                 invalid={invalid}
+                uppercase={survey.uppercaseAnswers ?? false}
               />
             </Card>
           );
