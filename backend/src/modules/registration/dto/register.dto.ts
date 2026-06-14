@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsInt,
   IsIn,
+  IsDateString,
   Min,
   Max,
 } from 'class-validator';
@@ -33,6 +34,12 @@ export class RegisterDto {
   termsAccepted: boolean;
 
   // ── Profil demografi (responden mandiri) — opsional di API, wajib di UI ──
+  /** Tanggal lahir (ISO yyyy-mm-dd). Sumber utama; usia diturunkan dari ini. */
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  /** Usia langsung — masih diterima utk kompatibilitas; diabaikan bila ada dateOfBirth. */
   @IsOptional()
   @IsInt()
   @Min(13)

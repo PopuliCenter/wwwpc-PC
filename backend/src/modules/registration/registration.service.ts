@@ -27,6 +27,7 @@ import {
   isValidEmail,
   isValidIndonesianPhone,
   isValidProfile,
+  calculateAge,
 } from './validators';
 import { NotificationService } from '@modules/notification';
 
@@ -58,6 +59,7 @@ export class RegistrationService {
     password: string;
     termsAccepted: boolean;
     // Profil demografi (dikumpulkan saat pendaftaran responden mandiri)
+    dateOfBirth?: string;
     age?: number;
     gender?: string;
     occupation?: string;
@@ -114,7 +116,9 @@ export class RegistrationService {
     // Akun dibuat PENDING & belum terverifikasi. Aktivasi terjadi setelah
     // verifikasi OTP email (lihat verifyOtp). Profil demografi tetap disimpan
     // sekarang agar tak hilang bila verifikasi tertunda.
-    const hasProfile = data.age != null && !!data.gender;
+    // Usia diturunkan dari tanggal lahir bila tersedia; fallback ke age langsung.
+    const derivedAge = calculateAge(data.dateOfBirth) ?? data.age ?? null;
+    const hasProfile = derivedAge != null && !!data.gender;
     const user = this.userRepository.create({
       fullName: data.fullName,
       email: data.email,
@@ -131,7 +135,8 @@ export class RegistrationService {
     if (hasProfile) {
       const profile = this.userProfileRepository.create({
         userId: savedUser.id,
-        age: data.age,
+        dateOfBirth: data.dateOfBirth ?? null,
+        age: derivedAge,
         gender: data.gender as Gender,
         occupation: data.occupation ?? undefined,
         education: data.education ?? null,
@@ -311,7 +316,8 @@ export class RegistrationService {
   async completeProfile(
     userId: string,
     profile: {
-      age: number;
+      dateOfBirth?: string;
+      age?: number;
       gender: string;
       occupation: string;
       education?: string;
@@ -322,8 +328,11 @@ export class RegistrationService {
       address?: string;
     },
   ): Promise<void> {
+    // Usia diturunkan dari tanggal lahir bila tersedia.
+    const derivedAge = calculateAge(profile.dateOfBirth) ?? profile.age ?? undefined;
+
     // Validate profile fields
-    const validation = isValidProfile(profile);
+    const validation = isValidProfile({ ...profile, age: derivedAge as number });
     if (!validation.valid) {
       throw new BadRequestException(validation.errors);
     }
@@ -346,7 +355,8 @@ export class RegistrationService {
 
     if (userProfile) {
       await this.userProfileRepository.update(userProfile.id, {
-        age: profile.age,
+        dateOfBirth: profile.dateOfBirth ?? null,
+        age: derivedAge,
         gender: profile.gender as Gender,
         occupation: profile.occupation,
         education: profile.education ?? null,
@@ -359,7 +369,8 @@ export class RegistrationService {
     } else {
       userProfile = this.userProfileRepository.create({
         userId,
-        age: profile.age,
+        dateOfBirth: profile.dateOfBirth ?? null,
+        age: derivedAge,
         gender: profile.gender as Gender,
         occupation: profile.occupation,
         education: profile.education ?? null,

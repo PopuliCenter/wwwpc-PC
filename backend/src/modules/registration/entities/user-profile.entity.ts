@@ -26,6 +26,10 @@ export class UserProfile {
   @Column({ type: 'int', nullable: true })
   age: number;
 
+  /** Tanggal lahir (sumber utama; usia di atas diturunkan dari nilai ini). */
+  @Column({ type: 'date', nullable: true, name: 'date_of_birth' })
+  dateOfBirth: string | null;
+
   @Column({ type: 'enum', enum: Gender, nullable: true })
   gender: Gender;
 

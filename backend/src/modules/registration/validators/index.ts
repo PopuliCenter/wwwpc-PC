@@ -3,6 +3,7 @@ export {
   isValidEmail,
   isValidIndonesianPhone,
   isValidAge,
+  calculateAge,
   isValidGender,
   isValidStringField,
   isValidProfile,

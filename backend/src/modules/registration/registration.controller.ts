@@ -31,6 +31,7 @@ export class RegistrationController {
       phone: registerDto.phone,
       password: registerDto.password,
       termsAccepted: registerDto.termsAccepted,
+      dateOfBirth: registerDto.dateOfBirth,
       age: registerDto.age,
       gender: registerDto.gender,
       occupation: registerDto.occupation,
@@ -77,6 +78,7 @@ export class RegistrationController {
     @Body() completeProfileDto: CompleteProfileDto,
   ): Promise<{ message: string }> {
     await this.registrationService.completeProfile(req.user.userId, {
+      dateOfBirth: completeProfileDto.dateOfBirth,
       age: completeProfileDto.age,
       gender: completeProfileDto.gender,
       occupation: completeProfileDto.occupation,

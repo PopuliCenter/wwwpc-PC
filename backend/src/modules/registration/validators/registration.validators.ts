@@ -49,6 +49,23 @@ export function isValidAge(age: number): boolean {
 }
 
 /**
+ * Hitung usia (tahun penuh) dari tanggal lahir. Mengembalikan null bila
+ * tanggal tidak valid/kosong.
+ */
+export function calculateAge(dateOfBirth: string | Date | null | undefined): number | null {
+  if (!dateOfBirth) return null;
+  const dob = new Date(dateOfBirth);
+  if (Number.isNaN(dob.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const m = now.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+/**
  * Validates gender field
  */
 export function isValidGender(gender: string): boolean {

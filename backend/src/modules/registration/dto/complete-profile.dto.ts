@@ -1,10 +1,26 @@
-import { IsInt, IsNotEmpty, IsString, IsIn, Min, Max } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  IsIn,
+  IsOptional,
+  IsDateString,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CompleteProfileDto {
+  /** Tanggal lahir (ISO yyyy-mm-dd). Usia diturunkan dari nilai ini. */
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  /** Usia langsung — opsional bila dateOfBirth disertakan. */
+  @IsOptional()
   @IsInt()
   @Min(13)
   @Max(120)
-  age: number;
+  age?: number;
 
   @IsString()
   @IsNotEmpty()

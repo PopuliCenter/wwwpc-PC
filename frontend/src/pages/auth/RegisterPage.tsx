@@ -24,6 +24,20 @@ interface VerifyResult {
 const selectCls =
   'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
 
+/** Hitung usia (tahun penuh) dari tanggal lahir ISO, atau null bila kosong/invalid. */
+function ageFromDob(dob: string): number | null {
+  if (!dob) return null;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age -= 1;
+  return age;
+}
+
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
 export function RegisterPage() {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
@@ -37,7 +51,7 @@ export function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   // Data diri
-  const [age, setAge] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
   const [occupation, setOccupation] = useState('');
   const [education, setEducation] = useState('');
@@ -64,6 +78,15 @@ export function RegisterPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    const computedAge = ageFromDob(dateOfBirth);
+    if (computedAge === null) {
+      setError('Masukkan tanggal lahir yang valid.');
+      return;
+    }
+    if (computedAge < 13) {
+      setError('Usia minimal 13 tahun untuk mendaftar.');
+      return;
+    }
     if (!wilayah.province || !wilayah.city || !wilayah.district) {
       setError('Lengkapi provinsi, kabupaten/kota, dan kecamatan.');
       return;
@@ -76,7 +99,7 @@ export function RegisterPage() {
         phone,
         password,
         termsAccepted: acceptTerms,
-        age: Number(age),
+        dateOfBirth,
         gender,
         occupation,
         education,
@@ -203,8 +226,13 @@ export function RegisterPage() {
         <ErrorBox />
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input label="Umur" type="number" min={13} max={120} value={age}
-              onChange={(e) => setAge(e.target.value)} placeholder="Contoh: 28" required />
+            <div>
+              <Input label="Tanggal Lahir" type="date" max={TODAY_ISO} value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)} required />
+              {ageFromDob(dateOfBirth) !== null && (
+                <p className="mt-1 text-xs text-gray-500">Usia: {ageFromDob(dateOfBirth)} tahun</p>
+              )}
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Kelamin</label>
               <select value={gender} onChange={(e) => setGender(e.target.value)} required className={selectCls}>
