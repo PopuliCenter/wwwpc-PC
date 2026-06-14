@@ -355,7 +355,7 @@ export class AuthService {
 
     if (!this.isValidPassword(newPassword)) {
       throw new BadRequestException(
-        'Password baru minimal 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol',
+        'Password baru minimal 8 karakter, mengandung huruf besar dan angka',
       );
     }
 
@@ -379,11 +379,14 @@ export class AuthService {
   }
 
   private isValidPassword(password: string): boolean {
+    // Kebijakan SAMA dengan registrasi (registration.validators.isValidPassword):
+    // min 8 karakter, ≥1 huruf besar, ≥1 angka. Sengaja TIDAK mewajibkan simbol
+    // atau huruf kecil agar konsisten — pengguna bisa mereset ke jenis password
+    // yang sama seperti saat mendaftar (mencegah penolakan yang membingungkan).
     if (password.length < 8) return false;
     if (!/[A-Z]/.test(password)) return false;
-    if (!/[a-z]/.test(password)) return false;
     if (!/\d/.test(password)) return false;
-    if (!/[^A-Za-z0-9]/.test(password)) return false; // at least one symbol
+    // Lapisan tambahan: tolak password yang terlalu umum.
     if (COMMON_PASSWORDS.has(password.toLowerCase())) return false;
     return true;
   }

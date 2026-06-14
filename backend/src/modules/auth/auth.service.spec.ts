@@ -464,10 +464,14 @@ describe('AuthService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when password has no symbol', async () => {
+    it('should accept a password without a symbol (kebijakan selaras registrasi)', async () => {
+      cacheManager.get.mockResolvedValue('123456');
+      userRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.hash as any) = vi.fn().mockResolvedValue('hashed');
+
       await expect(
         service.resetPassword('test@example.com', '123456', 'NoSymbol123'),
-      ).rejects.toThrow(BadRequestException);
+      ).resolves.toBeUndefined();
     });
 
     it('should throw BadRequestException for a common/weak password', async () => {
