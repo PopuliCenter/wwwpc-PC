@@ -594,7 +594,6 @@ export function UserManagementPage() {
               <option value="admin">Admin</option>
               <option value="analyst">Analyst</option>
               <option value="viewer">Viewer</option>
-              <option value="respondent">Responden</option>
             </select>
           </div>
           <div>

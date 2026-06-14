@@ -253,6 +253,17 @@ describe('UserManagerService', () => {
       });
     });
 
+    it('should always exclude respondents (kelola di halaman Responden)', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+
+      await service.listUsers({});
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'user.role != :respondentRole',
+        { respondentRole: UserRole.RESPONDENT },
+      );
+    });
+
     it('should apply role filter', async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
 

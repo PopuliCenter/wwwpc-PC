@@ -266,6 +266,14 @@ export class UserManagerService {
       .skip(skip)
       .take(limit);
 
+    // Halaman "Manajemen Pengguna" hanya untuk staf (admin/superadmin/viewer)
+    // yang dibuat admin. Responden (daftar mandiri via aplikasi) dikelola
+    // terpisah di halaman Responden — jangan tampilkan di sini agar penghapusan
+    // tidak saling memengaruhi.
+    queryBuilder.andWhere('user.role != :respondentRole', {
+      respondentRole: UserRole.RESPONDENT,
+    });
+
     if (filters.role) {
       queryBuilder.andWhere('user.role = :role', { role: filters.role });
     }
