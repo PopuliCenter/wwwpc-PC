@@ -14,6 +14,8 @@ import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption
 import { StreakTracker } from './entities/streak-tracker.entity';
 import { User } from '@modules/auth/entities';
 import { NotificationService } from '@modules/notification/notification.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventType, RewardRedeemedPayload } from '@modules/events/event-types';
 import { PointCreditReason } from '@shared/enums';
 import {
   REWARD_FULFILLMENT_PROVIDER,
@@ -57,6 +59,7 @@ export class RewardService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly notificationService: NotificationService,
+    private readonly eventEmitter: EventEmitter2,
     @Inject(REWARD_FULFILLMENT_PROVIDER)
     private readonly fulfillmentProvider: RewardFulfillmentProvider,
   ) {
@@ -662,7 +665,44 @@ export class RewardService {
     }
 
     await this.redemptionRepository.save(redemption);
+
+    // Beri tahu responden saat reward benar-benar terkirim (email konfirmasi).
+    if (redemption.status === RedemptionStatus.COMPLETED) {
+      await this.emitRedeemed(redemption);
+    }
     return redemption.status;
+  }
+
+  /**
+   * Pancarkan REWARD_REDEEMED → handler mengirim email "reward berhasil dikirim".
+   * Tidak boleh menggagalkan alur penukaran; error hanya dicatat.
+   */
+  private async emitRedeemed(redemption: RewardRedemption): Promise<void> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: redemption.userId },
+      });
+      if (!user?.email) return;
+      const balance = await this.getBalance(redemption.userId);
+      const rewardName =
+        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ??
+        redemption.rewardType;
+      const payload: RewardRedeemedPayload = {
+        userId: redemption.userId,
+        email: user.email,
+        fullName: user.fullName || 'Pengguna',
+        redemptionId: redemption.id,
+        rewardType: rewardName,
+        pointsSpent: redemption.pointsSpent,
+        destinationNumber: redemption.destinationNumber ?? '',
+        remainingBalance: balance.available,
+      };
+      this.eventEmitter.emit(EventType.REWARD_REDEEMED, payload);
+    } catch (e: any) {
+      this.logger.error(
+        `Gagal memancarkan REWARD_REDEEMED utk ${redemption.id}: ${e?.message}`,
+      );
+    }
   }
 
   /**
