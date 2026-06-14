@@ -1,4 +1,9 @@
-import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  InternalServerErrorException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -13,10 +18,18 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
-export class S3StorageService {
+export class S3StorageService implements OnModuleInit {
   private readonly logger = new Logger(S3StorageService.name);
   private readonly s3Client: S3Client;
+
+  /** Bucket default (file export & berkas internal mis. backup GDPR). */
   private readonly bucket: string;
+
+  /** Bucket file export (CSV/Excel/PDF/JSON) & berkas internal. */
+  public readonly exportsBucket: string;
+
+  /** Bucket unggahan responden (file_upload, tanda tangan, foto, audio). */
+  public readonly uploadsBucket: string;
 
   /** How long (seconds) a pre-signed download URL stays valid. Default: 15 minutes. */
   private readonly presignedUrlExpiresIn: number;
@@ -35,7 +48,16 @@ export class S3StorageService {
     const region = this.configService.get<string>('S3_REGION') ?? 'us-east-1';
     const useSSL = this.configService.get<string>('S3_USE_SSL') === 'true';
 
-    this.bucket = this.configService.get<string>('S3_BUCKET') ?? 'survey-exports';
+    // Dua bucket terpisah: export vs unggahan responden. Bila var baru tidak
+    // diisi, fallback ke `S3_BUCKET` lama (default 'survey-exports') agar tidak
+    // breaking pada deployment yang belum dikonfigurasi ulang.
+    const legacyBucket =
+      this.configService.get<string>('S3_BUCKET') ?? 'survey-exports';
+    this.exportsBucket =
+      this.configService.get<string>('S3_BUCKET_EXPORTS') ?? legacyBucket;
+    this.uploadsBucket =
+      this.configService.get<string>('S3_BUCKET_UPLOADS') ?? legacyBucket;
+    this.bucket = this.exportsBucket;
     this.presignedUrlExpiresIn = parseInt(
       this.configService.get<string>('S3_PRESIGNED_URL_EXPIRES_IN') ?? '900',
       10,
@@ -74,6 +96,7 @@ export class S3StorageService {
     localFilePath: string,
     s3Key: string,
     contentType: string,
+    bucket: string = this.exportsBucket,
   ): Promise<string> {
     let fileBuffer: Buffer;
     try {
@@ -87,7 +110,7 @@ export class S3StorageService {
     try {
       await this.s3Client.send(
         new PutObjectCommand({
-          Bucket: this.bucket,
+          Bucket: bucket,
           Key: s3Key,
           Body: fileBuffer,
           ContentType: contentType,
@@ -97,7 +120,7 @@ export class S3StorageService {
           // No ACL → bucket/object remains private (server-side default)
         }),
       );
-      this.logger.log(`Uploaded ${s3Key} to bucket '${this.bucket}'`);
+      this.logger.log(`Uploaded ${s3Key} to bucket '${bucket}'`);
     } catch (err: any) {
       throw new InternalServerErrorException(
         `S3 upload failed for key '${s3Key}': ${err.message}`,
@@ -124,11 +147,12 @@ export class S3StorageService {
     buffer: Buffer,
     s3Key: string,
     contentType: string,
+    bucket: string = this.exportsBucket,
   ): Promise<string> {
     try {
       await this.s3Client.send(
         new PutObjectCommand({
-          Bucket: this.bucket,
+          Bucket: bucket,
           Key: s3Key,
           Body: buffer,
           ContentType: contentType,
@@ -138,7 +162,7 @@ export class S3StorageService {
           // No ACL → object remains private (served via pre-signed URLs only)
         }),
       );
-      this.logger.log(`Uploaded buffer to ${s3Key} in bucket '${this.bucket}'`);
+      this.logger.log(`Uploaded buffer to ${s3Key} in bucket '${bucket}'`);
       return s3Key;
     } catch (err: any) {
       throw new InternalServerErrorException(
@@ -153,10 +177,13 @@ export class S3StorageService {
    *
    * @param s3Key  The object key inside the bucket
    */
-  async getPresignedDownloadUrl(s3Key: string): Promise<string> {
+  async getPresignedDownloadUrl(
+    s3Key: string,
+    bucket: string = this.exportsBucket,
+  ): Promise<string> {
     try {
       const command = new GetObjectCommand({
-        Bucket: this.bucket,
+        Bucket: bucket,
         Key: s3Key,
       });
 
@@ -179,10 +206,13 @@ export class S3StorageService {
    * Ambil isi objek dari S3/MinIO sebagai buffer (untuk di-stream ke klien lewat
    * backend — MinIO bersifat internal, jadi presigned URL tak dapat diakses browser).
    */
-  async getObjectBuffer(s3Key: string): Promise<{ buffer: Buffer; contentType: string }> {
+  async getObjectBuffer(
+    s3Key: string,
+    bucket: string = this.exportsBucket,
+  ): Promise<{ buffer: Buffer; contentType: string }> {
     try {
       const res = await this.s3Client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }),
+        new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
       );
       const bytes = await (res.Body as any).transformToByteArray();
       return {
@@ -199,12 +229,15 @@ export class S3StorageService {
   /**
    * Delete an object from S3/MinIO (e.g. after scheduled cleanup).
    */
-  async deleteObject(s3Key: string): Promise<void> {
+  async deleteObject(
+    s3Key: string,
+    bucket: string = this.exportsBucket,
+  ): Promise<void> {
     try {
       await this.s3Client.send(
-        new DeleteObjectCommand({ Bucket: this.bucket, Key: s3Key }),
+        new DeleteObjectCommand({ Bucket: bucket, Key: s3Key }),
       );
-      this.logger.log(`Deleted S3 object: ${s3Key}`);
+      this.logger.log(`Deleted S3 object: ${s3Key} (bucket '${bucket}')`);
     } catch (err: any) {
       this.logger.warn(`Failed to delete S3 object '${s3Key}': ${err.message}`);
     }
@@ -214,21 +247,42 @@ export class S3StorageService {
    * Ensure the target bucket exists. Creates it if missing.
    * Safe to call on startup (idempotent).
    */
-  async ensureBucketExists(): Promise<void> {
+  async ensureBucketExists(bucket: string = this.exportsBucket): Promise<void> {
     try {
-      await this.s3Client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-      this.logger.log(`S3 bucket '${this.bucket}' is accessible`);
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: bucket }));
+      this.logger.log(`S3 bucket '${bucket}' is accessible`);
     } catch {
-      this.logger.warn(`Bucket '${this.bucket}' not found — attempting to create it`);
+      this.logger.warn(`Bucket '${bucket}' not found — attempting to create it`);
       try {
-        await this.s3Client.send(new CreateBucketCommand({ Bucket: this.bucket }));
-        this.logger.log(`Created S3 bucket '${this.bucket}'`);
+        await this.s3Client.send(new CreateBucketCommand({ Bucket: bucket }));
+        this.logger.log(`Created S3 bucket '${bucket}'`);
       } catch (createErr: any) {
         throw new InternalServerErrorException(
-          `Could not create S3 bucket '${this.bucket}': ${createErr.message}`,
+          `Could not create S3 bucket '${bucket}': ${createErr.message}`,
         );
       }
     }
+  }
+
+  /**
+   * Pastikan kedua bucket (export & unggahan) ada. Dipanggil saat startup sebagai
+   * jaring pengaman (minio-init biasanya sudah membuatnya). Best-effort: kegagalan
+   * (mis. MinIO belum siap) hanya dicatat agar boot aplikasi tidak gagal.
+   */
+  async ensureBucketsExist(): Promise<void> {
+    for (const bucket of new Set([this.exportsBucket, this.uploadsBucket])) {
+      try {
+        await this.ensureBucketExists(bucket);
+      } catch (err: any) {
+        this.logger.warn(
+          `Lewati pemastian bucket '${bucket}' saat startup: ${err.message}`,
+        );
+      }
+    }
+  }
+
+  async onModuleInit(): Promise<void> {
+    await this.ensureBucketsExist();
   }
 
   /**

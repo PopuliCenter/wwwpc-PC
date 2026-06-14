@@ -31,9 +31,10 @@ export class FileUploadService {
   ): Promise<UploadResult> {
     const { ext, contentType } = this.fileValidation.validate(file);
 
+    // Unggahan responden → bucket UPLOADS (terpisah dari file export).
     const key = `survey-uploads/${surveyId}/${respondentId}/${uuidv4()}.${ext}`;
-    await this.s3.uploadBuffer(file!.buffer, key, contentType);
-    const url = await this.s3.getPresignedDownloadUrl(key);
+    await this.s3.uploadBuffer(file!.buffer, key, contentType, this.s3.uploadsBucket);
+    const url = await this.s3.getPresignedDownloadUrl(key, this.s3.uploadsBucket);
 
     this.logger.log(
       `Respondent ${respondentId} uploaded file for survey ${surveyId}: ${key}`,
