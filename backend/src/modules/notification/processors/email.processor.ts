@@ -1,5 +1,6 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Job } from 'bull';
 import { EmailTemplateService } from '../templates';
 import { EmailJobData, BulkEmailJobData, NotificationResult } from '../interfaces';
@@ -15,7 +16,10 @@ export class EmailProcessor {
   private readonly logger = new Logger(EmailProcessor.name);
   private readonly emailCircuitBreaker: CircuitBreaker;
 
-  constructor(private readonly templateService: EmailTemplateService) {
+  constructor(
+    private readonly templateService: EmailTemplateService,
+    private readonly configService: ConfigService,
+  ) {
     this.emailCircuitBreaker = new CircuitBreaker({
       name: 'email-service',
       failureThreshold: 5,
@@ -83,8 +87,13 @@ export class EmailProcessor {
   }
 
   /**
-   * Placeholder for actual email sending.
-   * In production, replace with nodemailer, SendGrid, AWS SES, etc.
+   * Kirim email via Resend (https://resend.com) REST API.
+   * - Bila RESEND_API_KEY tidak diset → fallback log (mode dev/lokal), email
+   *   tidak benar-benar terkirim sehingga tidak memblokir pengembangan.
+   * - Pengirim default: "Populi Center <info@populicenter.org>" (override via
+   *   MAIL_FROM). Domain populicenter.org HARUS diverifikasi di Resend (DNS).
+   * - Lempar error pada respons non-2xx agar Bull retry + circuit breaker
+   *   menghitung kegagalan.
    */
   private async sendEmail(options: {
     to: string;
@@ -92,10 +101,36 @@ export class EmailProcessor {
     html: string;
     text: string;
   }): Promise<void> {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+    const from =
+      this.configService.get<string>('MAIL_FROM') ||
+      'Populi Center <info@populicenter.org>';
 
-    // Log for development - in production this would be the actual SMTP call
-    this.logger.debug(`[EMAIL] To: ${options.to} | Subject: ${options.subject}`);
+    if (!apiKey) {
+      this.logger.warn(
+        `[EMAIL:dev] RESEND_API_KEY belum diset — email TIDAK dikirim. To: ${options.to} | Subject: ${options.subject}`,
+      );
+      return;
+    }
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to: [options.to],
+        subject: options.subject,
+        html: options.html,
+        text: options.text,
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => res.statusText);
+      throw new Error(`Resend gagal (${res.status}): ${detail}`);
+    }
   }
 }
