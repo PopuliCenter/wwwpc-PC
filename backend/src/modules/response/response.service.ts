@@ -413,7 +413,11 @@ export class ResponseService {
       });
     }
 
-    qb.orderBy('r.started_at', 'DESC').take(500);
+    // Gunakan NAMA PROPERTI entity (startedAt), bukan nama kolom DB (started_at).
+    // Dengan take()+join, TypeORM memetakan kolom orderBy lewat metadata properti;
+    // memakai nama kolom mentah → "Cannot read properties of undefined
+    // (reading 'databaseName')" saat getMany().
+    qb.orderBy('r.startedAt', 'DESC').take(500);
 
     const rows = await qb.getMany();
 
