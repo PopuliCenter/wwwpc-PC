@@ -340,6 +340,8 @@ function RedemptionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null);
+  const [resultStatus, setResultStatus] = useState<string>('processing');
+  const [resultMessage, setResultMessage] = useState<string>('');
 
   const handleInitiate = async () => {
     if (!destinationNumber) {
@@ -370,9 +372,12 @@ function RedemptionModal({
     setLoading(true);
     setError(null);
     try {
-      await api.post<RedemptionResult>(`/rewards/redeem/${redemptionId}/confirm`, {
-        otpCode: otp,
-      });
+      const result = await api.post<RedemptionResult>(
+        `/rewards/redeem/${redemptionId}/confirm`,
+        { otpCode: otp },
+      );
+      setResultStatus(result.status);
+      setResultMessage(result.message || '');
       // Backend tidak mengembalikan sisa saldo → ambil ulang.
       try {
         const balance = await api.get<PointBalance>('/rewards/balance');
@@ -463,33 +468,54 @@ function RedemptionModal({
           </div>
         )}
 
-        {/* Step: Success */}
-        {step === 'success' && (
-          <div className="space-y-4 text-center">
-            <div className="text-5xl">✅</div>
-            <h3 className="text-lg font-semibold text-gray-900">Penukaran Berhasil!</h3>
-            <p className="text-sm text-gray-600">
-              <span className="font-medium">{reward.name}</span> akan segera diproses ke nomor tujuan Anda.
-            </p>
-            {remainingBalance !== null && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-500">Sisa saldo</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {remainingBalance.toLocaleString()} poin
-                </p>
-              </div>
-            )}
-            <button
-              onClick={() => {
-                onSuccess();
-                onClose();
-              }}
-              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
-            >
-              Selesai
-            </button>
-          </div>
-        )}
+        {/* Step: Hasil (status-aware: berhasil / diproses / gagal+refund) */}
+        {step === 'success' && (() => {
+          const failed = resultStatus === 'failed';
+          const completed = resultStatus === 'completed';
+          const icon = failed ? '❌' : completed ? '✅' : '⏳';
+          const title = failed
+            ? 'Penukaran Gagal'
+            : completed
+              ? 'Penukaran Berhasil!'
+              : 'Penukaran Diproses';
+          const desc = failed
+            ? `${resultMessage || 'Penukaran tidak dapat diselesaikan.'} Poin Anda telah dikembalikan.`
+            : completed
+              ? `${reward.name} telah dikirim ke nomor tujuan Anda.`
+              : `${reward.name} sedang diproses. Status akan diperbarui otomatis.`;
+          return (
+            <div className="space-y-4 text-center">
+              <div className="text-5xl">{icon}</div>
+              <h3
+                className={`text-lg font-semibold ${failed ? 'text-red-600' : 'text-gray-900'}`}
+              >
+                {title}
+              </h3>
+              <p className="text-sm text-gray-600">{desc}</p>
+              {remainingBalance !== null && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-500">Sisa saldo</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {remainingBalance.toLocaleString()} poin
+                  </p>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  onSuccess();
+                  onClose();
+                }}
+                className={`w-full py-2 text-white rounded-lg font-medium ${
+                  failed
+                    ? 'bg-gray-600 hover:bg-gray-700'
+                    : 'bg-primary-600 hover:bg-primary-700'
+                }`}
+              >
+                {failed ? 'Tutup' : 'Selesai'}
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
