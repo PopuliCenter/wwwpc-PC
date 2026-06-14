@@ -11,6 +11,7 @@ export const access: Record<string, UserRole[]> = {
   surveys: ['super_admin', 'admin'],
   responses: ['super_admin', 'admin', 'analyst'],
   maps: ['super_admin', 'admin', 'analyst'],
+  respondents: ['super_admin', 'admin'],
   users: ['super_admin'],
   audit: ['super_admin', 'admin'],
   cleanup: ['super_admin', 'admin'],

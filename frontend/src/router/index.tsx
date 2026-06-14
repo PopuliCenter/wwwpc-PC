@@ -7,6 +7,7 @@ import { RequireRoles } from './RequireRoles';
 import { access } from '@/config/access';
 import { ProfilePage } from '@/pages/admin/ProfilePage';
 import { MapsPage } from '@/pages/admin/MapsPage';
+import { RespondentsPage } from '@/pages/admin/RespondentsPage';
 import { LoginPage } from '@/pages/auth/LoginPage';
 import { RegisterPage } from '@/pages/auth/RegisterPage';
 import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
@@ -74,6 +75,7 @@ export const router = createBrowserRouter([
       { path: 'responses', element: <RequireRoles roles={access.responses}><ResponseListPage /></RequireRoles> },
       { path: 'responses/:id', element: <RequireRoles roles={access.responses}><ResponseDetailPage /></RequireRoles> },
       { path: 'maps', element: <RequireRoles roles={access.maps}><MapsPage /></RequireRoles> },
+      { path: 'respondents', element: <RequireRoles roles={access.respondents}><RespondentsPage /></RequireRoles> },
       { path: 'users', element: <RequireRoles roles={access.users}><UserManagementPage /></RequireRoles> },
       { path: 'audit', element: <RequireRoles roles={access.audit}><AuditLogPage /></RequireRoles> },
       { path: 'cleanup', element: <RequireRoles roles={access.cleanup}><DataCleanupPage /></RequireRoles> },

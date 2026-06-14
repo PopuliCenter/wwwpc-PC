@@ -291,6 +291,60 @@ export class UserManagerService {
   }
 
   /**
+   * Daftar responden mandiri (role = respondent) beserta profil demografi
+   * (LEFT JOIN user_profile agar responden tanpa profil tetap muncul) dan
+   * metadata waktu pendaftaran. Dipakai untuk laman admin "Responden" dan
+   * export Excel/CSV. Mengembalikan SEMUA baris yang cocok (dengan filter
+   * pencarian opsional) — cukup untuk skala awal; tabel & export memakai
+   * data yang sama.
+   */
+  async getRespondents(search?: string): Promise<
+    Array<{
+      id: string;
+      fullName: string;
+      email: string;
+      phone: string;
+      age: number | null;
+      gender: string | null;
+      occupation: string | null;
+      education: string | null;
+      religion: string | null;
+      province: string | null;
+      city: string | null;
+      address: string | null;
+      registeredAt: Date;
+    }>
+  > {
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoin('user_profile', 'p', 'p.user_id = user.id')
+      .where('user.role = :role', { role: UserRole.RESPONDENT })
+      .select('user.id', 'id')
+      .addSelect('user.full_name', 'fullName')
+      .addSelect('user.email', 'email')
+      .addSelect('user.phone', 'phone')
+      .addSelect('p.age', 'age')
+      .addSelect('p.gender', 'gender')
+      .addSelect('p.occupation', 'occupation')
+      .addSelect('p.education', 'education')
+      .addSelect('p.religion', 'religion')
+      .addSelect('p.province', 'province')
+      .addSelect('p.city', 'city')
+      .addSelect('p.address', 'address')
+      .addSelect('user.created_at', 'registeredAt')
+      .orderBy('user.created_at', 'DESC');
+
+    if (search) {
+      qb.andWhere(
+        '(user.full_name ILIKE :search OR user.email ILIKE :search OR user.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    return qb.getRawMany();
+  }
+
+  /**
    * Get user activity history from audit logs.
    */
   async getUserActivityHistory(userId: string): Promise<ActivityEntry[]> {

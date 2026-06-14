@@ -83,6 +83,16 @@ export class UserManagerController {
     return this.userManagerService.listUsers(filters);
   }
 
+  /**
+   * Daftar responden mandiri + profil demografi (untuk laman admin Responden
+   * & export). Boleh diakses admin (override @Roles tingkat-class super_admin).
+   */
+  @Get('respondents')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  async listRespondents(@Query('search') search?: string) {
+    return this.userManagerService.getRespondents(search);
+  }
+
   @Get(':id/activity')
   async getUserActivityHistory(@Param('id') id: string) {
     return this.userManagerService.getUserActivityHistory(id);
