@@ -7,6 +7,7 @@ export enum EventType {
   SURVEY_ACTIVATED = 'survey.activated',
   POINTS_THRESHOLD_REACHED = 'reward.points_threshold_reached',
   REWARD_REDEEMED = 'reward.redeemed',
+  REWARD_REDEMPTION_FAILED = 'reward.redemption_failed',
 }
 
 /**
@@ -66,5 +67,21 @@ export interface RewardRedeemedPayload {
   rewardType: string;
   pointsSpent: number;
   destinationNumber: string;
+  remainingBalance: number;
+}
+
+/**
+ * Payload for REWARD_REDEMPTION_FAILED event.
+ * Emitted when a redemption fails (sync or async) and points were refunded.
+ */
+export interface RewardRedemptionFailedPayload {
+  userId: string;
+  email: string;
+  fullName: string;
+  redemptionId: string;
+  rewardType: string;
+  pointsRefunded: number;
+  destinationNumber: string;
+  reason: string;
   remainingBalance: number;
 }

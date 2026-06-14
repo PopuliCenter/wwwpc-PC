@@ -12,6 +12,7 @@ export enum EmailTemplate {
   SUBMISSION_CONFIRMATION = 'submission_confirmation',
   POINTS_THRESHOLD = 'points_threshold',
   REDEMPTION_CONFIRMATION = 'redemption_confirmation',
+  REDEMPTION_FAILED = 'redemption_failed',
   OTP_VERIFICATION = 'otp_verification',
   PASSWORD_RESET = 'password_reset',
 }
@@ -68,6 +69,15 @@ export interface RedemptionConfirmationContext {
   rewardType: string;
   pointsSpent: number;
   destinationNumber: string;
+  remainingBalance: number;
+}
+
+export interface RedemptionFailedContext {
+  respondentName: string;
+  rewardType: string;
+  pointsRefunded: number;
+  destinationNumber: string;
+  reason: string;
   remainingBalance: number;
 }
 

@@ -15,7 +15,11 @@ import { StreakTracker } from './entities/streak-tracker.entity';
 import { User } from '@modules/auth/entities';
 import { NotificationService } from '@modules/notification/notification.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { EventType, RewardRedeemedPayload } from '@modules/events/event-types';
+import {
+  EventType,
+  RewardRedeemedPayload,
+  RewardRedemptionFailedPayload,
+} from '@modules/events/event-types';
 import { PointCreditReason } from '@shared/enums';
 import {
   REWARD_FULFILLMENT_PROVIDER,
@@ -666,9 +670,11 @@ export class RewardService {
 
     await this.redemptionRepository.save(redemption);
 
-    // Beri tahu responden saat reward benar-benar terkirim (email konfirmasi).
+    // Beri tahu responden: email konfirmasi saat sukses, email refund saat gagal.
     if (redemption.status === RedemptionStatus.COMPLETED) {
       await this.emitRedeemed(redemption);
+    } else if (redemption.status === RedemptionStatus.FAILED) {
+      await this.emitFailed(redemption);
     }
     return redemption.status;
   }
@@ -701,6 +707,40 @@ export class RewardService {
     } catch (e: any) {
       this.logger.error(
         `Gagal memancarkan REWARD_REDEEMED utk ${redemption.id}: ${e?.message}`,
+      );
+    }
+  }
+
+  /**
+   * Pancarkan REWARD_REDEMPTION_FAILED → handler mengirim email "penukaran gagal
+   * + poin dikembalikan". Penting utk kegagalan asinkron (callback/polling) yang
+   * tidak terlihat di modal. Tidak boleh menggagalkan alur; error hanya dicatat.
+   */
+  private async emitFailed(redemption: RewardRedemption): Promise<void> {
+    try {
+      const user = await this.userRepository.findOne({
+        where: { id: redemption.userId },
+      });
+      if (!user?.email) return;
+      const balance = await this.getBalance(redemption.userId);
+      const rewardName =
+        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ??
+        redemption.rewardType;
+      const payload: RewardRedemptionFailedPayload = {
+        userId: redemption.userId,
+        email: user.email,
+        fullName: user.fullName || 'Pengguna',
+        redemptionId: redemption.id,
+        rewardType: rewardName,
+        pointsRefunded: redemption.pointsSpent,
+        destinationNumber: redemption.destinationNumber ?? '',
+        reason: redemption.providerMessage ?? '',
+        remainingBalance: balance.available,
+      };
+      this.eventEmitter.emit(EventType.REWARD_REDEMPTION_FAILED, payload);
+    } catch (e: any) {
+      this.logger.error(
+        `Gagal memancarkan REWARD_REDEMPTION_FAILED utk ${redemption.id}: ${e?.message}`,
       );
     }
   }

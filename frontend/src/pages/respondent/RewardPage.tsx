@@ -57,6 +57,19 @@ interface RedemptionResult {
   otpRequired?: boolean;
 }
 
+type RedemptionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+interface BackendRedemption {
+  id: string;
+  rewardType: string;
+  pointsSpent: number;
+  destinationNumber: string | null;
+  status: RedemptionStatus;
+  requestedAt: string;
+  providerSn: string | null;
+  providerMessage: string | null;
+}
+
 type RedemptionStep = 'destination' | 'otp' | 'success';
 
 // Kategori aktif saat ini: pulsa + e-wallet. Paket data & voucher menyusul.
@@ -68,6 +81,32 @@ const CATEGORY_LABELS: Record<string, string> = {
 const CATEGORY_ICONS: Record<string, string> = {
   pulsa: '📱',
   e_wallet: '💳',
+};
+
+const REDEMPTION_STATUS_META: Record<
+  RedemptionStatus,
+  { label: string; badge: string; icon: string }
+> = {
+  pending: {
+    label: 'Menunggu konfirmasi',
+    badge: 'bg-gray-100 text-gray-700',
+    icon: '🕓',
+  },
+  processing: {
+    label: 'Diproses',
+    badge: 'bg-amber-100 text-amber-700',
+    icon: '⏳',
+  },
+  completed: {
+    label: 'Berhasil',
+    badge: 'bg-green-100 text-green-700',
+    icon: '✅',
+  },
+  failed: {
+    label: 'Gagal (poin dikembalikan)',
+    badge: 'bg-red-100 text-red-700',
+    icon: '❌',
+  },
 };
 
 const REASON_LABELS: Record<PointReason, string> = {
@@ -212,6 +251,116 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
           >
             Selanjutnya
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Redemption History — menampilkan status tiap penukaran (indikator in-app)
+function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
+  const [redemptions, setRedemptions] = useState<BackendRedemption[]>([]);
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  // Peta id katalog → nama ramah (sekali muat).
+  useEffect(() => {
+    api
+      .get<RewardItem[]>('/rewards/catalog')
+      .then((result) => {
+        const map: Record<string, string> = {};
+        (Array.isArray(result) ? result : []).forEach((r) => {
+          map[r.id] = r.name;
+        });
+        setNameMap(map);
+      })
+      .catch(() => setNameMap({}));
+  }, []);
+
+  const fetchRedemptions = useCallback(async () => {
+    try {
+      const result = await api.get<PaginatedResponse<BackendRedemption>>(
+        '/rewards/redemptions?page=1&pageSize=10',
+      );
+      setRedemptions(Array.isArray(result?.data) ? result.data : []);
+    } catch {
+      setRedemptions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchRedemptions();
+  }, [fetchRedemptions, refreshKey]);
+
+  // Auto-refresh selama ada penukaran yang masih berjalan (diproses oleh provider).
+  const hasInFlight = redemptions.some(
+    (r) => r.status === 'pending' || r.status === 'processing',
+  );
+  useEffect(() => {
+    if (!hasInFlight) return;
+    const t = setInterval(() => void fetchRedemptions(), 15000);
+    return () => clearInterval(t);
+  }, [hasInFlight, fetchRedemptions]);
+
+  return (
+    <div className="bg-white rounded-lg shadow">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">Riwayat Penukaran</h3>
+        {hasInFlight && (
+          <span className="text-xs text-amber-600 flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            Memantau status…
+          </span>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="p-4 space-y-3">
+          {[1, 2].map((i) => (
+            <div key={i} className="animate-pulse flex items-center gap-3">
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-1"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+              </div>
+              <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+            </div>
+          ))}
+        </div>
+      ) : redemptions.length === 0 ? (
+        <div className="p-8 text-center text-gray-500">Belum ada penukaran</div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {redemptions.map((r) => {
+            const meta = REDEMPTION_STATUS_META[r.status] ?? REDEMPTION_STATUS_META.processing;
+            return (
+              <div key={r.id} className="p-4 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 truncate">
+                    {nameMap[r.rewardType] ?? r.rewardType}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {r.destinationNumber ? `${r.destinationNumber} · ` : ''}
+                    {format(new Date(r.requestedAt), 'dd MMM yyyy, HH:mm')}
+                  </p>
+                  {r.status === 'failed' && r.providerMessage && (
+                    <p className="text-xs text-red-500 mt-0.5 truncate">{r.providerMessage}</p>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${meta.badge}`}
+                  >
+                    {meta.icon} {meta.label}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    -{r.pointsSpent.toLocaleString()} poin
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -555,6 +704,9 @@ export function RewardPage() {
 
       {/* Balance Card */}
       <BalanceCard balance={balance} loading={balanceLoading} />
+
+      {/* Status penukaran (indikator in-app) */}
+      <RedemptionHistory refreshKey={refreshKey} />
 
       {/* Two column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

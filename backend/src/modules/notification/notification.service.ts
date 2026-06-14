@@ -10,6 +10,7 @@ import {
   SubmissionConfirmationContext,
   PointsThresholdContext,
   RedemptionConfirmationContext,
+  RedemptionFailedContext,
   OtpContext,
   PasswordResetContext,
 } from './interfaces';
@@ -193,6 +194,38 @@ export class NotificationService {
         destinationNumber: redemption.destinationNumber,
         remainingBalance: redemption.remainingBalance,
       } as RedemptionConfirmationContext,
+    };
+
+    await this.enqueueEmail(payload);
+  }
+
+  /**
+   * Send redemption failure notification (points refunded).
+   */
+  async sendRedemptionFailed(
+    respondent: { email: string; fullName: string },
+    redemption: {
+      rewardType: string;
+      pointsRefunded: number;
+      destinationNumber: string;
+      reason: string;
+      remainingBalance: number;
+    },
+  ): Promise<void> {
+    this.logger.log(`Sending redemption failure notice to ${respondent.email}`);
+
+    const payload: EmailPayload = {
+      to: respondent.email,
+      subject: `Penukaran Reward Gagal: ${redemption.rewardType}`,
+      template: EmailTemplate.REDEMPTION_FAILED,
+      context: {
+        respondentName: respondent.fullName,
+        rewardType: redemption.rewardType,
+        pointsRefunded: redemption.pointsRefunded,
+        destinationNumber: redemption.destinationNumber,
+        reason: redemption.reason,
+        remainingBalance: redemption.remainingBalance,
+      } as RedemptionFailedContext,
     };
 
     await this.enqueueEmail(payload);

@@ -6,6 +6,7 @@ import {
   SubmissionConfirmationContext,
   PointsThresholdContext,
   RedemptionConfirmationContext,
+  RedemptionFailedContext,
   OtpContext,
   PasswordResetContext,
 } from '../interfaces';
@@ -26,6 +27,8 @@ export class EmailTemplateService {
         return this.renderPointsThreshold(context as PointsThresholdContext);
       case EmailTemplate.REDEMPTION_CONFIRMATION:
         return this.renderRedemptionConfirmation(context as RedemptionConfirmationContext);
+      case EmailTemplate.REDEMPTION_FAILED:
+        return this.renderRedemptionFailed(context as RedemptionFailedContext);
       case EmailTemplate.OTP_VERIFICATION:
         return this.renderOtp(context as OtpContext);
       case EmailTemplate.PASSWORD_RESET:
@@ -126,6 +129,28 @@ export class EmailTemplateService {
       </div>
     `;
     const text = `Halo ${context.respondentName}, penukaran ${context.rewardType} (${context.pointsSpent} poin) ke ${context.destinationNumber} berhasil. Sisa saldo: ${context.remainingBalance} poin.`;
+    return { subject, html, text };
+  }
+
+  private renderRedemptionFailed(context: RedemptionFailedContext) {
+    const subject = `Penukaran Reward Gagal: ${context.rewardType}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Halo ${context.respondentName},</h2>
+        <p>Mohon maaf, penukaran reward Anda <strong>tidak dapat diselesaikan</strong>. Poin Anda telah dikembalikan sepenuhnya.</p>
+        <div style="background: #fdecea; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #e53935;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 4px 0; color: #666;">Tipe Reward:</td><td style="padding: 4px 0; font-weight: bold;">${context.rewardType}</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Nomor Tujuan:</td><td style="padding: 4px 0; font-weight: bold;">${context.destinationNumber}</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Poin Dikembalikan:</td><td style="padding: 4px 0; font-weight: bold; color: #2e7d32;">+${context.pointsRefunded.toLocaleString()}</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Saldo Sekarang:</td><td style="padding: 4px 0; font-weight: bold;">${context.remainingBalance.toLocaleString()} poin</td></tr>
+          </table>
+        </div>
+        ${context.reason ? `<p style="color: #666;">Alasan: ${context.reason}</p>` : ''}
+        <p style="color: #666;">Silakan periksa kembali nomor tujuan Anda dan coba lagi. Jika masalah berlanjut, hubungi tim kami.</p>
+      </div>
+    `;
+    const text = `Halo ${context.respondentName}, penukaran ${context.rewardType} ke ${context.destinationNumber} gagal.${context.reason ? ` Alasan: ${context.reason}.` : ''} ${context.pointsRefunded.toLocaleString()} poin telah dikembalikan. Saldo sekarang: ${context.remainingBalance.toLocaleString()} poin.`;
     return { subject, html, text };
   }
 
