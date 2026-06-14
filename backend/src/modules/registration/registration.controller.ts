@@ -76,7 +76,7 @@ export class RegistrationController {
     @Request() req: any,
     @Body() completeProfileDto: CompleteProfileDto,
   ): Promise<{ message: string }> {
-    await this.registrationService.completeProfile(req.user.sub, {
+    await this.registrationService.completeProfile(req.user.userId, {
       age: completeProfileDto.age,
       gender: completeProfileDto.gender,
       occupation: completeProfileDto.occupation,

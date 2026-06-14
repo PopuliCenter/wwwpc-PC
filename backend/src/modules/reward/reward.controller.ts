@@ -28,7 +28,7 @@ export class RewardController {
    */
   @Get('balance')
   async getBalance(@Request() req: any) {
-    return this.rewardService.getBalance(req.user.sub);
+    return this.rewardService.getBalance(req.user.userId);
   }
 
   /**
@@ -36,7 +36,7 @@ export class RewardController {
    */
   @Get('streak')
   async getStreak(@Request() req: any) {
-    return this.rewardService.getStreakInfo(req.user.sub);
+    return this.rewardService.getStreakInfo(req.user.userId);
   }
 
   /**
@@ -47,7 +47,7 @@ export class RewardController {
     @Request() req: any,
     @Query() query: TransactionHistoryQueryDto,
   ) {
-    return this.rewardService.getTransactionHistory(req.user.sub, query);
+    return this.rewardService.getTransactionHistory(req.user.userId, query);
   }
 
   /**
@@ -67,7 +67,7 @@ export class RewardController {
     @Body() dto: InitiateRedemptionDto,
   ) {
     return this.rewardService.initiateRedemption(
-      req.user.sub,
+      req.user.userId,
       dto.rewardId,
       dto.destinationNumber,
     );
@@ -83,7 +83,7 @@ export class RewardController {
     @Body() dto: ConfirmRedemptionDto,
   ) {
     return this.rewardService.confirmRedemption(
-      req.user.sub,
+      req.user.userId,
       redemptionId,
       dto.otpCode,
     );
@@ -97,7 +97,7 @@ export class RewardController {
     @Request() req: any,
     @Query() query: TransactionHistoryQueryDto,
   ) {
-    return this.rewardService.getRedemptionHistory(req.user.sub, query);
+    return this.rewardService.getRedemptionHistory(req.user.userId, query);
   }
 
   // ─── Admin Endpoints ──────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ export class RewardController {
     @Body() dto: ManualCreditPointsDto,
   ) {
     return this.rewardService.manualCreditPoints(
-      req.user.sub,
+      req.user.userId,
       dto.respondentId,
       dto.amount,
       dto.reason,
