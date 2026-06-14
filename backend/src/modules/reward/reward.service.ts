@@ -598,6 +598,8 @@ export class RewardService {
     redemption.processedAt = new Date();
     redemption.otpCode = null; // Clear OTP after use
     redemption.provider = this.fulfillmentProvider.name;
+    // Ref id ringkas utk provider (dipakai mencocokkan callback). Dibuat sekali.
+    redemption.providerRefId = redemption.providerRefId ?? this.generateRefId();
     await this.redemptionRepository.save(redemption);
 
     this.logger.log(
@@ -610,6 +612,7 @@ export class RewardService {
       () =>
         this.fulfillmentProvider.fulfill({
           redemptionId: redemption.id,
+          refId: redemption.providerRefId!,
           rewardId: redemption.rewardType,
           category: this.categoryOf(redemption.rewardType),
           destinationNumber: redemption.destinationNumber ?? '',
@@ -687,26 +690,23 @@ export class RewardService {
   async handleProviderCallback(payload: unknown): Promise<{ received: boolean }> {
     const parsed = this.fulfillmentProvider.parseCallback?.(payload);
     if (!parsed) {
-      this.logger.warn('Callback provider tidak dapat diparse — diabaikan.');
+      this.logger.warn('Callback provider tidak dapat diparse / signature gagal — diabaikan.');
       return { received: false };
     }
 
-    // ref_id kita = UUID redemption. Bila bukan UUID (mis. payload uji IAK
-    // dgn ref_id dummy), JANGAN query kolom uuid (Postgres akan error 22P02).
-    const UUID_RE =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!UUID_RE.test(parsed.redemptionId)) {
-      this.logger.warn(
-        `Callback dgn ref_id non-UUID '${parsed.redemptionId}' (kemungkinan payload uji) — diabaikan.`,
-      );
+    // Cocokkan via provider_ref_id (varchar) — bukan id (uuid) — agar ref_id
+    // ringkas/numerik dari gateway aman dicari & tidak memicu error casting.
+    const refId = (parsed.refId ?? '').trim();
+    if (!refId || refId.length > 64) {
+      this.logger.warn(`Callback dgn ref_id tidak valid: '${refId}' — diabaikan.`);
       return { received: false };
     }
 
     const redemption = await this.redemptionRepository.findOne({
-      where: { id: parsed.redemptionId },
+      where: { providerRefId: refId },
     });
     if (!redemption) {
-      this.logger.warn(`Callback utk redemption tak dikenal: ${parsed.redemptionId}`);
+      this.logger.warn(`Callback utk ref_id tak dikenal: ${refId} (kemungkinan payload uji).`);
       return { received: false };
     }
 
@@ -782,5 +782,13 @@ export class RewardService {
     // Use cryptographically secure RNG — Math.random() is NOT suitable for OTPs
     // randomInt(min, max) returns integer in [min, max) — guarantees exactly 6 digits
     return randomInt(100000, 1000000).toString();
+  }
+
+  /**
+   * Ref id ringkas (18 digit numerik) utk dikirim ke gateway PPOB.
+   * 13 digit epoch-ms + 5 digit acak → unik praktis & muat di batas panjang IAK.
+   */
+  private generateRefId(): string {
+    return `${Date.now()}${randomInt(10000, 100000)}`;
   }
 }

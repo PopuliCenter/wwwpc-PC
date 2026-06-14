@@ -17,17 +17,38 @@ import {
  *   IAK_API_KEY           API key (prepaid)
  *   IAK_TEST_PRODUCT_CODE (opsional) — paksa satu product_code utk SEMUA top-up
  *                         saat uji sandbox, tanpa perlu memetakan tiap reward.
- *   IAK_PRODUCT_MAP       (opsional) JSON map rewardId → product_code,
- *                         mis. {"pulsa-10000":"tsel10","data-1gb":"xld1"}
+ *   IAK_PRODUCT_MAP       (opsional) JSON map → product_code. Kunci:
+ *                          - pulsa/paket_data (operator-spesifik):
+ *                              "<operator>:<rewardId>"  mis. "telkomsel:pulsa-10000"
+ *                            (operator: telkomsel|indosat|xl|axis|tri|smartfren)
+ *                            fallback ke "<rewardId>" bila operator tak ada di map.
+ *                          - voucher/e_wallet: "<rewardId>".
+ *   IAK_VERIFY_CALLBACK_SIGN  default 'true' — verifikasi md5(username+api_key+ref_id).
  *
- * Tanda tangan top-up: sign = md5(username + api_key + ref_id).
- * ref_id yang kita kirim = redemptionId (UUID) → idempoten.
+ * Tanda tangan: sign = md5(username + api_key + ref_id). ref_id = providerRefId
+ * (ringkas) → idempoten & muat di batas panjang gateway.
  *
- * CATATAN: pemetaan kode status di bawah mengikuti konvensi prepaid IAK
- * (status: 0=proses, 1=sukses, 2=gagal). Konfirmasi ulang dgn dokumentasi
- * akun Anda; semua kasus tak pasti diperlakukan 'pending' (aman, tidak
- * memicu refund keliru — diselesaikan via callback/cek status).
+ * CATATAN status (konfirmasi ulang dgn dokumen akun Anda): konvensi prepaid IAK
+ * status 0=proses, 1=sukses, 2=gagal. Kasus tak pasti → 'pending' (aman,
+ * tidak memicu refund keliru — diselesaikan via callback).
  */
+
+/** Prefix 4-digit nomor HP Indonesia → operator. */
+const OPERATOR_BY_PREFIX: Record<string, string> = {};
+const registerPrefixes = (operator: string, prefixes: string[]) => {
+  for (const p of prefixes) OPERATOR_BY_PREFIX[p] = operator;
+};
+registerPrefixes('telkomsel', [
+  '0811', '0812', '0813', '0821', '0822', '0823', '0851', '0852', '0853',
+]);
+registerPrefixes('indosat', ['0814', '0815', '0816', '0855', '0856', '0857', '0858']);
+registerPrefixes('xl', ['0817', '0818', '0819', '0859', '0877', '0878']);
+registerPrefixes('axis', ['0831', '0832', '0833', '0838']);
+registerPrefixes('tri', ['0895', '0896', '0897', '0898', '0899']);
+registerPrefixes('smartfren', [
+  '0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889',
+]);
+
 export class IakFulfillmentProvider implements RewardFulfillmentProvider {
   readonly name = 'iak';
   private readonly logger = new Logger('IakFulfillmentProvider');
@@ -37,6 +58,7 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
   private readonly apiKey: string;
   private readonly testProductCode?: string;
   private readonly productMap: Record<string, string>;
+  private readonly verifyCallbackSign: boolean;
 
   constructor(config: ConfigService) {
     this.baseUrl = (
@@ -46,6 +68,8 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     this.apiKey = config.get<string>('IAK_API_KEY') || '';
     this.testProductCode = config.get<string>('IAK_TEST_PRODUCT_CODE') || undefined;
     this.productMap = this.parseProductMap(config.get<string>('IAK_PRODUCT_MAP'));
+    this.verifyCallbackSign =
+      (config.get<string>('IAK_VERIFY_CALLBACK_SIGN') ?? 'true') !== 'false';
   }
 
   private parseProductMap(raw?: string): Record<string, string> {
@@ -59,8 +83,28 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     }
   }
 
+  /** Deteksi operator dari nomor HP Indonesia (normalisasi +62/62/8 → 0). */
+  static detectOperator(phone: string): string | null {
+    let p = (phone || '').replace(/[^0-9]/g, '');
+    if (p.startsWith('62')) p = '0' + p.slice(2);
+    else if (p.startsWith('8')) p = '0' + p;
+    return OPERATOR_BY_PREFIX[p.slice(0, 4)] ?? null;
+  }
+
   private resolveProductCode(req: FulfillmentRequest): string | null {
-    return this.testProductCode || this.productMap[req.rewardId] || null;
+    // Sandbox: satu kode utk semua top-up.
+    if (this.testProductCode) return this.testProductCode;
+
+    // Pulsa & paket data: operator-spesifik.
+    if (req.category === 'pulsa' || req.category === 'paket_data') {
+      const operator = IakFulfillmentProvider.detectOperator(req.destinationNumber);
+      if (operator) {
+        const keyed = this.productMap[`${operator}:${req.rewardId}`];
+        if (keyed) return keyed;
+      }
+    }
+    // Fallback / kategori non-operator (voucher, e_wallet).
+    return this.productMap[req.rewardId] || null;
   }
 
   private sign(refId: string): string {
@@ -80,17 +124,19 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     const productCode = this.resolveProductCode(req);
     if (!productCode) {
       this.logger.warn(
-        `Product code IAK belum dipetakan utk reward '${req.rewardId}' — redemption ditahan utk proses manual.`,
+        `Product code IAK belum dipetakan utk reward '${req.rewardId}' (operator: ${
+          IakFulfillmentProvider.detectOperator(req.destinationNumber) ?? '-'
+        }) — redemption ditahan utk proses manual.`,
       );
       return { status: 'pending', message: 'Menunggu pemrosesan manual.' };
     }
 
     const body = {
       username: this.username,
-      ref_id: req.redemptionId,
+      ref_id: req.refId,
       customer_id: req.destinationNumber,
       product_code: productCode,
-      sign: this.sign(req.redemptionId),
+      sign: this.sign(req.refId),
     };
 
     let json: any;
@@ -102,30 +148,25 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
       });
       json = await res.json().catch(() => null);
       if (!res.ok) {
-        // Error HTTP (mis. 4xx/5xx). Anggap pending agar tidak refund keliru;
-        // diselesaikan via cek-status/callback atau intervensi admin.
         this.logger.error(
-          `IAK top-up HTTP ${res.status} utk ${req.redemptionId}: ${JSON.stringify(json)}`,
+          `IAK top-up HTTP ${res.status} utk ${req.refId}: ${JSON.stringify(json)}`,
         );
-        return {
-          status: 'pending',
-          message: `Provider merespons HTTP ${res.status}.`,
-        };
+        return { status: 'pending', message: `Provider merespons HTTP ${res.status}.` };
       }
     } catch (err: any) {
-      // Kegagalan jaringan → pending (jangan refund; mungkin transaksi tetap jalan).
-      this.logger.error(`IAK top-up gagal jaringan utk ${req.redemptionId}: ${err?.message}`);
+      this.logger.error(`IAK top-up gagal jaringan utk ${req.refId}: ${err?.message}`);
       return { status: 'pending', message: 'Gagal menghubungi provider, akan dicoba ulang.' };
     }
 
-    return this.mapResponse(json, req.redemptionId);
+    return this.mapResponse(json, req.refId);
   }
 
   /** Petakan respons sinkron IAK → outcome. */
-  private mapResponse(json: any, redemptionId: string): FulfillmentOutcome {
+  private mapResponse(json: any, refId: string): FulfillmentOutcome {
     const d = json?.data ?? json ?? {};
     const status = Number(d.status);
-    const trxId = d.tr_id != null ? String(d.tr_id) : d.trx_id != null ? String(d.trx_id) : undefined;
+    const trxId =
+      d.tr_id != null ? String(d.tr_id) : d.trx_id != null ? String(d.trx_id) : undefined;
     const sn = typeof d.sn === 'string' && d.sn.trim() ? d.sn.trim() : undefined;
     const message = typeof d.message === 'string' ? d.message : undefined;
 
@@ -135,19 +176,31 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     if (status === 2) {
       return { status: 'failed', message: message || 'Transaksi ditolak provider (IAK).' };
     }
-    // status 0 (proses) atau tak dikenal → tunggu hasil akhir.
     this.logger.log(
-      `IAK top-up ${redemptionId} berstatus '${d.status ?? 'unknown'}' → menunggu callback.`,
+      `IAK top-up ${refId} berstatus '${d.status ?? 'unknown'}' → menunggu callback.`,
     );
     return { status: 'pending', providerTrxId: trxId, message };
   }
 
-  /** Parse payload callback IAK → hasil per-redemption. */
+  /** Parse + verifikasi payload callback IAK → hasil per-redemption. */
   parseCallback(payload: unknown): ProviderCallbackResult | null {
     const p = payload as any;
     const d = p?.data ?? p ?? {};
     const refId = d.ref_id ?? d.refId;
     if (!refId) return null;
-    return { redemptionId: String(refId), outcome: this.mapResponse(p, String(refId)) };
+
+    // Verifikasi keaslian: sign = md5(username + api_key + ref_id).
+    if (this.verifyCallbackSign && this.username && this.apiKey) {
+      const expected = this.sign(String(refId));
+      const got = typeof d.sign === 'string' ? d.sign.toLowerCase() : '';
+      if (got !== expected) {
+        this.logger.warn(
+          `Callback IAK ref_id=${refId} ditolak: signature tidak cocok.`,
+        );
+        return null;
+      }
+    }
+
+    return { refId: String(refId), outcome: this.mapResponse(p, String(refId)) };
   }
 }

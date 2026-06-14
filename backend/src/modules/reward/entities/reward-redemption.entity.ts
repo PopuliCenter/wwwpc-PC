@@ -60,6 +60,11 @@ export class RewardRedemption {
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'provider' })
   provider: string | null;
 
+  /** Ref id ringkas yang dikirim ke provider (dipakai mencocokkan callback).
+   *  Dipisah dari `id` (UUID) karena gateway PPOB sering membatasi panjang ref_id. */
+  @Column({ type: 'varchar', length: 64, nullable: true, name: 'provider_ref_id' })
+  providerRefId: string | null;
+
   /** ID transaksi di sisi provider (mis. tr_id IAK). */
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'provider_trx_id' })
   providerTrxId: string | null;

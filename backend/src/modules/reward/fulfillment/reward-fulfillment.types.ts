@@ -11,8 +11,10 @@
 export const REWARD_FULFILLMENT_PROVIDER = 'REWARD_FULFILLMENT_PROVIDER';
 
 export interface FulfillmentRequest {
-  /** ID redemption kita — dipakai sebagai ref_id (idempoten) ke provider. */
+  /** ID redemption kita (UUID) — untuk logging/audit. */
   redemptionId: string;
+  /** Ref id ringkas yang dikirim ke provider (idempoten, dicocokkan saat callback). */
+  refId: string;
   /** ID item katalog (mis. 'pulsa-10000'). */
   rewardId: string;
   /** Kategori: pulsa | paket_data | voucher | e_wallet. */
@@ -44,8 +46,8 @@ export type FulfillmentOutcome =
     };
 
 export interface ProviderCallbackResult {
-  /** redemptionId yang kita kirim sebagai ref_id. */
-  redemptionId: string;
+  /** ref_id ringkas yang kita kirim (cocokkan ke reward_redemption.providerRefId). */
+  refId: string;
   outcome: FulfillmentOutcome;
 }
 
