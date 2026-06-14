@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Param,
   Query,
   UseGuards,
   Req,
@@ -29,6 +30,13 @@ export class ResponsesAdminController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   async list(@Query() filters: AllResponsesFilterDto) {
     return this.responseService.getAllResponses(filters);
+  }
+
+  /** Detail satu respons (GET /responses/:id). Harus DI BAWAH @Get(). */
+  @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
+  async detail(@Param('id') id: string) {
+    return this.responseService.getResponseDetail(id);
   }
 }
 

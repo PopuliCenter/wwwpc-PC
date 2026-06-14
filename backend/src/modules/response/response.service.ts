@@ -454,6 +454,86 @@ export class ResponseService {
   }
 
   /**
+   * Detail satu respons untuk panel admin (GET /responses/:id): info responden,
+   * survei, dan daftar jawaban yang sudah dipetakan ke teks & tipe pertanyaan.
+   */
+  async getResponseDetail(id: string): Promise<{
+    id: string;
+    respondentName: string;
+    respondentEmail: string;
+    surveyTitle: string;
+    status: 'completed' | 'partial' | 'abandoned';
+    submittedAt: string;
+    startedAt: string;
+    deviceType: string;
+    answers: Array<{
+      questionId: string;
+      questionText: string;
+      questionType: string;
+      answer: any;
+    }>;
+  }> {
+    const r = await this.responseRepository.findOne({
+      where: { id },
+      relations: ['respondent', 'survey', 'answers'],
+    });
+    if (!r) {
+      throw new NotFoundException(`Respons ${id} tidak ditemukan`);
+    }
+
+    // Petakan jawaban → teks & tipe pertanyaan (urut sesuai order_index).
+    const qIds = (r.answers ?? []).map((a) => a.questionId);
+    const qRows: Array<{
+      id: string;
+      question_text: string;
+      type: string;
+      order_index: number;
+    }> = qIds.length
+      ? await this.dataSource.query(
+          `SELECT id, question_text, type, order_index FROM question WHERE id = ANY($1)`,
+          [qIds],
+        )
+      : [];
+    const qMap = new Map(qRows.map((q) => [q.id, q]));
+
+    const reverseStatus: Record<ResponseStatus, 'completed' | 'partial' | 'abandoned'> = {
+      [ResponseStatus.COMPLETE]: 'completed',
+      [ResponseStatus.IN_PROGRESS]: 'partial',
+      [ResponseStatus.ABANDONED]: 'abandoned',
+    };
+
+    const answers = (r.answers ?? [])
+      .map((a) => {
+        const q = qMap.get(a.questionId);
+        return {
+          questionId: a.questionId,
+          questionText: q?.question_text ?? a.questionId,
+          questionType: q?.type ?? '',
+          // Objek (mis. matriks/wilayah) di-JSON-kan agar tampil rapi; lainnya apa adanya.
+          answer:
+            a.value && typeof a.value === 'object' && !Array.isArray(a.value)
+              ? JSON.stringify(a.value)
+              : a.value ?? null,
+          _order: q?.order_index ?? 0,
+        };
+      })
+      .sort((x, y) => x._order - y._order)
+      .map(({ _order, ...rest }) => rest);
+
+    return {
+      id: r.id,
+      respondentName: r.respondent?.fullName ?? '-',
+      respondentEmail: r.respondent?.email ?? '-',
+      surveyTitle: r.survey?.title ?? '-',
+      status: reverseStatus[r.status],
+      submittedAt: (r.submittedAt ?? r.startedAt).toISOString(),
+      startedAt: r.startedAt.toISOString(),
+      deviceType: r.deviceType ?? '-',
+      answers,
+    };
+  }
+
+  /**
    * Tandai reward sejumlah respons sebagai sudah didistribusikan (rekonsiliasi
    * top-up oleh admin).
    */

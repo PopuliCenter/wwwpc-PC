@@ -11,12 +11,18 @@ import { ExportFormat, ExportStatus } from '../interfaces';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Mock fs module
-vi.mock('fs', () => ({
-  existsSync: vi.fn().mockReturnValue(true),
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn(),
-}));
+// Mock fs: hanya override tulis-file; sisanya pakai fs asli agar pdfkit tetap
+// bisa membaca berkas font (readFileSync) saat membuat PDF di test.
+vi.mock('fs', async (importActual) => {
+  const actual = await importActual<typeof import('fs')>();
+  return {
+    ...actual,
+    default: actual,
+    existsSync: vi.fn().mockReturnValue(true),
+    mkdirSync: vi.fn(),
+    writeFileSync: vi.fn(),
+  };
+});
 
 describe('ExportProcessor', () => {
   let processor: ExportProcessor;
@@ -213,12 +219,10 @@ describe('ExportProcessor', () => {
       expect(result.success).toBe(true);
       expect(result.filePath).toContain('export-job-2.xlsx');
 
-      // Verify the written content includes summary
+      // .xlsx asli = Buffer biner (bukan teks CSV lagi).
       const writeCall = (fs.writeFileSync as any).mock.calls[0];
-      const content = writeCall[1];
-      expect(content).toContain('--- SUMMARY ---');
-      expect(content).toContain('Total Responses');
-      expect(content).toContain('--- DATA ---');
+      expect(Buffer.isBuffer(writeCall[1])).toBe(true);
+      expect(writeCall[1].length).toBeGreaterThan(0);
     });
   });
 
@@ -264,10 +268,10 @@ describe('ExportProcessor', () => {
       expect(result.success).toBe(true);
       expect(result.filePath).toContain('export-job-4.pdf');
 
+      // PDF asli = Buffer biner diawali tanda "%PDF".
       const writeCall = (fs.writeFileSync as any).mock.calls[0];
-      const content = writeCall[1];
-      expect(content).toContain('SURVEY RESPONSE REPORT');
-      expect(content).toContain('Total Responses: 2');
+      expect(Buffer.isBuffer(writeCall[1])).toBe(true);
+      expect(writeCall[1].subarray(0, 4).toString()).toBe('%PDF');
     });
   });
 

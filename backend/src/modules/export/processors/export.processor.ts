@@ -5,6 +5,8 @@ import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Job } from 'bull';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as ExcelJS from 'exceljs';
+import PDFDocument from 'pdfkit';
 import { ExportJob } from '../entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
@@ -159,7 +161,7 @@ export class ExportProcessor {
       responses: SurveyResponse[],
       profiles: Map<string, UserProfile>,
       questions: Question[],
-    ) => Promise<string>,
+    ) => Promise<string | Buffer>,
     extension: string,
   ): Promise<ExportResult> {
     const { exportJobId, surveyId, filters } = job.data;
@@ -367,60 +369,78 @@ export class ExportProcessor {
     return Promise.resolve(lines.join('\n'));
   }
 
-  private generateExcel(
+  private async generateExcel(
     responses: SurveyResponse[],
     profiles: Map<string, UserProfile>,
     questions: Question[],
-  ): Promise<string> {
-    // Format CSV dengan blok ringkasan (placeholder Excel; .xlsx asli butuh exceljs).
-    const totalResponses = responses.length;
-    const completeResponses = responses.filter((r) => r.status === 'complete').length;
-    const inProgressResponses = responses.filter((r) => r.status === 'in_progress').length;
+  ): Promise<Buffer> {
+    const total = responses.length;
+    const complete = responses.filter((r) => r.status === 'complete').length;
+    const inProgress = responses.filter((r) => r.status === 'in_progress').length;
 
-    const summaryHeaders = ['Metric', 'Value'];
-    const summaryRows = [
-      ['Total Responses', String(totalResponses)],
-      ['Complete', String(completeResponses)],
-      ['In Progress', String(inProgressResponses)],
-      ['Completion Rate', totalResponses > 0 ? `${((completeResponses / totalResponses) * 100).toFixed(1)}%` : '0%'],
-    ];
+    const workbook = new ExcelJS.Workbook();
 
+    // Sheet "Ringkasan"
+    const summary = workbook.addWorksheet('Ringkasan');
+    summary.addRow(['Metrik', 'Nilai']);
+    summary.addRow(['Total respons', total]);
+    summary.addRow(['Selesai', complete]);
+    summary.addRow(['Sedang mengisi', inProgress]);
+    summary.addRow([
+      'Tingkat penyelesaian',
+      total > 0 ? `${((complete / total) * 100).toFixed(1)}%` : '0%',
+    ]);
+    summary.getRow(1).font = { bold: true };
+
+    // Sheet "Data" — tabel datar siap-analisis (demografi + per pertanyaan)
+    const data = workbook.addWorksheet('Data');
     const { headers, rows } = this.buildAnalysisTable(responses, profiles, questions);
+    data.addRow(headers);
+    rows.forEach((row) => data.addRow(row));
+    data.getRow(1).font = { bold: true };
+    if (data.columns) {
+      data.columns.forEach((col) => {
+        col.width = 22;
+      });
+    }
 
-    const content = [
-      '--- SUMMARY ---',
-      summaryHeaders.join(','),
-      ...summaryRows.map((row) => row.map(csvCell).join(',')),
-      '',
-      '--- DATA ---',
-      headers.map(csvCell).join(','),
-      ...rows.map((row) => row.map(csvCell).join(',')),
-    ].join('\n');
-
-    return Promise.resolve(content);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
   }
 
-  private generatePdf(responses: SurveyResponse[]): Promise<string> {
-    // Placeholder for PDF generation - in production use pdfkit or puppeteer
-    const totalResponses = responses.length;
-    const completeResponses = responses.filter((r) => r.status === 'complete').length;
+  private generatePdf(responses: SurveyResponse[]): Promise<Buffer> {
+    const total = responses.length;
+    const complete = responses.filter((r) => r.status === 'complete').length;
 
-    const content = [
-      'SURVEY RESPONSE REPORT',
-      '======================',
-      '',
-      `Total Responses: ${totalResponses}`,
-      `Complete: ${completeResponses}`,
-      `Completion Rate: ${totalResponses > 0 ? ((completeResponses / totalResponses) * 100).toFixed(1) : 0}%`,
-      '',
-      'Response Details:',
-      '-----------------',
-      ...responses.map((r) =>
-        `ID: ${r.id} | Status: ${r.status} | Submitted: ${r.submittedAt?.toISOString() || 'N/A'}`,
-      ),
-    ].join('\n');
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const chunks: Buffer[] = [];
+      doc.on('data', (c: Buffer) => chunks.push(c));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
-    return Promise.resolve(content);
+      doc.fontSize(16).text('Laporan Respons Survei', { underline: true });
+      doc.moveDown();
+      doc.fontSize(11);
+      doc.text(`Total respons: ${total}`);
+      doc.text(`Selesai: ${complete}`);
+      doc.text(
+        `Tingkat penyelesaian: ${total > 0 ? ((complete / total) * 100).toFixed(1) : 0}%`,
+      );
+      doc.text(`Dibuat: ${new Date().toLocaleString('id-ID')}`);
+      doc.moveDown();
+
+      doc.fontSize(12).text('Daftar Respons', { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(9);
+      responses.slice(0, 2000).forEach((r, i) => {
+        const name = r.respondent?.fullName ?? '-';
+        const when = r.submittedAt?.toISOString() ?? r.startedAt?.toISOString() ?? '-';
+        doc.text(`${i + 1}. ${name} — ${r.status} — ${when}`);
+      });
+
+      doc.end();
+    });
   }
 
   private generateJson(
@@ -494,7 +514,7 @@ export class ExportProcessor {
    */
   private async writeExportFile(
     jobId: string,
-    content: string,
+    content: string | Buffer,
     extension: string,
   ): Promise<string> {
     const exportDir = path.resolve(process.cwd(), EXPORTS_DIRECTORY);
@@ -506,8 +526,8 @@ export class ExportProcessor {
     const fileName = `export-${jobId}.${extension}`;
     const localFilePath = path.join(exportDir, fileName);
 
-    // Write temp file
-    fs.writeFileSync(localFilePath, content, 'utf-8');
+    // Tulis file sementara: string → utf-8, Buffer (xlsx/pdf) → biner apa adanya.
+    fs.writeFileSync(localFilePath, content);
     this.logger.debug(`Temp export file written: ${localFilePath}`);
 
     // Upload to S3 and remove local file; uploadFile() handles the unlinkSync
