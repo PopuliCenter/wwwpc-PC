@@ -246,6 +246,7 @@ export class AuthService {
       user.fullName,
       code,
       Math.round(PASSWORD_RESET_TTL / 60),
+      'reset',
     );
     this.logger.log(`Password reset OTP issued for ${email}`);
   }

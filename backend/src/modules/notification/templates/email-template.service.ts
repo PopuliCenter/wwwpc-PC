@@ -130,19 +130,54 @@ export class EmailTemplateService {
   }
 
   private renderOtp(context: OtpContext) {
-    const subject = `Kode Verifikasi OTP Anda: ${context.otpCode}`;
+    const isReset = context.purpose === 'reset';
+    const subject = isReset
+      ? 'Kode Reset Kata Sandi — Populi Center'
+      : 'Kode Verifikasi Akun — Populi Center';
+    const heading = isReset ? 'Reset Kata Sandi' : 'Verifikasi Akun';
+    const intro = isReset
+      ? 'Gunakan kode berikut untuk mereset kata sandi akun Anda:'
+      : 'Gunakan kode berikut untuk memverifikasi email dan mengaktifkan akun Anda:';
+    const appUrl = process.env.APP_URL || 'https://survei.risetcenter.com';
+
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Halo ${context.recipientName},</h2>
-        <p>Berikut adalah kode verifikasi OTP Anda:</p>
-        <div style="background: #f5f5f5; padding: 24px; border-radius: 8px; margin: 16px 0; text-align: center;">
-          <p style="font-size: 36px; font-weight: bold; letter-spacing: 8px; margin: 0; color: #1976d2;">${context.otpCode}</p>
-        </div>
-        <p style="color: #666;">Kode ini berlaku selama <strong>${context.expiresInMinutes} menit</strong>.</p>
-        <p style="color: #d32f2f; font-size: 12px;">Jangan bagikan kode ini kepada siapapun.</p>
+      <div style="margin:0;padding:24px 12px;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#4f46e5,#4338ca);padding:20px 24px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <img src="${appUrl}/logo-populi-center.png" alt="Populi Center" width="32" height="32" style="display:block;border:0;border-radius:6px;background:rgba(255,255,255,0.15);" />
+                  </td>
+                  <td style="vertical-align:middle;padding-left:10px;">
+                    <span style="color:#ffffff;font-size:16px;font-weight:bold;">Populi Center</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 24px;">
+              <h2 style="margin:0 0 4px;font-size:18px;color:#111827;">${heading}</h2>
+              <p style="margin:0 0 4px;color:#374151;font-size:14px;">Halo ${context.recipientName},</p>
+              <p style="margin:0 0 16px;color:#6b7280;font-size:14px;">${intro}</p>
+              <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:20px;text-align:center;margin:0 0 16px;">
+                <span style="font-size:34px;font-weight:bold;letter-spacing:10px;color:#4f46e5;">${context.otpCode}</span>
+              </div>
+              <p style="margin:0 0 4px;color:#6b7280;font-size:13px;">Kode berlaku <strong>${context.expiresInMinutes} menit</strong>.</p>
+              <p style="margin:0;color:#b91c1c;font-size:12px;">Jangan bagikan kode ini kepada siapa pun. Jika Anda tidak meminta kode ini, abaikan email ini.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 24px;border-top:1px solid #f3f4f6;">
+              <p style="margin:0;color:#9ca3af;font-size:11px;">© Populi Center · Email ini dikirim otomatis, mohon tidak dibalas.</p>
+            </td>
+          </tr>
+        </table>
       </div>
     `;
-    const text = `Halo ${context.recipientName}, kode OTP Anda: ${context.otpCode}. Berlaku ${context.expiresInMinutes} menit. Jangan bagikan kode ini.`;
+    const text = `Halo ${context.recipientName}, kode ${isReset ? 'reset kata sandi' : 'verifikasi'} Anda: ${context.otpCode}. Berlaku ${context.expiresInMinutes} menit. Jangan bagikan kode ini kepada siapa pun.`;
     return { subject, html, text };
   }
 

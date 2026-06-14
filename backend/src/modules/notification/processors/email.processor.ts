@@ -2,6 +2,8 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Job } from 'bull';
+import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import { EmailTemplateService } from '../templates';
 import { EmailJobData, BulkEmailJobData, NotificationResult } from '../interfaces';
 import {
@@ -15,6 +17,7 @@ import { CircuitBreaker } from '@shared/circuit-breaker';
 export class EmailProcessor {
   private readonly logger = new Logger(EmailProcessor.name);
   private readonly emailCircuitBreaker: CircuitBreaker;
+  private smtpTransport?: Transporter;
 
   constructor(
     private readonly templateService: EmailTemplateService,
@@ -86,14 +89,30 @@ export class EmailProcessor {
     return results;
   }
 
+  /** Pengirim default; override via MAIL_FROM. */
+  private get from(): string {
+    return (
+      this.configService.get<string>('MAIL_FROM') ||
+      'Populi Center <info@populicenter.org>'
+    );
+  }
+
   /**
-   * Kirim email via Resend (https://resend.com) REST API.
-   * - Bila RESEND_API_KEY tidak diset → fallback log (mode dev/lokal), email
-   *   tidak benar-benar terkirim sehingga tidak memblokir pengembangan.
-   * - Pengirim default: "Populi Center <info@populicenter.org>" (override via
-   *   MAIL_FROM). Domain populicenter.org HARUS diverifikasi di Resend (DNS).
-   * - Lempar error pada respons non-2xx agar Bull retry + circuit breaker
-   *   menghitung kegagalan.
+   * Tentukan provider: env EMAIL_PROVIDER ('smtp'|'resend') bila diset; jika
+   * tidak, auto-deteksi — utamakan Resend bila ada RESEND_API_KEY, lalu SMTP
+   * bila ada SMTP_HOST, jika keduanya kosong → 'none' (mode dev, hanya log).
+   */
+  private resolveProvider(): 'smtp' | 'resend' | 'none' {
+    const explicit = this.configService.get<string>('EMAIL_PROVIDER');
+    if (explicit === 'smtp' || explicit === 'resend') return explicit;
+    if (this.configService.get<string>('RESEND_API_KEY')) return 'resend';
+    if (this.configService.get<string>('SMTP_HOST')) return 'smtp';
+    return 'none';
+  }
+
+  /**
+   * Kirim email lewat provider terpilih (SMTP via nodemailer ATAU Resend REST).
+   * Lempar error pada kegagalan agar Bull retry + circuit breaker menghitung.
    */
   private async sendEmail(options: {
     to: string;
@@ -101,18 +120,63 @@ export class EmailProcessor {
     html: string;
     text: string;
   }): Promise<void> {
-    const apiKey = this.configService.get<string>('RESEND_API_KEY');
-    const from =
-      this.configService.get<string>('MAIL_FROM') ||
-      'Populi Center <info@populicenter.org>';
+    const provider = this.resolveProvider();
 
-    if (!apiKey) {
+    if (provider === 'none') {
       this.logger.warn(
-        `[EMAIL:dev] RESEND_API_KEY belum diset — email TIDAK dikirim. To: ${options.to} | Subject: ${options.subject}`,
+        `[EMAIL:dev] Provider email belum dikonfigurasi (set EMAIL_PROVIDER + RESEND_API_KEY atau SMTP_*). Email TIDAK dikirim. To: ${options.to} | Subject: ${options.subject}`,
       );
       return;
     }
 
+    if (provider === 'smtp') {
+      await this.sendViaSmtp(options);
+    } else {
+      await this.sendViaResend(options);
+    }
+  }
+
+  private getSmtpTransport(): Transporter {
+    if (this.smtpTransport) return this.smtpTransport;
+    const host = this.configService.getOrThrow<string>('SMTP_HOST');
+    const port = Number(this.configService.get<string>('SMTP_PORT') ?? '465');
+    // Default SSL untuk port 465; STARTTLS (secure=false) untuk 587.
+    const secureEnv = this.configService.get<string>('SMTP_SECURE');
+    const secure = secureEnv != null ? secureEnv === 'true' : port === 465;
+    this.smtpTransport = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: {
+        user: this.configService.getOrThrow<string>('SMTP_USER'),
+        pass: this.configService.getOrThrow<string>('SMTP_PASS'),
+      },
+    });
+    return this.smtpTransport;
+  }
+
+  private async sendViaSmtp(options: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<void> {
+    await this.getSmtpTransport().sendMail({
+      from: this.from,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+  }
+
+  private async sendViaResend(options: {
+    to: string;
+    subject: string;
+    html: string;
+    text: string;
+  }): Promise<void> {
+    const apiKey = this.configService.getOrThrow<string>('RESEND_API_KEY');
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -120,14 +184,13 @@ export class EmailProcessor {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from,
+        from: this.from,
         to: [options.to],
         subject: options.subject,
         html: options.html,
         text: options.text,
       }),
     });
-
     if (!res.ok) {
       const detail = await res.text().catch(() => res.statusText);
       throw new Error(`Resend gagal (${res.status}): ${detail}`);

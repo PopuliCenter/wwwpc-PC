@@ -206,17 +206,24 @@ export class NotificationService {
     recipientName: string,
     otpCode: string,
     expiresInMinutes: number = 15,
+    purpose: 'verify' | 'reset' = 'verify',
   ): Promise<void> {
     this.logger.log(`Sending OTP email to ${email}`);
 
+    const subject =
+      purpose === 'reset'
+        ? 'Kode Reset Kata Sandi — Populi Center'
+        : 'Kode Verifikasi Akun — Populi Center';
+
     const payload: EmailPayload = {
       to: email,
-      subject: `Kode Verifikasi OTP Anda: ${otpCode}`,
+      subject,
       template: EmailTemplate.OTP_VERIFICATION,
       context: {
         recipientName,
         otpCode,
         expiresInMinutes,
+        purpose,
       } as OtpContext,
     };
 

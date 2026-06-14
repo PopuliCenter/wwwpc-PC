@@ -146,10 +146,24 @@ describe('EmailTemplateService', () => {
         expiresInMinutes: 15,
       });
 
-      expect(result.subject).toContain('123456');
+      // Subjek sengaja TIDAK memuat kode (keamanan/deliverability).
+      expect(result.subject).toContain('Verifikasi');
       expect(result.html).toContain('123456');
       expect(result.html).toContain('15 menit');
       expect(result.text).toContain('123456');
+    });
+
+    it('should render reset-purpose OTP with reset wording', () => {
+      const result = service.renderTemplate(EmailTemplate.OTP_VERIFICATION, {
+        recipientName: 'User',
+        otpCode: '654321',
+        expiresInMinutes: 15,
+        purpose: 'reset',
+      });
+
+      expect(result.subject).toContain('Reset');
+      expect(result.html).toContain('654321');
+      expect(result.text.toLowerCase()).toContain('reset');
     });
   });
 

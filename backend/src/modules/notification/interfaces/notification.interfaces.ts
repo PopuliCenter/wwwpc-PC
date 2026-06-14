@@ -75,6 +75,8 @@ export interface OtpContext {
   recipientName: string;
   otpCode: string;
   expiresInMinutes: number;
+  /** 'verify' = verifikasi pendaftaran (default), 'reset' = reset password. */
+  purpose?: 'verify' | 'reset';
 }
 
 export interface PasswordResetContext {
