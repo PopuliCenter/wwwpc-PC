@@ -15,7 +15,9 @@
     "migration:generate": "npm run typeorm -- migration:generate",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "migration:create": "typeorm migration:create"
+    "migration:create": "typeorm migration:create",
+    "seed:test": "node dist/seed-test-respondent.js",
+    "seed:test:dev": "ts-node -r tsconfig-paths/register src/seed-test-respondent.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.621.0",
