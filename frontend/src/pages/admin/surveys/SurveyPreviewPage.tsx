@@ -2,169 +2,171 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 
-type QuestionType =
-  | 'single_choice'
-  | 'multiple_choice'
-  | 'text_short'
-  | 'text_long'
-  | 'rating_scale'
-  | 'likert'
-  | 'dropdown'
-  | 'date'
-  | 'number'
-  | 'file_upload';
-
-interface QuestionOption {
+interface BackendQuestion {
   id: string;
-  text: string;
-  order: number;
+  type: string;
+  questionText: string;
+  required: boolean;
+  enabled?: boolean;
+  orderIndex: number;
+  validationRules: {
+    matrixRows?: string[];
+    matrixColumns?: string[];
+    ratingMax?: number;
+    description?: string;
+  } | null;
+  hasOtherOption?: boolean;
+  options?: { id: string; label: string; value: string; orderIndex: number }[];
 }
 
-interface Question {
+interface PreviewQuestion {
   id: string;
-  type: QuestionType;
+  type: string;
   text: string;
   required: boolean;
+  enabled: boolean;
   order: number;
-  options?: QuestionOption[];
+  description?: string;
+  hasOtherOption: boolean;
+  options: { id: string; label: string }[];
+  matrixRows: string[];
+  matrixColumns: string[];
+  ratingMax: number;
 }
 
-interface SurveyPreview {
-  id: string;
-  title: string;
-  description: string;
-  questions: Question[];
-}
-
-function QuestionPreview({ question }: { question: Question }) {
-  const renderInput = () => {
-    switch (question.type) {
-      case 'single_choice':
-        return (
-          <div className="space-y-2">
-            {(question.options ?? []).map((opt) => (
-              <label key={opt.id} className="flex items-center gap-2">
-                <input type="radio" name={question.id} disabled className="text-primary-600" />
-                <span className="text-sm text-gray-700">{opt.text}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 'multiple_choice':
-        return (
-          <div className="space-y-2">
-            {(question.options ?? []).map((opt) => (
-              <label key={opt.id} className="flex items-center gap-2">
-                <input type="checkbox" disabled className="rounded text-primary-600" />
-                <span className="text-sm text-gray-700">{opt.text}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 'text_short':
-        return (
-          <input
-            type="text"
-            disabled
-            placeholder="Jawaban singkat..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-          />
-        );
-      case 'text_long':
-        return (
-          <textarea
-            disabled
-            rows={3}
-            placeholder="Jawaban panjang..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-          />
-        );
-      case 'rating_scale':
-        return (
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                disabled
-                className="w-10 h-10 border border-gray-300 rounded-md text-gray-500 bg-gray-50"
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        );
-      case 'likert':
-        return (
-          <div className="flex gap-2">
-            {['Sangat Tidak Setuju', 'Tidak Setuju', 'Netral', 'Setuju', 'Sangat Setuju'].map((label) => (
-              <label key={label} className="flex flex-col items-center gap-1">
-                <input type="radio" name={question.id} disabled />
-                <span className="text-xs text-gray-500 text-center">{label}</span>
-              </label>
-            ))}
-          </div>
-        );
-      case 'dropdown':
-        return (
-          <select disabled className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-            <option>Pilih...</option>
-            {(question.options ?? []).map((opt) => (
-              <option key={opt.id}>{opt.text}</option>
-            ))}
-          </select>
-        );
-      case 'date':
-        return (
-          <input
-            type="date"
-            disabled
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-          />
-        );
-      case 'number':
-        return (
-          <input
-            type="number"
-            disabled
-            placeholder="0"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
-          />
-        );
-      case 'file_upload':
-        return (
-          <div className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center text-gray-500 bg-gray-50">
-            📎 Klik atau drag file untuk upload
-          </div>
-        );
-      default:
-        return null;
-    }
+function mapQuestion(q: BackendQuestion, idx: number): PreviewQuestion {
+  return {
+    id: q.id,
+    type: q.type,
+    text: q.questionText ?? '',
+    required: !!q.required,
+    enabled: q.enabled !== false,
+    order: q.orderIndex ?? idx,
+    description: q.validationRules?.description,
+    hasOtherOption: !!q.hasOtherOption,
+    options: (q.options ?? [])
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((o) => ({ id: o.id, label: o.label })),
+    matrixRows: q.validationRules?.matrixRows ?? [],
+    matrixColumns: q.validationRules?.matrixColumns ?? [],
+    ratingMax: q.validationRules?.ratingMax ?? 5,
   };
+}
 
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5">
-      <div className="mb-3">
-        <span className="text-sm font-medium text-gray-900">
-          {question.text || 'Pertanyaan tanpa teks'}
-        </span>
-        {question.required && <span className="text-red-500 ml-1">*</span>}
-      </div>
-      {renderInput()}
-    </div>
-  );
+const inputCls =
+  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-500';
+
+function QuestionInput({ q }: { q: PreviewQuestion }) {
+  switch (q.type) {
+    case 'single_choice':
+    case 'multiple_choice':
+      return (
+        <div className="space-y-2">
+          {q.options.map((o) => (
+            <label key={o.id} className="flex items-center gap-2 text-sm text-gray-700">
+              <input type={q.type === 'single_choice' ? 'radio' : 'checkbox'} disabled name={q.id} />
+              {o.label}
+            </label>
+          ))}
+          {q.hasOtherOption && (
+            <label className="flex items-center gap-2 text-sm text-gray-500">
+              <input type={q.type === 'single_choice' ? 'radio' : 'checkbox'} disabled name={q.id} />
+              Lainnya…
+            </label>
+          )}
+        </div>
+      );
+    case 'dropdown':
+      return (
+        <select disabled className={inputCls}>
+          <option>Pilih…</option>
+          {q.options.map((o) => <option key={o.id}>{o.label}</option>)}
+        </select>
+      );
+    case 'short_text':
+    case 'phone_number':
+    case 'unique_id':
+      return <input disabled placeholder="Jawaban teks…" className={inputCls} />;
+    case 'long_text':
+      return <textarea disabled rows={3} placeholder="Jawaban panjang…" className={inputCls} />;
+    case 'numeric_scale':
+      return <input disabled type="number" placeholder="Angka" className={inputCls} />;
+    case 'rating_scale':
+      return (
+        <div className="flex gap-1 text-2xl text-gray-300">
+          {Array.from({ length: q.ratingMax }).map((_, i) => <span key={i}>★</span>)}
+        </div>
+      );
+    case 'date':
+      return <input disabled type="date" className={inputCls} />;
+    case 'date_time':
+      return <input disabled type="datetime-local" className={inputCls} />;
+    case 'indonesia_region':
+      return (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {['Provinsi', 'Kab/Kota', 'Kecamatan'].map((l) => (
+            <select key={l} disabled className={inputCls}><option>{l}…</option></select>
+          ))}
+        </div>
+      );
+    case 'matrix_likert':
+      return (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border text-sm">
+            <thead>
+              <tr>
+                <th className="border bg-gray-50 px-2 py-1" />
+                {q.matrixColumns.map((c) => (
+                  <th key={c} className="border bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {q.matrixRows.map((r) => (
+                <tr key={r}>
+                  <td className="border px-2 py-1 text-xs text-gray-700">{r}</td>
+                  {q.matrixColumns.map((c) => (
+                    <td key={c} className="border px-2 py-1 text-center"><input type="radio" disabled /></td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    case 'file_upload':
+    case 'photo':
+    case 'audio':
+    case 'signature':
+      return (
+        <div className="rounded-md border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-400">
+          {q.type === 'photo' ? 'Ambil/unggah foto' : q.type === 'audio' ? 'Rekam audio' : q.type === 'signature' ? 'Tanda tangan' : 'Unggah berkas'}
+        </div>
+      );
+    default:
+      return <input disabled placeholder="Jawaban…" className={inputCls} />;
+  }
 }
 
 export function SurveyPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [survey, setSurvey] = useState<SurveyPreview | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [questions, setQuestions] = useState<PreviewQuestion[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSurvey = async () => {
+    const fetchAll = async () => {
       try {
-        const result = await api.get<SurveyPreview>(`/surveys/${id}`);
-        setSurvey(result);
+        const [survey, rawQuestions] = await Promise.all([
+          api.get<{ title: string; description: string }>(`/surveys/${id}`),
+          api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
+        ]);
+        setTitle(survey.title);
+        setDescription(survey.description ?? '');
+        setQuestions((rawQuestions ?? []).map(mapQuestion).filter((q) => q.enabled));
       } catch {
         alert('Gagal memuat survei');
         navigate('/admin/surveys');
@@ -172,51 +174,42 @@ export function SurveyPreviewPage() {
         setLoading(false);
       }
     };
-    fetchSurvey();
+    fetchAll();
   }, [id, navigate]);
 
-  if (loading) {
-    return <div className="p-6 text-center text-gray-500">Memuat preview...</div>;
-  }
+  if (loading) return <div className="p-6 text-center text-gray-500">Memuat preview...</div>;
 
-  if (!survey) return null;
+  const sorted = [...questions].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(`/admin/surveys/${id}/edit`)}
-          className="text-gray-600 hover:text-gray-900"
-        >
+        <button onClick={() => navigate(`/admin/surveys/${id}/edit`)} className="text-gray-600 hover:text-gray-900">
           ← Kembali ke Editor
         </button>
-        <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
-          Mode Preview
-        </span>
+        <span className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700">Mode Preview</span>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold text-gray-900">{survey.title}</h1>
-        {survey.description && (
-          <p className="mt-2 text-gray-600">{survey.description}</p>
-        )}
+      <div className="rounded-lg bg-white p-6 shadow">
+        <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+        {description && <p className="mt-2 text-gray-600">{description}</p>}
       </div>
 
       <div className="space-y-4">
-        {(survey.questions ?? [])
-          .sort((a, b) => a.order - b.order)
-          .map((question, idx) => (
-            <div key={question.id}>
-              <span className="text-xs text-gray-400 mb-1 block">Pertanyaan {idx + 1}</span>
-              <QuestionPreview question={question} />
-            </div>
-          ))}
+        {sorted.map((q, idx) => (
+          <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4">
+            <p className="text-sm font-semibold text-gray-900">
+              {idx + 1}. {q.text || <span className="italic text-gray-400">(tanpa teks)</span>}
+              {q.required && <span className="ml-1 text-red-500">*</span>}
+            </p>
+            {q.description && <p className="mb-2 mt-0.5 text-xs text-gray-500">{q.description}</p>}
+            <div className="mt-2"><QuestionInput q={q} /></div>
+          </div>
+        ))}
       </div>
 
-      {(!survey.questions || survey.questions.length === 0) && (
-        <div className="text-center py-8 text-gray-500">
-          Survei ini belum memiliki pertanyaan.
-        </div>
+      {sorted.length === 0 && (
+        <div className="py-8 text-center text-gray-500">Survei ini belum memiliki pertanyaan.</div>
       )}
     </div>
   );
