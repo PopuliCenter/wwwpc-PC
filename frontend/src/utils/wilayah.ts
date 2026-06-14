@@ -1,8 +1,15 @@
 /**
- * Layanan data wilayah Indonesia.
- * Mengambil data provinsi, kabupaten/kota, kecamatan, dan kelurahan
- * dari API publik Kemendagri (emsifa.github.io/api-wilayah-indonesia).
- * Gunakan file wilayahIndonesia.json (dari repo referensi) untuk mode offline.
+ * Layanan data wilayah Indonesia — provinsi, kabupaten/kota, kecamatan, dan
+ * kelurahan/desa.
+ *
+ * Data DI-BUNDLE LOKAL di `public/wilayah/*.json` (sumber: guzfirdaus/
+ * Wilayah-Administrasi-Indonesia, kode Permendagri). Tidak ada ketergantungan
+ * API eksternal saat runtime — ikut ter-deploy ke lokal & VPS. Untuk update
+ * (mis. pemekaran), ganti file JSON di public/wilayah/ (lihat
+ * scripts/build-wilayah.mjs).
+ *
+ * Memuat per-level (filter di klien). villages.json besar (~5MB) → hanya
+ * diunduh saat tingkat kelurahan benar-benar dipakai, lalu di-cache.
  */
 
 export interface WilayahItem {
@@ -10,33 +17,48 @@ export interface WilayahItem {
   name: string;
 }
 
-const BASE_URL = 'https://emsifa.github.io/api-wilayah-indonesia/api';
+interface ProvinceRow { id: string; name: string }
+interface RegencyRow { id: string; province_id: string; name: string }
+interface DistrictRow { id: string; regency_id: string; name: string }
+interface VillageRow { id: string; district_id: string; name: string }
 
-// Cache sederhana agar tidak fetch ulang untuk data yang sama
-const cache = new Map<string, WilayahItem[]>();
+const BASE_PATH = '/wilayah';
 
-async function fetchWilayah(url: string): Promise<WilayahItem[]> {
-  if (cache.has(url)) return cache.get(url)!;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Gagal memuat data wilayah: ${res.statusText}`);
-  const data: Array<{ id: string; name: string }> = await res.json();
-  const items = data.map((d) => ({ id: d.id, name: d.name }));
-  cache.set(url, items);
-  return items;
+// Cache per-file agar tidak fetch ulang dataset yang sama.
+const fileCache = new Map<string, unknown>();
+
+async function loadFile<T>(file: string): Promise<T> {
+  const cached = fileCache.get(file);
+  if (cached) return cached as T;
+  const res = await fetch(`${BASE_PATH}/${file}`);
+  if (!res.ok) throw new Error(`Gagal memuat data wilayah: ${file}`);
+  const data = (await res.json()) as T;
+  fileCache.set(file, data);
+  return data;
 }
 
 export async function getProvinces(): Promise<WilayahItem[]> {
-  return fetchWilayah(`${BASE_URL}/provinces.json`);
+  const rows = await loadFile<ProvinceRow[]>('provinces.json');
+  return rows.map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function getRegencies(provinceId: string): Promise<WilayahItem[]> {
-  return fetchWilayah(`${BASE_URL}/regencies/${provinceId}.json`);
+  const rows = await loadFile<RegencyRow[]>('regencies.json');
+  return rows
+    .filter((r) => r.province_id === provinceId)
+    .map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function getDistricts(regencyId: string): Promise<WilayahItem[]> {
-  return fetchWilayah(`${BASE_URL}/districts/${regencyId}.json`);
+  const rows = await loadFile<DistrictRow[]>('districts.json');
+  return rows
+    .filter((r) => r.regency_id === regencyId)
+    .map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function getVillages(districtId: string): Promise<WilayahItem[]> {
-  return fetchWilayah(`${BASE_URL}/villages/${districtId}.json`);
+  const rows = await loadFile<VillageRow[]>('villages.json');
+  return rows
+    .filter((r) => r.district_id === districtId)
+    .map((r) => ({ id: r.id, name: r.name }));
 }
