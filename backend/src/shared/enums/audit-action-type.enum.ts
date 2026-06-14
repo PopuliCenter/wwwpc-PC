@@ -9,6 +9,7 @@ export enum AuditActionType {
   QUESTION_UPDATE = 'question_update',
   QUESTION_DELETE = 'question_delete',
   NOTIFICATION_SENT = 'notification_sent',
+  RESPONSE_SUBMIT = 'response_submit',
   DATA_EXPORT = 'data_export',
   ROLE_CHANGE = 'role_change',
   DATA_CLEANUP = 'data_cleanup',

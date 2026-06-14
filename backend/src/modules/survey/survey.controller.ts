@@ -16,14 +16,43 @@ import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
-import { UserRole } from '@shared/enums';
+import { UserRole, AuditActionType } from '@shared/enums';
 import { Survey } from './entities/survey.entity';
+import { AuditService } from '@modules/audit/audit.service';
+
+/** Ambil IP klien dari request (hormati proxy bila ada). */
+function clientIp(req: any): string {
+  return (
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req?.ip ||
+    'unknown'
+  );
+}
 
 @Controller('surveys')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
 export class SurveyController {
-  constructor(private readonly surveyService: SurveyService) {}
+  constructor(
+    private readonly surveyService: SurveyService,
+    private readonly auditService: AuditService,
+  ) {}
+
+  /** Catat aksi survei ke audit log (best-effort di AuditService). */
+  private audit(
+    req: any,
+    actionType: AuditActionType,
+    survey: { id: string; title?: string },
+    extra?: Record<string, any>,
+  ): Promise<void> {
+    return this.auditService.log({
+      userId: req.user.userId,
+      actionType,
+      module: 'survey',
+      details: { surveyId: survey.id, title: survey.title, ...extra },
+      ipAddress: clientIp(req),
+    });
+  }
 
   @Get()
   async findAll(): Promise<Survey[]> {
@@ -58,15 +87,20 @@ export class SurveyController {
     @Request() req: any,
     @Body() dto: CreateSurveyDto,
   ): Promise<Survey> {
-    return this.surveyService.createSurvey(req.user.userId, dto);
+    const survey = await this.surveyService.createSurvey(req.user.userId, dto);
+    await this.audit(req, AuditActionType.SURVEY_CREATE, survey);
+    return survey;
   }
 
   @Put(':id')
   async updateSurvey(
+    @Request() req: any,
     @Param('id') id: string,
     @Body() dto: UpdateSurveyDto,
   ): Promise<Survey> {
-    return this.surveyService.updateSurvey(id, dto);
+    const survey = await this.surveyService.updateSurvey(id, dto);
+    await this.audit(req, AuditActionType.SURVEY_UPDATE, survey);
+    return survey;
   }
 
   @Post(':id/duplicate')
@@ -75,27 +109,38 @@ export class SurveyController {
     @Request() req: any,
     @Param('id') id: string,
   ): Promise<Survey> {
-    return this.surveyService.duplicateSurvey(id, req.user.userId);
+    const survey = await this.surveyService.duplicateSurvey(id, req.user.userId);
+    await this.audit(req, AuditActionType.SURVEY_CREATE, survey, {
+      duplicatedFrom: id,
+    });
+    return survey;
   }
 
   @Put(':id/activate')
-  async activateSurvey(@Param('id') id: string): Promise<Survey> {
-    return this.surveyService.activateSurvey(id);
+  async activateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+    const survey = await this.surveyService.activateSurvey(id);
+    await this.audit(req, AuditActionType.SURVEY_UPDATE, survey, { action: 'activate' });
+    return survey;
   }
 
   @Put(':id/deactivate')
-  async deactivateSurvey(@Param('id') id: string): Promise<Survey> {
-    return this.surveyService.deactivateSurvey(id);
+  async deactivateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+    const survey = await this.surveyService.deactivateSurvey(id);
+    await this.audit(req, AuditActionType.SURVEY_UPDATE, survey, { action: 'deactivate' });
+    return survey;
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteSurvey(@Param('id') id: string): Promise<void> {
-    return this.surveyService.deleteSurvey(id);
+  async deleteSurvey(@Request() req: any, @Param('id') id: string): Promise<void> {
+    await this.surveyService.deleteSurvey(id);
+    await this.audit(req, AuditActionType.SURVEY_DELETE, { id });
   }
 
   @Put(':id/archive')
-  async archiveSurvey(@Param('id') id: string): Promise<Survey> {
-    return this.surveyService.archiveSurvey(id);
+  async archiveSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+    const survey = await this.surveyService.archiveSurvey(id);
+    await this.audit(req, AuditActionType.SURVEY_ARCHIVE, survey);
+    return survey;
   }
 }

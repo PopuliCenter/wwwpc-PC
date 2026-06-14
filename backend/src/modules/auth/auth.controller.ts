@@ -21,16 +21,38 @@ import {
 } from './dto';
 import { JwtAuthGuard } from './guards';
 import { AuthResult, TokenPair } from './interfaces';
+import { AuditService } from '@modules/audit/audit.service';
+import { AuditActionType } from '@shared/enums';
+
+/** Ambil IP klien dari request (hormati proxy bila ada). */
+function clientIp(req: any): string {
+  return (
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req?.ip ||
+    'unknown'
+  );
+}
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  async login(@Body() loginDto: LoginDto): Promise<AuthResult> {
-    return this.authService.login(loginDto.email, loginDto.password);
+  async login(@Body() loginDto: LoginDto, @Request() req: any): Promise<AuthResult> {
+    const result = await this.authService.login(loginDto.email, loginDto.password);
+    await this.auditService.log({
+      userId: result.user.id,
+      actionType: AuditActionType.LOGIN,
+      module: 'auth',
+      details: { email: result.user.email, role: result.user.role },
+      ipAddress: clientIp(req),
+    });
+    return result;
   }
 
   @Post('logout')
@@ -38,6 +60,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async logout(@Request() req: any): Promise<void> {
     await this.authService.logout(req.user.sessionId);
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.LOGOUT,
+      module: 'auth',
+      ipAddress: clientIp(req),
+    });
   }
 
   @Post('refresh')

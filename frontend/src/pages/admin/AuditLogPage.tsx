@@ -46,20 +46,23 @@ interface AuditLogResponse {
   limit: number;
 }
 
+// Nilai harus SAMA PERSIS dengan AuditActionType di backend (shared/enums).
 const ACTION_TYPES = [
   'login',
   'logout',
   'survey_create',
   'survey_update',
   'survey_delete',
+  'survey_archive',
   'response_submit',
-  'export_data',
+  'data_export',
   'user_create',
   'user_update',
-  'password_reset',
+  'user_delete',
+  'user_password_reset',
   'role_change',
   'data_cleanup',
-  'gdpr_delete',
+  'reward_redemption',
 ];
 
 const MODULES = [

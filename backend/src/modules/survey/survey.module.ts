@@ -24,6 +24,7 @@ import { VisibilityRule } from './entities/visibility-rule.entity';
 import { BranchingRule } from './entities/branching-rule.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { AuthModule } from '@modules/auth';
+import { AuditModule } from '@modules/audit';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AuthModule } from '@modules/auth';
       SurveyResponse,
     ]),
     AuthModule,
+    AuditModule,
   ],
   controllers: [
     SurveyController,

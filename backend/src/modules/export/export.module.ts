@@ -9,6 +9,7 @@ import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { AuthModule } from '@modules/auth';
+import { AuditModule } from '@modules/audit';
 import { EXPORT_QUEUE } from './constants';
 
 @Module({
@@ -19,6 +20,7 @@ import { EXPORT_QUEUE } from './constants';
     }),
     TypeOrmModule.forFeature([ExportJob, SurveyResponse]),
     AuthModule,
+    AuditModule,
   ],
   controllers: [ExportController],
   providers: [ExportService, ExportProcessor, S3StorageService],

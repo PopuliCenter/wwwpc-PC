@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SurveyController } from './survey.controller';
 import { SurveyService } from './survey.service';
+import { AuditService } from '@modules/audit/audit.service';
 import { SurveyStatus } from '@shared/enums';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
@@ -43,6 +44,7 @@ describe('SurveyController', () => {
       controllers: [SurveyController],
       providers: [
         { provide: SurveyService, useValue: surveyService },
+        { provide: AuditService, useValue: { log: vi.fn() } },
       ],
     }).compile();
 
@@ -66,9 +68,10 @@ describe('SurveyController', () => {
 
   describe('updateSurvey', () => {
     it('should call service.updateSurvey with id and dto', async () => {
+      const req = { user: { userId: 'user-uuid-1' } };
       const dto: UpdateSurveyDto = { title: 'Updated' };
 
-      const result = await controller.updateSurvey('survey-uuid-1', dto);
+      const result = await controller.updateSurvey(req, 'survey-uuid-1', dto);
 
       expect(surveyService.updateSurvey).toHaveBeenCalledWith('survey-uuid-1', dto);
       expect(result).toEqual(mockSurvey);
@@ -88,7 +91,8 @@ describe('SurveyController', () => {
 
   describe('deactivateSurvey', () => {
     it('should call service.deactivateSurvey with id', async () => {
-      const result = await controller.deactivateSurvey('survey-uuid-1');
+      const req = { user: { userId: 'user-uuid-1' } };
+      const result = await controller.deactivateSurvey(req, 'survey-uuid-1');
 
       expect(surveyService.deactivateSurvey).toHaveBeenCalledWith('survey-uuid-1');
       expect(result.status).toBe(SurveyStatus.INACTIVE);
@@ -97,7 +101,8 @@ describe('SurveyController', () => {
 
   describe('deleteSurvey', () => {
     it('should call service.deleteSurvey with id', async () => {
-      await controller.deleteSurvey('survey-uuid-1');
+      const req = { user: { userId: 'user-uuid-1' } };
+      await controller.deleteSurvey(req, 'survey-uuid-1');
 
       expect(surveyService.deleteSurvey).toHaveBeenCalledWith('survey-uuid-1');
     });
@@ -105,7 +110,8 @@ describe('SurveyController', () => {
 
   describe('archiveSurvey', () => {
     it('should call service.archiveSurvey with id', async () => {
-      const result = await controller.archiveSurvey('survey-uuid-1');
+      const req = { user: { userId: 'user-uuid-1' } };
+      const result = await controller.archiveSurvey(req, 'survey-uuid-1');
 
       expect(surveyService.archiveSurvey).toHaveBeenCalledWith('survey-uuid-1');
       expect(result.status).toBe(SurveyStatus.ARCHIVED);

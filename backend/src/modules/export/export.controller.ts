@@ -14,17 +14,37 @@ import type { Response } from 'express';
 import { ExportService } from './export.service';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
-import { UserRole } from '@shared/enums';
+import { UserRole, AuditActionType } from '@shared/enums';
+import { AuditService } from '@modules/audit/audit.service';
+
+/** Ambil IP klien dari request (hormati proxy bila ada). */
+function clientIp(req: any): string {
+  return (
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req?.ip ||
+    'unknown'
+  );
+}
 
 @Controller('export')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ExportController {
-  constructor(private readonly exportService: ExportService) {}
+  constructor(
+    private readonly exportService: ExportService,
+    private readonly auditService: AuditService,
+  ) {}
 
   /** Export audit log (CSV). Dipanggil dari halaman Audit Log. */
   @Post('audit-log')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async exportAuditLog(@Body() filters: Record<string, any>, @Req() req: any) {
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.DATA_EXPORT,
+      module: 'export',
+      details: { kind: 'audit-log', filters: filters ?? {} },
+      ipAddress: clientIp(req),
+    });
     return this.exportService.exportAuditLog((filters ?? {}) as any, req.user.userId);
   }
 
@@ -41,6 +61,13 @@ export class ExportController {
       throw new BadRequestException('Pilih survei terlebih dahulu untuk mengekspor data.');
     }
     const by = req.user.userId;
+    await this.auditService.log({
+      userId: by,
+      actionType: AuditActionType.DATA_EXPORT,
+      module: 'export',
+      details: { kind: 'responses', format, surveyId },
+      ipAddress: clientIp(req),
+    });
     switch (format) {
       case 'csv':
         return this.exportService.exportCsv(surveyId, filters as any, by);

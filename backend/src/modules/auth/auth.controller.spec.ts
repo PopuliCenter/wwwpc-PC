@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { AuditService } from '@modules/audit/audit.service';
 import { UserRole } from '@shared/enums';
 
 describe('AuthController', () => {
@@ -20,7 +21,10 @@ describe('AuthController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [{ provide: AuthService, useValue: authService }],
+      providers: [
+        { provide: AuthService, useValue: authService },
+        { provide: AuditService, useValue: { log: vi.fn() } },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
@@ -40,10 +44,10 @@ describe('AuthController', () => {
       };
       authService.login.mockResolvedValue(authResult);
 
-      const result = await controller.login({
-        email: 'test@example.com',
-        password: 'ValidPass1',
-      });
+      const result = await controller.login(
+        { email: 'test@example.com', password: 'ValidPass1' },
+        { ip: '127.0.0.1', headers: {} },
+      );
 
       expect(result).toEqual(authResult);
       expect(authService.login).toHaveBeenCalledWith(
@@ -58,10 +62,10 @@ describe('AuthController', () => {
       );
 
       await expect(
-        controller.login({
-          email: 'test@example.com',
-          password: 'wrong',
-        }),
+        controller.login(
+          { email: 'test@example.com', password: 'wrong' },
+          { ip: '127.0.0.1', headers: {} },
+        ),
       ).rejects.toThrow(UnauthorizedException);
     });
   });

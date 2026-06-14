@@ -9,11 +9,13 @@ import { JwtStrategy } from './strategies';
 import { User } from './entities';
 import { authConfig } from './config';
 import { NotificationModule } from '@modules/notification';
+import { AuditModule } from '@modules/audit';
 
 @Module({
   imports: [
     ConfigModule.forFeature(authConfig),
     NotificationModule,
+    AuditModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

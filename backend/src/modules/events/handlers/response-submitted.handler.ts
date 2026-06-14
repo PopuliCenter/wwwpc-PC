@@ -86,11 +86,12 @@ export class ResponseSubmittedHandler {
     try {
       await this.auditService.log({
         userId: payload.respondentId,
-        actionType: AuditActionType.NOTIFICATION_SENT,
+        actionType: AuditActionType.RESPONSE_SUBMIT,
         module: 'response',
         details: {
           event: EventType.RESPONSE_SUBMITTED,
           surveyId: payload.surveyId,
+          surveyTitle: payload.surveyTitle,
           responseId: payload.responseId,
         },
         ipAddress: 'system',
