@@ -1,56 +1,90 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
 
-// Types
+// Types — disesuaikan dgn kontrak backend (modules/reward)
 interface PointBalance {
-  current: number;
-  expiringIn30Days: number;
-}
-
-interface Transaction {
-  id: string;
-  type: 'earned' | 'spent';
-  amount: number;
-  description: string;
-  createdAt: string;
-}
-
-interface TransactionResponse {
-  data: Transaction[];
   total: number;
-  page: number;
-  totalPages: number;
+  available: number;
+  pending: number;
+  expiringWithin30Days: number;
 }
+
+type TransactionType = 'credit' | 'debit';
+type PointReason =
+  | 'registration'
+  | 'profile_completion'
+  | 'survey_completion'
+  | 'streak_bonus'
+  | 'manual_credit';
+
+interface BackendTransaction {
+  id: string;
+  amount: number;
+  transactionType: TransactionType;
+  reason: PointReason;
+  earnedAt: string;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}
+
+type RewardCategory = 'pulsa' | 'paket_data' | 'voucher' | 'e_wallet';
 
 interface RewardItem {
   id: string;
   name: string;
-  category: 'pulsa' | 'paket_data' | 'voucher_belanja' | 'e_wallet';
-  pointsRequired: number;
+  category: RewardCategory;
+  pointsCost: number;
   description: string;
-  imageUrl?: string;
+  minNominal?: number;
+  maxNominal?: number;
 }
 
-interface RewardCatalogResponse {
-  data: RewardItem[];
+interface RedemptionResult {
+  redemptionId: string;
+  status: string;
+  message: string;
+  otpRequired?: boolean;
 }
 
-type RedemptionStep = 'catalog' | 'destination' | 'otp' | 'success';
+type RedemptionStep = 'destination' | 'otp' | 'success';
 
 const CATEGORY_LABELS: Record<string, string> = {
   pulsa: 'Pulsa',
   paket_data: 'Paket Data',
-  voucher_belanja: 'Voucher Belanja',
+  voucher: 'Voucher Belanja',
   e_wallet: 'E-Wallet',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
   pulsa: '📱',
   paket_data: '📶',
-  voucher_belanja: '🛍️',
+  voucher: '🛍️',
   e_wallet: '💳',
 };
+
+const REASON_LABELS: Record<PointReason, string> = {
+  registration: 'Bonus registrasi',
+  profile_completion: 'Bonus melengkapi profil',
+  survey_completion: 'Penyelesaian survei',
+  streak_bonus: 'Bonus streak',
+  manual_credit: 'Penyesuaian poin',
+};
+
+function describeTransaction(tx: BackendTransaction): string {
+  if (tx.transactionType === 'debit') return 'Penukaran reward';
+  return REASON_LABELS[tx.reason] ?? 'Poin diterima';
+}
 
 // Balance Card
 function BalanceCard({ balance, loading }: { balance: PointBalance | null; loading: boolean }) {
@@ -63,17 +97,20 @@ function BalanceCard({ balance, loading }: { balance: PointBalance | null; loadi
     );
   }
 
+  const available = balance?.available ?? 0;
+  const expiring = balance?.expiringWithin30Days ?? 0;
+
   return (
     <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-6 text-white">
       <p className="text-sm text-primary-100">Saldo Poin Anda</p>
-      <p className="text-4xl font-bold mt-1">{(balance?.current ?? 0).toLocaleString()}</p>
+      <p className="text-4xl font-bold mt-1">{available.toLocaleString()}</p>
       <p className="text-sm text-primary-200 mt-1">poin</p>
 
-      {balance && balance.expiringIn30Days > 0 && (
+      {expiring > 0 && (
         <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
           <p className="text-sm text-yellow-100">
-            ⚠️ <span className="font-medium">{balance.expiringIn30Days.toLocaleString()} poin</span>{' '}
-            akan expired dalam 30 hari
+            ⚠️ <span className="font-medium">{expiring.toLocaleString()} poin</span>{' '}
+            akan kedaluwarsa dalam 30 hari
           </p>
         </div>
       )}
@@ -82,8 +119,8 @@ function BalanceCard({ balance, loading }: { balance: PointBalance | null; loadi
 }
 
 // Transaction History
-function TransactionHistory() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+function TransactionHistory({ refreshKey }: { refreshKey: number }) {
+  const [transactions, setTransactions] = useState<BackendTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -92,19 +129,20 @@ function TransactionHistory() {
     const fetchTransactions = async () => {
       setLoading(true);
       try {
-        const result = await api.get<TransactionResponse>(
-          `/rewards/history?page=${page}&limit=10`
+        const result = await api.get<PaginatedResponse<BackendTransaction>>(
+          `/rewards/transactions?page=${page}&pageSize=10`
         );
-        setTransactions(result.data);
-        setTotalPages(result.totalPages);
+        setTransactions(Array.isArray(result?.data) ? result.data : []);
+        setTotalPages(result?.meta?.totalPages ?? 1);
       } catch {
         setTransactions([]);
+        setTotalPages(1);
       } finally {
         setLoading(false);
       }
     };
     fetchTransactions();
-  }, [page]);
+  }, [page, refreshKey]);
 
   return (
     <div className="bg-white rounded-lg shadow">
@@ -129,32 +167,31 @@ function TransactionHistory() {
         <div className="p-8 text-center text-gray-500">Belum ada transaksi</div>
       ) : (
         <div className="divide-y divide-gray-100">
-          {transactions.map((tx) => (
-            <div key={tx.id} className="p-4 flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                  tx.type === 'earned'
-                    ? 'bg-green-100 text-green-600'
-                    : 'bg-red-100 text-red-600'
-                }`}
-              >
-                {tx.type === 'earned' ? '+' : '-'}
+          {transactions.map((tx) => {
+            const earned = tx.transactionType === 'credit';
+            return (
+              <div key={tx.id} className="p-4 flex items-center gap-3">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                    earned ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                  }`}
+                >
+                  {earned ? '+' : '-'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-900 truncate">{describeTransaction(tx)}</p>
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(tx.earnedAt), 'dd MMM yyyy, HH:mm')}
+                  </p>
+                </div>
+                <span
+                  className={`text-sm font-medium ${earned ? 'text-green-600' : 'text-red-600'}`}
+                >
+                  {earned ? '+' : '-'}{tx.amount.toLocaleString()}
+                </span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900 truncate">{tx.description}</p>
-                <p className="text-xs text-gray-500">
-                  {format(new Date(tx.createdAt), 'dd MMM yyyy, HH:mm')}
-                </p>
-              </div>
-              <span
-                className={`text-sm font-medium ${
-                  tx.type === 'earned' ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
-                {tx.type === 'earned' ? '+' : '-'}{tx.amount.toLocaleString()}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -199,8 +236,9 @@ function RewardCatalog({
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
-        const result = await api.get<RewardCatalogResponse>('/rewards/catalog');
-        setRewards(result.data);
+        // Backend mengembalikan ARRAY langsung (bukan { data: [...] }).
+        const result = await api.get<RewardItem[]>('/rewards/catalog');
+        setRewards(Array.isArray(result) ? result : []);
       } catch {
         setRewards([]);
       } finally {
@@ -254,7 +292,7 @@ function RewardCatalog({
       ) : (
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filteredRewards.map((reward) => {
-            const canAfford = currentBalance >= reward.pointsRequired;
+            const canAfford = currentBalance >= reward.pointsCost;
             return (
               <div
                 key={reward.id}
@@ -268,7 +306,7 @@ function RewardCatalog({
                     <h4 className="text-sm font-medium text-gray-900">{reward.name}</h4>
                     <p className="text-xs text-gray-500 mt-1">{reward.description}</p>
                     <p className="text-sm font-bold text-primary-600 mt-2">
-                      {reward.pointsRequired.toLocaleString()} poin
+                      {reward.pointsCost.toLocaleString()} poin
                     </p>
                   </div>
                 </div>
@@ -296,7 +334,7 @@ function RedemptionModal({
 }: {
   reward: RewardItem;
   onClose: () => void;
-  onSuccess: (remainingBalance: number) => void;
+  onSuccess: () => void;
 }) {
   const [step, setStep] = useState<RedemptionStep>('destination');
   const [destinationNumber, setDestinationNumber] = useState('');
@@ -304,7 +342,7 @@ function RedemptionModal({
   const [redemptionId, setRedemptionId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [remainingBalance, setRemainingBalance] = useState(0);
+  const [remainingBalance, setRemainingBalance] = useState<number | null>(null);
 
   const handleInitiate = async () => {
     if (!destinationNumber) {
@@ -314,14 +352,14 @@ function RedemptionModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<{ redemptionId: string }>('/rewards/redeem/initiate', {
+      const result = await api.post<RedemptionResult>('/rewards/redeem', {
         rewardId: reward.id,
         destinationNumber,
       });
       setRedemptionId(result.redemptionId);
       setStep('otp');
-    } catch {
-      setError('Gagal memulai penukaran. Silakan coba lagi.');
+    } catch (e: any) {
+      setError(e?.message || 'Gagal memulai penukaran. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -335,14 +373,19 @@ function RedemptionModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<{ remainingBalance: number }>('/rewards/redeem/confirm', {
-        redemptionId,
-        otp,
+      await api.post<RedemptionResult>(`/rewards/redeem/${redemptionId}/confirm`, {
+        otpCode: otp,
       });
-      setRemainingBalance(result.remainingBalance);
+      // Backend tidak mengembalikan sisa saldo → ambil ulang.
+      try {
+        const balance = await api.get<PointBalance>('/rewards/balance');
+        setRemainingBalance(balance?.available ?? null);
+      } catch {
+        setRemainingBalance(null);
+      }
       setStep('success');
-    } catch {
-      setError('Kode OTP salah atau sudah expired. Silakan coba lagi.');
+    } catch (e: any) {
+      setError(e?.message || 'Kode OTP salah atau sudah kedaluwarsa. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -367,7 +410,7 @@ function RedemptionModal({
             <h3 className="text-lg font-semibold text-gray-900">Tukar Reward</h3>
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-sm font-medium text-gray-900">{reward.name}</p>
-              <p className="text-sm text-primary-600">{reward.pointsRequired.toLocaleString()} poin</p>
+              <p className="text-sm text-primary-600">{reward.pointsCost.toLocaleString()} poin</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -402,7 +445,7 @@ function RedemptionModal({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Konfirmasi OTP</h3>
             <p className="text-sm text-gray-600">
-              Masukkan kode OTP 6 digit yang telah dikirim ke nomor Anda.
+              Masukkan kode OTP 6 digit untuk mengonfirmasi penukaran.
             </p>
             <input
               type="text"
@@ -429,17 +472,19 @@ function RedemptionModal({
             <div className="text-5xl">✅</div>
             <h3 className="text-lg font-semibold text-gray-900">Penukaran Berhasil!</h3>
             <p className="text-sm text-gray-600">
-              <span className="font-medium">{reward.name}</span> akan segera dikirim ke nomor tujuan Anda.
+              <span className="font-medium">{reward.name}</span> akan segera diproses ke nomor tujuan Anda.
             </p>
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-sm text-gray-500">Sisa saldo</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {remainingBalance.toLocaleString()} poin
-              </p>
-            </div>
+            {remainingBalance !== null && (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-500">Sisa saldo</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {remainingBalance.toLocaleString()} poin
+                </p>
+              </div>
+            )}
             <button
               onClick={() => {
-                onSuccess(remainingBalance);
+                onSuccess();
                 onClose();
               }}
               className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium"
@@ -458,24 +503,27 @@ export function RewardPage() {
   const [balance, setBalance] = useState<PointBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        const result = await api.get<PointBalance>('/rewards/balance');
-        setBalance(result);
-      } catch {
-        setBalance({ current: 0, expiringIn30Days: 0 });
-      } finally {
-        setBalanceLoading(false);
-      }
-    };
-    fetchBalance();
+  const fetchBalance = useCallback(async () => {
+    try {
+      const result = await api.get<PointBalance>('/rewards/balance');
+      setBalance(result);
+    } catch {
+      setBalance({ total: 0, available: 0, pending: 0, expiringWithin30Days: 0 });
+    } finally {
+      setBalanceLoading(false);
+    }
   }, []);
 
-  const handleRedemptionSuccess = (remainingBalance: number) => {
-    setBalance((prev) => (prev ? { ...prev, current: remainingBalance } : prev));
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
+
+  const handleRedemptionSuccess = () => {
     setSelectedReward(null);
+    void fetchBalance();
+    setRefreshKey((k) => k + 1); // muat ulang riwayat transaksi
   };
 
   return (
@@ -488,12 +536,12 @@ export function RewardPage() {
       {/* Two column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Transaction History */}
-        <TransactionHistory />
+        <TransactionHistory refreshKey={refreshKey} />
 
         {/* Reward Catalog */}
         <RewardCatalog
           onSelectReward={setSelectedReward}
-          currentBalance={balance?.current ?? 0}
+          currentBalance={balance?.available ?? 0}
         />
       </div>
 
