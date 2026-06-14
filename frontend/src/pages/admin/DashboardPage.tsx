@@ -57,10 +57,10 @@ interface HeatmapPoint {
 
 interface CompletionRate {
   surveyId: string;
-  surveyName: string;
+  surveyTitle: string;
   totalResponses: number;
-  completed: number;
-  rate: number;
+  completedResponses: number;
+  completionRate: number;
 }
 
 // Brand-anchored chart palette (indigo primary + orange accent + cool tones)
@@ -459,21 +459,24 @@ function CompletionRatesTable() {
                   </td>
                 </tr>
               ) : (
-                data.map((item) => (
+                data.map((item) => {
+                  const rate = Number(item.completionRate ?? 0);
+                  return (
                   <tr key={item.surveyId} className="transition-colors hover:bg-gray-50/60">
-                    <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{item.surveyName}</td>
+                    <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{item.surveyTitle}</td>
                     <td className="px-6 py-3.5 text-sm text-gray-600">{item.totalResponses}</td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600">{item.completed}</td>
+                    <td className="px-6 py-3.5 text-sm text-gray-600">{item.completedResponses}</td>
                     <td className="px-6 py-3.5 text-sm">
                       <Badge
-                        tone={item.rate >= 75 ? 'success' : item.rate >= 50 ? 'warning' : 'danger'}
+                        tone={rate >= 75 ? 'success' : rate >= 50 ? 'warning' : 'danger'}
                         dot
                       >
-                        {item.rate.toFixed(1)}%
+                        {rate.toFixed(1)}%
                       </Badge>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
