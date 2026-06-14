@@ -1751,15 +1751,24 @@ export function SurveyFillPage() {
         </div>
       )}
 
-      {/* Header */}
-      <Card>
-        <h1 className="text-xl font-bold tracking-tight text-gray-900">{survey.title}</h1>
-        {survey.description && (
-          <p className="mt-1 text-sm text-gray-600">{survey.description}</p>
-        )}
+      {/* Header — hero ber-tema (selaras identitas app) */}
+      <div className="overflow-hidden rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-sm sm:p-6">
+        <div className="flex items-start gap-3">
+          <img
+            src="/logo-populi-center.png"
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-lg bg-white/15 p-1.5"
+          />
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight">{survey.title}</h1>
+            {survey.description && (
+              <p className="mt-1 text-sm text-primary-100">{survey.description}</p>
+            )}
+          </div>
+        </div>
 
         {survey.rewardMode === 'manual' && survey.rewardDescription && (
-          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-primary-50 p-3 text-primary-700 ring-1 ring-primary-100">
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
             <Gift className="mt-0.5 h-4 w-4 shrink-0" />
             <p className="text-sm">
               <span className="font-medium">Reward:</span> {survey.rewardDescription}
@@ -1767,14 +1776,14 @@ export function SurveyFillPage() {
           </div>
         )}
         {survey.rewardMode === 'auto_point' && survey.rewardPoints && (
-          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-emerald-50 p-3 text-emerald-700 ring-1 ring-emerald-100">
+          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
             <Gift className="mt-0.5 h-4 w-4 shrink-0" />
             <p className="text-sm">
               <span className="font-medium">Reward:</span> {survey.rewardPoints} poin otomatis setelah selesai
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
       <ProgressBar
         current={currentPage}
