@@ -138,7 +138,8 @@ export class SurveyService {
       [surveyId],
     );
     const byGender = await m.query(
-      `SELECT COALESCE(p.gender,'(tidak diisi)') AS label, COUNT(*)::int AS count
+      // gender adalah enum → cast ke text agar COALESCE dgn teks valid.
+      `SELECT COALESCE(p.gender::text,'(tidak diisi)') AS label, COUNT(*)::int AS count
        FROM survey_response r LEFT JOIN user_profile p ON p.user_id=r.respondent_id
        WHERE r.survey_id=$1 AND r.status='complete'
        GROUP BY p.gender ORDER BY count DESC`,
