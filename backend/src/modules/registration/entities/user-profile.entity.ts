@@ -32,11 +32,23 @@ export class UserProfile {
   @Column({ type: 'varchar', length: 255, nullable: true })
   occupation: string;
 
+  /** Pendidikan terakhir (mis. SD, SMP, SMA/SMK, D3, S1, S2, S3). */
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  education: string | null;
+
+  /** Agama (Islam, Kristen, Katolik, Hindu, Buddha, Konghucu, Lainnya). */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  religion: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   city: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   province: string;
+
+  /** Alamat lengkap responden. */
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'address' })
+  address: string | null;
 
   @OneToOne(() => User)
   @JoinColumn({ name: 'user_id' })

@@ -17,9 +17,23 @@ export class CompleteProfileDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsIn(['SD', 'SMP', 'SMA/SMK', 'D1/D2/D3', 'D4/S1', 'S2', 'S3', 'Lainnya'])
+  education: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsIn(['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'])
+  religion: string;
+
+  @IsString()
+  @IsNotEmpty()
   city: string;
 
   @IsString()
   @IsNotEmpty()
   province: string;
+
+  @IsString()
+  @IsNotEmpty()
+  address: string;
 }

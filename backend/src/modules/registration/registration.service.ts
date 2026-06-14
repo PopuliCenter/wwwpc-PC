@@ -55,6 +55,15 @@ export class RegistrationService {
     phone: string;
     password: string;
     termsAccepted: boolean;
+    // Profil demografi (dikumpulkan saat pendaftaran responden mandiri)
+    age?: number;
+    gender?: string;
+    occupation?: string;
+    education?: string;
+    religion?: string;
+    city?: string;
+    province?: string;
+    address?: string;
   }): Promise<RegistrationResult> {
     // Validate terms acceptance
     if (!data.termsAccepted) {
@@ -100,6 +109,7 @@ export class RegistrationService {
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
     // Auto-aktif tanpa OTP: akun langsung ACTIVE & dianggap terverifikasi.
+    const hasProfile = data.age != null && !!data.gender;
     const user = this.userRepository.create({
       fullName: data.fullName,
       email: data.email,
@@ -107,10 +117,26 @@ export class RegistrationService {
       passwordHash,
       status: UserStatus.ACTIVE,
       emailVerified: true,
-      profileCompleted: false,
+      profileCompleted: hasProfile,
     });
 
     const savedUser = await this.userRepository.save(user);
+
+    // Simpan profil demografi langsung saat pendaftaran (bila disertakan).
+    if (hasProfile) {
+      const profile = this.userProfileRepository.create({
+        userId: savedUser.id,
+        age: data.age,
+        gender: data.gender as Gender,
+        occupation: data.occupation ?? undefined,
+        education: data.education ?? null,
+        religion: data.religion ?? null,
+        city: data.city ?? undefined,
+        province: data.province ?? undefined,
+        address: data.address ?? null,
+      });
+      await this.userProfileRepository.save(profile);
+    }
 
     // Buat sesi + token agar pengguna langsung login setelah daftar.
     const sessionId = uuidv4();
@@ -269,8 +295,11 @@ export class RegistrationService {
       age: number;
       gender: string;
       occupation: string;
+      education?: string;
+      religion?: string;
       city: string;
       province: string;
+      address?: string;
     },
   ): Promise<void> {
     // Validate profile fields
@@ -300,8 +329,11 @@ export class RegistrationService {
         age: profile.age,
         gender: profile.gender as Gender,
         occupation: profile.occupation,
+        education: profile.education ?? null,
+        religion: profile.religion ?? null,
         city: profile.city,
         province: profile.province,
+        address: profile.address ?? null,
       });
     } else {
       userProfile = this.userProfileRepository.create({
@@ -309,8 +341,11 @@ export class RegistrationService {
         age: profile.age,
         gender: profile.gender as Gender,
         occupation: profile.occupation,
+        education: profile.education ?? null,
+        religion: profile.religion ?? null,
         city: profile.city,
         province: profile.province,
+        address: profile.address ?? null,
       });
       await this.userProfileRepository.save(userProfile);
     }

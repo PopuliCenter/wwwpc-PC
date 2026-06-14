@@ -24,6 +24,15 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  // Data diri responden
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+  const [occupation, setOccupation] = useState('');
+  const [education, setEducation] = useState('');
+  const [religion, setReligion] = useState('');
+  const [province, setProvince] = useState('');
+  const [city, setCity] = useState('');
+  const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,6 +53,14 @@ export function RegisterPage() {
         phone,
         password,
         termsAccepted: acceptTerms,
+        age: Number(age),
+        gender,
+        occupation,
+        education,
+        religion,
+        province,
+        city,
+        address,
       });
       login(
         {
@@ -141,6 +158,97 @@ export function RegisterPage() {
               : undefined
           }
         />
+        {/* ── Data Diri (responden) ───────────────────────────────────── */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="mb-3 text-sm font-semibold text-gray-700">Data Diri</p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input
+              label="Umur"
+              type="number"
+              min={13}
+              max={120}
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="Contoh: 28"
+              required
+            />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Kelamin</label>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              >
+                <option value="" disabled>Pilih…</option>
+                <option value="male">Laki-laki</option>
+                <option value="female">Perempuan</option>
+                <option value="other">Lainnya</option>
+              </select>
+            </div>
+            <Input
+              label="Pekerjaan"
+              value={occupation}
+              onChange={(e) => setOccupation(e.target.value)}
+              placeholder="Contoh: Wiraswasta"
+              required
+            />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Pendidikan Terakhir</label>
+              <select
+                value={education}
+                onChange={(e) => setEducation(e.target.value)}
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              >
+                <option value="" disabled>Pilih…</option>
+                {['SD', 'SMP', 'SMA/SMK', 'D1/D2/D3', 'D4/S1', 'S2', 'S3', 'Lainnya'].map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Agama</label>
+              <select
+                value={religion}
+                onChange={(e) => setReligion(e.target.value)}
+                required
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              >
+                <option value="" disabled>Pilih…</option>
+                {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'].map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="Provinsi"
+              value={province}
+              onChange={(e) => setProvince(e.target.value)}
+              placeholder="Contoh: Jawa Barat"
+              required
+            />
+            <Input
+              label="Kota/Kabupaten"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Contoh: Bandung"
+              required
+            />
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Alamat Lengkap</label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                required
+                rows={2}
+                placeholder="Jalan, RT/RW, kelurahan, kecamatan…"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-start gap-2">
           <input
             type="checkbox"

@@ -31,6 +31,14 @@ export class RegistrationController {
       phone: registerDto.phone,
       password: registerDto.password,
       termsAccepted: registerDto.termsAccepted,
+      age: registerDto.age,
+      gender: registerDto.gender,
+      occupation: registerDto.occupation,
+      education: registerDto.education,
+      religion: registerDto.religion,
+      city: registerDto.city,
+      province: registerDto.province,
+      address: registerDto.address,
     });
   }
 
@@ -71,8 +79,11 @@ export class RegistrationController {
       age: completeProfileDto.age,
       gender: completeProfileDto.gender,
       occupation: completeProfileDto.occupation,
+      education: completeProfileDto.education,
+      religion: completeProfileDto.religion,
       city: completeProfileDto.city,
       province: completeProfileDto.province,
+      address: completeProfileDto.address,
     });
     return { message: 'Profile completed and account activated' };
   }
