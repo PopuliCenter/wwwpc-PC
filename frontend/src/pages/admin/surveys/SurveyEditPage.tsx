@@ -789,7 +789,8 @@ function SortableQuestionCard({
   onDuplicate,
   allQuestions,
   expanded,
-  onToggleExpand,
+  onOpen,
+  onClose,
 }: {
   question: Question;
   index: number;
@@ -798,7 +799,8 @@ function SortableQuestionCard({
   onDuplicate: (q: Question) => void;
   allQuestions: Question[];
   expanded: boolean;
-  onToggleExpand: () => void;
+  onOpen: () => void;
+  onClose: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: question.id,
@@ -847,7 +849,7 @@ function SortableQuestionCard({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => { if (!expanded) setTab('edit'); onToggleExpand(); }}
+            onClick={() => { setTab('edit'); onOpen(); }}
             className={`px-3 py-1.5 text-xs rounded-md transition-colors ${expanded ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
             {expanded ? 'Tutup' : 'Edit'}
@@ -873,7 +875,7 @@ function SortableQuestionCard({
       {expanded && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
-          onClick={onToggleExpand}
+          onClick={onClose}
         >
           <div
             className="my-6 w-full max-w-2xl rounded-lg bg-white shadow-xl"
@@ -884,7 +886,7 @@ function SortableQuestionCard({
                 {question.text.trim() ? 'Edit Pertanyaan' : 'Tambah Pertanyaan'}
               </h3>
               <button
-                onClick={onToggleExpand}
+                onClick={onClose}
                 className="text-lg leading-none text-gray-400 hover:text-gray-600"
                 aria-label="Tutup"
               >
@@ -1116,10 +1118,10 @@ function SortableQuestionCard({
                 Hapus pertanyaan
               </button>
               <button
-                onClick={onToggleExpand}
+                onClick={onClose}
                 className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
               >
-                Selesai
+                Tutup
               </button>
             </div>
           </div>
@@ -1286,7 +1288,7 @@ export function SurveyEditPage() {
     setQuestions((prev) => [...prev, copy]);
   }, [questions.length]);
 
-  const handleSave = async () => {
+  const persistQuestions = async (successText: string) => {
     setSaving(true);
     setSaveMessage(null);
     try {
@@ -1305,7 +1307,7 @@ export function SurveyEditPage() {
         validationRules: q.validationRules ?? null,
       }));
       await api.put(`/surveys/${id}/questions`, { questions: payload });
-      setSaveMessage({ ok: true, text: 'Survei berhasil disimpan' });
+      setSaveMessage({ ok: true, text: successText });
       setTimeout(() => setSaveMessage(null), 3000);
     } catch (err: unknown) {
       const e = err as { message?: string | string[] };
@@ -1314,6 +1316,14 @@ export function SurveyEditPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSave = () => persistQuestions('Survei berhasil disimpan');
+
+  // Tutup modal editor + simpan otomatis ke server (agar tak hilang).
+  const closeEditor = () => {
+    setExpandedId(null);
+    void persistQuestions('Tersimpan otomatis ✓');
   };
 
   if (loading) {
@@ -1551,9 +1561,8 @@ export function SurveyEditPage() {
                 onDuplicate={duplicateQuestion}
                 allQuestions={questions}
                 expanded={expandedId === question.id}
-                onToggleExpand={() =>
-                  setExpandedId((prev) => (prev === question.id ? null : question.id))
-                }
+                onOpen={() => setExpandedId(question.id)}
+                onClose={closeEditor}
               />
             ))}
           </SortableContext>
