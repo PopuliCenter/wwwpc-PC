@@ -8,6 +8,13 @@ import { api } from '@/services/api';
 import type { UserRole } from '@/types';
 
 interface RegisterResult {
+  userId: string;
+  email: string;
+  message: string;
+  requiresOtp: boolean;
+}
+
+interface VerifyResult {
   accessToken: string;
   refreshToken: string;
   user: { id: string; email: string; fullName: string; role: UserRole };
@@ -35,6 +42,10 @@ export function RegisterPage() {
   const [address, setAddress] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Langkah verifikasi OTP
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [otp, setOtp] = useState('');
+  const [otpInfo, setOtpInfo] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -47,7 +58,7 @@ export function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const res = await api.post<RegisterResult>('/registration/register', {
+      await api.post<RegisterResult>('/registration/register', {
         fullName,
         email,
         phone,
@@ -61,6 +72,27 @@ export function RegisterPage() {
         province,
         city,
         address,
+      });
+      // Akun dibuat (PENDING). Lanjut ke verifikasi OTP yang dikirim ke email.
+      setOtpInfo(`Kode OTP telah dikirim ke ${email}.`);
+      setStep('otp');
+    } catch (err: unknown) {
+      const apiError = err as { message?: string | string[] };
+      const msg = Array.isArray(apiError.message) ? apiError.message.join(', ') : apiError.message;
+      setError(msg || 'Registrasi gagal. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    try {
+      const res = await api.post<VerifyResult>('/registration/verify-otp', {
+        email,
+        code: otp.trim(),
       });
       login(
         {
@@ -77,11 +109,84 @@ export function RegisterPage() {
     } catch (err: unknown) {
       const apiError = err as { message?: string | string[] };
       const msg = Array.isArray(apiError.message) ? apiError.message.join(', ') : apiError.message;
-      setError(msg || 'Registrasi gagal. Silakan coba lagi.');
+      setError(msg || 'Verifikasi gagal. Periksa kode OTP Anda.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResendOtp = async () => {
+    setError('');
+    setOtpInfo('');
+    try {
+      await api.post('/registration/resend-otp', { email });
+      setOtpInfo(`Kode OTP baru telah dikirim ke ${email}.`);
+    } catch (err: unknown) {
+      const apiError = err as { message?: string };
+      setError(apiError.message || 'Gagal mengirim ulang OTP.');
+    }
+  };
+
+  if (step === 'otp') {
+    return (
+      <div>
+        <div className="mb-6 flex flex-col items-center">
+          <img src="/logo-populi-center.png" alt="Populi Center" className="mb-2 h-14 w-14 object-contain" />
+          <h2 className="text-xl font-semibold text-gray-900">Verifikasi Email</h2>
+          <p className="mt-1 text-center text-sm text-gray-500">
+            Masukkan 6 digit kode yang dikirim ke email Anda.
+          </p>
+        </div>
+
+        {otpInfo && (
+          <div className="mb-4 rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">
+            {otpInfo}
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3" role="alert">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <input
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="______"
+            className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-2xl font-semibold tracking-[0.5em] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            required
+          />
+          <Button type="submit" isLoading={isLoading} className="w-full" disabled={otp.length !== 6}>
+            Verifikasi
+          </Button>
+        </form>
+
+        <div className="mt-4 flex items-center justify-between text-sm">
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            className="font-medium text-primary-600 hover:text-primary-500"
+          >
+            Kirim ulang kode
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStep('form');
+              setOtp('');
+              setError('');
+            }}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Ubah data
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

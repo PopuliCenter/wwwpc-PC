@@ -10,6 +10,7 @@ import { RegistrationService } from './registration.service';
 import { User, UserStatus } from '@modules/auth/entities';
 import { UserProfile } from './entities';
 import { UserRole } from '@shared/enums';
+import { NotificationService } from '@modules/notification';
 
 vi.mock('bcrypt');
 vi.mock('uuid', () => ({
@@ -23,6 +24,7 @@ describe('RegistrationService', () => {
   let jwtService: any;
   let configService: any;
   let cacheManager: any;
+  let notificationService: any;
 
   const mockUser: User = {
     id: 'user-id-123',
@@ -74,6 +76,10 @@ describe('RegistrationService', () => {
       del: vi.fn().mockResolvedValue(undefined),
     };
 
+    notificationService = {
+      sendOtpEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RegistrationService,
@@ -82,6 +88,7 @@ describe('RegistrationService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cacheManager },
+        { provide: NotificationService, useValue: notificationService },
       ],
     }).compile();
 
@@ -107,7 +114,8 @@ describe('RegistrationService', () => {
 
       expect(result.userId).toBe('user-id-123');
       expect(result.email).toBe('test@example.com');
-      expect(result.message).toContain('Registration successful');
+      expect(result.requiresOtp).toBe(true);
+      expect(notificationService.sendOtpEmail).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when terms not accepted', async () => {
@@ -221,6 +229,7 @@ describe('RegistrationService', () => {
       expect(result.refreshToken).toBe('refresh-token');
       expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
         emailVerified: true,
+        status: UserStatus.ACTIVE,
       });
     });
 

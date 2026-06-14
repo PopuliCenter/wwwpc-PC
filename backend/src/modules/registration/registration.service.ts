@@ -28,6 +28,7 @@ import {
   isValidIndonesianPhone,
   isValidProfile,
 } from './validators';
+import { NotificationService } from '@modules/notification';
 
 const OTP_PREFIX = 'otp:';
 const OTP_TTL_SECONDS = 900; // 15 minutes
@@ -47,6 +48,7 @@ export class RegistrationService {
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async register(data: {
@@ -108,15 +110,17 @@ export class RegistrationService {
     // Hash password
     const passwordHash = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
-    // Auto-aktif tanpa OTP: akun langsung ACTIVE & dianggap terverifikasi.
+    // Akun dibuat PENDING & belum terverifikasi. Aktivasi terjadi setelah
+    // verifikasi OTP email (lihat verifyOtp). Profil demografi tetap disimpan
+    // sekarang agar tak hilang bila verifikasi tertunda.
     const hasProfile = data.age != null && !!data.gender;
     const user = this.userRepository.create({
       fullName: data.fullName,
       email: data.email,
       phone: data.phone,
       passwordHash,
-      status: UserStatus.ACTIVE,
-      emailVerified: true,
+      status: UserStatus.PENDING,
+      emailVerified: false,
       profileCompleted: hasProfile,
     });
 
@@ -138,25 +142,16 @@ export class RegistrationService {
       await this.userProfileRepository.save(profile);
     }
 
-    // Buat sesi + token agar pengguna langsung login setelah daftar.
-    const sessionId = uuidv4();
-    const tokenPair = await this.generateTokenPair(savedUser, sessionId);
-    await this.storeSession(savedUser, sessionId, tokenPair.refreshToken);
+    // Kirim OTP ke email untuk verifikasi (akun belum aktif sampai diverifikasi).
+    await this.sendOtp(savedUser.email);
 
-    this.logger.log(`User registered & activated: ${data.email}`);
+    this.logger.log(`User registered (pending OTP): ${data.email}`);
 
     return {
       userId: savedUser.id,
       email: savedUser.email,
-      message: 'Registration successful.',
-      accessToken: tokenPair.accessToken,
-      refreshToken: tokenPair.refreshToken,
-      user: {
-        id: savedUser.id,
-        email: savedUser.email,
-        fullName: savedUser.fullName,
-        role: savedUser.role,
-      },
+      message: 'Kode OTP telah dikirim ke email Anda untuk verifikasi.',
+      requiresOtp: true,
     };
   }
 
@@ -178,8 +173,14 @@ export class RegistrationService {
       OTP_TTL_SECONDS * 1000, // cache-manager expects ms
     );
 
-    // In production, this would send an email via NotificationService
-    // OTP code is intentionally NOT logged to prevent credential leakage
+    // Kirim email OTP (antrian Bull → Resend). OTP TIDAK di-log demi keamanan.
+    const user = await this.userRepository.findOne({ where: { email } });
+    await this.notificationService.sendOtpEmail(
+      email,
+      user?.fullName ?? 'Pengguna',
+      code,
+      OTP_TTL_SECONDS / 60,
+    );
     this.logger.log(`OTP issued for ${email}`);
 
     return {
@@ -218,16 +219,21 @@ export class RegistrationService {
       throw new BadRequestException('User not found');
     }
 
-    await this.userRepository.update(user.id, { emailVerified: true });
+    // OTP valid → email terverifikasi & akun diaktifkan.
+    await this.userRepository.update(user.id, {
+      emailVerified: true,
+      status: UserStatus.ACTIVE,
+    });
 
     // Remove OTP from Redis
     await this.cacheManager.del(`${OTP_PREFIX}${email}`);
 
-    // Generate tokens so user can proceed to profile completion
+    // Buat sesi + token agar pengguna langsung login setelah verifikasi.
     const sessionId = uuidv4();
     const tokenPair = await this.generateTokenPair(user, sessionId);
+    await this.storeSession(user, sessionId, tokenPair.refreshToken);
 
-    this.logger.log(`Email verified for ${email}`);
+    this.logger.log(`Email verified & account activated for ${email}`);
 
     return {
       userId: user.id,
@@ -235,6 +241,12 @@ export class RegistrationService {
       emailVerified: true,
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
     };
   }
 
@@ -279,8 +291,13 @@ export class RegistrationService {
       OTP_TTL_SECONDS * 1000,
     );
 
-    // In production, this would send an email
-    // OTP code is intentionally NOT logged to prevent credential leakage
+    // Kirim ulang email OTP. OTP TIDAK di-log demi keamanan.
+    await this.notificationService.sendOtpEmail(
+      email,
+      user.fullName,
+      code,
+      OTP_TTL_SECONDS / 60,
+    );
     this.logger.log(`OTP reissued for ${email} (resend #${resendCount + 1})`);
 
     return {

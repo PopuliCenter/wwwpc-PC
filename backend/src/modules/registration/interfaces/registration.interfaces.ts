@@ -4,9 +4,11 @@ export interface RegistrationResult {
   userId: string;
   email: string;
   message: string;
-  accessToken: string;
-  refreshToken: string;
-  user: {
+  /** True bila akun perlu verifikasi OTP sebelum aktif (alur baru). */
+  requiresOtp: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: {
     id: string;
     email: string;
     fullName: string;
@@ -25,6 +27,12 @@ export interface VerificationResult {
   emailVerified: boolean;
   accessToken: string;
   refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    role: UserRole;
+  };
 }
 
 export interface OtpData {
