@@ -198,8 +198,17 @@ export function ResponseListPage() {
 
   useEffect(() => {
     fetchSurveys();
-    fetchResponses();
   }, []);
+
+  // Terapkan filter otomatis saat berubah (debounce agar input teks tidak
+  // memicu request tiap ketukan). Ini memperbaiki "filter tidak terjadi apa-apa".
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void fetchResponses();
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));

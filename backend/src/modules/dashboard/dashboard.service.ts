@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
+import { OnEvent } from '@nestjs/event-emitter';
+import { EventType } from '@modules/events/event-types';
 import { User } from '@modules/auth/entities/user.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
@@ -305,6 +307,20 @@ export class DashboardService {
     const keys = [KEY_OVERVIEW, KEY_DISTRIBUTION, KEY_HEATMAP, KEY_COMPLETION];
     await Promise.all(keys.map((k) => this.cacheManager.del(k)));
     this.logger.debug('Dashboard cache invalidated');
+  }
+
+  /**
+   * Kosongkan cache dashboard begitu ada respons survei masuk, agar angka
+   * (overview, distribusi, completion rate) langsung mencerminkan data baru —
+   * tidak menunggu TTL 1–10 menit. Best-effort: error hanya dicatat.
+   */
+  @OnEvent(EventType.RESPONSE_SUBMITTED, { async: true })
+  async handleResponseSubmitted(): Promise<void> {
+    try {
+      await this.invalidateDashboardCache();
+    } catch (e: any) {
+      this.logger.error(`Gagal invalidasi cache dashboard: ${e?.message}`);
+    }
   }
 
   // ---------------------------------------------------------------------------
