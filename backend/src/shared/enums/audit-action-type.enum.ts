@@ -20,4 +20,5 @@ export enum AuditActionType {
   USER_DEACTIVATE = 'user_deactivate',
   USER_PASSWORD_RESET = 'user_password_reset',
   USER_BULK_IMPORT = 'user_bulk_import',
+  USER_DELETE = 'user_delete',
 }

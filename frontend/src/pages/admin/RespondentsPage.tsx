@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
+import { Search, FileSpreadsheet, FileText, Loader2, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '@/services/api';
 
@@ -94,6 +94,18 @@ export function RespondentsPage() {
     void fetchData('');
   }, [fetchData]);
 
+  const handleDelete = async (r: Respondent) => {
+    if (!window.confirm(`Hapus permanen responden "${r.fullName}" (${r.email})? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/users/${r.id}`);
+      setRespondents((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Gagal menghapus responden.');
+    }
+  };
+
   // Debounce pencarian
   useEffect(() => {
     const t = setTimeout(() => void fetchData(search.trim()), 400);
@@ -187,19 +199,20 @@ export function RespondentsPage() {
               {COLUMNS.map((c) => (
                 <th key={c.label} className="whitespace-nowrap px-3 py-2.5">{c.label}</th>
               ))}
+              <th className="px-3 py-2.5 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading && (
               <tr>
-                <td colSpan={COLUMNS.length} className="px-3 py-10 text-center text-gray-400">
+                <td colSpan={COLUMNS.length + 1} className="px-3 py-10 text-center text-gray-400">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                 </td>
               </tr>
             )}
             {empty && (
               <tr>
-                <td colSpan={COLUMNS.length} className="px-3 py-10 text-center text-gray-400">
+                <td colSpan={COLUMNS.length + 1} className="px-3 py-10 text-center text-gray-400">
                   Belum ada responden.
                 </td>
               </tr>
@@ -224,6 +237,15 @@ export function RespondentsPage() {
                     {r.address ?? '—'}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-gray-500">{fmtDate(r.registeredAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <button
+                      onClick={() => handleDelete(r)}
+                      title="Hapus responden"
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-800"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Hapus
+                    </button>
+                  </td>
                 </tr>
               ))}
           </tbody>

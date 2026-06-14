@@ -3,10 +3,11 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { UserRole, AuditActionType } from '@shared/enums';
@@ -29,6 +30,7 @@ export class UserManagerService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
+    private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -344,6 +346,88 @@ export class UserManagerService {
     }
 
     return qb.getRawMany();
+  }
+
+  /**
+   * Hapus permanen sebuah akun (pengguna/responden) beserta data terkaitnya.
+   *
+   * Aman dijalankan apa pun konfigurasi ON DELETE di DB: semua tabel dependen
+   * dibersihkan eksplisit dalam satu transaksi sebelum baris user dihapus.
+   * audit_log SENGAJA tidak dihapus (tanpa FK) agar jejak audit tetap utuh.
+   *
+   * Aturan:
+   * - Tidak boleh menghapus akun sendiri.
+   * - Admin tidak boleh menghapus Super Admin.
+   * - Akun yang PERNAH MEMBUAT SURVEI tidak boleh dihapus (lindungi survei +
+   *   FK survey.created_by RESTRICT) — pindahkan/hapus surveinya dulu.
+   */
+  async deleteUser(
+    targetUserId: string,
+    requester: { userId: string; role: UserRole },
+    ipAddress: string,
+  ): Promise<void> {
+    if (targetUserId === requester.userId) {
+      throw new BadRequestException('Tidak dapat menghapus akun Anda sendiri.');
+    }
+
+    const target = await this.userRepository.findOne({
+      where: { id: targetUserId },
+    });
+    if (!target) {
+      throw new NotFoundException('Pengguna tidak ditemukan.');
+    }
+
+    if (
+      requester.role !== UserRole.SUPER_ADMIN &&
+      target.role === UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Hanya Super Admin yang dapat menghapus akun Super Admin.',
+      );
+    }
+
+    const ownsSurvey = await this.dataSource.query(
+      'SELECT 1 FROM survey WHERE created_by = $1 LIMIT 1',
+      [targetUserId],
+    );
+    if (ownsSurvey.length > 0) {
+      throw new BadRequestException(
+        'Akun ini pernah membuat survei. Hapus/pindahkan surveinya terlebih dahulu.',
+      );
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      const id = [targetUserId];
+      await manager.query('DELETE FROM point_transaction WHERE user_id = $1', id);
+      await manager.query('DELETE FROM reward_redemption WHERE user_id = $1', id);
+      await manager.query('DELETE FROM streak_tracker WHERE user_id = $1', id);
+      await manager.query('DELETE FROM geolocation WHERE user_id = $1', id);
+      await manager.query(
+        'DELETE FROM manual_reward_distribution WHERE respondent_id = $1',
+        id,
+      );
+      await manager.query('DELETE FROM export_job WHERE requested_by = $1', id);
+      await manager.query('DELETE FROM survey_response WHERE respondent_id = $1', id);
+      await manager.query(
+        'UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1',
+        id,
+      );
+      await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
+      await manager.query('DELETE FROM "user" WHERE id = $1', id);
+    });
+
+    await this.auditService.log({
+      userId: requester.userId,
+      actionType: AuditActionType.USER_DELETE,
+      module: 'user-manager',
+      details: {
+        deletedUserId: targetUserId,
+        email: target.email,
+        role: target.role,
+      },
+      ipAddress,
+    });
+    this.logger.log(`User deleted: ${target.email} by ${requester.userId}`);
   }
 
   /**

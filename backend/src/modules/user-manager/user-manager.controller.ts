@@ -3,6 +3,7 @@ import {
   Post,
   Patch,
   Get,
+  Delete,
   Param,
   Body,
   Query,
@@ -91,6 +92,23 @@ export class UserManagerController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async listRespondents(@Query('search') search?: string) {
     return this.userManagerService.getRespondents(search);
+  }
+
+  /**
+   * Hapus permanen akun + data terkait. Boleh super_admin & admin (admin tak
+   * bisa hapus super_admin; tak bisa hapus diri sendiri; tak bisa hapus akun
+   * pembuat survei).
+   */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  async deleteUser(@Param('id') id: string, @Req() req: any) {
+    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    await this.userManagerService.deleteUser(
+      id,
+      { userId: req.user.userId, role: req.user.role },
+      ipAddress,
+    );
   }
 
   @Get(':id/activity')

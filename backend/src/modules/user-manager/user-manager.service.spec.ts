@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UserManagerService } from './user-manager.service';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { AuditService } from '@modules/audit/audit.service';
@@ -11,6 +17,7 @@ describe('UserManagerService', () => {
   let service: UserManagerService;
   let userRepository: any;
   let auditService: any;
+  let dataSource: any;
 
   beforeEach(async () => {
     userRepository = {
@@ -25,11 +32,17 @@ describe('UserManagerService', () => {
       query: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, limit: 20, totalPages: 0 }),
     };
 
+    dataSource = {
+      query: vi.fn().mockResolvedValue([]),
+      transaction: vi.fn(async (cb: any) => cb({ query: vi.fn().mockResolvedValue(undefined) })),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserManagerService,
         { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: AuditService, useValue: auditService },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -424,6 +437,50 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
           actionType: AuditActionType.USER_BULK_IMPORT,
           module: 'user-manager',
         }),
+      );
+    });
+  });
+
+  describe('deleteUser', () => {
+    const requesterAdmin = { userId: 'admin-1', role: UserRole.ADMIN };
+
+    it('should reject deleting your own account', async () => {
+      await expect(
+        service.deleteUser('admin-1', requesterAdmin, '127.0.0.1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should 404 when target not found', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      await expect(
+        service.deleteUser('ghost', requesterAdmin, '127.0.0.1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should forbid admin from deleting a super admin', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 'sa', role: UserRole.SUPER_ADMIN, email: 'sa@x.com' });
+      await expect(
+        service.deleteUser('sa', requesterAdmin, '127.0.0.1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject deleting an account that created surveys', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 'u2', role: UserRole.RESPONDENT, email: 'u2@x.com' });
+      dataSource.query.mockResolvedValueOnce([{ '?column?': 1 }]); // owns a survey
+      await expect(
+        service.deleteUser('u2', requesterAdmin, '127.0.0.1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should delete a respondent in a transaction and audit it', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 'r1', role: UserRole.RESPONDENT, email: 'r1@x.com' });
+      dataSource.query.mockResolvedValueOnce([]); // no surveys
+
+      await service.deleteUser('r1', requesterAdmin, '127.0.0.1');
+
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({ actionType: AuditActionType.USER_DELETE }),
       );
     });
   });

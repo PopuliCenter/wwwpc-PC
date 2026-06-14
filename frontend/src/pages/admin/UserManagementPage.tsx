@@ -516,6 +516,21 @@ export function UserManagementPage() {
     setTimeout(() => setActionMessage(null), 8000);
   };
 
+  const handleDelete = async (user: { id: string; fullName: string; email: string }) => {
+    if (!window.confirm(`Hapus permanen akun "${user.fullName}" (${user.email})? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/users/${user.id}`);
+      setActionMessage(`Akun ${user.email} dihapus.`);
+      fetchUsers();
+    } catch (e) {
+      const msg = (e as { message?: string })?.message || 'Gagal menghapus akun';
+      setActionMessage(msg);
+    }
+    setTimeout(() => setActionMessage(null), 8000);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -695,6 +710,12 @@ export function UserManagementPage() {
                             className="text-gray-500 hover:text-gray-700 text-xs font-medium"
                           >
                             Reset Password
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user)}
+                            className="text-xs font-medium text-red-600 hover:text-red-800"
+                          >
+                            Hapus
                           </button>
                         </div>
                       </td>
