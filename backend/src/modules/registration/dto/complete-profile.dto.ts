@@ -35,5 +35,9 @@ export class CompleteProfileDto {
 
   @IsString()
   @IsNotEmpty()
+  district: string;
+
+  @IsString()
+  @IsNotEmpty()
   address: string;
 }

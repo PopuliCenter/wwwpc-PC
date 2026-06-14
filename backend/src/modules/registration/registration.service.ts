@@ -65,6 +65,7 @@ export class RegistrationService {
     religion?: string;
     city?: string;
     province?: string;
+    district?: string;
     address?: string;
   }): Promise<RegistrationResult> {
     // Validate terms acceptance
@@ -137,6 +138,7 @@ export class RegistrationService {
         religion: data.religion ?? null,
         city: data.city ?? undefined,
         province: data.province ?? undefined,
+        district: data.district ?? null,
         address: data.address ?? null,
       });
       await this.userProfileRepository.save(profile);
@@ -316,6 +318,7 @@ export class RegistrationService {
       religion?: string;
       city: string;
       province: string;
+      district?: string;
       address?: string;
     },
   ): Promise<void> {
@@ -350,6 +353,7 @@ export class RegistrationService {
         religion: profile.religion ?? null,
         city: profile.city,
         province: profile.province,
+        district: profile.district ?? null,
         address: profile.address ?? null,
       });
     } else {
@@ -362,6 +366,7 @@ export class RegistrationService {
         religion: profile.religion ?? null,
         city: profile.city,
         province: profile.province,
+        district: profile.district ?? null,
         address: profile.address ?? null,
       });
       await this.userProfileRepository.save(userProfile);

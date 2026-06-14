@@ -65,5 +65,9 @@ export class RegisterDto {
 
   @IsOptional()
   @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
   address?: string;
 }

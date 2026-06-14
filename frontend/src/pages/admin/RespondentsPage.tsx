@@ -15,6 +15,7 @@ interface Respondent {
   religion: string | null;
   province: string | null;
   city: string | null;
+  district: string | null;
   address: string | null;
   registeredAt: string;
 }
@@ -48,6 +49,7 @@ const COLUMNS: { key: keyof Respondent | 'genderLabel'; label: string }[] = [
   { key: 'religion', label: 'Agama' },
   { key: 'province', label: 'Provinsi' },
   { key: 'city', label: 'Kota/Kabupaten' },
+  { key: 'district', label: 'Kecamatan' },
   { key: 'address', label: 'Alamat' },
   { key: 'registeredAt', label: 'Tanggal Daftar' },
 ];
@@ -217,6 +219,7 @@ export function RespondentsPage() {
                   <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.religion ?? '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.district ?? '—'}</td>
                   <td className="max-w-xs truncate px-3 py-2 text-gray-600" title={r.address ?? ''}>
                     {r.address ?? '—'}
                   </td>

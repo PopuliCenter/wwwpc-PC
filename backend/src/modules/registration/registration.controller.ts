@@ -38,6 +38,7 @@ export class RegistrationController {
       religion: registerDto.religion,
       city: registerDto.city,
       province: registerDto.province,
+      district: registerDto.district,
       address: registerDto.address,
     });
   }
@@ -83,6 +84,7 @@ export class RegistrationController {
       religion: completeProfileDto.religion,
       city: completeProfileDto.city,
       province: completeProfileDto.province,
+      district: completeProfileDto.district,
       address: completeProfileDto.address,
     });
     return { message: 'Profile completed and account activated' };

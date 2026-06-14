@@ -311,6 +311,7 @@ export class UserManagerService {
       religion: string | null;
       province: string | null;
       city: string | null;
+      district: string | null;
       address: string | null;
       registeredAt: Date;
     }>
@@ -330,6 +331,7 @@ export class UserManagerService {
       .addSelect('p.religion', 'religion')
       .addSelect('p.province', 'province')
       .addSelect('p.city', 'city')
+      .addSelect('p.district', 'district')
       .addSelect('p.address', 'address')
       .addSelect('user.created_at', 'registeredAt')
       .orderBy('user.created_at', 'DESC');
