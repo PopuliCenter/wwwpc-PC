@@ -277,6 +277,11 @@ describe('ResponseService', () => {
       expect(result.status).toBe(ResponseStatus.IN_PROGRESS);
       // Answers are upserted via the shared entity manager
       expect(manager.query).toHaveBeenCalled();
+      // Kolom jsonb: query harus cast ::jsonb dan value dikirim sbg JSON string
+      // (mis. "partial-answer"), bukan string mentah yg gagal di-parse Postgres.
+      const [sql, params] = (manager.query as any).mock.calls.at(-1);
+      expect(sql).toContain('::jsonb');
+      expect(params).toContain(JSON.stringify('partial-answer'));
     });
 
     it('should update answers for an existing in-progress response', async () => {

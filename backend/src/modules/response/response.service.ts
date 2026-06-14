@@ -720,13 +720,17 @@ export class ResponseService {
     const values = answers
       .map(
         (a, idx) =>
-          `(uuid_generate_v4(), $${idx * 3 + 1}, $${idx * 3 + 2}, $${idx * 3 + 3}, $${answers.length * 3 + 1})`,
+          `(uuid_generate_v4(), $${idx * 3 + 1}, $${idx * 3 + 2}, $${idx * 3 + 3}::jsonb, $${answers.length * 3 + 1})`,
       )
       .join(', ');
 
     const params: any[] = [];
     for (const answer of answers) {
-      params.push(responseId, answer.questionId, answer.value);
+      // Kolom `value` bertipe jsonb. Pada raw query, nilai harus berupa STRING
+      // JSON valid lalu di-cast ::jsonb — kalau tidak, string biasa (mis.
+      // "pertahanan_militer") gagal di-parse Postgres ("invalid input syntax for
+      // type json"). JSON.stringify menangani string/array/object/null seragam.
+      params.push(responseId, answer.questionId, JSON.stringify(answer.value ?? null));
     }
     params.push(now); // answered_at — same for all rows
 
