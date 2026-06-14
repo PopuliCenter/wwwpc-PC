@@ -1,4 +1,5 @@
 import {
+  Allow,
   IsArray,
   IsIn,
   IsNumber,
@@ -14,6 +15,10 @@ export class AnswerDto {
   @IsUUID()
   questionId: string;
 
+  // `value` bisa berupa string | string[] | object (mis. matrix/region/GPS) |
+  // null. @Allow() mendaftarkannya ke whitelist ValidationPipe; tanpa ini,
+  // forbidNonWhitelisted menolak payload → "property value should not exist".
+  @Allow()
   value: any;
 }
 

@@ -14,6 +14,9 @@ interface BackendQuestion {
     matrixColumns?: string[];
     ratingMax?: number;
     description?: string;
+    numericRange?: { min?: number; max?: number };
+    scaleMin?: number;
+    scaleMax?: number;
   } | null;
   hasOtherOption?: boolean;
   options?: { id: string; label: string; value: string; orderIndex: number }[];
@@ -32,6 +35,8 @@ interface PreviewQuestion {
   matrixRows: string[];
   matrixColumns: string[];
   ratingMax: number;
+  scaleMin: number;
+  scaleMax: number;
 }
 
 function mapQuestion(q: BackendQuestion, idx: number): PreviewQuestion {
@@ -51,6 +56,8 @@ function mapQuestion(q: BackendQuestion, idx: number): PreviewQuestion {
     matrixRows: q.validationRules?.matrixRows ?? [],
     matrixColumns: q.validationRules?.matrixColumns ?? [],
     ratingMax: q.validationRules?.ratingMax ?? 5,
+    scaleMin: q.validationRules?.numericRange?.min ?? q.validationRules?.scaleMin ?? 1,
+    scaleMax: q.validationRules?.numericRange?.max ?? q.validationRules?.scaleMax ?? 10,
   };
 }
 
@@ -90,8 +97,17 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
       return <input disabled placeholder="Jawaban teks…" className={inputCls} />;
     case 'long_text':
       return <textarea disabled rows={3} placeholder="Jawaban panjang…" className={inputCls} />;
-    case 'numeric_scale':
-      return <input disabled type="number" placeholder="Angka" className={inputCls} />;
+    case 'numeric_scale': {
+      const count = Math.max(0, q.scaleMax - q.scaleMin + 1);
+      return (
+        <select disabled className={inputCls}>
+          <option>Pilih angka…</option>
+          {Array.from({ length: count }, (_, i) => q.scaleMin + i).map((n) => (
+            <option key={n}>{n}</option>
+          ))}
+        </select>
+      );
+    }
     case 'rating_scale':
       return (
         <div className="flex gap-1 text-2xl text-gray-300">

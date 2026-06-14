@@ -65,6 +65,8 @@ export interface FillQuestion {
   scaleMin?: number;
   scaleMax?: number;
   randomizeOptions?: boolean;
+  /** Tampilkan opsi "Lainnya" (teks bebas) di bawah daftar opsi. */
+  hasOtherOption?: boolean;
   skipConditions?: FillCondition[];
   visibilityConditions?: FillCondition[];
   page: number;
@@ -353,7 +355,9 @@ export class SurveyFillService {
       matrixColumns: rules.matrixColumns ?? undefined,
       scaleMin: numericRange.min ?? rules.scaleMin ?? undefined,
       scaleMax: numericRange.max ?? rules.scaleMax ?? undefined,
-      randomizeOptions,
+      // Per-pertanyaan (validationRules.randomizeOptions) menimpa setelan survei.
+      randomizeOptions: rules.randomizeOptions ?? randomizeOptions,
+      hasOtherOption: q.hasOtherOption,
       skipConditions,
       visibilityConditions,
       page,

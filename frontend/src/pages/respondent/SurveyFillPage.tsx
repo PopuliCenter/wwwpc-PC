@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Timer,
@@ -104,6 +104,7 @@ export interface Question {
   scaleMin?: number;
   scaleMax?: number;
   randomizeOptions?: boolean;
+  hasOtherOption?: boolean;
   skipConditions?: SkipCondition[];
   visibilityConditions?: SkipCondition[];
   page: number;
@@ -184,78 +185,160 @@ interface RendererProps {
   invalid?: boolean;
 }
 
+/**
+ * Urutkan opsi: acak (stabil per pertanyaan) bila randomizeOptions aktif.
+ * useMemo mencegah pengacakan ulang setiap render (mis. saat mengetik/memilih).
+ */
+function useOrderedOptions(question: Question): SurveyOption[] {
+  return useMemo(
+    () =>
+      question.randomizeOptions
+        ? shuffleArray(question.options ?? [])
+        : question.options ?? [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [question.id, question.randomizeOptions, question.options],
+  );
+}
+
+const choiceRowClasses = (selected: boolean) =>
+  `flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
+    selected
+      ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
+      : 'border-gray-200 hover:bg-gray-50'
+  }`;
+
 function SingleChoiceQuestion({ question, value, onChange }: RendererProps) {
-  const options = question.randomizeOptions
-    ? shuffleArray(question.options ?? [])
-    : question.options ?? [];
+  const options = useOrderedOptions(question);
+  const optionValues = (question.options ?? []).map((o) => o.value);
+  const strVal = typeof value === 'string' ? value : '';
+  const otherFromValue = strVal !== '' && !optionValues.includes(strVal);
+
+  const [otherActive, setOtherActive] = useState(otherFromValue);
+  const [otherText, setOtherText] = useState(otherFromValue ? strVal : '');
+  const otherChecked = otherActive || otherFromValue;
 
   return (
     <div className="space-y-2">
       {options.map((opt) => {
-        const selected = value === opt.value;
+        const selected = !otherChecked && value === opt.value;
         return (
-          <label
-            key={opt.id}
-            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-              selected
-                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                : 'border-gray-200 hover:bg-gray-50'
-            }`}
-          >
+          <label key={opt.id} className={choiceRowClasses(selected)}>
             <input
               type="radio"
               name={question.id}
               value={opt.value}
               checked={selected}
-              onChange={() => onChange(opt.value)}
+              onChange={() => {
+                setOtherActive(false);
+                onChange(opt.value);
+              }}
               className="h-4 w-4 accent-primary-600"
             />
             <span className="text-sm text-gray-800">{opt.label}</span>
           </label>
         );
       })}
+
+      {question.hasOtherOption && (
+        <label className={choiceRowClasses(otherChecked)}>
+          <input
+            type="radio"
+            name={question.id}
+            checked={otherChecked}
+            onChange={() => {
+              setOtherActive(true);
+              onChange(otherText.trim() ? otherText : '');
+            }}
+            className="h-4 w-4 accent-primary-600"
+          />
+          <span className="text-sm text-gray-800">Lainnya:</span>
+          <input
+            type="text"
+            value={otherText}
+            placeholder="tulis jawaban Anda…"
+            onChange={(e) => {
+              const t = e.target.value;
+              setOtherText(t);
+              setOtherActive(true);
+              onChange(t.trim() ? t : '');
+            }}
+            onFocus={() => setOtherActive(true)}
+            className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </label>
+      )}
     </div>
   );
 }
 
 function MultipleChoiceQuestion({ question, value, onChange }: RendererProps) {
   const selected = Array.isArray(value) ? value : [];
-  const options = question.randomizeOptions
-    ? shuffleArray(question.options ?? [])
-    : question.options ?? [];
+  const options = useOrderedOptions(question);
+  const optionValues = (question.options ?? []).map((o) => o.value);
 
-  const toggle = (optValue: string) => {
-    onChange(
-      selected.includes(optValue)
-        ? selected.filter((v) => v !== optValue)
-        : [...selected, optValue],
-    );
+  const predefinedSelected = selected.filter((v) => optionValues.includes(v));
+  const existingOther = selected.find((v) => !optionValues.includes(v)) ?? '';
+
+  const [otherChecked, setOtherChecked] = useState(existingOther !== '');
+  const [otherText, setOtherText] = useState(existingOther);
+
+  const commit = (preds: string[], active: boolean, text: string) => {
+    onChange([...preds, ...(active && text.trim() ? [text] : [])]);
+  };
+
+  const togglePredefined = (optValue: string) => {
+    const next = predefinedSelected.includes(optValue)
+      ? predefinedSelected.filter((v) => v !== optValue)
+      : [...predefinedSelected, optValue];
+    commit(next, otherChecked, otherText);
   };
 
   return (
     <div className="space-y-2">
       {options.map((opt) => {
-        const isSel = selected.includes(opt.value);
+        const isSel = predefinedSelected.includes(opt.value);
         return (
-          <label
-            key={opt.id}
-            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
-              isSel
-                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                : 'border-gray-200 hover:bg-gray-50'
-            }`}
-          >
+          <label key={opt.id} className={choiceRowClasses(isSel)}>
             <input
               type="checkbox"
               value={opt.value}
               checked={isSel}
-              onChange={() => toggle(opt.value)}
+              onChange={() => togglePredefined(opt.value)}
               className="h-4 w-4 rounded accent-primary-600"
             />
             <span className="text-sm text-gray-800">{opt.label}</span>
           </label>
         );
       })}
+
+      {question.hasOtherOption && (
+        <label className={choiceRowClasses(otherChecked)}>
+          <input
+            type="checkbox"
+            checked={otherChecked}
+            onChange={() => {
+              const next = !otherChecked;
+              setOtherChecked(next);
+              commit(predefinedSelected, next, otherText);
+            }}
+            className="h-4 w-4 rounded accent-primary-600"
+          />
+          <span className="text-sm text-gray-800">Lainnya:</span>
+          <input
+            type="text"
+            value={otherText}
+            placeholder="tulis jawaban Anda…"
+            onChange={(e) => {
+              const t = e.target.value;
+              setOtherText(t);
+              setOtherChecked(true);
+              commit(predefinedSelected, true, t);
+            }}
+            onFocus={() => setOtherChecked(true)}
+            className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </label>
+      )}
     </div>
   );
 }
@@ -316,38 +399,31 @@ function PhoneNumberQuestion({ question, value, onChange, invalid }: RendererPro
   );
 }
 
-function NumericScaleQuestion({ question, value, onChange }: RendererProps) {
+function NumericScaleQuestion({ question, value, onChange, invalid }: RendererProps) {
   const min = question.scaleMin ?? 1;
   const max = question.scaleMax ?? 10;
-  const numbers = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  const count = Math.max(0, max - min + 1);
+  const numbers = Array.from({ length: count }, (_, i) => min + i);
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {numbers.map((num) => {
-        const selected = value === String(num);
-        return (
-          <button
-            key={num}
-            type="button"
-            onClick={() => onChange(String(num))}
-            className={`h-11 w-11 rounded-lg border text-sm font-semibold transition-all ${
-              selected
-                ? 'border-primary-600 bg-primary-600 text-white shadow-sm'
-                : 'border-gray-300 bg-white text-gray-700 hover:border-primary-300 hover:bg-primary-50'
-            }`}
-          >
-            {num}
-          </button>
-        );
-      })}
-    </div>
+    <select
+      value={(value as string) ?? ''}
+      onChange={(e) => onChange(e.target.value || null)}
+      className={fieldClasses(invalid)}
+      aria-label={question.text}
+    >
+      <option value="">Pilih angka...</option>
+      {numbers.map((num) => (
+        <option key={num} value={String(num)}>
+          {num}
+        </option>
+      ))}
+    </select>
   );
 }
 
 function DropdownQuestion({ question, value, onChange, invalid }: RendererProps) {
-  const options = question.randomizeOptions
-    ? shuffleArray(question.options ?? [])
-    : question.options ?? [];
+  const options = useOrderedOptions(question);
 
   return (
     <select

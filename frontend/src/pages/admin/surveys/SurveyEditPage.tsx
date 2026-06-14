@@ -77,6 +77,8 @@ interface ValidationRules {
   // Pilihan
   maxCheckbox?: number;
   minCheckbox?: number;
+  /** Acak urutan opsi saat ditampilkan ke responden ("Lainnya" tetap di bawah). */
+  randomizeOptions?: boolean;
   // Matrix
   matrixRows?: string[];
   matrixColumns?: string[];
@@ -274,6 +276,23 @@ function ChoiceConfig({
         />
         <label htmlFor={`other-${question.id}`} className="text-xs text-gray-600">
           Tambah opsi "Lainnya" (teks bebas)
+        </label>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id={`randomize-${question.id}`}
+          checked={question.validationRules?.randomizeOptions ?? false}
+          onChange={(e) =>
+            onEdit({
+              ...question,
+              validationRules: { ...question.validationRules, randomizeOptions: e.target.checked },
+            })
+          }
+          className="rounded border-gray-300"
+        />
+        <label htmlFor={`randomize-${question.id}`} className="text-xs text-gray-600">
+          Acak urutan opsi (opsi "Lainnya" tetap di bawah)
         </label>
       </div>
     </div>
