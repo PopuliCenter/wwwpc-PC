@@ -87,16 +87,22 @@ describe('IakFulfillmentProvider', () => {
     });
   });
 
-  describe('default product codes (pulsa)', () => {
-    it('punya 30 entri (6 operator × 5 nominal)', () => {
-      expect(Object.keys(IAK_DEFAULT_PRODUCT_CODES)).toHaveLength(30);
+  describe('default product codes (pulsa + e-wallet)', () => {
+    it('punya 50 entri (30 pulsa + 20 e-wallet)', () => {
+      expect(Object.keys(IAK_DEFAULT_PRODUCT_CODES)).toHaveLength(50);
     });
 
-    it('operator dari nomor HP cocok dgn kode default yg ada', () => {
+    it('operator dari nomor HP cocok dgn kode pulsa default', () => {
       const op = IakFulfillmentProvider.detectOperator('081299998888'); // telkomsel
       expect(IAK_DEFAULT_PRODUCT_CODES[`${op}:pulsa-10000`]).toBe('htelkomsel10000');
       const op2 = IakFulfillmentProvider.detectOperator('0895111122223'); // tri
       expect(IAK_DEFAULT_PRODUCT_CODES[`${op2}:pulsa-25000`]).toBe('hthree25000');
+    });
+
+    it('e-wallet dipetakan via rewardId', () => {
+      expect(IAK_DEFAULT_PRODUCT_CODES['ewallet-dana-25000']).toBe('dana25');
+      expect(IAK_DEFAULT_PRODUCT_CODES['ewallet-gopay-50000']).toBe('go50');
+      expect(IAK_DEFAULT_PRODUCT_CODES['ewallet-shopeepay-100000']).toBe('shopeepay100');
     });
   });
 

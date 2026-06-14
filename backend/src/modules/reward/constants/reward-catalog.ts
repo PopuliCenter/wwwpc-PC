@@ -1,155 +1,58 @@
 import { RewardItem } from '../interfaces';
 
 /**
- * Static reward catalog.
- * In production, this could be stored in a database table.
+ * Katalog reward aktif.
+ *
+ * Fokus saat ini: PULSA (semua operator) + E-WALLET (DANA/OVO/ShopeePay/GoPay/
+ * LinkAja). Paket data & voucher menyusul. Setiap item dipetakan ke product_code
+ * IAK di fulfillment/iak-products.ts:
+ *  - pulsa: operator dideteksi dari nomor HP responden.
+ *  - e-wallet: dompet sudah eksplisit pada item (id `ewallet-<dompet>-<nominal>`).
  */
-export const REWARD_CATALOG: RewardItem[] = [
-  // Pulsa
-  {
-    id: 'pulsa-5000',
-    name: 'Pulsa Rp 5.000',
-    category: 'pulsa',
-    pointsCost: 10000,
-    description: 'Pulsa telepon senilai Rp 5.000',
-  },
-  {
-    id: 'pulsa-10000',
-    name: 'Pulsa Rp 10.000',
-    category: 'pulsa',
-    pointsCost: 20000,
-    description: 'Pulsa telepon senilai Rp 10.000',
-  },
-  {
-    id: 'pulsa-25000',
-    name: 'Pulsa Rp 25.000',
-    category: 'pulsa',
-    pointsCost: 45000,
-    description: 'Pulsa telepon senilai Rp 25.000',
-  },
-  {
-    id: 'pulsa-50000',
-    name: 'Pulsa Rp 50.000',
-    category: 'pulsa',
-    pointsCost: 85000,
-    description: 'Pulsa telepon senilai Rp 50.000',
-  },
-  {
-    id: 'pulsa-100000',
-    name: 'Pulsa Rp 100.000',
-    category: 'pulsa',
-    pointsCost: 160000,
-    description: 'Pulsa telepon senilai Rp 100.000',
-  },
-  // Paket Data
-  {
-    id: 'data-1gb',
-    name: 'Paket Data 1GB',
-    category: 'paket_data',
-    pointsCost: 15000,
-    description: 'Paket data internet 1GB',
-  },
-  {
-    id: 'data-3gb',
-    name: 'Paket Data 3GB',
-    category: 'paket_data',
-    pointsCost: 35000,
-    description: 'Paket data internet 3GB',
-  },
-  {
-    id: 'data-5gb',
-    name: 'Paket Data 5GB',
-    category: 'paket_data',
-    pointsCost: 55000,
-    description: 'Paket data internet 5GB',
-  },
-  {
-    id: 'data-10gb',
-    name: 'Paket Data 10GB',
-    category: 'paket_data',
-    pointsCost: 100000,
-    description: 'Paket data internet 10GB',
-  },
-  {
-    id: 'data-20gb',
-    name: 'Paket Data 20GB',
-    category: 'paket_data',
-    pointsCost: 180000,
-    description: 'Paket data internet 20GB',
-  },
-  // Voucher Belanja
-  {
-    id: 'voucher-10000',
-    name: 'Voucher Belanja Rp 10.000',
-    category: 'voucher',
-    pointsCost: 20000,
-    description: 'Voucher belanja senilai Rp 10.000',
-  },
-  {
-    id: 'voucher-25000',
-    name: 'Voucher Belanja Rp 25.000',
-    category: 'voucher',
-    pointsCost: 45000,
-    description: 'Voucher belanja senilai Rp 25.000',
-  },
-  {
-    id: 'voucher-50000',
-    name: 'Voucher Belanja Rp 50.000',
-    category: 'voucher',
-    pointsCost: 85000,
-    description: 'Voucher belanja senilai Rp 50.000',
-  },
-  {
-    id: 'voucher-100000',
-    name: 'Voucher Belanja Rp 100.000',
-    category: 'voucher',
-    pointsCost: 160000,
-    description: 'Voucher belanja senilai Rp 100.000',
-  },
-  {
-    id: 'voucher-200000',
-    name: 'Voucher Belanja Rp 200.000',
-    category: 'voucher',
-    pointsCost: 300000,
-    description: 'Voucher belanja senilai Rp 200.000',
-  },
-  // E-Wallet
-  {
-    id: 'ewallet-10000',
-    name: 'Transfer E-Wallet Rp 10.000',
-    category: 'e_wallet',
-    pointsCost: 20000,
-    description: 'Transfer e-wallet senilai Rp 10.000',
-  },
-  {
-    id: 'ewallet-25000',
-    name: 'Transfer E-Wallet Rp 25.000',
-    category: 'e_wallet',
-    pointsCost: 45000,
-    description: 'Transfer e-wallet senilai Rp 25.000',
-  },
-  {
-    id: 'ewallet-50000',
-    name: 'Transfer E-Wallet Rp 50.000',
-    category: 'e_wallet',
-    pointsCost: 85000,
-    description: 'Transfer e-wallet senilai Rp 50.000',
-  },
-  {
-    id: 'ewallet-100000',
-    name: 'Transfer E-Wallet Rp 100.000',
-    category: 'e_wallet',
-    pointsCost: 160000,
-    description: 'Transfer e-wallet senilai Rp 100.000',
-  },
-  {
-    id: 'ewallet-500000',
-    name: 'Transfer E-Wallet Rp 500.000',
-    category: 'e_wallet',
-    pointsCost: 750000,
-    description: 'Transfer e-wallet senilai Rp 500.000',
-  },
+
+/** Format angka ke ribuan ID tanpa bergantung ICU (mis. 10000 → "10.000"). */
+function rp(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+const POINTS_BY_NOMINAL: Record<number, number> = {
+  5000: 10000,
+  10000: 20000,
+  25000: 45000,
+  50000: 85000,
+  100000: 160000,
+};
+
+const PULSA_NOMINALS = [5000, 10000, 25000, 50000, 100000];
+
+const pulsaItems: RewardItem[] = PULSA_NOMINALS.map((nominal) => ({
+  id: `pulsa-${nominal}`,
+  name: `Pulsa Rp ${rp(nominal)}`,
+  category: 'pulsa',
+  pointsCost: POINTS_BY_NOMINAL[nominal],
+  description: `Pulsa telepon senilai Rp ${rp(nominal)} (semua operator)`,
+}));
+
+const EWALLETS = [
+  { key: 'dana', label: 'DANA' },
+  { key: 'ovo', label: 'OVO' },
+  { key: 'shopeepay', label: 'ShopeePay' },
+  { key: 'gopay', label: 'GoPay' },
+  { key: 'linkaja', label: 'LinkAja' },
 ];
+const EWALLET_NOMINALS = [10000, 25000, 50000, 100000];
+
+const ewalletItems: RewardItem[] = EWALLETS.flatMap((w) =>
+  EWALLET_NOMINALS.map((nominal) => ({
+    id: `ewallet-${w.key}-${nominal}`,
+    name: `Saldo ${w.label} Rp ${rp(nominal)}`,
+    category: 'e_wallet' as const,
+    pointsCost: POINTS_BY_NOMINAL[nominal],
+    description: `Transfer saldo ${w.label} senilai Rp ${rp(nominal)}`,
+  })),
+);
+
+export const REWARD_CATALOG: RewardItem[] = [...pulsaItems, ...ewalletItems];
 
 /** Minimum points required for any redemption */
 export const MINIMUM_REDEMPTION_THRESHOLD = 10000;

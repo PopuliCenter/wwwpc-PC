@@ -59,17 +59,14 @@ interface RedemptionResult {
 
 type RedemptionStep = 'destination' | 'otp' | 'success';
 
+// Kategori aktif saat ini: pulsa + e-wallet. Paket data & voucher menyusul.
 const CATEGORY_LABELS: Record<string, string> = {
   pulsa: 'Pulsa',
-  paket_data: 'Paket Data',
-  voucher: 'Voucher Belanja',
   e_wallet: 'E-Wallet',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
   pulsa: '📱',
-  paket_data: '📶',
-  voucher: '🛍️',
   e_wallet: '💳',
 };
 
@@ -417,9 +414,9 @@ function RedemptionModal({
                 Nomor Tujuan
               </label>
               <p className="text-xs text-gray-500 mb-2">
-                {reward.category === 'pulsa' || reward.category === 'paket_data'
-                  ? 'Masukkan nomor telepon'
-                  : 'Masukkan nomor akun e-wallet/voucher'}
+                {reward.category === 'e_wallet'
+                  ? 'Masukkan nomor HP yang terdaftar di akun e-wallet'
+                  : 'Masukkan nomor telepon'}
               </p>
               <input
                 type="tel"
