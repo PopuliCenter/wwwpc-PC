@@ -757,6 +757,8 @@ function SortableQuestionCard({
   onDelete,
   onDuplicate,
   allQuestions,
+  expanded,
+  onToggleExpand,
 }: {
   question: Question;
   index: number;
@@ -764,14 +766,15 @@ function SortableQuestionCard({
   onDelete: (id: string) => void;
   onDuplicate: (q: Question) => void;
   allQuestions: Question[];
+  expanded: boolean;
+  onToggleExpand: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
     id: question.id,
   });
 
   const style = { transform: CSS.Transform.toString(transform), transition };
-  // Pertanyaan baru (teks masih kosong) otomatis terbuka agar langsung bisa diisi.
-  const [expanded, setExpanded] = useState(question.text.trim() === '');
+  // Akordion: hanya satu pertanyaan terbuka sekaligus (dikontrol parent).
   const [tab, setTab] = useState<'edit' | 'logic' | 'validation'>('edit');
 
   const hasLogic =
@@ -813,7 +816,7 @@ function SortableQuestionCard({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => { setExpanded(!expanded); if (!expanded) setTab('edit'); }}
+            onClick={() => { if (!expanded) setTab('edit'); onToggleExpand(); }}
             className={`px-3 py-1.5 text-xs rounded-md transition-colors ${expanded ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
             {expanded ? 'Tutup' : 'Edit'}
@@ -1047,6 +1050,10 @@ export function SurveyEditPage() {
   const navigate = useNavigate();
   const [survey, setSurvey] = useState<SurveyDetail | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  // Akordion: id pertanyaan yang sedang terbuka (hanya satu sekaligus).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Tipe terpilih di dropdown tambah pertanyaan.
+  const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -1193,6 +1200,8 @@ export function SurveyEditPage() {
       ...defaults,
     };
     setQuestions((prev) => [...prev, newQ]);
+    // Buka pertanyaan baru & tutup otomatis yang lain (akordion).
+    setExpandedId(newQ.id);
   };
 
   const editQuestion = useCallback((updated: Question) => {
@@ -1485,6 +1494,10 @@ export function SurveyEditPage() {
                 onDelete={deleteQuestion}
                 onDuplicate={duplicateQuestion}
                 allQuestions={questions}
+                expanded={expandedId === question.id}
+                onToggleExpand={() =>
+                  setExpandedId((prev) => (prev === question.id ? null : question.id))
+                }
               />
             ))}
           </SortableContext>
@@ -1492,36 +1505,41 @@ export function SurveyEditPage() {
 
         {questions.length === 0 && (
           <div className="rounded-md border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            Belum ada pertanyaan. Klik salah satu tipe di bawah untuk menambahkannya.
+            Belum ada pertanyaan. Pilih tipe lalu klik &ldquo;Tambah pertanyaan&rdquo;.
           </div>
         )}
       </div>
 
-      {/* Palette tambah pertanyaan — klik tipe = langsung tertambah */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <p className="mb-3 text-sm font-semibold text-gray-700">Tambah pertanyaan</p>
-        <div className="space-y-3">
-          {typeGroups.map((group) => (
-            <div key={group.label}>
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                {group.label}
-              </p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {/* Tambah pertanyaan — dropdown tipe + tombol (ringkas) */}
+      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <label htmlFor="new-q-type" className="mb-1 block text-xs font-medium text-gray-500">
+            Tipe pertanyaan
+          </label>
+          <select
+            id="new-q-type"
+            value={newQuestionType}
+            onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          >
+            {typeGroups.map((group) => (
+              <optgroup key={group.label} label={group.label}>
                 {group.types.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => addQuestion(type)}
-                    className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2.5 text-left text-sm text-gray-700 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-                  >
-                    <span className="text-base leading-none text-gray-400">+</span>
-                    <span className="truncate">{questionTypeLabels[type]}</span>
-                  </button>
+                  <option key={type} value={type}>
+                    {questionTypeLabels[type]}
+                  </option>
                 ))}
-              </div>
-            </div>
-          ))}
+              </optgroup>
+            ))}
+          </select>
         </div>
+        <button
+          type="button"
+          onClick={() => addQuestion(newQuestionType)}
+          className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+        >
+          + Tambah pertanyaan
+        </button>
       </div>
     </div>
   );
