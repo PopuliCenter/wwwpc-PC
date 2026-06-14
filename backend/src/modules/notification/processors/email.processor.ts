@@ -143,6 +143,14 @@ export class EmailProcessor {
     // Default SSL untuk port 465; STARTTLS (secure=false) untuk 587.
     const secureEnv = this.configService.get<string>('SMTP_SECURE');
     const secure = secureEnv != null ? secureEnv === 'true' : port === 465;
+    // Sebagian server cPanel menyajikan sertifikat untuk hostname server
+    // (mis. webmail.<domain>), bukan mail.<domain> → verifikasi hostname gagal.
+    // Set SMTP_TLS_REJECT_UNAUTHORIZED=false untuk melewati pengecekan cert
+    // pada leg SMTP (tetap terenkripsi). Atau SMTP_TLS_SERVERNAME untuk
+    // mencocokkan ke nama cert yang benar tanpa menonaktifkan verifikasi.
+    const rejectUnauthorized =
+      this.configService.get<string>('SMTP_TLS_REJECT_UNAUTHORIZED') !== 'false';
+    const tlsServername = this.configService.get<string>('SMTP_TLS_SERVERNAME');
     this.smtpTransport = nodemailer.createTransport({
       host,
       port,
@@ -150,6 +158,10 @@ export class EmailProcessor {
       auth: {
         user: this.configService.getOrThrow<string>('SMTP_USER'),
         pass: this.configService.getOrThrow<string>('SMTP_PASS'),
+      },
+      tls: {
+        rejectUnauthorized,
+        ...(tlsServername ? { servername: tlsServername } : {}),
       },
     });
     return this.smtpTransport;
