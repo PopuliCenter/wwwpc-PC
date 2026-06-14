@@ -1169,6 +1169,7 @@ export function SurveyEditPage() {
   // Alat pendukung (bukan tipe pertanyaan): rekam GPS & minta tanda tangan.
   const [settingsCaptureGps, setSettingsCaptureGps] = useState(false);
   const [settingsRequireSignature, setSettingsRequireSignature] = useState(false);
+  const [settingsUppercaseAnswers, setSettingsUppercaseAnswers] = useState(false);
   // Limitasi & targeting survei
   const [settingsMaxRespondents, setSettingsMaxRespondents] = useState('');
   const [settingsAllowedGenders, setSettingsAllowedGenders] = useState<string[]>([]);
@@ -1186,6 +1187,7 @@ export function SurveyEditPage() {
         formMode: settingsFormMode,
         captureGps: settingsCaptureGps,
         requireSignature: settingsRequireSignature,
+        uppercaseAnswers: settingsUppercaseAnswers,
         allowedGenders: settingsAllowedGenders,
         allowedProvinces: settingsAllowedProvinces,
         timeConfig: {
@@ -1218,6 +1220,7 @@ export function SurveyEditPage() {
             formMode?: 'paginated' | 'scroll' | 'wizard';
             captureGps?: boolean;
             requireSignature?: boolean;
+            uppercaseAnswers?: boolean;
             allowedGenders?: string[];
             allowedProvinces?: string[];
             maxRespondents?: number | null;
@@ -1244,6 +1247,7 @@ export function SurveyEditPage() {
         setSettingsMaxRespondents(survey.maxRespondents ? String(survey.maxRespondents) : '');
         setSettingsCaptureGps(survey.captureGps ?? false);
         setSettingsRequireSignature(survey.requireSignature ?? false);
+        setSettingsUppercaseAnswers(survey.uppercaseAnswers ?? false);
         setQuestions(mapped);
       } catch {
         alert('Gagal memuat survei');
@@ -1462,6 +1466,20 @@ export function SurveyEditPage() {
                 <span className="block font-medium text-gray-800">Tanda tangan responden</span>
                 <span className="block text-xs text-gray-500">
                   Minta tanda tangan di akhir sebagai verifikasi/persetujuan.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+              <input
+                type="checkbox"
+                checked={settingsUppercaseAnswers}
+                onChange={(e) => setSettingsUppercaseAnswers(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm">
+                <span className="block font-medium text-gray-800">Huruf besar semua jawaban teks</span>
+                <span className="block text-xs text-gray-500">
+                  Jawaban teks &amp; isian responden otomatis jadi HURUF BESAR.
                 </span>
               </span>
             </label>

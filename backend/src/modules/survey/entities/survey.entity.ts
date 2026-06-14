@@ -108,6 +108,10 @@ export class Survey {
   @Column({ type: 'boolean', default: false, name: 'require_signature' })
   requireSignature: boolean;
 
+  /** Bila aktif, jawaban teks responden dijadikan HURUF BESAR (uppercase). */
+  @Column({ type: 'boolean', default: false, name: 'uppercase_answers' })
+  uppercaseAnswers: boolean;
+
   /**
    * Targeting/kelayakan responden (kosong = tanpa batasan):
    * - `allowedGenders`: daftar gender yang boleh mengisi (male/female/other).

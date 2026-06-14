@@ -203,6 +203,7 @@ export class SurveyService {
       category: dto.category?.trim() || null,
       captureGps: dto.captureGps ?? false,
       requireSignature: dto.requireSignature ?? false,
+      uppercaseAnswers: dto.uppercaseAnswers ?? false,
       allowedGenders: dto.allowedGenders ?? [],
       allowedProvinces: dto.allowedProvinces ?? [],
       startDatetime: dto.timeConfig?.startDatetime
@@ -262,6 +263,8 @@ export class SurveyService {
     if (dto.captureGps !== undefined) survey.captureGps = dto.captureGps;
     if (dto.requireSignature !== undefined)
       survey.requireSignature = dto.requireSignature;
+    if (dto.uppercaseAnswers !== undefined)
+      survey.uppercaseAnswers = dto.uppercaseAnswers;
     if (dto.allowedGenders !== undefined)
       survey.allowedGenders = dto.allowedGenders;
     if (dto.allowedProvinces !== undefined)
@@ -355,6 +358,7 @@ export class SurveyService {
       category: original.category ?? undefined,
       captureGps: original.captureGps,
       requireSignature: original.requireSignature,
+      uppercaseAnswers: original.uppercaseAnswers,
       allowedGenders: original.allowedGenders ?? [],
       allowedProvinces: original.allowedProvinces ?? [],
       timeConfig: {

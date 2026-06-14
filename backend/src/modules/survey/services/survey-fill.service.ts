@@ -90,6 +90,8 @@ export interface SurveyFillData {
   captureGps: boolean;
   /** Minta tanda tangan responden di akhir pengisian. */
   requireSignature: boolean;
+  /** Jadikan jawaban teks responden HURUF BESAR (uppercase). */
+  uppercaseAnswers: boolean;
   maxDuration?: number; // minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -224,6 +226,7 @@ export class SurveyFillService {
       formMode: survey.formMode ?? 'paginated',
       captureGps: survey.captureGps ?? false,
       requireSignature: survey.requireSignature ?? false,
+      uppercaseAnswers: survey.uppercaseAnswers ?? false,
       maxDuration: maxDuration ?? undefined,
       ...reward,
     };

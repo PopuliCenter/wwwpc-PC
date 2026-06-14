@@ -47,6 +47,10 @@ export class UpdateSurveyDto {
   requireSignature?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  uppercaseAnswers?: boolean;
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   allowedGenders?: string[];

@@ -125,6 +125,8 @@ interface SurveyFillData {
   captureGps?: boolean;
   /** Minta tanda tangan responden di akhir pengisian. */
   requireSignature?: boolean;
+  /** Jadikan jawaban teks (short_text/long_text) HURUF BESAR. */
+  uppercaseAnswers?: boolean;
   maxDuration?: number; // in minutes
   rewardMode: 'auto_point' | 'manual';
   rewardPoints?: number;
@@ -1770,7 +1772,16 @@ export function SurveyFillPage() {
   const isLastPage = currentPage >= totalSteps;
 
   const handleAnswerChange = (questionId: string, value: AnswerValue) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    // Setelan survei "huruf besar": ubah jawaban teks bebas (short/long text)
+    // jadi UPPERCASE. Tidak menyentuh tipe lain (nilai opsi pilihan harus utuh).
+    let nextValue = value;
+    if (survey?.uppercaseAnswers && typeof value === 'string') {
+      const qType = survey.questions.find((q) => q.id === questionId)?.type;
+      if (qType === 'short_text' || qType === 'long_text') {
+        nextValue = value.toUpperCase();
+      }
+    }
+    setAnswers((prev) => ({ ...prev, [questionId]: nextValue }));
     if (missingIds.has(questionId) && isAnswered(value)) {
       setMissingIds((prev) => {
         const next = new Set(prev);
