@@ -94,6 +94,19 @@ export class UserManagerController {
     return this.userManagerService.getRespondents(search);
   }
 
+  /** Hapus massal akun. Body: { ids: string[] }. Mengembalikan ringkasan. */
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  async bulkDelete(@Body('ids') ids: string[], @Req() req: any) {
+    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    return this.userManagerService.deleteUsers(
+      Array.isArray(ids) ? ids : [],
+      { userId: req.user.userId, role: req.user.role },
+      ipAddress,
+    );
+  }
+
   /**
    * Hapus permanen akun + data terkait. Boleh super_admin & admin (admin tak
    * bisa hapus super_admin; tak bisa hapus diri sendiri; tak bisa hapus akun

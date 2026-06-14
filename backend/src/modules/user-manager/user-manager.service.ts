@@ -439,6 +439,29 @@ export class UserManagerService {
   }
 
   /**
+   * Hapus massal: jalankan deleteUser per id (masing-masing dengan pengaman
+   * & transaksi sendiri). Mengembalikan ringkasan berhasil/dilewati agar UI
+   * bisa menampilkan akun mana yang tak terhapus beserta alasannya.
+   */
+  async deleteUsers(
+    ids: string[],
+    requester: { userId: string; role: UserRole },
+    ipAddress: string,
+  ): Promise<{ deleted: number; skipped: Array<{ id: string; reason: string }> }> {
+    const skipped: Array<{ id: string; reason: string }> = [];
+    let deleted = 0;
+    for (const id of ids) {
+      try {
+        await this.deleteUser(id, requester, ipAddress);
+        deleted++;
+      } catch (e) {
+        skipped.push({ id, reason: (e as Error).message });
+      }
+    }
+    return { deleted, skipped };
+  }
+
+  /**
    * Get user activity history from audit logs.
    */
   async getUserActivityHistory(userId: string): Promise<ActivityEntry[]> {
