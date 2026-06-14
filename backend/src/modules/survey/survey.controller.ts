@@ -40,6 +40,13 @@ export class SurveyController {
     return this.surveyService.getAvailableSurveys(respondentId);
   }
 
+  /** Ringkasan/analitik survei (admin & analis). Di atas @Get(':id'). */
+  @Get(':id/summary')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
+  async getSummary(@Param('id') id: string) {
+    return this.surveyService.getSurveySummary(id);
+  }
+
   @Get(':id')
   async findById(@Param('id') id: string): Promise<Survey> {
     return this.surveyService.findById(id);

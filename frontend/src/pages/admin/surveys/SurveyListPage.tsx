@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList } from 'lucide-react';
+import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -120,6 +120,7 @@ export function SurveyListPage() {
 
   const actions = (s: Survey) => [
     { icon: Pencil, label: 'Edit', cls: 'hover:text-primary-700', onClick: () => navigate(`/admin/surveys/${s.id}/edit`) },
+    { icon: BarChart3, label: 'Ringkasan', cls: 'hover:text-indigo-700', onClick: () => navigate(`/admin/surveys/${s.id}/summary`) },
     { icon: Copy, label: 'Duplikasi', cls: 'hover:text-emerald-700', onClick: () => handleDuplicate(s.id) },
     s.status === 'active'
       ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }

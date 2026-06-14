@@ -103,6 +103,79 @@ export class SurveyService {
     );
   }
 
+  /**
+   * Ringkasan survei: progres kuota, jumlah respons, sebaran gender & wilayah,
+   * dan daftar responden yang sudah menyelesaikan. Agregasi via SQL.
+   */
+  async getSurveySummary(surveyId: string): Promise<{
+    id: string;
+    title: string;
+    status: string;
+    maxRespondents: number | null;
+    totalResponses: number;
+    inProgress: number;
+    byGender: Array<{ label: string; count: number }>;
+    byProvince: Array<{ label: string; count: number }>;
+    respondents: Array<{
+      fullName: string;
+      gender: string | null;
+      province: string | null;
+      city: string | null;
+      submittedAt: string | null;
+    }>;
+  }> {
+    const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+    const m = this.surveyRepository.manager;
+
+    const counts = await m.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status='complete')::int AS total,
+         COUNT(*) FILTER (WHERE status='in_progress')::int AS in_progress
+       FROM survey_response WHERE survey_id=$1`,
+      [surveyId],
+    );
+    const byGender = await m.query(
+      `SELECT COALESCE(p.gender,'(tidak diisi)') AS label, COUNT(*)::int AS count
+       FROM survey_response r LEFT JOIN user_profile p ON p.user_id=r.respondent_id
+       WHERE r.survey_id=$1 AND r.status='complete'
+       GROUP BY p.gender ORDER BY count DESC`,
+      [surveyId],
+    );
+    const byProvince = await m.query(
+      `SELECT COALESCE(p.province,'(tidak diisi)') AS label, COUNT(*)::int AS count
+       FROM survey_response r LEFT JOIN user_profile p ON p.user_id=r.respondent_id
+       WHERE r.survey_id=$1 AND r.status='complete'
+       GROUP BY p.province ORDER BY count DESC`,
+      [surveyId],
+    );
+    const respondents = await m.query(
+      `SELECT u.full_name AS "fullName", p.gender, p.province, p.city,
+              r.submitted_at AS "submittedAt"
+       FROM survey_response r
+       JOIN users u ON u.id=r.respondent_id
+       LEFT JOIN user_profile p ON p.user_id=r.respondent_id
+       WHERE r.survey_id=$1 AND r.status='complete'
+       ORDER BY r.submitted_at DESC NULLS LAST
+       LIMIT 500`,
+      [surveyId],
+    );
+
+    return {
+      id: survey.id,
+      title: survey.title,
+      status: survey.status,
+      maxRespondents: survey.maxRespondents ?? null,
+      totalResponses: counts[0]?.total ?? 0,
+      inProgress: counts[0]?.in_progress ?? 0,
+      byGender,
+      byProvince,
+      respondents,
+    };
+  }
+
   async createSurvey(userId: string, dto: CreateSurveyDto): Promise<Survey> {
     const survey = this.surveyRepository.create({
       createdBy: userId,

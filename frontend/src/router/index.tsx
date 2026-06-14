@@ -16,6 +16,7 @@ import { SurveyListPage } from '@/pages/admin/surveys/SurveyListPage';
 import { SurveyCreatePage } from '@/pages/admin/surveys/SurveyCreatePage';
 import { SurveyEditPage } from '@/pages/admin/surveys/SurveyEditPage';
 import { SurveyPreviewPage } from '@/pages/admin/surveys/SurveyPreviewPage';
+import { SurveySummaryPage } from '@/pages/admin/surveys/SurveySummaryPage';
 import { ResponseListPage } from '@/pages/admin/responses/ResponseListPage';
 import { ResponseDetailPage } from '@/pages/admin/responses/ResponseDetailPage';
 import { UserManagementPage } from '@/pages/admin/UserManagementPage';
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
       { path: 'surveys/create', element: <RequireRoles roles={access.surveys}><SurveyCreatePage /></RequireRoles> },
       { path: 'surveys/:id/edit', element: <RequireRoles roles={access.surveys}><SurveyEditPage /></RequireRoles> },
       { path: 'surveys/:id/preview', element: <RequireRoles roles={access.surveys}><SurveyPreviewPage /></RequireRoles> },
+      { path: 'surveys/:id/summary', element: <RequireRoles roles={access.responses}><SurveySummaryPage /></RequireRoles> },
       { path: 'responses', element: <RequireRoles roles={access.responses}><ResponseListPage /></RequireRoles> },
       { path: 'responses/:id', element: <RequireRoles roles={access.responses}><ResponseDetailPage /></RequireRoles> },
       { path: 'maps', element: <RequireRoles roles={access.maps}><MapsPage /></RequireRoles> },
