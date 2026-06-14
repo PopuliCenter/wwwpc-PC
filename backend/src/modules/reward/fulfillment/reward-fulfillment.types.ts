@@ -61,4 +61,7 @@ export interface RewardFulfillmentProvider {
 
   /** Parse payload callback async menjadi hasil per-redemption (jika didukung). */
   parseCallback?(payload: unknown): ProviderCallbackResult | null;
+
+  /** Polling status transaksi (cadangan bila callback gagal/tak ada). */
+  checkStatus?(refId: string): Promise<FulfillmentOutcome>;
 }

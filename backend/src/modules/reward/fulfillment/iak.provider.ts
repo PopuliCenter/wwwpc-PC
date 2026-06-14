@@ -13,7 +13,7 @@ import { IAK_DEFAULT_PRODUCT_CODES } from './iak-products';
  * Provider IAK (iak.id / Mobilepulsa) — gateway PPOB/H2H prepaid.
  *
  * Env:
- *   IAK_BASE_URL          default 'https://sandbox.iak.id' (sandbox). Prod: 'https://prepaid.iak.id'
+ *   IAK_BASE_URL          default 'https://prepaid.iak.dev' (sandbox). Prod: 'https://prepaid.iak.id'
  *   IAK_USERNAME          username developer IAK
  *   IAK_API_KEY           API key (prepaid)
  *   IAK_TEST_PRODUCT_CODE (opsional) — paksa satu product_code utk SEMUA top-up
@@ -62,8 +62,9 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
   private readonly verifyCallbackSign: boolean;
 
   constructor(config: ConfigService) {
+    // Sandbox: https://prepaid.iak.dev  |  Produksi: https://prepaid.iak.id
     this.baseUrl = (
-      config.get<string>('IAK_BASE_URL') || 'https://sandbox.iak.id'
+      config.get<string>('IAK_BASE_URL') || 'https://prepaid.iak.dev'
     ).replace(/\/+$/, '');
     this.username = config.get<string>('IAK_USERNAME') || '';
     this.apiKey = config.get<string>('IAK_API_KEY') || '';
@@ -163,25 +164,66 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     return this.mapResponse(json, req.refId);
   }
 
-  /** Petakan respons sinkron IAK → outcome. */
+  /**
+   * Petakan respons IAK (top-up/callback/check-status) → outcome.
+   * status: 0=PROSES, 1=SUKSES, 2=GAGAL. rc: '00'=SUKSES, '39'=PROSES,
+   * selain itu = gagal pasti (mis. 17=saldo kurang, 20=produk tak ada,
+   * 102=IP belum whitelist, 204=signature salah).
+   */
   private mapResponse(json: any, refId: string): FulfillmentOutcome {
     const d = json?.data ?? json ?? {};
     const status = Number(d.status);
+    const rc = d.rc != null ? String(d.rc).trim() : '';
     const trxId =
       d.tr_id != null ? String(d.tr_id) : d.trx_id != null ? String(d.trx_id) : undefined;
     const sn = typeof d.sn === 'string' && d.sn.trim() ? d.sn.trim() : undefined;
     const message = typeof d.message === 'string' ? d.message : undefined;
 
-    if (status === 1) {
+    const isSuccess = status === 1 || rc === '00';
+    // Gagal pasti bila status=2 ATAU rc bernilai selain sukses('00')/proses('39').
+    const isFailed =
+      status === 2 || (rc !== '' && rc !== '00' && rc !== '39');
+
+    if (isSuccess) {
       return { status: 'completed', providerTrxId: trxId, sn, message };
     }
-    if (status === 2) {
-      return { status: 'failed', message: message || 'Transaksi ditolak provider (IAK).' };
+    if (isFailed) {
+      return {
+        status: 'failed',
+        message: message || `Transaksi ditolak provider (IAK rc=${rc || '-'}).`,
+      };
     }
     this.logger.log(
-      `IAK top-up ${refId} berstatus '${d.status ?? 'unknown'}' → menunggu callback.`,
+      `IAK ${refId} berstatus '${d.status ?? '?'}' (rc=${rc || '-'}) → menunggu hasil akhir.`,
     );
     return { status: 'pending', providerTrxId: trxId, message };
+  }
+
+  /**
+   * Cek status transaksi (POST /api/check-status). Dipakai sbg cadangan bila
+   * callback gagal/tak terkonfigurasi. sign = md5(username+api_key+ref_id).
+   */
+  async checkStatus(refId: string): Promise<FulfillmentOutcome> {
+    if (!this.username || !this.apiKey) {
+      return { status: 'pending', message: 'Kredensial IAK belum lengkap.' };
+    }
+    try {
+      const res = await fetch(`${this.baseUrl}/api/check-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: this.username,
+          ref_id: refId,
+          sign: this.sign(refId),
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) return { status: 'pending', message: `HTTP ${res.status}` };
+      return this.mapResponse(json, refId);
+    } catch (err: any) {
+      this.logger.error(`IAK check-status gagal utk ${refId}: ${err?.message}`);
+      return { status: 'pending', message: 'Gagal cek status.' };
+    }
   }
 
   /** Parse + verifikasi payload callback IAK → hasil per-redemption. */

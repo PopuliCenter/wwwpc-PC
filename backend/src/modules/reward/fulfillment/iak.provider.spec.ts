@@ -61,6 +61,21 @@ describe('IakFulfillmentProvider', () => {
       expect(res?.outcome.status).toBe('pending');
     });
 
+    it('rc=00 → completed walau status 0', () => {
+      const res = provider.parseCallback(payload('0', '123456', { rc: '00' }));
+      expect(res?.outcome.status).toBe('completed');
+    });
+
+    it('rc gagal (mis. 17 saldo kurang) → failed walau status 0', () => {
+      const res = provider.parseCallback(payload('0', '123456', { rc: '17' }));
+      expect(res?.outcome.status).toBe('failed');
+    });
+
+    it('rc=39 (proses) → pending', () => {
+      const res = provider.parseCallback(payload('0', '123456', { rc: '39' }));
+      expect(res?.outcome.status).toBe('pending');
+    });
+
     it('menolak callback dgn signature salah', () => {
       const bad = payload('1');
       bad.data.sign = 'deadbeef';

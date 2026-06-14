@@ -726,6 +726,37 @@ export class RewardService {
   }
 
   /**
+   * Cadangan keandalan: polling Check Status utk redemption yg masih PROCESSING
+   * (callback gagal/terlewat/tak terkonfigurasi). Hanya provider yg mendukung
+   * checkStatus (mis. IAK); 'manual' dilewati. Beri jeda 90 dtk sejak diproses.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async pollPendingFulfillments(): Promise<void> {
+    const provider = this.fulfillmentProvider;
+    if (!provider.checkStatus) return;
+
+    const cutoff = Date.now() - 90_000;
+    const pending = await this.redemptionRepository.find({
+      where: { status: RedemptionStatus.PROCESSING, provider: provider.name },
+      take: 50,
+    });
+
+    for (const r of pending) {
+      if (!r.providerRefId) continue;
+      if (r.processedAt && r.processedAt.getTime() > cutoff) continue;
+      try {
+        const outcome = await provider.checkStatus(r.providerRefId);
+        if (outcome.status !== 'pending') {
+          const final = await this.applyOutcome(r, outcome);
+          this.logger.log(`Poll status: redemption ${r.id} → '${final}'.`);
+        }
+      } catch (e: any) {
+        this.logger.error(`Poll status gagal utk ${r.id}: ${e?.message}`);
+      }
+    }
+  }
+
+  /**
    * Get redemption history for a user.
    */
   async getRedemptionHistory(
