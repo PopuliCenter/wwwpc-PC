@@ -691,6 +691,17 @@ export class RewardService {
       return { received: false };
     }
 
+    // ref_id kita = UUID redemption. Bila bukan UUID (mis. payload uji IAK
+    // dgn ref_id dummy), JANGAN query kolom uuid (Postgres akan error 22P02).
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(parsed.redemptionId)) {
+      this.logger.warn(
+        `Callback dgn ref_id non-UUID '${parsed.redemptionId}' (kemungkinan payload uji) — diabaikan.`,
+      );
+      return { received: false };
+    }
+
     const redemption = await this.redemptionRepository.findOne({
       where: { id: parsed.redemptionId },
     });
