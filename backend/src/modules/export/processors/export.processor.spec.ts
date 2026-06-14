@@ -5,6 +5,8 @@ import { ExportProcessor } from './export.processor';
 import { S3StorageService } from '../s3-storage.service';
 import { ExportJob } from '../entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
+import { Question } from '@modules/survey/entities/question.entity';
 import { ExportFormat, ExportStatus } from '../interfaces';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -20,6 +22,8 @@ describe('ExportProcessor', () => {
   let processor: ExportProcessor;
   let mockExportJobRepository: any;
   let mockResponseRepository: any;
+  let mockUserProfileRepository: any;
+  let mockQuestionRepository: any;
   let mockS3StorageService: any;
 
   const mockResponses: Partial<SurveyResponse>[] = [
@@ -76,6 +80,14 @@ describe('ExportProcessor', () => {
       find: vi.fn().mockResolvedValue(mockResponses),
     };
 
+    // Demografi + pertanyaan untuk kolom analisis (kosong di test dasar).
+    mockUserProfileRepository = {
+      find: vi.fn().mockResolvedValue([]),
+    };
+    mockQuestionRepository = {
+      find: vi.fn().mockResolvedValue([]),
+    };
+
     // The processor writes a temp file then uploads it to S3, returning the key.
     mockS3StorageService = {
       uploadFile: vi
@@ -93,6 +105,14 @@ describe('ExportProcessor', () => {
         {
           provide: getRepositoryToken(SurveyResponse),
           useValue: mockResponseRepository,
+        },
+        {
+          provide: getRepositoryToken(UserProfile),
+          useValue: mockUserProfileRepository,
+        },
+        {
+          provide: getRepositoryToken(Question),
+          useValue: mockQuestionRepository,
         },
         {
           provide: S3StorageService,

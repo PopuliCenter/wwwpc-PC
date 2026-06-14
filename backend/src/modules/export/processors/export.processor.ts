@@ -1,12 +1,14 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Job } from 'bull';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ExportJob } from '../entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
+import { Question } from '@modules/survey/entities/question.entity';
 import { S3StorageService } from '../s3-storage.service';
 import {
   ExportStatus,
@@ -27,6 +29,39 @@ import {
   EXPORTS_DIRECTORY,
 } from '../constants';
 
+/** Bungkus satu sel CSV: kutip & escape agar koma/baris-baru di teks aman. */
+function csvCell(value: unknown): string {
+  const s = value == null ? '' : String(value);
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+/** Ubah nilai jawaban (string/angka/array/objek) menjadi teks ringkas. */
+function answerToString(value: any): string {
+  if (value == null) return '';
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (v && typeof v === 'object' ? JSON.stringify(v) : String(v)))
+      .join('; ');
+  }
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
+/** Kolom demografi (variabel pembobot) yang disertakan di setiap baris export. */
+const DEMOGRAPHIC_HEADERS = [
+  'nama',
+  'telepon',
+  'usia',
+  'tanggal_lahir',
+  'jenis_kelamin',
+  'pendidikan',
+  'pekerjaan',
+  'agama',
+  'provinsi',
+  'kota_kabupaten',
+  'kecamatan',
+];
+
 @Processor(EXPORT_QUEUE)
 export class ExportProcessor {
   private readonly logger = new Logger(ExportProcessor.name);
@@ -36,20 +71,24 @@ export class ExportProcessor {
     private readonly exportJobRepository: Repository<ExportJob>,
     @InjectRepository(SurveyResponse)
     private readonly responseRepository: Repository<SurveyResponse>,
+    @InjectRepository(UserProfile)
+    private readonly userProfileRepository: Repository<UserProfile>,
+    @InjectRepository(Question)
+    private readonly questionRepository: Repository<Question>,
     private readonly s3StorageService: S3StorageService,
   ) {}
 
   @Process(EXPORT_CSV_JOB)
   async handleCsvExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses) => {
-      return this.generateCsv(responses);
+    return this.processExport(job, async (responses, profiles, questions) => {
+      return this.generateCsv(responses, profiles, questions);
     }, 'csv');
   }
 
   @Process(EXPORT_EXCEL_JOB)
   async handleExcelExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses) => {
-      return this.generateExcel(responses);
+    return this.processExport(job, async (responses, profiles, questions) => {
+      return this.generateExcel(responses, profiles, questions);
     }, 'xlsx');
   }
 
@@ -62,8 +101,8 @@ export class ExportProcessor {
 
   @Process(EXPORT_JSON_JOB)
   async handleJsonExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses) => {
-      return this.generateJson(responses);
+    return this.processExport(job, async (responses, profiles, questions) => {
+      return this.generateJson(responses, profiles, questions);
     }, 'json');
   }
 
@@ -116,7 +155,11 @@ export class ExportProcessor {
 
   private async processExport(
     job: Job<ExportJobData>,
-    generateContent: (responses: SurveyResponse[]) => Promise<string>,
+    generateContent: (
+      responses: SurveyResponse[],
+      profiles: Map<string, UserProfile>,
+      questions: Question[],
+    ) => Promise<string>,
     extension: string,
   ): Promise<ExportResult> {
     const { exportJobId, surveyId, filters } = job.data;
@@ -128,8 +171,14 @@ export class ExportProcessor {
       // Fetch responses with filters applied
       const responses = await this.fetchFilteredResponses(surveyId!, filters);
 
+      // Muat demografi responden (pembobot) + daftar pertanyaan utk kolom analisis.
+      const [profiles, questions] = await Promise.all([
+        this.loadProfiles(responses),
+        this.loadQuestions(surveyId!),
+      ]);
+
       // Generate file content
-      const content = await generateContent(responses);
+      const content = await generateContent(responses, profiles, questions);
 
       // Write temp file → upload to S3 → delete temp file; returns S3 key
       const s3Key = await this.writeExportFile(exportJobId, content, extension);
@@ -219,6 +268,78 @@ export class ExportProcessor {
     }
   }
 
+  /** Peta userId → profil demografi untuk responden pada kumpulan respons ini. */
+  private async loadProfiles(
+    responses: SurveyResponse[],
+  ): Promise<Map<string, UserProfile>> {
+    const ids = [...new Set(responses.map((r) => r.respondentId).filter(Boolean))];
+    if (ids.length === 0) return new Map();
+    const profiles = await this.userProfileRepository.find({
+      where: { userId: In(ids) },
+    });
+    return new Map(profiles.map((p) => [p.userId, p]));
+  }
+
+  /** Pertanyaan aktif survei (urut) — jadi kolom per-pertanyaan di file analisis. */
+  private async loadQuestions(surveyId: string): Promise<Question[]> {
+    return this.questionRepository.find({
+      where: { surveyId, enabled: true },
+      order: { orderIndex: 'ASC' },
+    });
+  }
+
+  /**
+   * Bentuk tabel datar siap-analisis: satu baris per respons, kolom = metadata +
+   * demografi (pembobot) + satu kolom tiap pertanyaan. Header & baris (string[][]).
+   */
+  private buildAnalysisTable(
+    responses: SurveyResponse[],
+    profiles: Map<string, UserProfile>,
+    questions: Question[],
+  ): { headers: string[]; rows: string[][] } {
+    const metaHeaders = [
+      'response_id',
+      'status',
+      'mulai_pengisian',
+      'waktu_kirim',
+      'perangkat',
+    ];
+    const questionHeaders = questions.map(
+      (q, i) => q.questionText?.trim() || `Pertanyaan ${i + 1}`,
+    );
+    const headers = [...metaHeaders, ...DEMOGRAPHIC_HEADERS, ...questionHeaders];
+
+    const rows = responses.map((r) => {
+      const p = profiles.get(r.respondentId);
+      const answerByQ = new Map(
+        (r.answers ?? []).map((a) => [a.questionId, a.value]),
+      );
+      return [
+        r.id,
+        r.status,
+        r.startedAt ? r.startedAt.toISOString() : '',
+        r.submittedAt ? r.submittedAt.toISOString() : '',
+        r.deviceType ?? '',
+        // Demografi (pembobot)
+        r.respondent?.fullName ?? '',
+        r.respondent?.phone ?? '',
+        p?.age != null ? String(p.age) : '',
+        p?.dateOfBirth ?? '',
+        p?.gender ?? '',
+        p?.education ?? '',
+        p?.occupation ?? '',
+        p?.religion ?? '',
+        p?.province ?? '',
+        p?.city ?? '',
+        p?.district ?? '',
+        // Jawaban per pertanyaan
+        ...questions.map((q) => answerToString(answerByQ.get(q.id))),
+      ];
+    });
+
+    return { headers, rows };
+  }
+
   private async markResponsesExported(responses: SurveyResponse[]): Promise<void> {
     if (responses.length === 0) return;
 
@@ -233,30 +354,25 @@ export class ExportProcessor {
       .execute();
   }
 
-  private generateCsv(responses: SurveyResponse[]): Promise<string> {
-    const headers = ['id', 'survey_id', 'respondent_id', 'status', 'device_type', 'started_at', 'submitted_at', 'answers'];
-    const rows = responses.map((r) => {
-      const answersJson = r.answers
-        ? JSON.stringify(r.answers.map((a) => ({ questionId: a.questionId, value: a.value })))
-        : '';
-      return [
-        r.id,
-        r.surveyId,
-        r.respondentId,
-        r.status,
-        r.deviceType || '',
-        r.startedAt?.toISOString() || '',
-        r.submittedAt?.toISOString() || '',
-        `"${answersJson.replace(/"/g, '""')}"`,
-      ].join(',');
-    });
-
-    return Promise.resolve([headers.join(','), ...rows].join('\n'));
+  private generateCsv(
+    responses: SurveyResponse[],
+    profiles: Map<string, UserProfile>,
+    questions: Question[],
+  ): Promise<string> {
+    const { headers, rows } = this.buildAnalysisTable(responses, profiles, questions);
+    const lines = [
+      headers.map(csvCell).join(','),
+      ...rows.map((row) => row.map(csvCell).join(',')),
+    ];
+    return Promise.resolve(lines.join('\n'));
   }
 
-  private generateExcel(responses: SurveyResponse[]): Promise<string> {
-    // Generate CSV format with summary statistics as a placeholder for Excel
-    // In production, use exceljs library for proper .xlsx generation
+  private generateExcel(
+    responses: SurveyResponse[],
+    profiles: Map<string, UserProfile>,
+    questions: Question[],
+  ): Promise<string> {
+    // Format CSV dengan blok ringkasan (placeholder Excel; .xlsx asli butuh exceljs).
     const totalResponses = responses.length;
     const completeResponses = responses.filter((r) => r.status === 'complete').length;
     const inProgressResponses = responses.filter((r) => r.status === 'in_progress').length;
@@ -269,25 +385,16 @@ export class ExportProcessor {
       ['Completion Rate', totalResponses > 0 ? `${((completeResponses / totalResponses) * 100).toFixed(1)}%` : '0%'],
     ];
 
-    const dataHeaders = ['id', 'survey_id', 'respondent_id', 'status', 'device_type', 'started_at', 'submitted_at'];
-    const dataRows = responses.map((r) => [
-      r.id,
-      r.surveyId,
-      r.respondentId,
-      r.status,
-      r.deviceType || '',
-      r.startedAt?.toISOString() || '',
-      r.submittedAt?.toISOString() || '',
-    ].join(','));
+    const { headers, rows } = this.buildAnalysisTable(responses, profiles, questions);
 
     const content = [
       '--- SUMMARY ---',
       summaryHeaders.join(','),
-      ...summaryRows.map((row) => row.join(',')),
+      ...summaryRows.map((row) => row.map(csvCell).join(',')),
       '',
       '--- DATA ---',
-      dataHeaders.join(','),
-      ...dataRows,
+      headers.map(csvCell).join(','),
+      ...rows.map((row) => row.map(csvCell).join(',')),
     ].join('\n');
 
     return Promise.resolve(content);
@@ -316,23 +423,44 @@ export class ExportProcessor {
     return Promise.resolve(content);
   }
 
-  private generateJson(responses: SurveyResponse[]): Promise<string> {
+  private generateJson(
+    responses: SurveyResponse[],
+    profiles: Map<string, UserProfile>,
+    _questions: Question[],
+  ): Promise<string> {
     const structured = {
       exportedAt: new Date().toISOString(),
       totalResponses: responses.length,
-      responses: responses.map((r) => ({
-        id: r.id,
-        surveyId: r.surveyId,
-        respondentId: r.respondentId,
-        status: r.status,
-        deviceType: r.deviceType,
-        startedAt: r.startedAt?.toISOString() || null,
-        submittedAt: r.submittedAt?.toISOString() || null,
-        answers: r.answers?.map((a) => ({
-          questionId: a.questionId,
-          value: a.value,
-        })) || [],
-      })),
+      responses: responses.map((r) => {
+        const p = profiles.get(r.respondentId);
+        return {
+          id: r.id,
+          surveyId: r.surveyId,
+          respondentId: r.respondentId,
+          status: r.status,
+          deviceType: r.deviceType,
+          startedAt: r.startedAt?.toISOString() || null,
+          submittedAt: r.submittedAt?.toISOString() || null,
+          // Demografi responden (variabel pembobot) ikut dalam file yang sama.
+          respondent: {
+            fullName: r.respondent?.fullName ?? null,
+            phone: r.respondent?.phone ?? null,
+            age: p?.age ?? null,
+            dateOfBirth: p?.dateOfBirth ?? null,
+            gender: p?.gender ?? null,
+            education: p?.education ?? null,
+            occupation: p?.occupation ?? null,
+            religion: p?.religion ?? null,
+            province: p?.province ?? null,
+            city: p?.city ?? null,
+            district: p?.district ?? null,
+          },
+          answers: r.answers?.map((a) => ({
+            questionId: a.questionId,
+            value: a.value,
+          })) || [],
+        };
+      }),
     };
 
     return Promise.resolve(JSON.stringify(structured, null, 2));

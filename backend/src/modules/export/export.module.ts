@@ -8,6 +8,8 @@ import { ExportProcessor } from './processors';
 import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
+import { Question } from '@modules/survey/entities/question.entity';
 import { AuthModule } from '@modules/auth';
 import { AuditModule } from '@modules/audit';
 import { EXPORT_QUEUE } from './constants';
@@ -18,7 +20,7 @@ import { EXPORT_QUEUE } from './constants';
     BullModule.registerQueue({
       name: EXPORT_QUEUE,
     }),
-    TypeOrmModule.forFeature([ExportJob, SurveyResponse]),
+    TypeOrmModule.forFeature([ExportJob, SurveyResponse, UserProfile, Question]),
     AuthModule,
     AuditModule,
   ],
