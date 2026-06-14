@@ -60,7 +60,7 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
-    await this.authService.resetPassword(dto.token, dto.newPassword);
+    await this.authService.resetPassword(dto.email, dto.code, dto.newPassword);
   }
 
   // --- Profil sendiri (semua user yang login) ---

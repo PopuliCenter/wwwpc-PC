@@ -7,6 +7,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
+import { NotificationService } from '@modules/notification';
 import { User, UserStatus } from './entities';
 import { UserRole } from '@shared/enums';
 
@@ -65,6 +66,10 @@ describe('AuthService', () => {
       del: vi.fn().mockResolvedValue(undefined),
     };
 
+    const notificationService = {
+      sendOtpEmail: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -72,6 +77,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cacheManager },
+        { provide: NotificationService, useValue: notificationService },
       ],
     }).compile();
 
@@ -355,7 +361,7 @@ describe('AuthService', () => {
   });
 
   describe('requestPasswordReset', () => {
-    it('should generate token and store in Redis with 1-hour TTL when user exists', async () => {
+    it('should generate a 6-digit OTP stored by email with 1-hour TTL when user exists', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
 
       await service.requestPasswordReset('test@example.com');
@@ -364,13 +370,13 @@ describe('AuthService', () => {
         where: { email: 'test@example.com' },
       });
       expect(cacheManager.set).toHaveBeenCalledWith(
-        expect.stringMatching(/^password-reset:.+$/),
-        'test@example.com',
+        'password-reset:test@example.com',
+        expect.stringMatching(/^\d{6}$/),
         3600000, // 1 hour in ms
       );
     });
 
-    it('should silently return without storing token when user does not exist', async () => {
+    it('should silently return without storing OTP when user does not exist', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
       await service.requestPasswordReset('nonexistent@example.com');
@@ -388,94 +394,95 @@ describe('AuthService', () => {
   });
 
   describe('resetPassword', () => {
-    it('should update password hash when token is valid', async () => {
-      cacheManager.get.mockResolvedValue('test@example.com');
+    it('should update password hash when OTP is valid', async () => {
+      cacheManager.get.mockResolvedValue('123456');
       userRepository.findOne.mockResolvedValue(mockUser);
       (bcrypt.hash as any) = vi.fn().mockResolvedValue('new-hashed-password');
 
-      await service.resetPassword('valid-token', 'NewPass123!');
+      await service.resetPassword('test@example.com', '123456', 'NewPass123!');
 
       expect(cacheManager.get).toHaveBeenCalledWith(
-        'password-reset:valid-token',
+        'password-reset:test@example.com',
       );
-      expect(userRepository.findOne).toHaveBeenCalledWith({
-        where: { email: 'test@example.com' },
-      });
       expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
         passwordHash: 'new-hashed-password',
       });
     });
 
-    it('should invalidate token after successful password reset', async () => {
-      cacheManager.get.mockResolvedValue('test@example.com');
+    it('should invalidate OTP after successful password reset', async () => {
+      cacheManager.get.mockResolvedValue('123456');
       userRepository.findOne.mockResolvedValue(mockUser);
       (bcrypt.hash as any) = vi.fn().mockResolvedValue('new-hashed-password');
 
-      await service.resetPassword('valid-token', 'NewPass123!');
+      await service.resetPassword('test@example.com', '123456', 'NewPass123!');
 
       expect(cacheManager.del).toHaveBeenCalledWith(
-        'password-reset:valid-token',
+        'password-reset:test@example.com',
       );
     });
 
-    it('should throw BadRequestException when token is invalid or expired', async () => {
+    it('should throw BadRequestException when OTP is missing or expired', async () => {
       cacheManager.get.mockResolvedValue(null);
 
       await expect(
-        service.resetPassword('invalid-token', 'NewPass123!'),
-      ).rejects.toThrow(
-        new BadRequestException('Invalid or expired reset token'),
-      );
+        service.resetPassword('test@example.com', '000000', 'NewPass123!'),
+      ).rejects.toThrow(BadRequestException);
     });
 
-    it('should throw BadRequestException when user not found for email in token', async () => {
-      cacheManager.get.mockResolvedValue('deleted@example.com');
+    it('should throw BadRequestException when OTP does not match', async () => {
+      cacheManager.get.mockResolvedValue('123456');
+
+      await expect(
+        service.resetPassword('test@example.com', '999999', 'NewPass123!'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when user not found', async () => {
+      cacheManager.get.mockResolvedValue('123456');
       userRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.resetPassword('valid-token', 'NewPass123!'),
-      ).rejects.toThrow(
-        new BadRequestException('Invalid or expired reset token'),
-      );
+        service.resetPassword('deleted@example.com', '123456', 'NewPass123!'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when password is too short', async () => {
       await expect(
-        service.resetPassword('valid-token', 'Ab1'),
+        service.resetPassword('test@example.com', '123456', 'Ab1'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when password has no uppercase', async () => {
       await expect(
-        service.resetPassword('valid-token', 'lowercase1'),
+        service.resetPassword('test@example.com', '123456', 'lowercase1'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when password has no digit', async () => {
       await expect(
-        service.resetPassword('valid-token', 'NoDigitHere!'),
+        service.resetPassword('test@example.com', '123456', 'NoDigitHere!'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when password has no symbol', async () => {
       await expect(
-        service.resetPassword('valid-token', 'NoSymbol123'),
+        service.resetPassword('test@example.com', '123456', 'NoSymbol123'),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException for a common/weak password', async () => {
       await expect(
-        service.resetPassword('valid-token', 'Password123'),
+        service.resetPassword('test@example.com', '123456', 'Password123'),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('should accept valid password with upper, lower, digit, and symbol', async () => {
-      cacheManager.get.mockResolvedValue('test@example.com');
+    it('should accept valid password when OTP matches', async () => {
+      cacheManager.get.mockResolvedValue('123456');
       userRepository.findOne.mockResolvedValue(mockUser);
       (bcrypt.hash as any) = vi.fn().mockResolvedValue('hashed');
 
       await expect(
-        service.resetPassword('valid-token', 'ValidP4ss!'),
+        service.resetPassword('test@example.com', '123456', 'ValidP4ss!'),
       ).resolves.toBeUndefined();
     });
   });

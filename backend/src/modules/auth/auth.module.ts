@@ -8,10 +8,12 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies';
 import { User } from './entities';
 import { authConfig } from './config';
+import { NotificationModule } from '@modules/notification';
 
 @Module({
   imports: [
     ConfigModule.forFeature(authConfig),
+    NotificationModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

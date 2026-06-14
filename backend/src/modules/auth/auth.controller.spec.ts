@@ -127,28 +127,31 @@ describe('AuthController', () => {
   });
 
   describe('resetPassword', () => {
-    it('should call service resetPassword with token and new password', async () => {
+    it('should call service resetPassword with email, code and new password', async () => {
       authService.resetPassword.mockResolvedValue(undefined);
 
       await controller.resetPassword({
-        token: 'reset-token-123',
+        email: 'user@example.com',
+        code: '123456',
         newPassword: 'NewPass123',
       });
 
       expect(authService.resetPassword).toHaveBeenCalledWith(
-        'reset-token-123',
+        'user@example.com',
+        '123456',
         'NewPass123',
       );
     });
 
-    it('should propagate BadRequestException for invalid token', async () => {
+    it('should propagate BadRequestException for invalid OTP', async () => {
       authService.resetPassword.mockRejectedValue(
-        new BadRequestException('Invalid or expired reset token'),
+        new BadRequestException('Kode OTP salah atau sudah kedaluwarsa'),
       );
 
       await expect(
         controller.resetPassword({
-          token: 'invalid-token',
+          email: 'user@example.com',
+          code: '000000',
           newPassword: 'NewPass123',
         }),
       ).rejects.toThrow(BadRequestException);
@@ -163,7 +166,8 @@ describe('AuthController', () => {
 
       await expect(
         controller.resetPassword({
-          token: 'valid-token',
+          email: 'user@example.com',
+          code: '123456',
           newPassword: 'weak',
         }),
       ).rejects.toThrow(BadRequestException);

@@ -10,6 +10,7 @@ import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserStatus } from './entities';
 import { UserRole } from '@shared/enums';
+import { NotificationService } from '@modules/notification';
 import {
   AuthResult,
   TokenPair,
@@ -63,6 +64,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async login(email: string, password: string): Promise<AuthResult> {
@@ -222,29 +224,37 @@ export class AuthService {
   }
 
   async requestPasswordReset(email: string): Promise<void> {
-    // Always return void to avoid email enumeration attacks
+    // Selalu return void untuk mencegah email enumeration.
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
-      // Silently return to prevent revealing whether email exists
       return;
     }
 
-    // Generate a secure random token
-    const token = crypto.randomBytes(32).toString('hex');
+    // OTP 6 digit untuk reset (sejalan dengan verifikasi pendaftaran).
+    const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
 
-    // Store token in Redis with 1-hour TTL, mapping to user's email
+    // Simpan OTP per-email di Redis dengan TTL.
     await this.cacheManager.set(
-      `${PASSWORD_RESET_PREFIX}${token}`,
-      email,
+      `${PASSWORD_RESET_PREFIX}${email}`,
+      code,
       PASSWORD_RESET_TTL * 1000, // cache-manager expects ms
     );
 
-    // In production, send the reset link via NotificationService email.
-    // Token is intentionally NOT logged to prevent credential leakage in log files.
-    this.logger.log(`Password reset token issued for ${email}`);
+    // Kirim OTP via email (Resend). OTP TIDAK di-log demi keamanan.
+    await this.notificationService.sendOtpEmail(
+      email,
+      user.fullName,
+      code,
+      Math.round(PASSWORD_RESET_TTL / 60),
+    );
+    this.logger.log(`Password reset OTP issued for ${email}`);
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  async resetPassword(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<void> {
     // Validate password format
     if (!this.isValidPassword(newPassword)) {
       throw new BadRequestException(
@@ -252,26 +262,25 @@ export class AuthService {
       );
     }
 
-    // Look up the token in Redis
-    const email = await this.cacheManager.get<string>(
-      `${PASSWORD_RESET_PREFIX}${token}`,
+    // Cocokkan OTP dari Redis.
+    const storedCode = await this.cacheManager.get<string>(
+      `${PASSWORD_RESET_PREFIX}${email}`,
     );
-    if (!email) {
-      throw new BadRequestException('Invalid or expired reset token');
+    if (!storedCode || storedCode !== code) {
+      throw new BadRequestException('Kode OTP salah atau sudah kedaluwarsa');
     }
 
-    // Find the user by email
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
-      throw new BadRequestException('Invalid or expired reset token');
+      throw new BadRequestException('Kode OTP salah atau sudah kedaluwarsa');
     }
 
     // Hash the new password and update
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     await this.userRepository.update(user.id, { passwordHash });
 
-    // Invalidate the token so it can't be reused
-    await this.cacheManager.del(`${PASSWORD_RESET_PREFIX}${token}`);
+    // Invalidate the OTP so it can't be reused
+    await this.cacheManager.del(`${PASSWORD_RESET_PREFIX}${email}`);
 
     this.logger.log(`Password reset completed for ${email}`);
   }
