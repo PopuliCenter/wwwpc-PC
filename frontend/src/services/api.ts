@@ -22,7 +22,14 @@ function clearTokens(): void {
   localStorage.removeItem('refreshToken');
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+// Serialisasi refresh: jika beberapa request kebetulan 401 bersamaan (mis.
+// auto-save saat mengisi survei + request lain setelah token kedaluwarsa),
+// SEMUA menunggu SATU refresh yang sama. Tanpa ini, refresh paralel memakai
+// refresh-token lama yang sama → rotasi membatalkan token → backend menduga
+// "token reuse" → sesi dibatalkan → pengguna ter-logout sendiri.
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function doRefresh(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
@@ -42,9 +49,18 @@ async function refreshAccessToken(): Promise<string | null> {
     setTokens(data.accessToken, data.refreshToken);
     return data.accessToken;
   } catch {
-    clearTokens();
+    // Kegagalan jaringan: JANGAN hapus token (mungkin sedang offline) — biarkan
+    // pemanggil memutuskan; kembalikan null tanpa menghapus sesi.
     return null;
   }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = doRefresh().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {

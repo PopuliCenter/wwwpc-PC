@@ -20,7 +20,7 @@ export const authConfig = registerAs(
 
     return {
       jwtSecret,
-      jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
+      jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '60m',
       jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
       sessionTtl: parseInt(process.env.SESSION_TTL || '604800', 10), // 7 days in seconds
     };
