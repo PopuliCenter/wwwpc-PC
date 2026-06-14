@@ -30,3 +30,7 @@ logs/
 # Temp
 tmp/
 temp/
+
+# Pricelist IAK / data harga (berisi margin — jangan masuk git atau folder web publik)
+docs/iak/*.xlsx
+frontend/public/*.xlsx
