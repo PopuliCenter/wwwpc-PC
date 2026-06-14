@@ -174,6 +174,37 @@ const questionTypeLabels: Record<QuestionType, string> = {
   audio: 'Rekaman Audio',
 };
 
+// Grup tipe untuk dropdown tambah/ubah pertanyaan. (gps & signature SENGAJA
+// tak ada — kini setelan survei, bukan tipe pertanyaan.)
+const typeGroups: { label: string; types: QuestionType[] }[] = [
+  { label: 'Pilihan', types: ['single_choice', 'multiple_choice', 'dropdown'] },
+  { label: 'Teks', types: ['short_text', 'long_text'] },
+  { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
+  { label: 'Waktu', types: ['date', 'date_time'] },
+  { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
+  { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region'] },
+  { label: 'Media', types: ['photo', 'audio', 'file_upload'] },
+];
+
+/** Default konfigurasi per tipe (opsi/aturan validasi). */
+function defaultsForType(type: QuestionType): Partial<Question> {
+  if (type === 'single_choice' || type === 'multiple_choice' || type === 'dropdown') {
+    return {
+      options: [
+        { id: `opt-${Date.now()}-1`, label: 'Opsi 1', value: 'option_1', order: 0 },
+        { id: `opt-${Date.now()}-2`, label: 'Opsi 2', value: 'option_2', order: 1 },
+      ],
+    };
+  }
+  if (type === 'matrix_likert')
+    return { validationRules: { matrixRows: ['Aspek 1'], matrixColumns: ['Sangat Setuju', 'Setuju', 'Tidak Setuju'] } };
+  if (type === 'rating_scale') return { validationRules: { ratingMax: 5, ratingDisplayMode: 'star' } };
+  if (type === 'numeric_scale') return { validationRules: { numericRange: { min: 1, max: 10 } } };
+  if (type === 'indonesia_region') return { validationRules: { regionDepth: 'village' } };
+  if (type === 'unique_id') return { validationRules: { minLength: 5, maxLength: 10 } };
+  return {};
+}
+
 const operatorLabels: Record<ConditionOperator, string> = {
   equals: 'sama dengan (=)',
   not_equals: 'tidak sama dengan (≠)',
@@ -785,7 +816,7 @@ function SortableQuestionCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white border rounded-lg mb-3 transition-shadow ${expanded ? 'border-primary-300 shadow-md' : 'border-gray-200'}`}
+      className="bg-white border border-gray-200 rounded-lg mb-3"
     >
       {/* Header */}
       <div className="flex items-center gap-3 p-4">
@@ -838,9 +869,28 @@ function SortableQuestionCard({
         </div>
       </div>
 
-      {/* Expanded panel */}
+      {/* Editor modal (popup) */}
       {expanded && (
-        <div className="border-t border-gray-100">
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
+          onClick={onToggleExpand}
+        >
+          <div
+            className="my-6 w-full max-w-2xl rounded-lg bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+              <h3 className="text-base font-semibold text-gray-900">
+                {question.text.trim() ? 'Edit Pertanyaan' : 'Tambah Pertanyaan'}
+              </h3>
+              <button
+                onClick={onToggleExpand}
+                className="text-lg leading-none text-gray-400 hover:text-gray-600"
+                aria-label="Tutup"
+              >
+                ✕
+              </button>
+            </div>
           {/* Tabs */}
           <div className="flex border-b border-gray-100 px-4">
             {(['edit', 'logic', 'validation'] as const).map((t) => (
@@ -864,13 +914,34 @@ function SortableQuestionCard({
                 {/* Teks pertanyaan */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Teks Pertanyaan</label>
-                  <input
-                    type="text"
+                  <textarea
                     value={question.text}
                     onChange={(e) => onEdit({ ...question, text: e.target.value })}
+                    rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                     placeholder="Tulis pertanyaan di sini..."
                   />
+                </div>
+
+                {/* Tipe pertanyaan (ubah → reset konfigurasi tipe) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Tipe Pertanyaan</label>
+                  <select
+                    value={question.type}
+                    onChange={(e) => {
+                      const t = e.target.value as QuestionType;
+                      onEdit({ ...question, type: t, options: undefined, validationRules: question.validationRules?.description ? { description: question.validationRules.description } : undefined, ...defaultsForType(t) });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {typeGroups.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.types.map((type) => (
+                          <option key={type} value={type}>{questionTypeLabels[type]}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Deskripsi */}
@@ -1037,6 +1108,21 @@ function SortableQuestionCard({
               </div>
             )}
           </div>
+            <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
+              <button
+                onClick={() => onDelete(question.id)}
+                className="text-xs font-medium text-red-600 hover:text-red-700"
+              >
+                Hapus pertanyaan
+              </button>
+              <button
+                onClick={onToggleExpand}
+                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+              >
+                Selesai
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1052,8 +1138,6 @@ export function SurveyEditPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   // Akordion: id pertanyaan yang sedang terbuka (hanya satu sekaligus).
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  // Tipe terpilih di dropdown tambah pertanyaan.
-  const [newQuestionType, setNewQuestionType] = useState<QuestionType>('single_choice');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -1167,29 +1251,6 @@ export function SurveyEditPage() {
   };
 
   const addQuestion = (type: QuestionType) => {
-    const defaults: Partial<Question> = {};
-    if (type === 'single_choice' || type === 'multiple_choice' || type === 'dropdown') {
-      defaults.options = [
-        { id: `opt-${Date.now()}-1`, label: 'Opsi 1', value: 'option_1', order: 0 },
-        { id: `opt-${Date.now()}-2`, label: 'Opsi 2', value: 'option_2', order: 1 },
-      ];
-    }
-    if (type === 'matrix_likert') {
-      defaults.validationRules = { matrixRows: ['Aspek 1'], matrixColumns: ['Sangat Setuju', 'Setuju', 'Tidak Setuju'] };
-    }
-    if (type === 'rating_scale') {
-      defaults.validationRules = { ratingMax: 5, ratingDisplayMode: 'star' };
-    }
-    if (type === 'numeric_scale') {
-      defaults.validationRules = { numericRange: { min: 1, max: 10 } };
-    }
-    if (type === 'indonesia_region') {
-      defaults.validationRules = { regionDepth: 'village' };
-    }
-    if (type === 'unique_id') {
-      defaults.validationRules = { minLength: 5, maxLength: 10 };
-    }
-
     const newQ: Question = {
       id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type,
@@ -1197,10 +1258,10 @@ export function SurveyEditPage() {
       required: false,
       enabled: true,
       order: questions.length,
-      ...defaults,
+      ...defaultsForType(type),
     };
     setQuestions((prev) => [...prev, newQ]);
-    // Buka pertanyaan baru & tutup otomatis yang lain (akordion).
+    // Buka pertanyaan baru di modal & tutup yang lain (hanya satu terbuka).
     setExpandedId(newQ.id);
   };
 
@@ -1259,19 +1320,6 @@ export function SurveyEditPage() {
     return <div className="p-6 text-center text-gray-500">Memuat survei...</div>;
   }
 
-  // Kelompokkan tipe pertanyaan dalam kategori untuk palette tambah-cepat.
-  // Catatan: 'gps' & 'signature' SENGAJA tidak ada di sini — keduanya kini
-  // setelan survei (alat pendukung), bukan tipe pertanyaan. Tipe lama tetap
-  // dirender pada survei yang sudah memilikinya demi kompatibilitas.
-  const typeGroups: { label: string; types: QuestionType[] }[] = [
-    { label: 'Pilihan', types: ['single_choice', 'multiple_choice', 'dropdown'] },
-    { label: 'Teks', types: ['short_text', 'long_text'] },
-    { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
-    { label: 'Waktu', types: ['date', 'date_time'] },
-    { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-    { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region'] },
-    { label: 'Media', types: ['photo', 'audio', 'file_upload'] },
-  ];
 
   return (
     <div className="space-y-6">
@@ -1479,9 +1527,17 @@ export function SurveyEditPage() {
 
       {/* Builder */}
       <div className="bg-gray-50 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Pertanyaan ({questions.length})
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Pertanyaan ({questions.length})
+          </h2>
+          <button
+            onClick={() => addQuestion('single_choice')}
+            className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+          >
+            + Tambah Pertanyaan
+          </button>
+        </div>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
@@ -1505,41 +1561,9 @@ export function SurveyEditPage() {
 
         {questions.length === 0 && (
           <div className="rounded-md border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            Belum ada pertanyaan. Pilih tipe lalu klik &ldquo;Tambah pertanyaan&rdquo;.
+            Belum ada pertanyaan. Klik &ldquo;+ Tambah Pertanyaan&rdquo; di atas.
           </div>
         )}
-      </div>
-
-      {/* Tambah pertanyaan — dropdown tipe + tombol (ringkas) */}
-      <div className="flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <label htmlFor="new-q-type" className="mb-1 block text-xs font-medium text-gray-500">
-            Tipe pertanyaan
-          </label>
-          <select
-            id="new-q-type"
-            value={newQuestionType}
-            onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-          >
-            {typeGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.types.map((type) => (
-                  <option key={type} value={type}>
-                    {questionTypeLabels[type]}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          onClick={() => addQuestion(newQuestionType)}
-          className="shrink-0 rounded-md bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-        >
-          + Tambah pertanyaan
-        </button>
       </div>
     </div>
   );
