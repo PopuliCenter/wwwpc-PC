@@ -54,6 +54,7 @@ export class SurveyService {
       questionCount: number;
       surveyType: string;
       category: string | null;
+      completed: boolean;
     }>
   > {
     const surveys = await this.surveyRepository.find({
@@ -61,6 +62,18 @@ export class SurveyService {
       relations: ['timeConfig', 'rewardConfig'],
       order: { createdAt: 'DESC' },
     });
+
+    // Survei yang SUDAH diselesaikan responden ini (satu respons per survei) —
+    // ditandai agar daftar bisa menonaktifkan tombol & menampilkan "Sudah diisi".
+    let completedIds = new Set<string>();
+    if (respondentId) {
+      const doneRows = await this.surveyRepository.manager.query(
+        `SELECT survey_id FROM survey_response
+         WHERE respondent_id = $1 AND status = 'complete'`,
+        [respondentId],
+      );
+      completedIds = new Set(doneRows.map((r: any) => r.survey_id));
+    }
 
     // Filter berdasarkan kelayakan targeting (gender & wilayah) bila ada
     // respondentId. Survei yang tak sesuai profil disembunyikan dari daftar.
@@ -98,6 +111,7 @@ export class SurveyService {
           questionCount,
           surveyType: s.surveyType ?? 'lainnya',
           category: s.category ?? null,
+          completed: completedIds.has(s.id),
         };
       }),
     );

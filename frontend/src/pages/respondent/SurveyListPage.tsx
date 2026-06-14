@@ -13,6 +13,7 @@ interface AvailableSurvey {
   rewardPoints?: number;
   rewardDescription?: string;
   questionCount: number;
+  completed?: boolean;
 }
 
 export function SurveyListPage() {
@@ -76,9 +77,18 @@ export function SurveyListPage() {
           {surveys.map((survey) => (
             <div
               key={survey.id}
-              className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6 flex flex-col"
+              className={`bg-white rounded-lg shadow transition-shadow p-6 flex flex-col ${
+                survey.completed ? 'opacity-75' : 'hover:shadow-md'
+              }`}
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{survey.title}</h3>
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">{survey.title}</h3>
+                {survey.completed && (
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    ✓ Sudah diisi
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600 mb-4 line-clamp-2 flex-1">
                 {survey.description}
               </p>
@@ -110,12 +120,21 @@ export function SurveyListPage() {
                 )}
               </div>
 
-              <button
-                onClick={() => navigate(`/surveys/${survey.id}/fill`)}
-                className="w-full bg-primary-600 text-white py-2 px-4 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
-              >
-                Isi Survei
-              </button>
+              {survey.completed ? (
+                <button
+                  disabled
+                  className="w-full bg-gray-100 text-gray-400 py-2 px-4 rounded-md text-sm font-medium cursor-not-allowed"
+                >
+                  Sudah Diisi
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate(`/surveys/${survey.id}/fill`)}
+                  className="w-full bg-primary-600 text-white py-2 px-4 rounded-md hover:bg-primary-700 transition-colors text-sm font-medium"
+                >
+                  Isi Survei
+                </button>
+              )}
             </div>
           ))}
         </div>

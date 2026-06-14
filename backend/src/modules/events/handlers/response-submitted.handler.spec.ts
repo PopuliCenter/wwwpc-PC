@@ -75,6 +75,7 @@ describe('ResponseSubmittedHandler', () => {
         { email: 'user@example.com', fullName: 'Test User' },
         { title: 'Test Survey' },
         payload.submittedAt,
+        250, // pointsEarned = payload.rewardPoints
       );
     });
 

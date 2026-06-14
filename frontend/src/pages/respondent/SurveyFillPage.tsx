@@ -1513,11 +1513,18 @@ export function SurveyFillPage() {
         const result = await api.get<SurveyFillData>(`/surveys/${id}/fill`);
         setSurvey(result);
         void cachePut(`respondent-fill:${id}`, result);
-      } catch {
-        // Offline / gagal jaringan → coba muat dari cache.
-        const cached = await cacheGet<SurveyFillData>(`respondent-fill:${id}`);
-        if (cached) setSurvey(cached);
-        else setError('Gagal memuat survei dan tidak ada salinan offline.');
+      } catch (err: unknown) {
+        // Sudah pernah menyelesaikan survei ini (409) → pesan jelas, JANGAN
+        // jatuh ke cache (yang akan keliru menampilkan form lagi).
+        const e = err as { statusCode?: number; message?: string };
+        if (e?.statusCode === 409) {
+          setError(e.message || 'Anda sudah mengisi survei ini. Satu responden hanya boleh mengisi satu kali.');
+        } else {
+          // Offline / gagal jaringan → coba muat dari cache.
+          const cached = await cacheGet<SurveyFillData>(`respondent-fill:${id}`);
+          if (cached) setSurvey(cached);
+          else setError('Gagal memuat survei dan tidak ada salinan offline.');
+        }
       } finally {
         setLoading(false);
       }

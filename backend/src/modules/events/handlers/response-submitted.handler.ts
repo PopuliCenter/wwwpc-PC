@@ -56,10 +56,16 @@ export class ResponseSubmittedHandler {
   @OnEvent(EventType.RESPONSE_SUBMITTED, { async: true })
   async handleNotification(payload: ResponseSubmittedPayload): Promise<void> {
     try {
+      // Sertakan poin yang didapat agar email jadi catatan reward (konsisten
+      // dengan poin yang ditampilkan di halaman "Terima kasih").
+      const pointsEarned =
+        payload.rewardPoints ?? DEFAULT_SURVEY_COMPLETION_POINTS;
+
       await this.notificationService.sendSubmissionConfirmation(
         { email: payload.respondentEmail, fullName: payload.respondentName },
         { title: payload.surveyTitle },
         payload.submittedAt,
+        pointsEarned,
       );
       this.logger.log(
         `Submission confirmation sent: respondentId=${payload.respondentId}`,
