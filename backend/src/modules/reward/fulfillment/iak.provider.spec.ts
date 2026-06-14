@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { IakFulfillmentProvider } from './iak.provider';
+import { IAK_DEFAULT_PRODUCT_CODES } from './iak-products';
 
 function makeConfig(values: Record<string, string>): ConfigService {
   return { get: (k: string) => values[k] } as unknown as ConfigService;
@@ -68,6 +69,19 @@ describe('IakFulfillmentProvider', () => {
 
     it('mengembalikan null bila ref_id tidak ada', () => {
       expect(provider.parseCallback({ data: { status: '1' } })).toBeNull();
+    });
+  });
+
+  describe('default product codes (pulsa)', () => {
+    it('punya 30 entri (6 operator × 5 nominal)', () => {
+      expect(Object.keys(IAK_DEFAULT_PRODUCT_CODES)).toHaveLength(30);
+    });
+
+    it('operator dari nomor HP cocok dgn kode default yg ada', () => {
+      const op = IakFulfillmentProvider.detectOperator('081299998888'); // telkomsel
+      expect(IAK_DEFAULT_PRODUCT_CODES[`${op}:pulsa-10000`]).toBe('htelkomsel10000');
+      const op2 = IakFulfillmentProvider.detectOperator('0895111122223'); // tri
+      expect(IAK_DEFAULT_PRODUCT_CODES[`${op2}:pulsa-25000`]).toBe('hthree25000');
     });
   });
 

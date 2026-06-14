@@ -7,6 +7,7 @@ import {
   ProviderCallbackResult,
   RewardFulfillmentProvider,
 } from './reward-fulfillment.types';
+import { IAK_DEFAULT_PRODUCT_CODES } from './iak-products';
 
 /**
  * Provider IAK (iak.id / Mobilepulsa) — gateway PPOB/H2H prepaid.
@@ -95,16 +96,17 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     // Sandbox: satu kode utk semua top-up.
     if (this.testProductCode) return this.testProductCode;
 
-    // Pulsa & paket data: operator-spesifik.
+    // Pulsa & paket data: operator-spesifik. Prioritas: env map → default bawaan.
     if (req.category === 'pulsa' || req.category === 'paket_data') {
       const operator = IakFulfillmentProvider.detectOperator(req.destinationNumber);
       if (operator) {
-        const keyed = this.productMap[`${operator}:${req.rewardId}`];
+        const key = `${operator}:${req.rewardId}`;
+        const keyed = this.productMap[key] ?? IAK_DEFAULT_PRODUCT_CODES[key];
         if (keyed) return keyed;
       }
     }
-    // Fallback / kategori non-operator (voucher, e_wallet).
-    return this.productMap[req.rewardId] || null;
+    // Fallback / kategori non-operator (voucher, e_wallet): hanya dari env map.
+    return this.productMap[req.rewardId] ?? IAK_DEFAULT_PRODUCT_CODES[req.rewardId] ?? null;
   }
 
   private sign(refId: string): string {
