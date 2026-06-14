@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsBoolean,
   IsIn,
+  IsArray,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -44,6 +45,16 @@ export class UpdateSurveyDto {
   @IsOptional()
   @IsBoolean()
   requireSignature?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedGenders?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedProvinces?: string[];
 
   @IsOptional()
   @ValidateNested()

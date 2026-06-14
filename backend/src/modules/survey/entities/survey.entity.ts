@@ -108,6 +108,18 @@ export class Survey {
   @Column({ type: 'boolean', default: false, name: 'require_signature' })
   requireSignature: boolean;
 
+  /**
+   * Targeting/kelayakan responden (kosong = tanpa batasan):
+   * - `allowedGenders`: daftar gender yang boleh mengisi (male/female/other).
+   * - `allowedProvinces`: daftar nama provinsi yang boleh mengisi.
+   * Kuota total memakai `maxRespondents`.
+   */
+  @Column({ type: 'jsonb', name: 'allowed_genders', default: () => "'[]'" })
+  allowedGenders: string[];
+
+  @Column({ type: 'jsonb', name: 'allowed_provinces', default: () => "'[]'" })
+  allowedProvinces: string[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

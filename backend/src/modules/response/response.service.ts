@@ -17,6 +17,7 @@ import { ResponseFilterDto } from './dto/response-filter.dto';
 import { AllResponsesFilterDto } from './dto/all-responses-filter.dto';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
+import { checkEligibility } from '@modules/survey/utils/eligibility';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
 import {
   createPaginatedResponse,
@@ -71,6 +72,38 @@ export class ResponseService {
   ) {}
 
   /**
+   * Tegakkan kelayakan targeting (gender & wilayah) saat submit, berdasarkan
+   * kriteria survei + profil responden. Lewati cepat bila tak ada batasan.
+   */
+  private async assertEligible(
+    surveyId: string,
+    respondentId: string,
+  ): Promise<void> {
+    const surveyRows = await this.responseRepository.manager.query(
+      'SELECT allowed_genders, allowed_provinces FROM survey WHERE id = $1 LIMIT 1',
+      [surveyId],
+    );
+    const s = surveyRows[0];
+    if (!s) return;
+    const genders: string[] = s.allowed_genders ?? [];
+    const provinces: string[] = s.allowed_provinces ?? [];
+    if (genders.length === 0 && provinces.length === 0) return;
+
+    const profRows = await this.responseRepository.manager.query(
+      'SELECT gender, province FROM user_profile WHERE user_id = $1 LIMIT 1',
+      [respondentId],
+    );
+    const demo = profRows[0] ?? {};
+    const result = checkEligibility(
+      { allowedGenders: genders, allowedProvinces: provinces },
+      { gender: demo.gender, province: demo.province },
+    );
+    if (!result.allowed) {
+      throw new ForbiddenException(result.reason);
+    }
+  }
+
+  /**
    * Submit a complete response to a survey.
    * Enforces one-response-per-survey via unique constraint.
    * Validates timer if max_duration is configured.
@@ -110,6 +143,9 @@ export class ResponseService {
     if (!submissionCheck.allowed) {
       throw new ForbiddenException(submissionCheck.reason);
     }
+
+    // Targeting (gender & wilayah) — tegakkan otoritatif saat submit juga.
+    await this.assertEligible(surveyId, respondentId);
 
     // Server-side answer validation (required, type, range, options, file refs).
     // The client validates too, but it is untrusted — re-validate authoritatively.

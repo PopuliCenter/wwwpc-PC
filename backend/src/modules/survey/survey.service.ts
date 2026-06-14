@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Survey } from './entities/survey.entity';
+import { checkEligibility } from './utils/eligibility';
 import { SurveyTimeConfig } from './entities/survey-time-config.entity';
 import { SurveyRewardConfig } from './entities/survey-reward-config.entity';
 import { Question } from './entities/question.entity';
@@ -40,7 +41,7 @@ export class SurveyService {
    * Daftar survei AKTIF untuk responden (GET /surveys/available).
    * Mengembalikan bentuk siap-pakai: deadline, estimasi waktu, reward, jumlah pertanyaan.
    */
-  async getAvailableSurveys(): Promise<
+  async getAvailableSurveys(respondentId?: string): Promise<
     Array<{
       id: string;
       title: string;
@@ -61,8 +62,26 @@ export class SurveyService {
       order: { createdAt: 'DESC' },
     });
 
+    // Filter berdasarkan kelayakan targeting (gender & wilayah) bila ada
+    // respondentId. Survei yang tak sesuai profil disembunyikan dari daftar.
+    let eligible = surveys;
+    if (respondentId) {
+      const rows = await this.surveyRepository.manager.query(
+        'SELECT gender, province FROM user_profile WHERE user_id = $1 LIMIT 1',
+        [respondentId],
+      );
+      const demo = rows[0] ?? {};
+      eligible = surveys.filter(
+        (s) =>
+          checkEligibility(
+            { allowedGenders: s.allowedGenders, allowedProvinces: s.allowedProvinces },
+            { gender: demo.gender, province: demo.province },
+          ).allowed,
+      );
+    }
+
     return Promise.all(
-      surveys.map(async (s) => {
+      eligible.map(async (s) => {
         const questionCount = await this.questionRepository.count({
           where: { surveyId: s.id, enabled: true },
         });
@@ -96,6 +115,8 @@ export class SurveyService {
       category: dto.category?.trim() || null,
       captureGps: dto.captureGps ?? false,
       requireSignature: dto.requireSignature ?? false,
+      allowedGenders: dto.allowedGenders ?? [],
+      allowedProvinces: dto.allowedProvinces ?? [],
       startDatetime: dto.timeConfig?.startDatetime
         ? new Date(dto.timeConfig.startDatetime)
         : null,
@@ -153,6 +174,10 @@ export class SurveyService {
     if (dto.captureGps !== undefined) survey.captureGps = dto.captureGps;
     if (dto.requireSignature !== undefined)
       survey.requireSignature = dto.requireSignature;
+    if (dto.allowedGenders !== undefined)
+      survey.allowedGenders = dto.allowedGenders;
+    if (dto.allowedProvinces !== undefined)
+      survey.allowedProvinces = dto.allowedProvinces;
 
     // Update time-related fields on survey
     if (dto.timeConfig) {
@@ -242,6 +267,8 @@ export class SurveyService {
       category: original.category ?? undefined,
       captureGps: original.captureGps,
       requireSignature: original.requireSignature,
+      allowedGenders: original.allowedGenders ?? [],
+      allowedProvinces: original.allowedProvinces ?? [],
       timeConfig: {
         startDatetime: original.timeConfig?.startDatetime?.toISOString(),
         endDatetime: original.timeConfig?.endDatetime?.toISOString(),

@@ -28,6 +28,8 @@ describe('ResponseService', () => {
     create: vi.fn(),
     save: vi.fn(),
     createQueryBuilder: vi.fn(),
+    // assertEligible() membaca survey targeting + profil via raw query.
+    manager: { query: vi.fn().mockResolvedValue([]) },
   };
 
   const mockAnswerRepository = {

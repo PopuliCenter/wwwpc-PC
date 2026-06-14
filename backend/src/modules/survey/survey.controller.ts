@@ -33,8 +33,11 @@ export class SurveyController {
   /** Daftar survei aktif untuk responden. Harus DI ATAS @Get(':id'). */
   @Get('available')
   @Roles(UserRole.RESPONDENT, UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async getAvailableSurveys() {
-    return this.surveyService.getAvailableSurveys();
+  async getAvailableSurveys(@Request() req: any) {
+    // Filter kelayakan hanya untuk responden; admin/analis melihat semua.
+    const respondentId =
+      req.user?.role === UserRole.RESPONDENT ? req.user.userId : undefined;
+    return this.surveyService.getAvailableSurveys(respondentId);
   }
 
   @Get(':id')

@@ -17,6 +17,7 @@ import {
   ResponseStatus,
 } from '@modules/response/entities/survey-response.entity';
 import { SurveyTimeService } from './survey-time.service';
+import { checkEligibility } from '../utils/eligibility';
 
 /** A condition in the shape the respondent frontend evaluates. */
 export interface FillCondition {
@@ -142,6 +143,7 @@ export class SurveyFillService {
     // allowed to resume; the submit endpoint re-checks time/cap on submission.
     if (!existing) {
       await this.assertSurveyAccessible(surveyId);
+      await this.assertEligible(survey, respondentId);
     }
 
     const responseId = await this.getOrCreateInProgressResponse(
@@ -238,6 +240,32 @@ export class SurveyFillService {
       // No time config configured → survey has no time/cap restrictions; allow.
       if (err instanceof NotFoundException) return;
       throw err;
+    }
+  }
+
+  /**
+   * Tegakkan kelayakan targeting (gender & wilayah) berdasarkan profil
+   * responden. Lewati cepat bila survei tak punya batasan.
+   */
+  private async assertEligible(
+    survey: { allowedGenders?: string[]; allowedProvinces?: string[] },
+    respondentId: string,
+  ): Promise<void> {
+    const genders = survey.allowedGenders ?? [];
+    const provinces = survey.allowedProvinces ?? [];
+    if (genders.length === 0 && provinces.length === 0) return;
+
+    const rows = await this.responseRepository.manager.query(
+      'SELECT gender, province FROM user_profile WHERE user_id = $1 LIMIT 1',
+      [respondentId],
+    );
+    const demo = rows[0] ?? {};
+    const result = checkEligibility(
+      { allowedGenders: genders, allowedProvinces: provinces },
+      { gender: demo.gender, province: demo.province },
+    );
+    if (!result.allowed) {
+      throw new ForbiddenException(result.reason);
     }
   }
 

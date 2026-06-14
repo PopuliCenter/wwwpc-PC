@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/services/api';
+import { getProvinces } from '@/utils/wilayah';
 
 // ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
 type QuestionType =
@@ -1056,6 +1057,11 @@ export function SurveyEditPage() {
   // Alat pendukung (bukan tipe pertanyaan): rekam GPS & minta tanda tangan.
   const [settingsCaptureGps, setSettingsCaptureGps] = useState(false);
   const [settingsRequireSignature, setSettingsRequireSignature] = useState(false);
+  // Limitasi & targeting survei
+  const [settingsMaxRespondents, setSettingsMaxRespondents] = useState('');
+  const [settingsAllowedGenders, setSettingsAllowedGenders] = useState<string[]>([]);
+  const [settingsAllowedProvinces, setSettingsAllowedProvinces] = useState<string[]>([]);
+  const [provinceList, setProvinceList] = useState<{ id: string; name: string }[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
 
   const saveSettings = async () => {
@@ -1068,6 +1074,11 @@ export function SurveyEditPage() {
         formMode: settingsFormMode,
         captureGps: settingsCaptureGps,
         requireSignature: settingsRequireSignature,
+        allowedGenders: settingsAllowedGenders,
+        allowedProvinces: settingsAllowedProvinces,
+        timeConfig: {
+          maxRespondents: settingsMaxRespondents ? Number(settingsMaxRespondents) : 0,
+        },
       });
       setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan ✓' });
     } catch {
@@ -1095,6 +1106,9 @@ export function SurveyEditPage() {
             formMode?: 'paginated' | 'scroll' | 'wizard';
             captureGps?: boolean;
             requireSignature?: boolean;
+            allowedGenders?: string[];
+            allowedProvinces?: string[];
+            maxRespondents?: number | null;
           }>(`/surveys/${id}`),
           api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
         ]);
@@ -1113,6 +1127,9 @@ export function SurveyEditPage() {
         setSettingsType(survey.surveyType ?? 'lainnya');
         setSettingsCategory(survey.category ?? '');
         setSettingsFormMode(survey.formMode ?? 'paginated');
+        setSettingsAllowedGenders(survey.allowedGenders ?? []);
+        setSettingsAllowedProvinces(survey.allowedProvinces ?? []);
+        setSettingsMaxRespondents(survey.maxRespondents ? String(survey.maxRespondents) : '');
         setSettingsCaptureGps(survey.captureGps ?? false);
         setSettingsRequireSignature(survey.requireSignature ?? false);
         setQuestions(mapped);
@@ -1125,6 +1142,11 @@ export function SurveyEditPage() {
     };
     fetchSurvey();
   }, [id, navigate]);
+
+  // Daftar provinsi untuk targeting wilayah (data lokal).
+  useEffect(() => {
+    getProvinces().then(setProvinceList).catch(() => {});
+  }, []);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1357,6 +1379,81 @@ export function SurveyEditPage() {
                 </span>
               </span>
             </label>
+          </div>
+        </div>
+
+        {/* Limitasi & Targeting */}
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Limitasi &amp; Targeting
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Kuota maks responden
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={settingsMaxRespondents}
+                onChange={(e) => setSettingsMaxRespondents(e.target.value)}
+                placeholder="0 = tak terbatas"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Khusus jenis kelamin
+              </label>
+              <div className="flex flex-wrap gap-3 pt-1.5">
+                {[
+                  { v: 'male', l: 'Laki-laki' },
+                  { v: 'female', l: 'Perempuan' },
+                  { v: 'other', l: 'Lainnya' },
+                ].map((g) => (
+                  <label key={g.v} className="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={settingsAllowedGenders.includes(g.v)}
+                      onChange={(e) =>
+                        setSettingsAllowedGenders((prev) =>
+                          e.target.checked ? [...prev, g.v] : prev.filter((x) => x !== g.v),
+                        )
+                      }
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {g.l}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-gray-400">Kosong = semua jenis kelamin.</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Khusus provinsi {settingsAllowedProvinces.length > 0 && `(${settingsAllowedProvinces.length})`}
+              </label>
+              <div className="max-h-32 overflow-y-auto rounded-md border border-gray-300 p-2">
+                {provinceList.length === 0 && (
+                  <p className="text-xs text-gray-400">Memuat provinsi…</p>
+                )}
+                {provinceList.map((p) => (
+                  <label key={p.id} className="flex items-center gap-1.5 py-0.5 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={settingsAllowedProvinces.includes(p.name)}
+                      onChange={(e) =>
+                        setSettingsAllowedProvinces((prev) =>
+                          e.target.checked ? [...prev, p.name] : prev.filter((x) => x !== p.name),
+                        )
+                      }
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-[11px] text-gray-400">Kosong = semua wilayah.</p>
+            </div>
           </div>
         </div>
 

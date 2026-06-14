@@ -6,6 +6,7 @@ import {
   IsInt,
   IsBoolean,
   IsIn,
+  IsArray,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -83,6 +84,16 @@ export class CreateSurveyDto {
   @IsOptional()
   @IsBoolean()
   requireSignature?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedGenders?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  allowedProvinces?: string[];
 
   @IsOptional()
   @ValidateNested()
