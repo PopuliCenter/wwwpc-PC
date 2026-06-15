@@ -32,9 +32,10 @@ export interface DistributionData {
 }
 
 export interface HeatmapPoint {
-  city: string;
-  province: string;
+  latitude: number;
+  longitude: number;
   count: number;
+  city?: string;
 }
 
 export interface SurveyCompletionRate {

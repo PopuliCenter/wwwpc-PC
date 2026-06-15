@@ -48,6 +48,7 @@ describe('DashboardService', () => {
 
     responseRepo = {
       createQueryBuilder: vi.fn(),
+      manager: { query: vi.fn().mockResolvedValue([]) },
     };
 
     geolocationRepo = {
@@ -282,32 +283,31 @@ describe('DashboardService', () => {
   });
 
   describe('getHeatmapData', () => {
-    it('should return aggregated geographic data', async () => {
-      const rawData = [
-        { city: 'Jakarta', province: 'DKI Jakarta', count: '50' },
-        { city: 'Bandung', province: 'Jawa Barat', count: '30' },
+    it('should return coordinate points from survey response GPS', async () => {
+      const rawRows = [
+        { lat: '-6.2000', lng: '106.8167', count: 50, city: 'Jakarta' },
+        { lat: '-6.9175', lng: '107.6191', count: 30, city: null },
       ];
-      const qb = createMockQueryBuilder(rawData);
-      geolocationRepo.createQueryBuilder.mockReturnValue(qb);
+      responseRepo.manager.query.mockResolvedValue(rawRows);
 
       const result = await service.getHeatmapData();
 
       expect(result).toEqual([
-        { city: 'Jakarta', province: 'DKI Jakarta', count: 50 },
-        { city: 'Bandung', province: 'Jawa Barat', count: 30 },
+        { latitude: -6.2, longitude: 106.8167, count: 50, city: 'Jakarta' },
+        { latitude: -6.9175, longitude: 107.6191, count: 30, city: undefined },
       ]);
     });
 
     it('should return cached heatmap data if available', async () => {
       const cachedData = [
-        { city: 'Surabaya', province: 'Jawa Timur', count: 20 },
+        { latitude: -7.25, longitude: 112.75, count: 20, city: 'Surabaya' },
       ];
       cacheManager.get.mockResolvedValue(cachedData);
 
       const result = await service.getHeatmapData();
 
       expect(result).toEqual(cachedData);
-      expect(geolocationRepo.createQueryBuilder).not.toHaveBeenCalled();
+      expect(responseRepo.manager.query).not.toHaveBeenCalled();
     });
   });
 });

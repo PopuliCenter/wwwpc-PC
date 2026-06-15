@@ -277,22 +277,36 @@ export class DashboardService {
       KEY_HEATMAP,
       TTL_HEATMAP,
       async () => {
-        const results = await this.geolocationRepository
-          .createQueryBuilder('geo')
-          .select('geo.city', 'city')
-          .addSelect('geo.province', 'province')
-          .addSelect('COUNT(*)', 'count')
-          .where('geo.city IS NOT NULL')
-          .andWhere('geo.province IS NOT NULL')
-          .groupBy('geo.city')
-          .addGroupBy('geo.province')
-          .orderBy('count', 'DESC')
-          .getRawMany();
+        // Titik dari koordinat GPS yang direkam saat PENGISIAN survei
+        // (survey_response.start_*/end_*, terisi bila setelan "Rekam lokasi GPS"
+        // aktif & responden mengizinkan lokasi). Dikelompokkan per ~11 m
+        // (pembulatan 4 desimal) agar konsentrasi tidak wajar tampak sebagai satu
+        // titik dengan count > 1. Nama kota diambil dari profil bila ada.
+        const rows: Array<{
+          lat: string | number;
+          lng: string | number;
+          count: string | number;
+          city: string | null;
+        }> = await this.responseRepository.manager.query(
+          `SELECT
+             ROUND(COALESCE(r.start_latitude, r.end_latitude)::numeric, 4) AS lat,
+             ROUND(COALESCE(r.start_longitude, r.end_longitude)::numeric, 4) AS lng,
+             COUNT(*)::int AS count,
+             MAX(p.city) AS city
+           FROM survey_response r
+           LEFT JOIN user_profile p ON p.user_id = r.respondent_id
+           WHERE COALESCE(r.start_latitude, r.end_latitude) IS NOT NULL
+             AND COALESCE(r.start_longitude, r.end_longitude) IS NOT NULL
+           GROUP BY 1, 2
+           ORDER BY count DESC
+           LIMIT 1000`,
+        );
 
-        return results.map((r) => ({
-          city: r.city,
-          province: r.province,
-          count: parseInt(r.count, 10),
+        return rows.map((r) => ({
+          latitude: Number(r.lat),
+          longitude: Number(r.lng),
+          count: typeof r.count === 'number' ? r.count : parseInt(r.count, 10),
+          city: r.city ?? undefined,
         }));
       },
     );
