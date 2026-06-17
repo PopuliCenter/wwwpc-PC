@@ -1,6 +1,7 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { isEmbedMode } from '@/utils/embed';
 
 const highlights = [
   { icon: Gift, title: 'Reward tiap survei', desc: 'Kumpulkan poin di setiap survei dan tukar jadi pulsa atau saldo e-wallet.' },
@@ -22,6 +23,18 @@ export function AuthLayout() {
   if (isAuthenticated && user) {
     const redirectPath = user.role === 'admin' ? '/admin/dashboard' : '/surveys';
     return <Navigate to={redirectPath} replace />;
+  }
+
+  // Mode embed (Elementor): tanpa panel brand, hanya form, lebar penuh dan
+  // mengikuti tinggi konten (header sudah disediakan halaman induk).
+  if (isEmbedMode) {
+    return (
+      <div className="flex w-full items-center justify-center px-4 py-8 sm:px-6">
+        <div className="w-full max-w-sm">
+          <Outlet />
+        </div>
+      </div>
+    );
   }
 
   return (

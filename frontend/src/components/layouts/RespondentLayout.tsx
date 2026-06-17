@@ -3,6 +3,7 @@ import { WifiOff, CloudUpload } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { isEmbedMode } from '@/utils/embed';
 
 const navItems = [
   { path: '/surveys', label: 'Survei' },
@@ -22,8 +23,9 @@ export function RespondentLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
+    <div className={`flex flex-col ${isEmbedMode ? '' : 'min-h-screen'}`}>
+      {/* Header — disembunyikan di mode embed (Elementor sudah punya header) */}
+      {!isEmbedMode && (
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -77,6 +79,7 @@ export function RespondentLayout() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
