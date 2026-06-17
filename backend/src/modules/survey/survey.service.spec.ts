@@ -10,6 +10,7 @@ import { Question } from './entities/question.entity';
 import { SurveyStatus } from '@shared/enums';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
+import { QuestionService } from './question.service';
 
 describe('SurveyService', () => {
   let service: SurveyService;
@@ -17,6 +18,7 @@ describe('SurveyService', () => {
   let timeConfigRepository: any;
   let rewardConfigRepository: any;
   let questionRepository: any;
+  let questionService: any;
 
   const mockUserId = 'user-uuid-123';
 
@@ -92,10 +94,15 @@ describe('SurveyService', () => {
         { provide: getRepositoryToken(SurveyTimeConfig), useValue: timeConfigRepository },
         { provide: getRepositoryToken(SurveyRewardConfig), useValue: rewardConfigRepository },
         { provide: getRepositoryToken(Question), useValue: questionRepository },
+        {
+          provide: QuestionService,
+          useValue: { bulkReplaceQuestions: vi.fn().mockResolvedValue([]) },
+        },
       ],
     }).compile();
 
     service = module.get<SurveyService>(SurveyService);
+    questionService = module.get<QuestionService>(QuestionService);
   });
 
   describe('createSurvey', () => {
@@ -234,6 +241,41 @@ describe('SurveyService', () => {
       await expect(
         service.duplicateSurvey('non-existent', mockUserId),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('copies the original questions into the duplicate', async () => {
+      questionRepository.find.mockResolvedValue([
+        {
+          id: 'q-1',
+          type: 'single_choice',
+          questionText: 'Pilih satu',
+          required: true,
+          enabled: true,
+          orderIndex: 0,
+          hasOtherOption: false,
+          validationRules: null,
+          options: [
+            { label: 'Ya', value: 'ya', orderIndex: 0 },
+            { label: 'Tidak', value: 'tidak', orderIndex: 1 },
+          ],
+        },
+      ]);
+
+      await service.duplicateSurvey('survey-uuid-1', mockUserId);
+
+      expect(questionService.bulkReplaceQuestions).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'single_choice',
+            text: 'Pilih satu',
+            options: [
+              { label: 'Ya', value: 'ya', orderIndex: 0 },
+              { label: 'Tidak', value: 'tidak', orderIndex: 1 },
+            ],
+          }),
+        ]),
+      );
     });
   });
 

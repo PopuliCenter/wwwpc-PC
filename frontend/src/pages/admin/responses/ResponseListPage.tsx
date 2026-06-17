@@ -20,6 +20,7 @@ interface ResponseItem {
   rewardDistributed?: boolean;
   destinationNumber?: string | null;
   duplicateFlag?: boolean;
+  archived?: boolean;
 }
 
 interface SurveyOption {
@@ -38,6 +39,7 @@ interface FilterState {
   surveyType: string;
   category: string;
   search: string;
+  archived: string;
 }
 
 type SortKey = 'respondentName' | 'surveyTitle' | 'status' | 'submittedAt' | 'deviceType';
@@ -166,6 +168,7 @@ export function ResponseListPage() {
     surveyType: '',
     category: '',
     search: '',
+    archived: '',
   });
 
   const fetchResponses = async () => {
@@ -181,6 +184,7 @@ export function ResponseListPage() {
       if (filters.surveyType) params.set('surveyType', filters.surveyType);
       if (filters.category) params.set('category', filters.category);
       if (filters.search) params.set('search', filters.search);
+      if (filters.archived) params.set('archived', filters.archived);
 
       const query = params.toString();
       const result = await api.get<ResponseItem[]>(`/responses${query ? `?${query}` : ''}`);
@@ -270,6 +274,23 @@ export function ResponseListPage() {
     }
   };
 
+  // Arsipkan respons → data tetap tersimpan, disembunyikan dari daftar aktif,
+  // dan responden bisa mengisi survei ini lagi (alternatif aman dari hapus).
+  const handleArchive = async (r: ResponseItem) => {
+    const ok = window.confirm(
+      `Arsipkan respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
+        'Data tetap tersimpan (bisa dilihat lewat "Tampilkan arsip"), dan responden ' +
+        'dapat mengisi survei ini kembali.',
+    );
+    if (!ok) return;
+    try {
+      await api.patch(`/responses/${r.id}/archive`);
+      setResponses((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e) {
+      alert((e as Error).message || 'Gagal mengarsipkan respons');
+    }
+  };
+
   // Sort di sisi klien atas data yang sudah dimuat (klik header kolom).
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -356,6 +377,19 @@ export function ResponseListPage() {
             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
         </div>
+
+        {/* Toggle tampilkan respons terarsip */}
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input
+            type="checkbox"
+            checked={filters.archived === 'true'}
+            onChange={(e) =>
+              setFilters((p) => ({ ...p, archived: e.target.checked ? 'true' : '' }))
+            }
+            className="h-4 w-4 rounded accent-primary-600"
+          />
+          Tampilkan arsip
+        </label>
 
         {/* Filter lanjutan — disembunyikan agar tidak bertumpuk */}
         <button
@@ -522,6 +556,11 @@ export function ResponseListPage() {
                             Duplikat
                           </span>
                         )}
+                        {r.archived && (
+                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
+                            Terarsip
+                          </span>
+                        )}
                       </div>
                       {r.respondentPhone && (
                         <span className="text-xs text-gray-400">{r.respondentPhone}</span>
@@ -562,10 +601,19 @@ export function ResponseListPage() {
                         >
                           Detail
                         </button>
+                        {!r.archived && (
+                          <button
+                            onClick={() => handleArchive(r)}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="Arsipkan (data disimpan, responden bisa mengisi ulang)"
+                          >
+                            Arsip
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(r)}
                           className="text-red-600 hover:text-red-800"
-                          title="Hapus respons (responden bisa mengisi ulang)"
+                          title="Hapus permanen (responden bisa mengisi ulang)"
                         >
                           Hapus
                         </button>

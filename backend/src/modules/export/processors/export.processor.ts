@@ -268,7 +268,9 @@ export class ExportProcessor {
       .leftJoinAndSelect('response.answers', 'answers')
       .leftJoinAndSelect('response.respondent', 'respondent')
       .leftJoin('user_profile', 'profile', 'profile.user_id = respondent.id')
-      .where('response.survey_id = :surveyId', { surveyId });
+      .where('response.survey_id = :surveyId', { surveyId })
+      // Respons terarsip tidak ikut diekspor (sudah digantikan respons baru).
+      .andWhere('response.archived_at IS NULL');
 
     if (filters) {
       this.applyFilters(qb, filters);

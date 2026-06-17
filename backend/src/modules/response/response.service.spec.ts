@@ -317,7 +317,12 @@ describe('ResponseService', () => {
 
       expect(result).toEqual(response);
       expect(responseRepository.findOne).toHaveBeenCalledWith({
-        where: { surveyId: 'survey-1', respondentId: 'respondent-1' },
+        // archivedAt: IsNull() ditambahkan agar respons terarsip diabaikan.
+        where: {
+          surveyId: 'survey-1',
+          respondentId: 'respondent-1',
+          archivedAt: expect.anything(),
+        },
         relations: ['answers'],
       });
     });
@@ -439,8 +444,8 @@ describe('ResponseService', () => {
         pageSize: 20,
       });
 
-      // All filters use andWhere (AND conditions)
-      expect(mockQb.andWhere).toHaveBeenCalledTimes(3);
+      // 3 filter + 1 andWhere arsip (archived_at IS NULL) = 4.
+      expect(mockQb.andWhere).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -622,6 +627,40 @@ describe('ResponseService', () => {
     it('throws NotFound when the response does not exist', async () => {
       responseRepository.findOne.mockResolvedValue(null);
       await expect(service.deleteResponse('missing')).rejects.toThrow();
+    });
+  });
+
+  describe('archiveResponse', () => {
+    it('sets archived_at, keeps the row, and frees the quota for a complete response', async () => {
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-1',
+        surveyId: 'survey-1',
+        status: ResponseStatus.COMPLETE,
+        archivedAt: null,
+      });
+      responseRepository.save.mockImplementation((e: any) => Promise.resolve(e));
+      surveyTimeService.decrementRespondentCount.mockResolvedValue(undefined);
+
+      const result = await service.archiveResponse('resp-1');
+
+      expect(result).toEqual({ archived: true, surveyId: 'survey-1' });
+      const saved = responseRepository.save.mock.calls[0][0];
+      expect(saved.archivedAt).toBeInstanceOf(Date);
+      expect(surveyTimeService.decrementRespondentCount).toHaveBeenCalledWith('survey-1');
+    });
+
+    it('is idempotent when already archived', async () => {
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-2',
+        surveyId: 'survey-1',
+        status: ResponseStatus.COMPLETE,
+        archivedAt: new Date(),
+      });
+
+      const result = await service.archiveResponse('resp-2');
+
+      expect(result.archived).toBe(true);
+      expect(responseRepository.save).not.toHaveBeenCalled();
     });
   });
 });

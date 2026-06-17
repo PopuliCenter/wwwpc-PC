@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -51,6 +52,26 @@ export class ResponsesAdminController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   async detail(@Param('id') id: string) {
     return this.responseService.getResponseDetail(id);
+  }
+
+  /**
+   * Arsipkan satu respons (PATCH /responses/:id/archive). Non-destruktif:
+   * data tetap tersimpan, respons disembunyikan dari daftar aktif, dan responden
+   * bisa mengisi ulang. Alternatif aman dari hapus permanen.
+   */
+  @Patch(':id/archive')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async archive(@Param('id') id: string, @Req() req: any) {
+    const result = await this.responseService.archiveResponse(id);
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'response',
+      details: { kind: 'response_archive', responseId: id, surveyId: result.surveyId },
+      ipAddress: clientIp(req),
+    });
+    return result;
   }
 
   /**

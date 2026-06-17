@@ -1162,6 +1162,12 @@ export function SurveyEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Informasi survei (bisa diedit seperti di buat survei) — penting untuk survei duplikat.
+  const [settingsTitle, setSettingsTitle] = useState('');
+  const [settingsDescription, setSettingsDescription] = useState('');
+  const [settingsStartDate, setSettingsStartDate] = useState('');
+  const [settingsEndDate, setSettingsEndDate] = useState('');
+  const [settingsMaxDuration, setSettingsMaxDuration] = useState('');
   // Pengaturan survei (tipe, kategori, mode form)
   const [settingsType, setSettingsType] = useState<'nasional' | 'daerah' | 'lainnya'>('lainnya');
   const [settingsCategory, setSettingsCategory] = useState('');
@@ -1182,6 +1188,8 @@ export function SurveyEditPage() {
     setSaveMessage(null);
     try {
       await api.put(`/surveys/${id}`, {
+        title: settingsTitle || undefined,
+        description: settingsDescription || undefined,
         surveyType: settingsType,
         category: settingsCategory || undefined,
         formMode: settingsFormMode,
@@ -1191,6 +1199,9 @@ export function SurveyEditPage() {
         allowedGenders: settingsAllowedGenders,
         allowedProvinces: settingsAllowedProvinces,
         timeConfig: {
+          startDatetime: settingsStartDate || undefined,
+          endDatetime: settingsEndDate || undefined,
+          maxDurationMinutes: settingsMaxDuration ? Number(settingsMaxDuration) : undefined,
           maxRespondents: settingsMaxRespondents ? Number(settingsMaxRespondents) : 0,
         },
       });
@@ -1229,6 +1240,9 @@ export function SurveyEditPage() {
             allowedGenders?: string[];
             allowedProvinces?: string[];
             maxRespondents?: number | null;
+            startDatetime?: string | null;
+            endDatetime?: string | null;
+            maxDurationMinutes?: number | null;
           }>(`/surveys/${id}`),
           api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
         ]);
@@ -1244,6 +1258,14 @@ export function SurveyEditPage() {
           requireSignature: survey.requireSignature ?? false,
           questions: mapped,
         });
+        setSettingsTitle(survey.title ?? '');
+        setSettingsDescription(survey.description ?? '');
+        // ISO → format input datetime-local (YYYY-MM-DDTHH:mm).
+        setSettingsStartDate(survey.startDatetime ? survey.startDatetime.slice(0, 16) : '');
+        setSettingsEndDate(survey.endDatetime ? survey.endDatetime.slice(0, 16) : '');
+        setSettingsMaxDuration(
+          survey.maxDurationMinutes != null ? String(survey.maxDurationMinutes) : '',
+        );
         setSettingsType(survey.surveyType ?? 'lainnya');
         setSettingsCategory(survey.category ?? '');
         setSettingsFormMode(survey.formMode ?? 'paginated');
@@ -1388,6 +1410,64 @@ export function SurveyEditPage() {
           >
             {saving ? 'Menyimpan...' : 'Simpan'}
           </button>
+        </div>
+      </div>
+
+      {/* Informasi Survei — judul, deskripsi, jadwal (bisa diedit, mis. survei duplikat) */}
+      <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="mb-3 text-sm font-semibold text-gray-900">Informasi Survei</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Judul Survei</label>
+            <input
+              type="text"
+              value={settingsTitle}
+              onChange={(e) => setSettingsTitle(e.target.value)}
+              placeholder="Masukkan judul survei"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Deskripsi</label>
+            <textarea
+              value={settingsDescription}
+              onChange={(e) => setSettingsDescription(e.target.value)}
+              placeholder="Deskripsi survei"
+              rows={3}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Tanggal Mulai</label>
+              <input
+                type="datetime-local"
+                value={settingsStartDate}
+                onChange={(e) => setSettingsStartDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Tanggal Berakhir</label>
+              <input
+                type="datetime-local"
+                value={settingsEndDate}
+                onChange={(e) => setSettingsEndDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Durasi Maks (menit)</label>
+              <input
+                type="number"
+                min={0}
+                value={settingsMaxDuration}
+                onChange={(e) => setSettingsMaxDuration(e.target.value)}
+                placeholder="mis. 30"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

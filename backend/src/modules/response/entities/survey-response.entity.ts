@@ -88,6 +88,14 @@ export class SurveyResponse {
   @Column({ type: 'timestamp', nullable: true, name: 'exported_at' })
   exportedAt: Date | null;
 
+  /**
+   * Waktu respons diarsipkan oleh admin (null = aktif). Respons terarsip tetap
+   * tersimpan tapi disembunyikan dari daftar aktif, dan membebaskan responden
+   * untuk mengisi survei kembali (lihat index unik parsial uq_one_response_per_survey).
+   */
+  @Column({ type: 'timestamp', nullable: true, name: 'archived_at' })
+  archivedAt: Date | null;
+
   @Column({ type: 'jsonb', nullable: true })
   tags: string[] | null;
 

@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SurveyResponse, ResponseStatus } from './entities/survey-response.entity';
 import { Answer } from './entities/answer.entity';
@@ -52,6 +52,8 @@ export interface AdminResponseItem {
   rewardDistributed: boolean;
   /** Dugaan duplikat: nomor tujuan sama dipakai >1 respons (indikasi fraud). */
   duplicateFlag: boolean;
+  /** Respons sudah diarsipkan (disembunyikan dari daftar aktif). */
+  archived: boolean;
 }
 
 @Injectable()
@@ -127,9 +129,9 @@ export class ResponseService {
       if (byKey) return this.findResponseById(byKey.id);
     }
 
-    // Check if respondent already has a complete response
+    // Check if respondent already has a complete response (abaikan yang terarsip).
     const existingResponse = await this.responseRepository.findOne({
-      where: { surveyId, respondentId },
+      where: { surveyId, respondentId, archivedAt: IsNull() },
     });
 
     if (existingResponse && existingResponse.status === ResponseStatus.COMPLETE) {
@@ -275,7 +277,7 @@ export class ResponseService {
     });
 
     let response = await this.responseRepository.findOne({
-      where: { surveyId, respondentId },
+      where: { surveyId, respondentId, archivedAt: IsNull() },
     });
 
     if (response && response.status === ResponseStatus.COMPLETE) {
@@ -301,7 +303,7 @@ export class ResponseService {
         if (error.code === '23505' || error.message?.includes('uq_one_response_per_survey')) {
           // Race condition: response was created between check and insert
           response = await this.responseRepository.findOne({
-            where: { surveyId, respondentId },
+            where: { surveyId, respondentId, archivedAt: IsNull() },
           });
           if (!response) {
             throw error;
@@ -327,7 +329,7 @@ export class ResponseService {
     respondentId: string,
   ): Promise<SurveyResponse | null> {
     return this.responseRepository.findOne({
-      where: { surveyId, respondentId },
+      where: { surveyId, respondentId, archivedAt: IsNull() },
       relations: ['answers'],
     });
   }
@@ -349,7 +351,8 @@ export class ResponseService {
       .createQueryBuilder('response')
       .leftJoinAndSelect('response.respondent', 'respondent')
       .leftJoin('user_profile', 'profile', 'profile.user_id = respondent.id')
-      .where('response.survey_id = :surveyId', { surveyId });
+      .where('response.survey_id = :surveyId', { surveyId })
+      .andWhere('response.archived_at IS NULL');
 
     this.applyFilters(qb, filters);
 
@@ -380,6 +383,13 @@ export class ResponseService {
       .leftJoinAndSelect('r.respondent', 'respondent')
       .leftJoinAndSelect('r.survey', 'survey')
       .leftJoin('user_profile', 'profile', 'profile.user_id = r.respondent_id');
+
+    // Default: hanya respons aktif. filters.archived === 'true' → tampilkan arsip.
+    if (filters.archived === 'true') {
+      qb.andWhere('r.archived_at IS NOT NULL');
+    } else {
+      qb.andWhere('r.archived_at IS NULL');
+    }
 
     if (filters.surveyId) {
       qb.andWhere('r.survey_id = :surveyId', { surveyId: filters.surveyId });
@@ -450,6 +460,7 @@ export class ResponseService {
       duplicateFlag: r.destinationNumber
         ? duplicateNumbers.has(r.destinationNumber)
         : false,
+      archived: !!r.archivedAt,
     }));
   }
 
@@ -566,6 +577,38 @@ export class ResponseService {
 
     this.logger.log(`Response deleted: ${id} (survey ${surveyId})`);
     return { deleted: true, surveyId };
+  }
+
+  /**
+   * Arsipkan satu respons (alternatif non-destruktif dari hapus). Data + jawaban
+   * tetap tersimpan, tapi respons disembunyikan dari daftar aktif dan kunci unik
+   * terbebas sehingga responden bisa mengisi ulang. Respons COMPLETE juga
+   * mengembalikan kuota (decrement count), sama seperti hapus.
+   */
+  async archiveResponse(id: string): Promise<{ archived: boolean; surveyId: string }> {
+    const response = await this.responseRepository.findOne({ where: { id } });
+    if (!response) {
+      throw new NotFoundException(`Respons ${id} tidak ditemukan`);
+    }
+    if (response.archivedAt) {
+      return { archived: true, surveyId: response.surveyId }; // idempoten
+    }
+
+    response.archivedAt = new Date();
+    await this.responseRepository.save(response);
+
+    if (response.status === ResponseStatus.COMPLETE) {
+      await this.surveyTimeService
+        .decrementRespondentCount(response.surveyId)
+        .catch((e) =>
+          this.logger.warn(
+            `Gagal decrement count survei ${response.surveyId} saat arsip respons: ${e.message}`,
+          ),
+        );
+    }
+
+    this.logger.log(`Response archived: ${id} (survey ${response.surveyId})`);
+    return { archived: true, surveyId: response.surveyId };
   }
 
   /**

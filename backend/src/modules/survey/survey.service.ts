@@ -14,6 +14,7 @@ import { Question } from './entities/question.entity';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
 import { SurveyStatus } from '@shared/enums';
+import { QuestionService } from './question.service';
 
 @Injectable()
 export class SurveyService {
@@ -28,6 +29,7 @@ export class SurveyService {
     private readonly rewardConfigRepository: Repository<SurveyRewardConfig>,
     @InjectRepository(Question)
     private readonly questionRepository: Repository<Question>,
+    private readonly questionService: QuestionService,
   ) {}
 
   async findAll(): Promise<Survey[]> {
@@ -381,9 +383,35 @@ export class SurveyService {
       },
     };
 
-    this.logger.log(`Survey duplicated from: ${surveyId} by user ${userId}`);
+    const newSurvey = await this.createSurvey(userId, duplicateDto);
 
-    return this.createSurvey(userId, duplicateDto);
+    // Salin SEMUA pertanyaan (beserta opsi) ke survei baru — tanpa ini, survei
+    // hasil duplikat tampil tanpa pertanyaan ("file pertanyaan kosong").
+    const originalQuestions = await this.questionRepository.find({
+      where: { surveyId },
+      order: { orderIndex: 'ASC' },
+    });
+    if (originalQuestions.length > 0) {
+      const mapped = originalQuestions.map((q) => ({
+        type: q.type,
+        text: q.questionText,
+        required: q.required,
+        enabled: q.enabled,
+        order: q.orderIndex,
+        hasOtherOption: q.hasOtherOption,
+        validationRules: q.validationRules,
+        options: [...(q.options ?? [])]
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map((o) => ({ label: o.label, value: o.value, orderIndex: o.orderIndex })),
+      }));
+      await this.questionService.bulkReplaceQuestions(newSurvey.id, mapped);
+    }
+
+    this.logger.log(
+      `Survey duplicated from ${surveyId} to ${newSurvey.id} (${originalQuestions.length} pertanyaan) by user ${userId}`,
+    );
+
+    return this.findById(newSurvey.id);
   }
 
   async activateSurvey(surveyId: string): Promise<Survey> {

@@ -15,4 +15,6 @@ export class AllResponsesFilterDto {
   @IsOptional() @IsString() category?: string;
   /** Cari nama atau nomor HP responden */
   @IsOptional() @IsString() search?: string;
+  /** 'true' = tampilkan respons terarsip; selain itu = hanya respons aktif. */
+  @IsOptional() @IsString() archived?: string;
 }
