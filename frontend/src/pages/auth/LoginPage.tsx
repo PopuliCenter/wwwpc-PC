@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
@@ -14,7 +14,12 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const login = useAuthStore((state) => state.login);
+
+  // Halaman asal sebelum diarahkan ke login (mis. deep-link embed
+  // /surveys/<id>/fill?embed=1). Dipakai untuk kembali ke survei yang dituju.
+  const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -26,10 +31,15 @@ export function LoginPage() {
       login(response.user, response.accessToken, response.refreshToken);
 
       const role = response.user.role;
+      const isAdmin = role === 'admin' || role === 'super_admin';
       // Role surveyor dinonaktifkan — akun lama diarahkan ke tampilan responden.
-      const redirectPath =
-        role === 'admin' || role === 'super_admin' ? '/admin/dashboard' : '/surveys';
-      navigate(redirectPath);
+      // Responden: kembali ke halaman asal bila ada (deep-link survei), jika tidak ke /surveys.
+      const redirectPath = isAdmin
+        ? '/admin/dashboard'
+        : from?.pathname
+          ? `${from.pathname}${from.search ?? ''}`
+          : '/surveys';
+      navigate(redirectPath, { replace: true });
     } catch (err: unknown) {
       const apiError = err as { message?: string; statusCode?: number };
       setError(apiError.message || 'Login gagal. Periksa email dan password Anda.');
