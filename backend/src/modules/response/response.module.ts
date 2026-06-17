@@ -14,6 +14,7 @@ import { ManualRewardDistribution } from './entities/manual-reward-distribution.
 import { SurveyModule } from '@modules/survey';
 import { AuthModule } from '@modules/auth';
 import { ExportModule } from '@modules/export';
+import { AuditModule } from '@modules/audit';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ExportModule } from '@modules/export';
     SurveyModule,
     AuthModule,
     ExportModule, // provides S3StorageService for respondent file uploads
+    AuditModule, // audit log saat admin menghapus respons
   ],
   controllers: [
     ResponseController,

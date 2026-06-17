@@ -40,6 +40,8 @@ interface FilterState {
   search: string;
 }
 
+type SortKey = 'respondentName' | 'surveyTitle' | 'status' | 'submittedAt' | 'deviceType';
+
 const statusColors: Record<string, string> = {
   completed: 'bg-green-100 text-green-800',
   partial: 'bg-yellow-100 text-yellow-800',
@@ -151,6 +153,9 @@ export function ResponseListPage() {
   const [responses, setResponses] = useState<ResponseItem[]>([]);
   const [surveys, setSurveys] = useState<SurveyOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('submittedAt');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState<FilterState>({
     startDate: '',
     endDate: '',
@@ -223,10 +228,6 @@ export function ResponseListPage() {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleApplyFilters = () => {
-    fetchResponses();
-  };
-
   const handleExport = async (fmt: 'csv' | 'excel' | 'pdf' | 'json') => {
     if (!filters.surveyId) {
       alert('Pilih survei dulu di filter untuk mengekspor data.');
@@ -253,6 +254,44 @@ export function ResponseListPage() {
       alert('Gagal menandai reward');
     }
   };
+
+  // Hapus respons → responden bisa mengisi survei ini lagi (salah isi / tertahan).
+  const handleDelete = async (r: ResponseItem) => {
+    const ok = window.confirm(
+      `Hapus respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
+        'Jawaban akan dihapus permanen dan responden dapat mengisi survei ini kembali.',
+    );
+    if (!ok) return;
+    try {
+      await api.delete(`/responses/${r.id}`);
+      setResponses((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e) {
+      alert((e as Error).message || 'Gagal menghapus respons');
+    }
+  };
+
+  // Sort di sisi klien atas data yang sudah dimuat (klik header kolom).
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedResponses = [...responses].sort((a, b) => {
+    let cmp = 0;
+    if (sortKey === 'submittedAt') {
+      cmp = new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+    } else {
+      cmp = String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''), 'id');
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const sortIndicator = (key: SortKey) =>
+    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   return (
     <div className="space-y-6">
@@ -287,126 +326,134 @@ export function ResponseListPage() {
       </div>
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-        <h3 className="text-sm font-medium text-gray-700 mb-3">Filter</h3>
-        <div className="mb-3">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+        {/* Survei — filter utama, ditempatkan di atas & diperbesar */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-800 mb-1.5">Survei</label>
+          <select
+            name="surveyId"
+            value={filters.surveyId}
+            onChange={handleFilterChange}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">— Pilih survei untuk menampilkan respons —</option>
+            {surveys.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Pencarian responden */}
+        <div>
           <input
             type="text"
             name="search"
             value={filters.search}
             onChange={handleFilterChange}
             placeholder="Cari nama atau nomor HP responden..."
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
-            <input
-              type="date"
-              name="startDate"
-              value={filters.startDate}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Sampai Tanggal</label>
-            <input
-              type="date"
-              name="endDate"
-              value={filters.endDate}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Wilayah</label>
-            <input
-              type="text"
-              name="region"
-              value={filters.region}
-              onChange={handleFilterChange}
-              placeholder="Semua"
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Status</label>
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Semua</option>
-              <option value="completed">Selesai</option>
-              <option value="partial">Sebagian</option>
-              <option value="abandoned">Ditinggalkan</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Perangkat</label>
-            <select
-              name="deviceType"
-              value={filters.deviceType}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Semua</option>
-              <option value="mobile">Mobile</option>
-              <option value="desktop">Desktop</option>
-              <option value="tablet">Tablet</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Survei</label>
-            <select
-              name="surveyId"
-              value={filters.surveyId}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Semua</option>
-              {surveys.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Tipe Survei</label>
-            <select
-              name="surveyType"
-              value={filters.surveyType}
-              onChange={handleFilterChange}
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            >
-              <option value="">Semua</option>
-              <option value="nasional">Nasional</option>
-              <option value="daerah">Daerah</option>
-              <option value="lainnya">Lainnya</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Kategori</label>
-            <input
-              type="text"
-              name="category"
-              value={filters.category}
-              onChange={handleFilterChange}
-              placeholder="Semua"
-              className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
-            />
-          </div>
-        </div>
+
+        {/* Filter lanjutan — disembunyikan agar tidak bertumpuk */}
         <button
-          onClick={handleApplyFilters}
-          className="mt-3 px-4 py-1.5 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700 transition-colors"
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-sm font-medium text-primary-600 hover:text-primary-700"
         >
-          Terapkan Filter
+          {showAdvanced ? '− Sembunyikan filter lanjutan' : '+ Filter lanjutan'}
         </button>
+
+        {showAdvanced && (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-1 border-t border-gray-100">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
+              <input
+                type="date"
+                name="startDate"
+                value={filters.startDate}
+                onChange={handleFilterChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Sampai Tanggal</label>
+              <input
+                type="date"
+                name="endDate"
+                value={filters.endDate}
+                onChange={handleFilterChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Wilayah</label>
+              <input
+                type="text"
+                name="region"
+                value={filters.region}
+                onChange={handleFilterChange}
+                placeholder="Semua"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Status</label>
+              <select
+                name="status"
+                value={filters.status}
+                onChange={handleFilterChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              >
+                <option value="">Semua</option>
+                <option value="completed">Selesai</option>
+                <option value="partial">Sebagian</option>
+                <option value="abandoned">Ditinggalkan</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Perangkat</label>
+              <select
+                name="deviceType"
+                value={filters.deviceType}
+                onChange={handleFilterChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              >
+                <option value="">Semua</option>
+                <option value="mobile">Mobile</option>
+                <option value="desktop">Desktop</option>
+                <option value="tablet">Tablet</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Tipe Survei</label>
+              <select
+                name="surveyType"
+                value={filters.surveyType}
+                onChange={handleFilterChange}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              >
+                <option value="">Semua</option>
+                <option value="nasional">Nasional</option>
+                <option value="daerah">Daerah</option>
+                <option value="lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Kategori</label>
+              <input
+                type="text"
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                placeholder="Semua"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Manual Reward Panel */}
@@ -427,17 +474,42 @@ export function ResponseListPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responden</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Survei</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Perangkat</th>
+                  <th
+                    onClick={() => toggleSort('respondentName')}
+                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
+                  >
+                    Responden{sortIndicator('respondentName')}
+                  </th>
+                  <th
+                    onClick={() => toggleSort('surveyTitle')}
+                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
+                  >
+                    Survei{sortIndicator('surveyTitle')}
+                  </th>
+                  <th
+                    onClick={() => toggleSort('status')}
+                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
+                  >
+                    Status{sortIndicator('status')}
+                  </th>
+                  <th
+                    onClick={() => toggleSort('submittedAt')}
+                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
+                  >
+                    Tanggal{sortIndicator('submittedAt')}
+                  </th>
+                  <th
+                    onClick={() => toggleSort('deviceType')}
+                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
+                  >
+                    Perangkat{sortIndicator('deviceType')}
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reward</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {responses.map((r) => (
+                {sortedResponses.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
                       <div className="flex items-center gap-2">
@@ -483,12 +555,21 @@ export function ResponseListPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => navigate(`/admin/responses/${r.id}`)}
-                        className="text-primary-600 hover:text-primary-800"
-                      >
-                        Detail
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => navigate(`/admin/responses/${r.id}`)}
+                          className="text-primary-600 hover:text-primary-800"
+                        >
+                          Detail
+                        </button>
+                        <button
+                          onClick={() => handleDelete(r)}
+                          className="text-red-600 hover:text-red-800"
+                          title="Hapus respons (responden bisa mengisi ulang)"
+                        >
+                          Hapus
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

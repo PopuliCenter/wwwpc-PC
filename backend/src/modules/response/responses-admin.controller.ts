@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -15,7 +16,17 @@ import { AllResponsesFilterDto } from './dto/all-responses-filter.dto';
 import { MarkDistributedDto } from './dto/mark-distributed.dto';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
-import { UserRole } from '@shared/enums';
+import { UserRole, AuditActionType } from '@shared/enums';
+import { AuditService } from '@modules/audit/audit.service';
+
+/** Ambil IP klien dari request (hormati proxy bila ada). */
+function clientIp(req: any): string {
+  return (
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+    req?.ip ||
+    'unknown'
+  );
+}
 
 /**
  * Daftar respons LINTAS-SURVEI untuk panel admin (yang dipanggil
@@ -24,7 +35,10 @@ import { UserRole } from '@shared/enums';
 @Controller('responses')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ResponsesAdminController {
-  constructor(private readonly responseService: ResponseService) {}
+  constructor(
+    private readonly responseService: ResponseService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
@@ -37,6 +51,25 @@ export class ResponsesAdminController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   async detail(@Param('id') id: string) {
     return this.responseService.getResponseDetail(id);
+  }
+
+  /**
+   * Hapus satu respons (DELETE /responses/:id). Membebaskan responden untuk
+   * mengisi ulang survei (mis. salah isi / pengisian tertahan). Dicatat di audit.
+   */
+  @Delete(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id') id: string, @Req() req: any) {
+    const result = await this.responseService.deleteResponse(id);
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'response',
+      details: { kind: 'response_delete', responseId: id, surveyId: result.surveyId },
+      ipAddress: clientIp(req),
+    });
+    return result;
   }
 }
 

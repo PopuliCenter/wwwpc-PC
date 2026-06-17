@@ -50,6 +50,7 @@ describe('ResponseService', () => {
     getTimeConfig: vi.fn(),
     isTimerExpired: vi.fn(),
     incrementRespondentCount: vi.fn(),
+    decrementRespondentCount: vi.fn(),
   };
 
   const mockAnswerValidationService = {
@@ -61,6 +62,7 @@ describe('ResponseService', () => {
     create: vi.fn(),
     save: vi.fn(),
     query: vi.fn(),
+    delete: vi.fn(),
   };
 
   const mockDataSource = {
@@ -582,6 +584,44 @@ describe('ResponseService', () => {
         expect(r.status).toBe(ManualRewardStatus.DISTRIBUTED);
         expect(r.distributedBy).toBe(adminId);
       });
+    });
+  });
+
+  describe('deleteResponse', () => {
+    it('deletes answers + response and frees the quota for a complete response', async () => {
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-1',
+        surveyId: 'survey-1',
+        status: ResponseStatus.COMPLETE,
+      });
+      manager.delete.mockResolvedValue({ affected: 1 });
+      surveyTimeService.decrementRespondentCount.mockResolvedValue(undefined);
+
+      const result = await service.deleteResponse('resp-1');
+
+      expect(result).toEqual({ deleted: true, surveyId: 'survey-1' });
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(manager.delete).toHaveBeenCalledWith(Answer, { responseId: 'resp-1' });
+      expect(manager.delete).toHaveBeenCalledWith(SurveyResponse, { id: 'resp-1' });
+      expect(surveyTimeService.decrementRespondentCount).toHaveBeenCalledWith('survey-1');
+    });
+
+    it('does NOT decrement the quota for an in-progress response', async () => {
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-2',
+        surveyId: 'survey-1',
+        status: ResponseStatus.IN_PROGRESS,
+      });
+      manager.delete.mockResolvedValue({ affected: 1 });
+
+      await service.deleteResponse('resp-2');
+
+      expect(surveyTimeService.decrementRespondentCount).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when the response does not exist', async () => {
+      responseRepository.findOne.mockResolvedValue(null);
+      await expect(service.deleteResponse('missing')).rejects.toThrow();
     });
   });
 });

@@ -108,6 +108,24 @@ export class SurveyTimeService {
   }
 
   /**
+   * Atomically decrements the respondent count, never below 0. Best-effort:
+   * tidak melempar bila time config tak ada — dipakai saat admin menghapus
+   * respons agar kuota (maxRespondents) kembali bebas.
+   */
+  async decrementRespondentCount(surveyId: string): Promise<void> {
+    await this.timeConfigRepository
+      .createQueryBuilder()
+      .update(SurveyTimeConfig)
+      .set({
+        currentRespondentCount: () => 'GREATEST(current_respondent_count - 1, 0)',
+      })
+      .where('survey_id = :surveyId', { surveyId })
+      .execute();
+
+    this.logger.log(`Respondent count decremented for survey ${surveyId}`);
+  }
+
+  /**
    * Calculates remaining time in seconds based on max_duration_minutes and when the respondent started.
    * Returns null if no max duration is configured.
    */

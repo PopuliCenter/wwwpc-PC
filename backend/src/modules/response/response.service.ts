@@ -534,6 +534,41 @@ export class ResponseService {
   }
 
   /**
+   * Hapus satu respons beserta jawabannya. Setelah ini, kunci unik
+   * (survey_id, respondent_id) terbebas sehingga responden bisa mengisi ulang —
+   * berguna saat ada salah isi atau pengisian tertahan (waktu habis). Respons
+   * yang sebelumnya COMPLETE juga mengembalikan kuota (decrement count).
+   */
+  async deleteResponse(id: string): Promise<{ deleted: boolean; surveyId: string }> {
+    const response = await this.responseRepository.findOne({ where: { id } });
+    if (!response) {
+      throw new NotFoundException(`Respons ${id} tidak ditemukan`);
+    }
+    const { surveyId, status } = response;
+
+    await this.dataSource.transaction(async (manager) => {
+      // Hapus jawaban dulu (eksplisit), lalu respons. Answer juga ber-ON DELETE
+      // CASCADE, tapi penghapusan eksplisit aman tanpa bergantung pada FK.
+      await manager.delete(Answer, { responseId: id });
+      await manager.delete(SurveyResponse, { id });
+    });
+
+    // Bebaskan kuota hanya untuk respons yang dulu menambah hitungan (COMPLETE).
+    if (status === ResponseStatus.COMPLETE) {
+      await this.surveyTimeService
+        .decrementRespondentCount(surveyId)
+        .catch((e) =>
+          this.logger.warn(
+            `Gagal decrement count survei ${surveyId} saat hapus respons: ${e.message}`,
+          ),
+        );
+    }
+
+    this.logger.log(`Response deleted: ${id} (survey ${surveyId})`);
+    return { deleted: true, surveyId };
+  }
+
+  /**
    * Tandai reward sejumlah respons sebagai sudah didistribusikan (rekonsiliasi
    * top-up oleh admin).
    */
