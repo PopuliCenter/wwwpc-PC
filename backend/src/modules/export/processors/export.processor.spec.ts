@@ -202,6 +202,94 @@ describe('ExportProcessor', () => {
     });
   });
 
+  describe('analysis table — matrix split & numeric coding (SPSS)', () => {
+    it('splits matrix into per-row columns and codes answers as numbers', async () => {
+      const matrixQ = {
+        id: 'q-m',
+        type: 'matrix_likert',
+        questionText: 'Penilaian',
+        orderIndex: 0,
+        enabled: true,
+        validationRules: {
+          matrixRows: ['Pelayanan', 'Ekonomi'],
+          matrixColumns: ['Sangat Tidak Setuju', 'Tidak Setuju', 'Netral', 'Setuju', 'Sangat Setuju'],
+        },
+        options: [],
+      };
+      const choiceQ = {
+        id: 'q-c',
+        type: 'single_choice',
+        questionText: 'Pilihan',
+        orderIndex: 1,
+        enabled: true,
+        validationRules: null,
+        options: [
+          { value: 'opt1', label: 'Ya', orderIndex: 0 },
+          { value: 'opt2', label: 'Tidak', orderIndex: 1 },
+        ],
+      };
+      mockQuestionRepository.find.mockResolvedValue([matrixQ, choiceQ]);
+
+      const customResponses = [
+        {
+          id: 'resp-1',
+          surveyId: 'survey-1',
+          respondentId: 'user-1',
+          status: 'complete',
+          deviceType: 'mobile',
+          startedAt: new Date('2024-01-15T10:00:00Z'),
+          submittedAt: new Date('2024-01-15T10:30:00Z'),
+          exportedAt: null,
+          answers: [
+            { questionId: 'q-m', value: { Pelayanan: 'Setuju', Ekonomi: 'Netral' } },
+            { questionId: 'q-c', value: 'opt2' },
+          ],
+          respondent: { id: 'user-1', fullName: 'John', phone: '0812' },
+        },
+      ];
+      const qb = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        leftJoin: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        update: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        whereInIds: vi.fn().mockReturnThis(),
+        execute: vi.fn().mockResolvedValue({ affected: 1 }),
+        getMany: vi.fn().mockResolvedValue(customResponses),
+      };
+      mockResponseRepository.createQueryBuilder.mockReturnValue(qb);
+
+      const job = {
+        data: {
+          exportJobId: 'job-mx',
+          surveyId: 'survey-1',
+          filters: {},
+          format: ExportFormat.CSV,
+          requestedBy: 'user-1',
+        },
+      } as any;
+
+      await processor.handleCsvExport(job);
+
+      const csv: string = (fs.writeFileSync as any).mock.calls[0][1];
+      const [headerLine, dataLine] = csv.split('\n');
+
+      // Matriks dipecah per baris jadi kolom sendiri.
+      expect(headerLine).toContain('"Penilaian - Pelayanan"');
+      expect(headerLine).toContain('"Penilaian - Ekonomi"');
+      // Kolom pilihan tetap satu kolom.
+      expect(headerLine).toContain('"Pilihan"');
+
+      // Nilai dikodekan angka: Setuju=4, Netral=3, opt2 (rank 2)=2.
+      const cells = dataLine.split(',');
+      expect(cells).toContain('"4"'); // Pelayanan = Setuju
+      expect(cells).toContain('"3"'); // Ekonomi = Netral
+      expect(cells).toContain('"2"'); // Pilihan = opt2
+    });
+  });
+
   describe('handleExcelExport', () => {
     it('should process Excel export with summary statistics', async () => {
       const job = {

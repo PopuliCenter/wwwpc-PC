@@ -69,6 +69,49 @@ function regionName(value: any, key: string): string {
   return v == null ? '' : String(v);
 }
 
+/**
+ * Peta nilai-opsi → kode angka (peringkat berdasarkan order_index, mulai 1).
+ * Dipakai untuk mengkodekan jawaban pilihan jadi angka siap-SPSS.
+ */
+function optionCodeMap(question: Question): Map<string, number> {
+  const opts = [...(question.options ?? [])].sort(
+    (a, b) => a.orderIndex - b.orderIndex,
+  );
+  return new Map(opts.map((o, i) => [o.value, i + 1]));
+}
+
+/** Kode angka satu jawaban pilihan tunggal; fallback ke teks asli (mis. "Lainnya"). */
+function choiceCode(value: any, codeMap: Map<string, number>): string {
+  if (value == null || value === '') return '';
+  const v = Array.isArray(value) ? value[0] : value;
+  const code = codeMap.get(String(v));
+  return code != null ? String(code) : String(v);
+}
+
+/** Kode angka jawaban pilihan jamak, dipisah ';' (mis. "1;3;4"). */
+function multiChoiceCodes(value: any, codeMap: Map<string, number>): string {
+  if (value == null) return '';
+  if (!Array.isArray(value)) return choiceCode(value, codeMap);
+  return value
+    .map((v) => {
+      const code = codeMap.get(String(v));
+      return code != null ? String(code) : String(v);
+    })
+    .join(';');
+}
+
+/**
+ * Kode angka satu sel matriks: posisi (1..N) kolom skala yang dipilih untuk baris
+ * tertentu. Fallback ke label bila kolom tak dikenali; kosong bila belum dijawab.
+ */
+function matrixCode(value: any, row: string, columns: string[]): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const chosen = (value as Record<string, unknown>)[row];
+  if (chosen == null || chosen === '') return '';
+  const idx = columns.indexOf(String(chosen));
+  return idx >= 0 ? String(idx + 1) : String(chosen);
+}
+
 /** Kolom demografi (variabel pembobot) yang disertakan di setiap baris export. */
 const DEMOGRAPHIC_HEADERS = [
   'nama',
@@ -327,22 +370,64 @@ export class ExportProcessor {
       'perangkat',
     ];
 
-    // Satu kolom per pertanyaan, KECUALI pertanyaan wilayah Indonesia yang
-    // dipecah menjadi beberapa kolom (Provinsi, Kab/Kota, Kecamatan, Kelurahan).
+    // Bangun kolom per pertanyaan. Jawaban dikodekan jadi ANGKA bila bisa
+    // (siap analisis SPSS); makna tiap kode didokumentasikan di sheet "Kodebok".
+    //  - Wilayah Indonesia → dipecah Provinsi/Kab-Kota/Kecamatan/Kelurahan (nama).
+    //  - Matriks → satu kolom per baris, isi = posisi kolom skala (1..N).
+    //  - Pilihan tunggal/dropdown → kode opsi (1..N).
+    //  - Pilihan jamak → kode opsi dipisah ';'.
+    //  - Lainnya (teks/tanggal/skala numerik/rating) → apa adanya.
     type QColumn = { header: string; questionId: string; extract: (value: any) => string };
     const questionColumns: QColumn[] = [];
     questions.forEach((q, i) => {
       const base = q.questionText?.trim() || `Pertanyaan ${i + 1}`;
-      if (q.type === QuestionType.INDONESIA_REGION) {
-        REGION_SUBCOLUMNS.forEach((sub) => {
-          questionColumns.push({
-            header: `${base} - ${sub.suffix}`,
-            questionId: q.id,
-            extract: (value) => regionName(value, sub.key),
+      switch (q.type) {
+        case QuestionType.INDONESIA_REGION:
+          REGION_SUBCOLUMNS.forEach((sub) => {
+            questionColumns.push({
+              header: `${base} - ${sub.suffix}`,
+              questionId: q.id,
+              extract: (value) => regionName(value, sub.key),
+            });
           });
-        });
-      } else {
-        questionColumns.push({ header: base, questionId: q.id, extract: answerToString });
+          break;
+        case QuestionType.MATRIX_LIKERT: {
+          const rows = (q.validationRules?.matrixRows as string[]) ?? [];
+          const columns = (q.validationRules?.matrixColumns as string[]) ?? [];
+          if (rows.length === 0) {
+            questionColumns.push({ header: base, questionId: q.id, extract: answerToString });
+          } else {
+            rows.forEach((row) => {
+              questionColumns.push({
+                header: `${base} - ${row}`,
+                questionId: q.id,
+                extract: (value) => matrixCode(value, row, columns),
+              });
+            });
+          }
+          break;
+        }
+        case QuestionType.SINGLE_CHOICE:
+        case QuestionType.DROPDOWN: {
+          const codeMap = optionCodeMap(q);
+          questionColumns.push({
+            header: base,
+            questionId: q.id,
+            extract: (value) => choiceCode(value, codeMap),
+          });
+          break;
+        }
+        case QuestionType.MULTIPLE_CHOICE: {
+          const codeMap = optionCodeMap(q);
+          questionColumns.push({
+            header: base,
+            questionId: q.id,
+            extract: (value) => multiChoiceCodes(value, codeMap),
+          });
+          break;
+        }
+        default:
+          questionColumns.push({ header: base, questionId: q.id, extract: answerToString });
       }
     });
 
@@ -380,6 +465,34 @@ export class ExportProcessor {
       ];
     });
 
+    return { headers, rows };
+  }
+
+  /**
+   * Kodebok: makna tiap kode angka di tabel Data (untuk analisis SPSS). Hanya
+   * tipe pertanyaan yang dikodekan angka (pilihan & matriks) yang didaftarkan.
+   */
+  private buildCodebook(questions: Question[]): { headers: string[]; rows: string[][] } {
+    const headers = ['Pertanyaan', 'Variabel/Kolom', 'Kode', 'Label'];
+    const rows: string[][] = [];
+    questions.forEach((q, i) => {
+      const base = q.questionText?.trim() || `Pertanyaan ${i + 1}`;
+      if (q.type === QuestionType.MATRIX_LIKERT) {
+        const matrixRows = (q.validationRules?.matrixRows as string[]) ?? [];
+        const columns = (q.validationRules?.matrixColumns as string[]) ?? [];
+        columns.forEach((c, j) => rows.push([base, '(skala kolom)', String(j + 1), c]));
+        matrixRows.forEach((r) =>
+          rows.push([base, `${base} - ${r}`, '', '(satu kolom per baris)']),
+        );
+      } else if (
+        q.type === QuestionType.SINGLE_CHOICE ||
+        q.type === QuestionType.DROPDOWN ||
+        q.type === QuestionType.MULTIPLE_CHOICE
+      ) {
+        const opts = [...(q.options ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
+        opts.forEach((o, j) => rows.push([base, base, String(j + 1), o.label]));
+      }
+    });
     return { headers, rows };
   }
 
@@ -442,6 +555,18 @@ export class ExportProcessor {
     if (data.columns) {
       data.columns.forEach((col) => {
         col.width = 22;
+      });
+    }
+
+    // Sheet "Kodebok" — makna tiap kode angka di sheet Data (untuk SPSS).
+    const codebook = workbook.addWorksheet('Kodebok');
+    const cb = this.buildCodebook(questions);
+    codebook.addRow(cb.headers);
+    cb.rows.forEach((row) => codebook.addRow(row));
+    codebook.getRow(1).font = { bold: true };
+    if (codebook.columns) {
+      codebook.columns.forEach((col) => {
+        col.width = 28;
       });
     }
 
