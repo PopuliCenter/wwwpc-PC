@@ -25,6 +25,20 @@ import {
   EXPORT_BACKOFF_TYPE,
 } from './constants';
 
+/**
+ * Bersihkan teks agar aman jadi bagian nama file: buang tanda baca, ubah spasi
+ * jadi tanda hubung, batasi panjang. Huruf Indonesia (ASCII) tetap terbaca.
+ */
+function safeFilePart(input: string): string {
+  const cleaned = input
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 80);
+  return cleaned || 'export';
+}
+
 @Injectable()
 export class ExportService {
   private readonly logger = new Logger(ExportService.name);
@@ -229,6 +243,8 @@ export class ExportService {
   /**
    * Ambil file export selesai sebagai buffer untuk di-stream lewat backend
    * (download yang bisa diakses browser tanpa membuka MinIO ke publik).
+   * Nama file unduhan disesuaikan dengan judul survei + tanggal agar mudah
+   * dikenali (mis. "Respons-Survei-Kepuasan-2026-06-17.xlsx").
    */
   async getExportFile(
     jobId: string,
@@ -242,8 +258,40 @@ export class ExportService {
     }
     const s3Key = S3StorageService.resolveS3Key(job.filePath);
     const { buffer, contentType } = await this.s3StorageService.getObjectBuffer(s3Key);
-    const filename = s3Key.split('/').pop() ?? `export-${jobId}.${job.format}`;
+    const filename = await this.buildDownloadFilename(job, s3Key);
     return { buffer, contentType, filename };
+  }
+
+  /**
+   * Susun nama file unduhan dari judul survei (bila ada) + tanggal selesai.
+   * Fallback ke "audit-log" untuk export audit, atau nama generik bila judul
+   * tidak ditemukan. Selalu mempertahankan ekstensi asli dari S3 key.
+   */
+  private async buildDownloadFilename(job: ExportJob, s3Key: string): Promise<string> {
+    const ext = s3Key.includes('.') ? s3Key.split('.').pop()! : String(job.format);
+    const datePart = new Date(job.completedAt ?? Date.now()).toISOString().slice(0, 10);
+
+    const surveyId = (job.filtersApplied as Record<string, any> | undefined)?.surveyId as
+      | string
+      | undefined;
+
+    let base = 'export';
+    if (surveyId) {
+      try {
+        const rows: Array<{ title: string }> = await this.exportJobRepository.manager.query(
+          'SELECT title FROM survey WHERE id = $1 LIMIT 1',
+          [surveyId],
+        );
+        const title = rows?.[0]?.title;
+        base = title ? `Respons ${title}` : `survei-${surveyId.slice(0, 8)}`;
+      } catch {
+        base = `survei-${surveyId.slice(0, 8)}`;
+      }
+    } else {
+      base = 'audit-log';
+    }
+
+    return `${safeFilePart(base)}-${datePart}.${ext}`;
   }
 
   /**

@@ -150,7 +150,7 @@ export function ResponseListPage() {
   const navigate = useNavigate();
   const [responses, setResponses] = useState<ResponseItem[]>([]);
   const [surveys, setSurveys] = useState<SurveyOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     startDate: '',
     endDate: '',
@@ -196,13 +196,22 @@ export function ResponseListPage() {
     }
   };
 
+  // Daftar respons hanya tampil setelah ada filter (mis. survei) dipilih —
+  // saat dibuka tabel sengaja kosong agar admin memilih survei lebih dulu.
+  const hasActiveFilter = Object.values(filters).some((v) => v !== '');
+
   useEffect(() => {
     fetchSurveys();
   }, []);
 
   // Terapkan filter otomatis saat berubah (debounce agar input teks tidak
-  // memicu request tiap ketukan). Ini memperbaiki "filter tidak terjadi apa-apa".
+  // memicu request tiap ketukan). Tanpa filter, kosongkan tabel tanpa request.
   useEffect(() => {
+    if (!hasActiveFilter) {
+      setResponses([]);
+      setLoading(false);
+      return;
+    }
     const t = setTimeout(() => {
       void fetchResponses();
     }, 300);
@@ -407,6 +416,10 @@ export function ResponseListPage() {
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Memuat...</div>
+        ) : !hasActiveFilter ? (
+          <div className="p-8 text-center text-gray-500">
+            Pilih survei (atau filter lain) untuk menampilkan data respons.
+          </div>
         ) : responses.length === 0 ? (
           <div className="p-8 text-center text-gray-500">Tidak ada respons ditemukan.</div>
         ) : (

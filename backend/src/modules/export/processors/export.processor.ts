@@ -11,6 +11,7 @@ import { ExportJob } from '../entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { Question } from '@modules/survey/entities/question.entity';
+import { QuestionType } from '@shared/enums';
 import { S3StorageService } from '../s3-storage.service';
 import {
   ExportStatus,
@@ -47,6 +48,25 @@ function answerToString(value: any): string {
   }
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+/**
+ * Sub-kolom untuk jawaban wilayah Indonesia bertingkat. Jawaban disimpan sebagai
+ * objek { province_name, regency_name, district_name, village_name }, dipecah jadi
+ * kolom terpisah supaya siap dipakai sebagai variabel pembobot saat analisis.
+ */
+const REGION_SUBCOLUMNS: { suffix: string; key: string }[] = [
+  { suffix: 'Provinsi', key: 'province_name' },
+  { suffix: 'Kab/Kota', key: 'regency_name' },
+  { suffix: 'Kecamatan', key: 'district_name' },
+  { suffix: 'Kelurahan/Desa', key: 'village_name' },
+];
+
+/** Ambil satu nama tingkatan wilayah dari objek jawaban indonesia_region. */
+function regionName(value: any, key: string): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const v = (value as Record<string, unknown>)[key];
+  return v == null ? '' : String(v);
 }
 
 /** Kolom demografi (variabel pembobot) yang disertakan di setiap baris export. */
@@ -306,10 +326,31 @@ export class ExportProcessor {
       'waktu_kirim',
       'perangkat',
     ];
-    const questionHeaders = questions.map(
-      (q, i) => q.questionText?.trim() || `Pertanyaan ${i + 1}`,
-    );
-    const headers = [...metaHeaders, ...DEMOGRAPHIC_HEADERS, ...questionHeaders];
+
+    // Satu kolom per pertanyaan, KECUALI pertanyaan wilayah Indonesia yang
+    // dipecah menjadi beberapa kolom (Provinsi, Kab/Kota, Kecamatan, Kelurahan).
+    type QColumn = { header: string; questionId: string; extract: (value: any) => string };
+    const questionColumns: QColumn[] = [];
+    questions.forEach((q, i) => {
+      const base = q.questionText?.trim() || `Pertanyaan ${i + 1}`;
+      if (q.type === QuestionType.INDONESIA_REGION) {
+        REGION_SUBCOLUMNS.forEach((sub) => {
+          questionColumns.push({
+            header: `${base} - ${sub.suffix}`,
+            questionId: q.id,
+            extract: (value) => regionName(value, sub.key),
+          });
+        });
+      } else {
+        questionColumns.push({ header: base, questionId: q.id, extract: answerToString });
+      }
+    });
+
+    const headers = [
+      ...metaHeaders,
+      ...DEMOGRAPHIC_HEADERS,
+      ...questionColumns.map((c) => c.header),
+    ];
 
     const rows = responses.map((r) => {
       const p = profiles.get(r.respondentId);
@@ -334,8 +375,8 @@ export class ExportProcessor {
         p?.province ?? '',
         p?.city ?? '',
         p?.district ?? '',
-        // Jawaban per pertanyaan
-        ...questions.map((q) => answerToString(answerByQ.get(q.id))),
+        // Jawaban per pertanyaan (wilayah sudah dipecah jadi beberapa kolom)
+        ...questionColumns.map((c) => c.extract(answerByQ.get(c.questionId))),
       ];
     });
 
