@@ -1195,8 +1195,13 @@ export function SurveyEditPage() {
         },
       });
       setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan ✓' });
-    } catch {
-      setSaveMessage({ ok: false, text: 'Gagal menyimpan pengaturan ✗' });
+    } catch (e) {
+      // Tampilkan pesan asli dari server (mis. validasi) agar mudah didiagnosis.
+      const msg = (e as { message?: string })?.message;
+      setSaveMessage({
+        ok: false,
+        text: msg ? `Gagal menyimpan: ${msg}` : 'Gagal menyimpan pengaturan ✗',
+      });
     } finally {
       setSavingSettings(false);
     }

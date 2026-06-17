@@ -213,7 +213,8 @@ export class SurveyService {
         ? new Date(dto.timeConfig.endDatetime)
         : null,
       maxDurationMinutes: dto.timeConfig?.maxDurationMinutes ?? null,
-      maxRespondents: dto.timeConfig?.maxRespondents ?? null,
+      // 0 = tak terbatas → simpan NULL agar cap responden tidak memblokir semua.
+      maxRespondents: dto.timeConfig?.maxRespondents || null,
       status: SurveyStatus.DRAFT,
     });
 
@@ -229,7 +230,8 @@ export class SurveyService {
         ? new Date(dto.timeConfig.endDatetime)
         : null,
       maxDurationMinutes: dto.timeConfig?.maxDurationMinutes ?? null,
-      maxRespondents: dto.timeConfig?.maxRespondents ?? null,
+      // 0 = tak terbatas → NULL (lihat catatan di atas).
+      maxRespondents: dto.timeConfig?.maxRespondents || null,
       currentRespondentCount: 0,
     });
     await this.timeConfigRepository.save(timeConfig);
@@ -286,7 +288,8 @@ export class SurveyService {
         survey.maxDurationMinutes = dto.timeConfig.maxDurationMinutes;
       }
       if (dto.timeConfig.maxRespondents !== undefined) {
-        survey.maxRespondents = dto.timeConfig.maxRespondents;
+        // 0 = tak terbatas → NULL agar cap responden tidak memblokir semua.
+        survey.maxRespondents = dto.timeConfig.maxRespondents || null;
       }
     }
 
@@ -312,7 +315,8 @@ export class SurveyService {
           timeConfig.maxDurationMinutes = dto.timeConfig.maxDurationMinutes;
         }
         if (dto.timeConfig.maxRespondents !== undefined) {
-          timeConfig.maxRespondents = dto.timeConfig.maxRespondents;
+          // 0 = tak terbatas → NULL (lihat catatan di atas).
+          timeConfig.maxRespondents = dto.timeConfig.maxRespondents || null;
         }
         await this.timeConfigRepository.save(timeConfig);
       }

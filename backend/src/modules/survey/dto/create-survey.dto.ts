@@ -26,9 +26,11 @@ export class TimeConfigDto {
   @Min(1)
   maxDurationMinutes?: number;
 
+  // 0 = tak terbatas (di service dinormalisasi jadi NULL). Maka batas bawahnya 0,
+  // bukan 1 — kalau 1, mengosongkan kuota (kirim 0) menolak seluruh request.
   @IsOptional()
   @IsInt()
-  @Min(1)
+  @Min(0)
   maxRespondents?: number;
 }
 
