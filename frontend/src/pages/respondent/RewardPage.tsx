@@ -424,9 +424,9 @@ function RewardCatalog({
       </div>
 
       {loading ? (
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="flex gap-4 overflow-x-auto p-4 pb-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse border rounded-lg p-4">
+            <div key={i} className="animate-pulse border rounded-lg p-4 min-w-[240px] shrink-0">
               <div className="h-5 bg-gray-200 rounded w-2/3 mb-2"></div>
               <div className="h-4 bg-gray-200 rounded w-full mb-3"></div>
               <div className="h-8 bg-gray-200 rounded w-1/3"></div>
@@ -436,17 +436,18 @@ function RewardCatalog({
       ) : filteredRewards.length === 0 ? (
         <div className="p-8 text-center text-gray-500">Tidak ada reward tersedia</div>
       ) : (
-        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        // List kesamping (horizontal scroll) agar ringkas & mudah dijelajahi.
+        <div className="flex gap-4 overflow-x-auto p-4 pb-3 snap-x">
           {filteredRewards.map((reward) => {
             const canAfford = currentBalance >= reward.pointsCost;
             return (
               <div
                 key={reward.id}
-                className={`border rounded-lg p-4 transition-colors ${
+                className={`flex w-[240px] shrink-0 snap-start flex-col rounded-lg border p-4 transition-colors ${
                   canAfford ? 'hover:border-primary-300' : 'opacity-60'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-1 items-start gap-3">
                   <span className="text-2xl">{CATEGORY_ICONS[reward.category] ?? '🎁'}</span>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-gray-900">{reward.name}</h4>
@@ -705,20 +706,17 @@ export function RewardPage() {
       {/* Balance Card */}
       <BalanceCard balance={balance} loading={balanceLoading} />
 
-      {/* Status penukaran (indikator in-app) */}
+      {/* Katalog Reward — tepat di bawah saldo, list kesamping + filter */}
+      <RewardCatalog
+        onSelectReward={setSelectedReward}
+        currentBalance={balance?.available ?? 0}
+      />
+
+      {/* Riwayat Transaksi */}
+      <TransactionHistory refreshKey={refreshKey} />
+
+      {/* Riwayat Penukaran (status penukaran) — dipindah ke bawah */}
       <RedemptionHistory refreshKey={refreshKey} />
-
-      {/* Two column layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Transaction History */}
-        <TransactionHistory refreshKey={refreshKey} />
-
-        {/* Reward Catalog */}
-        <RewardCatalog
-          onSelectReward={setSelectedReward}
-          currentBalance={balance?.available ?? 0}
-        />
-      </div>
 
       {/* Redemption Modal */}
       {selectedReward && (
