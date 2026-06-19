@@ -134,11 +134,12 @@ export class SurveyController {
   async sendInvitations(
     @Request() req: any,
     @Param('id') id: string,
-  ): Promise<{ recipients: number }> {
+  ): Promise<{ recipients: number; pushed: number }> {
     const result = await this.notificationScheduler.sendInvitationsForSurvey(id);
     await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
       kind: 'survey_invitation',
       recipients: result.recipients,
+      pushed: result.pushed,
     });
     return result;
   }

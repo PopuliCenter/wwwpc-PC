@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { NotificationService } from '../notification.service';
+import { DeviceTokenService } from '../device-token.service';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -28,6 +29,7 @@ export class NotificationSchedulerService {
     private readonly responseRepository: Repository<SurveyResponse>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly deviceTokenService: DeviceTokenService,
   ) {
     this.baseUrl = this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
   }
@@ -116,7 +118,9 @@ export class NotificationSchedulerService {
    * mengisi survei ini (aman dikirim ulang — yang sudah mengisi tidak diganggu).
    * Mengembalikan jumlah penerima yang di-antre.
    */
-  async sendInvitationsForSurvey(surveyId: string): Promise<{ recipients: number }> {
+  async sendInvitationsForSurvey(
+    surveyId: string,
+  ): Promise<{ recipients: number; pushed: number }> {
     const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
     if (!survey) {
       throw new NotFoundException(`Survei ${surveyId} tidak ditemukan`);
@@ -130,7 +134,7 @@ export class NotificationSchedulerService {
     const respondents = await this.findRespondentsWhoHaventFilled(surveyId);
     if (respondents.length === 0) {
       this.logger.log(`Tidak ada responden untuk diundang pada survei ${surveyId}`);
-      return { recipients: 0 };
+      return { recipients: 0, pushed: 0 };
     }
 
     await this.notificationService.sendSurveyInvitation(
@@ -144,10 +148,26 @@ export class NotificationSchedulerService {
       this.baseUrl,
     );
 
+    // Push notifikasi ke perangkat (aplikasi Capacitor). Aman/no-op bila FCM
+    // belum dikonfigurasi atau responden tak punya token perangkat.
+    const pushed = await this.deviceTokenService
+      .pushToUsers(
+        respondents.map((r) => r.id),
+        {
+          title: `Survei baru: ${survey.title}`,
+          body: 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.',
+          data: { link: `/surveys/${survey.id}/fill` },
+        },
+      )
+      .catch((e) => {
+        this.logger.warn(`Gagal mengirim push undangan: ${e.message}`);
+        return 0;
+      });
+
     this.logger.log(
-      `Undangan manual di-antre untuk survei "${survey.title}" → ${respondents.length} responden`,
+      `Undangan manual untuk survei "${survey.title}" → ${respondents.length} email, ${pushed} push`,
     );
-    return { recipients: respondents.length };
+    return { recipients: respondents.length, pushed };
   }
 
   /**
@@ -174,7 +194,7 @@ export class NotificationSchedulerService {
    */
   private async findRespondentsWhoHaventFilled(
     surveyId: string,
-  ): Promise<Array<{ email: string; fullName: string }>> {
+  ): Promise<Array<{ id: string; email: string; fullName: string }>> {
     // Get IDs of respondents who already have a response (any status)
     const existingResponses = await this.responseRepository.find({
       where: { surveyId },
@@ -185,7 +205,7 @@ export class NotificationSchedulerService {
     // Find all eligible respondents who haven't responded
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
-      .select(['user.email', 'user.fullName'])
+      .select(['user.id', 'user.email', 'user.fullName'])
       .where('user.emailVerified = :verified', { verified: true })
       .andWhere('user.profileCompleted = :completed', { completed: true })
       .andWhere('user.status = :status', { status: 'active' })

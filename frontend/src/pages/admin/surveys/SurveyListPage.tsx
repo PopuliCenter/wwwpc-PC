@@ -117,12 +117,13 @@ export function SurveyListPage() {
     )
       return;
     try {
-      const res = await api.post<{ recipients: number }>(
+      const res = await api.post<{ recipients: number; pushed: number }>(
         `/surveys/${s.id}/invitations`,
       );
       alert(
         res.recipients > 0
-          ? `Undangan dikirim ke ${res.recipients} responden.`
+          ? `Undangan email dikirim ke ${res.recipients} responden` +
+              (res.pushed > 0 ? `, push ke ${res.pushed} perangkat.` : '.')
           : 'Tidak ada responden yang perlu diundang (semua sudah mengisi atau belum ada responden aktif).',
       );
     } catch (err: unknown) {

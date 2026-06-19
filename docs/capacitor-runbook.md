@@ -3,8 +3,9 @@
 Membungkus aplikasi web (React + Vite) menjadi aplikasi native dengan **Capacitor**,
 plus model **pop-up & notifikasi**. Tidak menulis ulang UI — memakai build `dist/`.
 
-Status: **Stage A selesai** (integrasi web + pop-up in-app + jembatan push).
-**Stage B** (backend kirim push via FCM) = langkah berikutnya, lihat bagian akhir.
+Status: **Stage A & B selesai** (integrasi web + pop-up in-app + jembatan push +
+backend device-token & kirim FCM). Sisa: jalankan `cap add`, isi
+`FIREBASE_SERVICE_ACCOUNT`, dan setel google-services.json/APNs (lihat §5 & §6).
 
 ---
 
@@ -84,23 +85,35 @@ disimpan & dipakai).
 
 ## 6. Stage B — Backend kirim push (langkah berikutnya)
 
-Agar notifikasi "survei baru" benar-benar sampai ke HP saat aplikasi tertutup,
-backend perlu:
+**Stage B sudah DIBANGUN** (commit Stage B). Yang ada di kode:
 
-1. **Tabel `device_token`** — `user_id`, `token` (unik), `platform`, `created_at`,
-   `last_seen_at`. + migrasi.
-2. **Endpoint** `POST /notifications/device-token` (auth) — upsert token milik user.
-   (Frontend sudah memanggilnya.)
-3. **Modul kirim push** — pakai `firebase-admin` (FCM mendukung Android & iOS via
-   APNs sekaligus). Env: `FIREBASE_SERVICE_ACCOUNT` (JSON service account).
-4. **Pemicu** — saat admin menekan **"Kirim Undangan"** atau survei diaktifkan,
-   selain email, kirim push ke device token responden sasaran dengan `data.link =
-   /surveys/<id>/fill`.
-5. (Opsional) Hapus token saat logout / saat FCM melaporkan token kedaluwarsa.
+1. ✅ **Tabel `device_token`** (`user_id`, `token` unik, `platform`, `created_at`,
+   `last_seen_at`) — migrasi `1715000038000`.
+2. ✅ **Endpoint** `POST /notifications/device-token` (auth, semua peran) — upsert
+   token. Aplikasi Capacitor memanggilnya otomatis saat daftar push.
+3. ✅ **Modul kirim push** `PushService` (firebase-admin / FCM → Android & iOS).
+4. ✅ **Pemicu**: tombol **"Kirim Undangan"** kini juga mengirim **push** ke
+   perangkat responden yang belum mengisi, `data.link=/surveys/<id>/fill`.
+   Token kedaluwarsa dibersihkan otomatis.
 
-Catatan: alur email undangan sudah ada (tombol "Kirim Undangan"); push tinggal
-"menumpang" pemicu yang sama. Lihat
-[notifikasi-undangan-survei](../) (memori proyek) & `notification.module.ts`.
+**Yang HARUS Anda siapkan agar push aktif** (tanpa ini, fitur lain tetap jalan —
+push hanya non-aktif & dicatat warn):
+
+- Buat **service account** di Firebase Console (Project Settings → Service accounts
+  → Generate new private key) → dapat file JSON.
+- Set env di `backend/.env` (VPS):
+  ```bash
+  FIREBASE_SERVICE_ACCOUNT={"type":"service_account","project_id":"...", ... }
+  ```
+  (tempel seluruh isi JSON dalam SATU baris). Lalu `docker compose up -d backend`.
+- Android: `google-services.json` di `frontend/android/app/` (untuk FCM di sisi app).
+- iOS: APNs key di Firebase + entitlement Push di Xcode.
+
+> **Catatan keamanan:** `FIREBASE_SERVICE_ACCOUNT` adalah rahasia — hanya di `.env`
+> server, JANGAN commit.
+
+Belum termasuk (opsional, mudah ditambah): push juga pada reminder H-3/H-1;
+hapus token saat logout; fitur Pengumuman/Berita untuk push non-survei.
 
 ---
 
