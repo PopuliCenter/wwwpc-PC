@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
+import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import type { UserRole } from '@/types';
+
+interface Demographics {
+  dateOfBirth: string | null;
+  age: number | null;
+  gender: string | null;
+  education: string | null;
+  occupation: string | null;
+  religion: string | null;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+}
 
 interface ProfileData {
   id: string;
@@ -15,6 +28,22 @@ interface ProfileData {
   emailVerified: boolean;
   profileCompleted: boolean;
   createdAt: string;
+  demographics?: Demographics | null;
+}
+
+const GENDER_LABELS: Record<string, string> = {
+  male: 'Laki-laki',
+  female: 'Perempuan',
+  other: 'Lainnya',
+};
+
+function fmtDate(value: string | null): string {
+  if (!value) return '-';
+  try {
+    return format(new Date(value), 'dd MMM yyyy');
+  } catch {
+    return value;
+  }
 }
 
 const roleLabels: Record<UserRole, string> = {
@@ -85,11 +114,10 @@ export function ProfilePage() {
     setSavingProfile(true);
     setProfileMsg(null);
     try {
-      const updated = await api.patch<ProfileData>('/auth/profile', {
-        fullName,
-        phone,
-        email,
-      });
+      // Responden hanya boleh ubah NAMA; HP/email dikunci (butuh verifikasi).
+      const body =
+        profile?.role === 'respondent' ? { fullName } : { fullName, phone, email };
+      const updated = await api.patch<ProfileData>('/auth/profile', body);
       setProfile(updated);
       // Sinkronkan ke store agar sidebar/header ikut terbarui
       if (user) {
@@ -129,8 +157,19 @@ export function ProfilePage() {
   }
 
   const inputClass =
-    'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
+    'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-gray-50 disabled:text-gray-500';
   const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+
+  const isRespondent = profile?.role === 'respondent';
+  const demo = profile?.demographics ?? null;
+
+  // Baris read-only untuk data demografi (pembobot) — tak bisa diubah responden.
+  const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
+    <div>
+      <span className={labelClass}>{label}</span>
+      <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">{value || '-'}</p>
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -152,12 +191,18 @@ export function ProfilePage() {
           </div>
           <div>
             <label htmlFor="phone" className={labelClass}>Nomor Telepon</label>
-            <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required />
+            <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required disabled={isRespondent} />
           </div>
           <div>
             <label htmlFor="email" className={labelClass}>Email</label>
-            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required />
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required disabled={isRespondent} />
           </div>
+          {isRespondent && (
+            <p className="text-xs text-gray-400">
+              Nomor telepon & email terkait pengiriman reward dan login, jadi
+              perubahannya butuh verifikasi — hubungi admin untuk koreksi.
+            </p>
+          )}
         </div>
         <div className="mt-5 flex items-center gap-3">
           <button type="submit" disabled={savingProfile} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50">
@@ -168,6 +213,35 @@ export function ProfilePage() {
           )}
         </div>
       </form>
+
+      {/* Data demografi (pembobot) — read-only untuk responden */}
+      {demo && (
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">Data Demografi (Pembobot)</h2>
+          <p className="mb-4 text-xs text-gray-500">
+            Data ini dikunci untuk menjaga kualitas analisis dan mencegah penyalahgunaan
+            targeting. Untuk koreksi, hubungi admin.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ReadonlyField label="Tanggal Lahir" value={fmtDate(demo.dateOfBirth)} />
+            <ReadonlyField label="Usia" value={demo.age != null ? `${demo.age} tahun` : '-'} />
+            <ReadonlyField
+              label="Jenis Kelamin"
+              value={demo.gender ? GENDER_LABELS[demo.gender] ?? demo.gender : '-'}
+            />
+            <ReadonlyField label="Pendidikan" value={demo.education ?? '-'} />
+            <ReadonlyField label="Pekerjaan" value={demo.occupation ?? '-'} />
+            <ReadonlyField label="Agama" value={demo.religion ?? '-'} />
+            <ReadonlyField label="Provinsi" value={demo.province ?? '-'} />
+            <ReadonlyField label="Kabupaten/Kota" value={demo.city ?? '-'} />
+            <ReadonlyField label="Kecamatan" value={demo.district ?? '-'} />
+          </div>
+          <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Domisili terkini Anda akan ditanyakan langsung di survei bila diperlukan, sehingga
+            wilayah di atas tetap menjadi acuan data registrasi.
+          </p>
+        </div>
+      )}
 
       {/* Ganti password */}
       <form onSubmit={handleChangePassword} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

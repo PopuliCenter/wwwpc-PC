@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserStatus } from './entities';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
 import { NotificationService } from '@modules/notification';
 import {
@@ -28,6 +29,22 @@ export interface ProfileResult {
   emailVerified: boolean;
   profileCompleted: boolean;
   createdAt: Date;
+  /**
+   * Data demografi (variabel pembobot) — read-only di sisi responden. Disertakan
+   * agar profil bisa menampilkannya, tapi tidak boleh diubah responden sendiri
+   * demi menjaga konsistensi pembobot & mencegah manipulasi targeting.
+   */
+  demographics?: {
+    dateOfBirth: string | null;
+    age: number | null;
+    gender: string | null;
+    education: string | null;
+    occupation: string | null;
+    religion: string | null;
+    province: string | null;
+    city: string | null;
+    district: string | null;
+  } | null;
 }
 
 const GENERIC_LOGIN_ERROR = 'Invalid email or password';
@@ -60,6 +77,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserProfile)
+    private readonly userProfileRepository: Repository<UserProfile>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER)
@@ -294,7 +313,23 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-    return this.toProfile(user);
+    const profile = await this.userProfileRepository.findOne({ where: { userId } });
+    return {
+      ...this.toProfile(user),
+      demographics: profile
+        ? {
+            dateOfBirth: profile.dateOfBirth ?? null,
+            age: profile.age ?? null,
+            gender: profile.gender ?? null,
+            education: profile.education ?? null,
+            occupation: profile.occupation ?? null,
+            religion: profile.religion ?? null,
+            province: profile.province ?? null,
+            city: profile.city ?? null,
+            district: profile.district ?? null,
+          }
+        : null,
+    };
   }
 
   /** Edit data diri sendiri: fullName, phone, email (cek keunikan email & phone). */

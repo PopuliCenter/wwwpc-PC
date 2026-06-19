@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { NotificationService } from '@modules/notification';
 import { User, UserStatus } from './entities';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
 
 vi.mock('bcrypt');
@@ -74,6 +75,10 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         { provide: getRepositoryToken(User), useValue: userRepository },
+        {
+          provide: getRepositoryToken(UserProfile),
+          useValue: { findOne: vi.fn().mockResolvedValue(null) },
+        },
         { provide: JwtService, useValue: jwtService },
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cacheManager },

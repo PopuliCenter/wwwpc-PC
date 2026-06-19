@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies';
 import { User } from './entities';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { authConfig } from './config';
 import { NotificationModule } from '@modules/notification';
 import { AuditModule } from '@modules/audit';
@@ -27,7 +28,7 @@ import { AuditModule } from '@modules/audit';
         },
       } as any),
     }),
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, UserProfile]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { format } from 'date-fns';
 
 interface AvailableSurvey {
@@ -21,6 +22,8 @@ export function SurveyListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const firstName = user?.fullName?.trim().split(' ')[0] ?? '';
 
   useEffect(() => {
     const fetchSurveys = async () => {
@@ -63,9 +66,20 @@ export function SurveyListPage() {
     );
   }
 
+  const availableCount = surveys.filter((s) => !s.completed).length;
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Survei Tersedia</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Halo, {firstName || 'Responden'} 👋
+        </h1>
+        <p className="mt-1 text-sm text-gray-500">
+          {availableCount > 0
+            ? `Ada ${availableCount} survei menunggu untuk diisi. Setiap survei berhadiah poin.`
+            : 'Belum ada survei baru untuk Anda saat ini. Cek lagi nanti, ya.'}
+        </p>
+      </div>
 
       {surveys.length === 0 ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
@@ -73,6 +87,8 @@ export function SurveyListPage() {
           <p className="text-sm mt-2">Silakan cek kembali nanti.</p>
         </div>
       ) : (
+        <>
+          <h2 className="text-sm font-semibold text-gray-700">Survei tersedia</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {surveys.map((survey) => (
             <div
@@ -138,6 +154,7 @@ export function SurveyListPage() {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
