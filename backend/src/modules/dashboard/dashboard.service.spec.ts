@@ -285,16 +285,44 @@ describe('DashboardService', () => {
   describe('getHeatmapData', () => {
     it('should return coordinate points from survey response GPS', async () => {
       const rawRows = [
-        { lat: '-6.2000', lng: '106.8167', count: 50, city: 'Jakarta' },
-        { lat: '-6.9175', lng: '107.6191', count: 30, city: null },
+        {
+          lat: '-6.2000',
+          lng: '106.8167',
+          count: 50,
+          city: 'Jakarta',
+          respondents: [
+            {
+              name: 'Budi',
+              submittedAt: '2026-01-01T10:00:00.000Z',
+              province: 'DKI JAKARTA',
+              city: 'Jakarta',
+              district: 'Tebet',
+            },
+          ],
+        },
+        { lat: '-6.9175', lng: '107.6191', count: 30, city: null, respondents: null },
       ];
       responseRepo.manager.query.mockResolvedValue(rawRows);
 
       const result = await service.getHeatmapData();
 
       expect(result).toEqual([
-        { latitude: -6.2, longitude: 106.8167, count: 50, city: 'Jakarta' },
-        { latitude: -6.9175, longitude: 107.6191, count: 30, city: undefined },
+        {
+          latitude: -6.2,
+          longitude: 106.8167,
+          count: 50,
+          city: 'Jakarta',
+          respondents: [
+            {
+              name: 'Budi',
+              submittedAt: '2026-01-01T10:00:00.000Z',
+              province: 'DKI JAKARTA',
+              city: 'Jakarta',
+              district: 'Tebet',
+            },
+          ],
+        },
+        { latitude: -6.9175, longitude: 107.6191, count: 30, city: undefined, respondents: [] },
       ]);
     });
 

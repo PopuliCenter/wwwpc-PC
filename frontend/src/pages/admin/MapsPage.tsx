@@ -1,14 +1,56 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 
+interface HeatmapRespondent {
+  name: string;
+  submittedAt: string | null;
+  province: string | null;
+  city: string | null;
+  district: string | null;
+}
+
 interface HeatmapPoint {
   latitude: number;
   longitude: number;
   count: number;
   city?: string;
+  respondents?: HeatmapRespondent[];
 }
 
 const PRIMARY = '#4f46e5';
+
+function HeatmapPopupBody({ point }: { point: HeatmapPoint }) {
+  const list = point.respondents ?? [];
+  return (
+    <div style={{ maxWidth: 230, maxHeight: 220, overflowY: 'auto', fontSize: 12 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{point.count} responden</div>
+      {list.length === 0 && point.city && (
+        <div style={{ color: '#6b7280' }}>{point.city}</div>
+      )}
+      {list.slice(0, 10).map((r, i) => (
+        <div key={i} style={{ borderTop: '1px solid #eee', paddingTop: 4, marginTop: 4 }}>
+          <div style={{ fontWeight: 500 }}>{r.name}</div>
+          {r.submittedAt && (
+            <div style={{ color: '#6b7280' }}>
+              {new Date(r.submittedAt).toLocaleString('id-ID', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </div>
+          )}
+          <div style={{ color: '#374151' }}>
+            {[r.province, r.city, r.district].filter(Boolean).join(' · ') || '-'}
+          </div>
+        </div>
+      ))}
+      {list.length > 10 && (
+        <div style={{ color: '#9ca3af', marginTop: 4 }}>
+          +{list.length - 10} responden lainnya…
+        </div>
+      )}
+    </div>
+  );
+}
 
 function LeafletMap({ points }: { points: HeatmapPoint[] }) {
   const [MapComponents, setMapComponents] = useState<{
@@ -53,11 +95,7 @@ function LeafletMap({ points }: { points: HeatmapPoint[] }) {
           stroke={false}
         >
           <Popup>
-            <span>
-              {point.city ?? 'Tidak diketahui'}: {point.count} responden
-              <br />
-              {point.latitude.toFixed(4)}, {point.longitude.toFixed(4)}
-            </span>
+            <HeatmapPopupBody point={point} />
           </Popup>
         </CircleMarker>
       ))}

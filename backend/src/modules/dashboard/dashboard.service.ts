@@ -289,30 +289,51 @@ export class DashboardService {
           lng: string | number;
           count: string | number;
           city: string | null;
+          respondents: Array<{
+            name: string | null;
+            submittedAt: string | null;
+            province: string | null;
+            city: string | null;
+            district: string | null;
+          }> | null;
         }> = await this.responseRepository.manager.query(
           `WITH pts AS (
              SELECT COALESCE(r.start_latitude, r.end_latitude) AS lat,
                     COALESCE(r.start_longitude, r.end_longitude) AS lng,
-                    r.respondent_id AS respondent_id
+                    r.respondent_id AS respondent_id,
+                    COALESCE(r.submitted_at, r.started_at) AS resp_at
              FROM survey_response r
              WHERE COALESCE(r.start_latitude, r.end_latitude) IS NOT NULL
                AND COALESCE(r.start_longitude, r.end_longitude) IS NOT NULL
+               AND r.archived_at IS NULL
              UNION ALL
              SELECT (a.value->>'latitude')::double precision AS lat,
                     (a.value->>'longitude')::double precision AS lng,
-                    r.respondent_id AS respondent_id
+                    r.respondent_id AS respondent_id,
+                    COALESCE(r.submitted_at, r.started_at) AS resp_at
              FROM answer a
              JOIN question q ON q.id = a.question_id AND q.type = 'gps'
              JOIN survey_response r ON r.id = a.response_id
              WHERE (a.value->>'latitude') ~ ${numericRegex}
                AND (a.value->>'longitude') ~ ${numericRegex}
+               AND r.archived_at IS NULL
            )
            SELECT ROUND(pts.lat::numeric, 4) AS lat,
                   ROUND(pts.lng::numeric, 4) AS lng,
                   COUNT(*)::int AS count,
-                  MAX(p.city) AS city
+                  MAX(p.city) AS city,
+                  json_agg(
+                    json_build_object(
+                      'name', COALESCE(u.full_name, '-'),
+                      'submittedAt', pts.resp_at,
+                      'province', p.province,
+                      'city', p.city,
+                      'district', p.district
+                    ) ORDER BY pts.resp_at DESC
+                  ) AS respondents
            FROM pts
            LEFT JOIN user_profile p ON p.user_id = pts.respondent_id
+           LEFT JOIN users u ON u.id = pts.respondent_id
            WHERE pts.lat IS NOT NULL AND pts.lng IS NOT NULL
            GROUP BY 1, 2
            ORDER BY count DESC
@@ -324,6 +345,15 @@ export class DashboardService {
           longitude: Number(r.lng),
           count: typeof r.count === 'number' ? r.count : parseInt(r.count, 10),
           city: r.city ?? undefined,
+          respondents: Array.isArray(r.respondents)
+            ? r.respondents.map((x) => ({
+                name: x.name ?? '-',
+                submittedAt: x.submittedAt ?? null,
+                province: x.province ?? null,
+                city: x.city ?? null,
+                district: x.district ?? null,
+              }))
+            : [],
         }));
       },
     );

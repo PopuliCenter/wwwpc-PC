@@ -36,6 +36,14 @@ export interface HeatmapPoint {
   longitude: number;
   count: number;
   city?: string;
+  /** Detail responden di titik ini (untuk tooltip peta). */
+  respondents?: Array<{
+    name: string;
+    submittedAt: string | null;
+    province: string | null;
+    city: string | null;
+    district: string | null;
+  }>;
 }
 
 export interface SurveyCompletionRate {
