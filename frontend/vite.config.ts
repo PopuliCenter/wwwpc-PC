@@ -7,10 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Mode 'prompt' (pra-produksi): versi baru TIDAK langsung aktif diam-diam.
-      // Pengguna diberi tahu lewat banner & memilih "Muat ulang" → selalu sadar
-      // melihat perubahan terbaru, tidak terjebak versi lama yang ter-cache.
-      registerType: 'prompt',
+      // Mode 'autoUpdate': service worker baru langsung skipWaiting + clientsClaim,
+      // jadi REFRESH BIASA sudah menampilkan versi terbaru (tidak perlu hard
+      // refresh). Tab yang masih terbuka juga otomatis dimuat ulang saat SW baru
+      // aktif (lihat PWAReloadPrompt) — kecuali saat sedang mengisi survei.
+      registerType: 'autoUpdate',
       includeAssets: ['logo-populi-center.png'],
       manifest: {
         name: 'Populi Survei',
