@@ -1604,18 +1604,25 @@ export function SurveyFillPage() {
   const evaluateCondition = useCallback(
     (condition: SkipCondition): boolean => {
       const answer = answers[condition.questionId];
-      const answerStr = Array.isArray(answer) ? answer.join(',') : String(answer ?? '');
+      // Selaras dengan backend (condition-evaluator): jawaban kosong → kondisi
+      // tidak terpenuhi untuk SEMUA operator. Jawaban pilihan-ganda (array) dicek
+      // dengan "termasuk", bukan digabung jadi string (yang membuat equals/contains
+      // gagal pada multiple choice).
+      if (answer === null || answer === undefined) return false;
+      const cv = condition.value;
+      const isArr = Array.isArray(answer);
+      const arr = isArr ? (answer as string[]).map((v) => String(v)) : [];
       switch (condition.operator) {
         case 'equals':
-          return answerStr === condition.value;
+          return isArr ? arr.includes(cv) : String(answer) === cv;
         case 'not_equals':
-          return answerStr !== condition.value;
+          return isArr ? !arr.includes(cv) : String(answer) !== cv;
         case 'contains':
-          return answerStr.includes(condition.value);
+          return isArr ? arr.includes(cv) : String(answer).includes(cv);
         case 'greater_than':
-          return Number(answerStr) > Number(condition.value);
+          return !isArr && Number(answer) > Number(cv);
         case 'less_than':
-          return Number(answerStr) < Number(condition.value);
+          return !isArr && Number(answer) < Number(cv);
         default:
           return false;
       }

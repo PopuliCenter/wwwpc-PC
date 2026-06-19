@@ -392,7 +392,11 @@ export class SurveyService {
       order: { orderIndex: 'ASC' },
     });
     if (originalQuestions.length > 0) {
+      // Salin juga aturan skip/visibilitas; clientId = id pertanyaan asli, dan
+      // referensi aturan dipetakan ulang ke id baru oleh bulkReplaceQuestions.
+      const logic = await this.questionService.getSurveyLogicRules(surveyId);
       const mapped = originalQuestions.map((q) => ({
+        clientId: q.id,
         type: q.type,
         text: q.questionText,
         required: q.required,
@@ -403,6 +407,23 @@ export class SurveyService {
         options: [...(q.options ?? [])]
           .sort((a, b) => a.orderIndex - b.orderIndex)
           .map((o) => ({ label: o.label, value: o.value, orderIndex: o.orderIndex })),
+        skipLogicRules: logic.skip
+          .filter((r) => r.questionId === q.id)
+          .map((r) => ({
+            sourceQuestionId: r.sourceQuestionId,
+            operator: r.conditionOperator,
+            conditionValue: r.conditionValue,
+            action: r.action,
+            targetQuestionId: r.targetQuestionId,
+          })),
+        visibilityRules: logic.visibility
+          .filter((r) => r.questionId === q.id)
+          .map((r) => ({
+            sourceQuestionId: r.sourceQuestionId,
+            operator: r.conditionOperator,
+            conditionValue: r.conditionValue,
+            visibilityAction: r.visibilityAction,
+          })),
       }));
       await this.questionService.bulkReplaceQuestions(newSurvey.id, mapped);
     }

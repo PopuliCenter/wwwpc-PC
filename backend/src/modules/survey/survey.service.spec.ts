@@ -96,7 +96,10 @@ describe('SurveyService', () => {
         { provide: getRepositoryToken(Question), useValue: questionRepository },
         {
           provide: QuestionService,
-          useValue: { bulkReplaceQuestions: vi.fn().mockResolvedValue([]) },
+          useValue: {
+            bulkReplaceQuestions: vi.fn().mockResolvedValue([]),
+            getSurveyLogicRules: vi.fn().mockResolvedValue({ skip: [], visibility: [] }),
+          },
         },
       ],
     }).compile();

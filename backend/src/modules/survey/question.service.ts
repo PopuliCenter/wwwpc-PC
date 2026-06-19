@@ -5,15 +5,45 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Question } from './entities/question.entity';
 import { QuestionOption } from './entities/question-option.entity';
 import { Survey } from './entities/survey.entity';
 import { SurveyPage } from './entities/survey-page.entity';
+import { SkipLogicRule } from './entities/skip-logic-rule.entity';
+import { VisibilityRule } from './entities/visibility-rule.entity';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
 import { QuestionType } from '@shared/enums';
+
+/** Bentuk aturan skip/visibilitas dalam payload builder (referensi pakai id-builder). */
+export interface BulkSkipRuleInput {
+  sourceQuestionId?: string;
+  operator?: string;
+  conditionValue?: string;
+  action?: string;
+  targetQuestionId?: string | null;
+}
+export interface BulkVisibilityRuleInput {
+  sourceQuestionId?: string;
+  operator?: string;
+  conditionValue?: string;
+  visibilityAction?: string;
+}
+export interface BulkQuestionInput {
+  clientId?: string;
+  type: QuestionType;
+  text?: string;
+  required?: boolean;
+  enabled?: boolean;
+  order?: number;
+  hasOtherOption?: boolean;
+  options?: Array<{ label?: string; value?: string; orderIndex?: number }>;
+  validationRules?: Record<string, any> | null;
+  skipLogicRules?: BulkSkipRuleInput[];
+  visibilityRules?: BulkVisibilityRuleInput[];
+}
 
 @Injectable()
 export class QuestionService {
@@ -28,6 +58,10 @@ export class QuestionService {
     private readonly surveyRepository: Repository<Survey>,
     @InjectRepository(SurveyPage)
     private readonly pageRepository: Repository<SurveyPage>,
+    @InjectRepository(SkipLogicRule)
+    private readonly skipLogicRepository: Repository<SkipLogicRule>,
+    @InjectRepository(VisibilityRule)
+    private readonly visibilityRepository: Repository<VisibilityRule>,
   ) {}
 
   async addQuestion(surveyId: string, dto: CreateQuestionDto): Promise<Question> {
@@ -113,16 +147,7 @@ export class QuestionService {
    */
   async bulkReplaceQuestions(
     surveyId: string,
-    questions: Array<{
-      type: QuestionType;
-      text?: string;
-      required?: boolean;
-      enabled?: boolean;
-      order?: number;
-      hasOtherOption?: boolean;
-      options?: Array<{ label?: string; value?: string; orderIndex?: number }>;
-      validationRules?: Record<string, any> | null;
-    }>,
+    questions: BulkQuestionInput[],
   ): Promise<Question[]> {
     const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
     if (!survey) {
@@ -140,12 +165,17 @@ export class QuestionService {
       );
     }
 
-    // Hapus semua pertanyaan lama (cascade menghapus opsi)
+    // Hapus semua pertanyaan lama (cascade menghapus opsi + aturan skip/visibilitas
+    // lewat FK ON DELETE CASCADE pada question_id).
     const existing = await this.questionRepository.find({ where: { surveyId } });
     if (existing.length > 0) {
       await this.questionRepository.remove(existing);
     }
 
+    // Pass 1: buat ulang pertanyaan + opsi, dan bangun peta id-builder → id-DB-baru
+    // (pertanyaan dibuat ulang dengan UUID baru tiap simpan, jadi referensi aturan
+    // harus dipetakan ulang agar skip/visibilitas tetap berjalan).
+    const idMap = new Map<string, string>();
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       const saved = await this.questionRepository.save(
@@ -161,6 +191,9 @@ export class QuestionService {
           hasOtherOption: q.hasOtherOption ?? false,
         }),
       );
+      if (q.clientId) idMap.set(q.clientId, saved.id);
+      // Selalu petakan dari id lama juga (untuk duplikasi yang memakai id asli).
+      idMap.set(saved.id, saved.id);
 
       if (q.options && q.options.length > 0) {
         const options = q.options.map((opt, idx) =>
@@ -175,8 +208,78 @@ export class QuestionService {
       }
     }
 
+    // Pass 2: buat aturan skip/visibilitas dengan referensi yang sudah dipetakan.
+    // Aturan tak lengkap / referensi yang tak ada diabaikan (draft-friendly).
+    await this.persistLogicRules(questions, idMap);
+
     this.logger.log(`Bulk replaced ${questions.length} questions for survey ${surveyId}`);
     return this.getQuestionsBySurvey(surveyId);
+  }
+
+  /** Tulis aturan skip & visibilitas, memetakan id-builder → id-DB via idMap. */
+  private async persistLogicRules(
+    questions: BulkQuestionInput[],
+    idMap: Map<string, string>,
+  ): Promise<void> {
+    const skipRows: SkipLogicRule[] = [];
+    const visRows: VisibilityRule[] = [];
+
+    for (const q of questions) {
+      const questionId = q.clientId ? idMap.get(q.clientId) : undefined;
+      if (!questionId) continue;
+
+      for (const r of q.skipLogicRules ?? []) {
+        const source = r.sourceQuestionId ? idMap.get(r.sourceQuestionId) : undefined;
+        if (!source || !r.operator) continue;
+        const action = r.action === 'jump_to' ? 'jump_to' : 'skip';
+        const target =
+          action === 'jump_to' && r.targetQuestionId
+            ? idMap.get(r.targetQuestionId) ?? null
+            : null;
+        skipRows.push(
+          this.skipLogicRepository.create({
+            questionId,
+            sourceQuestionId: source,
+            conditionOperator: r.operator,
+            conditionValue: r.conditionValue ?? '',
+            action,
+            targetQuestionId: target,
+          }),
+        );
+      }
+
+      for (const r of q.visibilityRules ?? []) {
+        const source = r.sourceQuestionId ? idMap.get(r.sourceQuestionId) : undefined;
+        if (!source || !r.operator) continue;
+        visRows.push(
+          this.visibilityRepository.create({
+            questionId,
+            sourceQuestionId: source,
+            conditionOperator: r.operator,
+            conditionValue: r.conditionValue ?? '',
+            visibilityAction: r.visibilityAction === 'hide' ? 'hide' : 'show',
+          }),
+        );
+      }
+    }
+
+    if (skipRows.length > 0) await this.skipLogicRepository.save(skipRows);
+    if (visRows.length > 0) await this.visibilityRepository.save(visRows);
+  }
+
+  /** Aturan skip/visibilitas satu survei (dipakai saat duplikasi survei). */
+  async getSurveyLogicRules(
+    surveyId: string,
+  ): Promise<{ skip: SkipLogicRule[]; visibility: VisibilityRule[] }> {
+    const ids = (
+      await this.questionRepository.find({ where: { surveyId }, select: { id: true } })
+    ).map((q) => q.id);
+    if (ids.length === 0) return { skip: [], visibility: [] };
+    const [skip, visibility] = await Promise.all([
+      this.skipLogicRepository.find({ where: { questionId: In(ids) } }),
+      this.visibilityRepository.find({ where: { questionId: In(ids) } }),
+    ]);
+    return { skip, visibility };
   }
 
   async updateQuestion(
@@ -307,11 +410,40 @@ export class QuestionService {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
     }
 
-    return this.questionRepository.find({
+    const questions = await this.questionRepository.find({
       where: { surveyId },
       relations: ['options'],
       order: { orderIndex: 'ASC' },
     });
+
+    // Sertakan aturan skip & visibilitas agar builder bisa memuatnya kembali
+    // (tanpa ini, logika tampak hilang tiap kali survei dibuka untuk diedit).
+    const ids = questions.map((q) => q.id);
+    const [skip, visibility] = await Promise.all([
+      ids.length ? this.skipLogicRepository.find({ where: { questionId: In(ids) } }) : [],
+      ids.length ? this.visibilityRepository.find({ where: { questionId: In(ids) } }) : [],
+    ]);
+
+    return questions.map((q) => ({
+      ...q,
+      skipLogicRules: skip
+        .filter((r) => r.questionId === q.id)
+        .map((r) => ({
+          sourceQuestionId: r.sourceQuestionId,
+          operator: r.conditionOperator,
+          conditionValue: r.conditionValue,
+          action: r.action,
+          targetQuestionId: r.targetQuestionId,
+        })),
+      visibilityRules: visibility
+        .filter((r) => r.questionId === q.id)
+        .map((r) => ({
+          sourceQuestionId: r.sourceQuestionId,
+          operator: r.conditionOperator,
+          conditionValue: r.conditionValue,
+          visibilityAction: r.visibilityAction,
+        })),
+    })) as unknown as Question[];
   }
 
   async findById(questionId: string): Promise<Question> {

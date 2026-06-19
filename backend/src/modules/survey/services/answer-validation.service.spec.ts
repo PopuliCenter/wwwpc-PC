@@ -6,18 +6,26 @@ import { QuestionType } from '@shared/enums';
 const SURVEY_ID = 'survey-1';
 const RESPONDENT_ID = 'resp-1';
 
-function makeService(questions: any[], visibility: Record<string, boolean> = {}) {
+function makeService(
+  questions: any[],
+  visibility: Record<string, boolean> = {},
+  skipped: string[] = [],
+) {
   const questionRepository = {
     find: vi.fn().mockResolvedValue(questions),
   };
   const visibilityService = {
     evaluateVisibility: vi.fn().mockResolvedValue(visibility),
   };
+  const skipLogicService = {
+    evaluateSkipLogic: vi.fn().mockResolvedValue(skipped),
+  };
   const service = new AnswerValidationService(
     questionRepository as any,
     visibilityService as any,
+    skipLogicService as any,
   );
-  return { service, questionRepository, visibilityService };
+  return { service, questionRepository, visibilityService, skipLogicService };
 }
 
 const submitOpts = { respondentId: RESPONDENT_ID, enforceRequired: true, enforceTypes: true };
@@ -160,5 +168,45 @@ describe('AnswerValidationService', () => {
         enforceTypes: false,
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it('does not enforce required on a question skipped by skip-logic', async () => {
+    const { service } = makeService(
+      [
+        {
+          id: 'q1',
+          type: QuestionType.SHORT_TEXT,
+          questionText: 'Wajib tapi dilewati',
+          required: true,
+          options: [],
+          validationRules: null,
+          hasOtherOption: false,
+        },
+      ],
+      {},
+      ['q1'], // q1 dilewati oleh skip-logic
+    );
+
+    await expect(
+      service.validate(SURVEY_ID, [], submitOpts),
+    ).resolves.toBeUndefined();
+  });
+
+  it('still enforces required on a non-skipped, visible question', async () => {
+    const { service } = makeService([
+      {
+        id: 'q1',
+        type: QuestionType.SHORT_TEXT,
+        questionText: 'Wajib',
+        required: true,
+        options: [],
+        validationRules: null,
+        hasOtherOption: false,
+      },
+    ]);
+
+    await expect(
+      service.validate(SURVEY_ID, [], submitOpts),
+    ).rejects.toThrow(BadRequestException);
   });
 });

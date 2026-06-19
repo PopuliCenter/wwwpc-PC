@@ -17,6 +17,27 @@ export class BulkQuestionOptionDto {
 }
 
 /**
+ * Aturan skip/visibilitas dalam payload builder. `sourceQuestionId`/`targetQuestionId`
+ * memakai id-builder (clientId) pertanyaan; backend memetakannya ke id DB baru
+ * setelah pertanyaan dibuat ulang. Lunak (field opsional) — aturan tak lengkap
+ * diabaikan saat simpan, bukan ditolak, agar draft tetap bisa disimpan.
+ */
+export class BulkSkipRuleDto {
+  @IsOptional() @IsString() sourceQuestionId?: string;
+  @IsOptional() @IsString() operator?: string;
+  @IsOptional() @IsString() conditionValue?: string;
+  @IsOptional() @IsString() action?: string;
+  @IsOptional() targetQuestionId?: string | null;
+}
+
+export class BulkVisibilityRuleDto {
+  @IsOptional() @IsString() sourceQuestionId?: string;
+  @IsOptional() @IsString() operator?: string;
+  @IsOptional() @IsString() conditionValue?: string;
+  @IsOptional() @IsString() visibilityAction?: string;
+}
+
+/**
  * Satu pertanyaan dalam payload bulk-replace builder. Bersifat lunak (teks boleh
  * kosong = draft) agar admin bisa menyimpan progres pembuatan kapan saja.
  */
@@ -39,6 +60,21 @@ export class BulkQuestionDto {
   /** Freeform — divalidasi di sisi pengisian survei, bukan saat menyimpan draft. */
   @IsOptional()
   validationRules?: Record<string, any>;
+
+  /** Id-builder pertanyaan ini, untuk memetakan referensi aturan skip/visibilitas. */
+  @IsOptional() @IsString() clientId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkSkipRuleDto)
+  skipLogicRules?: BulkSkipRuleDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkVisibilityRuleDto)
+  visibilityRules?: BulkVisibilityRuleDto[];
 }
 
 export class BulkQuestionsDto {

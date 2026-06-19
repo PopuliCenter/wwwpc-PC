@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Question } from '../entities/question.entity';
 import { QuestionType } from '@shared/enums';
 import { VisibilityService } from './visibility.service';
+import { SkipLogicService } from './skip-logic.service';
 
 export interface AnswerInput {
   questionId: string;
@@ -35,6 +36,7 @@ export class AnswerValidationService {
     @InjectRepository(Question)
     private readonly questionRepository: Repository<Question>,
     private readonly visibilityService: VisibilityService,
+    private readonly skipLogicService: SkipLogicService,
   ) {}
 
   async validate(
@@ -73,19 +75,23 @@ export class AnswerValidationService {
       }
     }
 
-    // 2) Required enforcement (visibility-aware) -------------------------------
+    // 2) Required enforcement (visibility- & skip-aware) -----------------------
     if (options.enforceRequired) {
-      // A required question that is hidden by conditional-visibility rules must
-      // NOT be enforced, otherwise legitimately-skipped questions would block
-      // submission. Questions without rules default to visible.
-      const visibility = await this.visibilityService.evaluateVisibility(
-        surveyId,
-        this.toConditionAnswers(answerMap),
-      );
+      // A required question hidden by conditional-visibility rules OR skipped by
+      // skip-logic rules must NOT be enforced, otherwise legitimately-skipped
+      // questions would block submission. Questions without rules default to
+      // visible/active. Mirrors the respondent UI's isActive() exactly.
+      const conditionAnswers = this.toConditionAnswers(answerMap);
+      const [visibility, skipped] = await Promise.all([
+        this.visibilityService.evaluateVisibility(surveyId, conditionAnswers),
+        this.skipLogicService.evaluateSkipLogic(surveyId, conditionAnswers),
+      ]);
+      const skippedSet = new Set(skipped);
 
       for (const question of questions) {
         if (!question.required) continue;
-        if (visibility[question.id] === false) continue; // hidden → skip
+        if (visibility[question.id] === false) continue; // disembunyikan → lewati
+        if (skippedSet.has(question.id)) continue; // dilewati skip-logic → lewati
         if (this.isEmpty(answerMap[question.id])) {
           errors.push(`"${this.short(question.questionText)}": wajib diisi`);
         }

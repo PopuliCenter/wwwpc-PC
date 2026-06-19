@@ -135,6 +135,8 @@ interface BackendQuestion {
   validationRules: ValidationRules | null;
   hasOtherOption: boolean;
   options?: { id: string; label: string; value: string; orderIndex: number }[];
+  skipLogicRules?: SkipLogicRule[];
+  visibilityRules?: VisibilityRule[];
 }
 
 function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
@@ -151,6 +153,20 @@ function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
       .slice()
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((o) => ({ id: o.id, label: o.label, value: o.value, order: o.orderIndex })),
+    // Muat aturan skip/visibilitas agar logika tidak hilang saat survei diedit.
+    skipLogicRules: (q.skipLogicRules ?? []).map((r) => ({
+      sourceQuestionId: r.sourceQuestionId,
+      operator: r.operator,
+      conditionValue: r.conditionValue,
+      action: r.action,
+      targetQuestionId: r.targetQuestionId ?? undefined,
+    })),
+    visibilityRules: (q.visibilityRules ?? []).map((r) => ({
+      sourceQuestionId: r.sourceQuestionId,
+      operator: r.operator,
+      conditionValue: r.conditionValue,
+      visibilityAction: r.visibilityAction,
+    })),
   };
 }
 
@@ -1343,6 +1359,8 @@ export function SurveyEditPage() {
     setSaveMessage(null);
     try {
       const payload = questions.map((q, idx) => ({
+        // clientId = id-builder; backend memetakannya ke id DB baru untuk aturan.
+        clientId: q.id,
         type: q.type,
         text: q.text ?? '',
         required: !!q.required,
@@ -1355,6 +1373,19 @@ export function SurveyEditPage() {
           orderIndex: i,
         })),
         validationRules: q.validationRules ?? null,
+        skipLogicRules: (q.skipLogicRules ?? []).map((r) => ({
+          sourceQuestionId: r.sourceQuestionId,
+          operator: r.operator,
+          conditionValue: r.conditionValue,
+          action: r.action,
+          targetQuestionId: r.targetQuestionId ?? null,
+        })),
+        visibilityRules: (q.visibilityRules ?? []).map((r) => ({
+          sourceQuestionId: r.sourceQuestionId,
+          operator: r.operator,
+          conditionValue: r.conditionValue,
+          visibilityAction: r.visibilityAction,
+        })),
       }));
       await api.put(`/surveys/${id}/questions`, { questions: payload });
       setSaveMessage({ ok: true, text: successText });

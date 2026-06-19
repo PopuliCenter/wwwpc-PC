@@ -7,6 +7,8 @@ import { Question } from './entities/question.entity';
 import { QuestionOption } from './entities/question-option.entity';
 import { Survey } from './entities/survey.entity';
 import { SurveyPage } from './entities/survey-page.entity';
+import { SkipLogicRule } from './entities/skip-logic-rule.entity';
+import { VisibilityRule } from './entities/visibility-rule.entity';
 import { QuestionType } from '@shared/enums';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -18,6 +20,8 @@ describe('QuestionService', () => {
   let optionRepository: any;
   let surveyRepository: any;
   let pageRepository: any;
+  let skipLogicRepository: any;
+  let visibilityRepository: any;
 
   const mockSurveyId = 'survey-uuid-1';
   const mockPageId = 'page-uuid-1';
@@ -84,6 +88,15 @@ describe('QuestionService', () => {
       findOne: vi.fn().mockResolvedValue(mockPage),
     };
 
+    const ruleRepo = () => ({
+      create: vi.fn().mockImplementation((d) => d),
+      save: vi.fn().mockImplementation((e) => Promise.resolve(e)),
+      find: vi.fn().mockResolvedValue([]),
+      delete: vi.fn().mockResolvedValue({ affected: 0 }),
+    });
+    skipLogicRepository = ruleRepo();
+    visibilityRepository = ruleRepo();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuestionService,
@@ -91,6 +104,8 @@ describe('QuestionService', () => {
         { provide: getRepositoryToken(QuestionOption), useValue: optionRepository },
         { provide: getRepositoryToken(Survey), useValue: surveyRepository },
         { provide: getRepositoryToken(SurveyPage), useValue: pageRepository },
+        { provide: getRepositoryToken(SkipLogicRule), useValue: skipLogicRepository },
+        { provide: getRepositoryToken(VisibilityRule), useValue: visibilityRepository },
       ],
     }).compile();
 
@@ -678,6 +693,74 @@ describe('QuestionService', () => {
       await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  describe('bulkReplaceQuestions — logika skip/visibilitas', () => {
+    it('menyimpan aturan visibilitas dengan id pertanyaan yang dipetakan ulang', async () => {
+      let n = 0;
+      questionRepository.save.mockImplementation((entity: any) =>
+        Promise.resolve({ ...entity, id: `db-${++n}` }),
+      );
+      questionRepository.find.mockResolvedValue([]); // getQuestionsBySurvey di akhir
+
+      await service.bulkReplaceQuestions(mockSurveyId, [
+        {
+          clientId: 'c1',
+          type: QuestionType.SINGLE_CHOICE,
+          text: 'Q1',
+          options: [{ label: 'Ya', value: 'ya' }],
+        },
+        {
+          clientId: 'c2',
+          type: QuestionType.SHORT_TEXT,
+          text: 'Q2',
+          visibilityRules: [
+            {
+              sourceQuestionId: 'c1',
+              operator: 'equals',
+              conditionValue: 'ya',
+              visibilityAction: 'show',
+            },
+          ],
+        },
+      ]);
+
+      expect(visibilityRepository.save).toHaveBeenCalled();
+      const savedRules = visibilityRepository.save.mock.calls[0][0];
+      expect(savedRules[0]).toMatchObject({
+        questionId: 'db-2',
+        sourceQuestionId: 'db-1',
+        conditionOperator: 'equals',
+        conditionValue: 'ya',
+        visibilityAction: 'show',
+      });
+    });
+
+    it('mengabaikan aturan yang merujuk sumber tak dikenal', async () => {
+      let n = 0;
+      questionRepository.save.mockImplementation((entity: any) =>
+        Promise.resolve({ ...entity, id: `db-${++n}` }),
+      );
+      questionRepository.find.mockResolvedValue([]);
+
+      await service.bulkReplaceQuestions(mockSurveyId, [
+        {
+          clientId: 'c2',
+          type: QuestionType.SHORT_TEXT,
+          text: 'Q2',
+          skipLogicRules: [
+            {
+              sourceQuestionId: 'tidak-ada',
+              operator: 'equals',
+              conditionValue: 'x',
+              action: 'skip',
+            },
+          ],
+        },
+      ]);
+
+      expect(skipLogicRepository.save).not.toHaveBeenCalled();
     });
   });
 });
