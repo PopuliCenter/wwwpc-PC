@@ -9,6 +9,7 @@ import { AuditActionType } from '@shared/enums';
 describe('AuditService', () => {
   let service: AuditService;
   let repository: any;
+  let mockUserRepository: any;
 
   beforeEach(async () => {
     repository = {
@@ -17,6 +18,7 @@ describe('AuditService', () => {
       delete: vi.fn().mockResolvedValue({ affected: 0 }),
       createQueryBuilder: vi.fn(),
     };
+    mockUserRepository = { find: vi.fn().mockResolvedValue([]), findOne: vi.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -24,7 +26,7 @@ describe('AuditService', () => {
         { provide: getRepositoryToken(AuditLog), useValue: repository },
         {
           provide: getRepositoryToken(User),
-          useValue: { find: vi.fn().mockResolvedValue([]), findOne: vi.fn() },
+          useValue: mockUserRepository,
         },
       ],
     }).compile();
@@ -132,15 +134,39 @@ describe('AuditService', () => {
       expect(mockQueryBuilder.take).toHaveBeenCalledWith(20);
     });
 
-    it('should apply userId filter', async () => {
+    it('should apply userId filter with an exact UUID match', async () => {
       mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+      const uuid = '11111111-1111-1111-1111-111111111111';
 
-      await service.query({ userId: 'user-123' });
+      await service.query({ userId: uuid });
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'audit.user_id = :userId',
-        { userId: 'user-123' },
+        { userId: uuid },
       );
+    });
+
+    it('should treat a non-UUID userId as a name/email search', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+      // Dua user cocok dengan nama "afifa" → filter IN id-id mereka.
+      mockUserRepository.find.mockResolvedValueOnce([{ id: 'u-1' }, { id: 'u-2' }]);
+
+      await service.query({ userId: 'afifa' });
+
+      expect(mockUserRepository.find).toHaveBeenCalled();
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'audit.user_id IN (:...userIds)',
+        { userIds: ['u-1', 'u-2'] },
+      );
+    });
+
+    it('should return no rows when a name search matches no user', async () => {
+      mockQueryBuilder.getManyAndCount.mockResolvedValue([[], 0]);
+      mockUserRepository.find.mockResolvedValueOnce([]);
+
+      await service.query({ userId: 'tidakada' });
+
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('1 = 0');
     });
 
     it('should apply actionType filter', async () => {

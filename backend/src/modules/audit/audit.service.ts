@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { In, Repository, LessThan } from 'typeorm';
+import { In, Repository, LessThan, ILike } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import {
@@ -69,9 +69,29 @@ export class AuditService {
       .take(limit);
 
     if (filters.userId) {
-      queryBuilder.andWhere('audit.user_id = :userId', {
-        userId: filters.userId,
-      });
+      // Field "User ID/Nama": terima UUID (cocok persis) ATAU nama/email
+      // (pencarian parsial). Tanpa ini, mengetik nama mengirim teks bukan-UUID
+      // ke kolom uuid → Postgres 500 ("invalid input syntax for type uuid").
+      const raw = filters.userId.trim();
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+      if (isUuid) {
+        queryBuilder.andWhere('audit.user_id = :userId', { userId: raw });
+      } else {
+        const matched = await this.userRepository.find({
+          where: [{ fullName: ILike(`%${raw}%`) }, { email: ILike(`%${raw}%`) }],
+          select: ['id'],
+        });
+        const matchedIds = matched.map((u) => u.id);
+        if (matchedIds.length === 0) {
+          // Tak ada user cocok → hasil kosong (bukan error).
+          queryBuilder.andWhere('1 = 0');
+        } else {
+          queryBuilder.andWhere('audit.user_id IN (:...userIds)', {
+            userIds: matchedIds,
+          });
+        }
+      }
     }
 
     if (filters.actionType) {
