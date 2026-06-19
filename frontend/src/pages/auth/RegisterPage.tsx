@@ -265,18 +265,22 @@ export function RegisterPage() {
           </div>
 
           <div className="border-t border-gray-100 pt-4">
-            <p className="mb-2 text-sm font-semibold text-gray-700">Domisili</p>
+            <p className="mb-1 text-sm font-semibold text-gray-700">Wilayah sesuai KTP</p>
+            <p className="mb-2 text-xs text-gray-500">
+              Isi sesuai KTP (data ini terkunci sebagai acuan). Domisili Anda saat ini
+              akan ditanyakan langsung di survei bila diperlukan.
+            </p>
             <WilayahPicker value={wilayah} onChange={setWilayah} required />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Alamat Lengkap</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Alamat sesuai KTP</label>
             <textarea
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               required
               rows={2}
-              placeholder="Jalan, RT/RW, kelurahan…"
+              placeholder="Jalan, RT/RW, kelurahan… (sesuai KTP)"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
