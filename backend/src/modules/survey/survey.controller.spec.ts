@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SurveyController } from './survey.controller';
 import { SurveyService } from './survey.service';
 import { AuditService } from '@modules/audit/audit.service';
+import { NotificationSchedulerService } from '@modules/notification/scheduled';
 import { SurveyStatus } from '@shared/enums';
 import { CreateSurveyDto } from './dto/create-survey.dto';
 import { UpdateSurveyDto } from './dto/update-survey.dto';
@@ -45,6 +46,10 @@ describe('SurveyController', () => {
       providers: [
         { provide: SurveyService, useValue: surveyService },
         { provide: AuditService, useValue: { log: vi.fn() } },
+        {
+          provide: NotificationSchedulerService,
+          useValue: { sendInvitationsForSurvey: vi.fn().mockResolvedValue({ recipients: 3 }) },
+        },
       ],
     }).compile();
 

@@ -26,10 +26,12 @@ describe('NotificationSchedulerService', () => {
   beforeEach(async () => {
     notificationService = {
       sendReminder: vi.fn().mockResolvedValue(undefined),
+      sendSurveyInvitation: vi.fn().mockResolvedValue(undefined),
     };
 
     surveyRepository = {
       find: vi.fn().mockResolvedValue([]),
+      findOne: vi.fn().mockResolvedValue(null),
     };
 
     responseRepository = {
@@ -177,6 +179,67 @@ describe('NotificationSchedulerService', () => {
 
       // Should not throw
       await expect(service.sendH1Reminders()).resolves.not.toThrow();
+    });
+  });
+
+  describe('sendInvitationsForSurvey', () => {
+    it('queues invitations for an active survey to respondents who have not filled it', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'Survei Baru',
+        description: 'desc',
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date('2026-07-01T00:00:00.000Z'),
+      });
+      responseRepository.find.mockResolvedValue([]); // belum ada yang mengisi
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { email: 'a@x.com', fullName: 'A' },
+        { email: 'b@x.com', fullName: 'B' },
+      ]);
+
+      const result = await service.sendInvitationsForSurvey('survey-1');
+
+      expect(result).toEqual({ recipients: 2 });
+      expect(notificationService.sendSurveyInvitation).toHaveBeenCalledWith(
+        [
+          { email: 'a@x.com', fullName: 'A' },
+          { email: 'b@x.com', fullName: 'B' },
+        ],
+        expect.objectContaining({ id: 'survey-1', title: 'Survei Baru' }),
+        expect.any(String),
+      );
+    });
+
+    it('rejects when the survey is not active', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'Survei',
+        status: SurveyStatus.INACTIVE,
+      });
+
+      await expect(service.sendInvitationsForSurvey('survey-1')).rejects.toThrow();
+      expect(notificationService.sendSurveyInvitation).not.toHaveBeenCalled();
+    });
+
+    it('returns 0 recipients (no email) when everyone has already filled', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'Survei',
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date(),
+      });
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      const result = await service.sendInvitationsForSurvey('survey-1');
+
+      expect(result).toEqual({ recipients: 0 });
+      expect(notificationService.sendSurveyInvitation).not.toHaveBeenCalled();
+    });
+
+    it('throws when the survey does not exist', async () => {
+      surveyRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.sendInvitationsForSurvey('missing')).rejects.toThrow();
     });
   });
 });

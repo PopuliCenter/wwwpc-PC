@@ -26,6 +26,7 @@ import { SurveyResponse } from '@modules/response/entities/survey-response.entit
 import { Answer } from '@modules/response/entities/answer.entity';
 import { AuthModule } from '@modules/auth';
 import { AuditModule } from '@modules/audit';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AuditModule } from '@modules/audit';
     ]),
     AuthModule,
     AuditModule,
+    NotificationModule,
   ],
   controllers: [
     SurveyController,

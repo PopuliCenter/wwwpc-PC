@@ -19,6 +19,7 @@ import { Roles } from '@modules/auth/decorators';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { Survey } from './entities/survey.entity';
 import { AuditService } from '@modules/audit/audit.service';
+import { NotificationSchedulerService } from '@modules/notification/scheduled';
 
 /** Ambil IP klien dari request (hormati proxy bila ada). */
 function clientIp(req: any): string {
@@ -36,6 +37,7 @@ export class SurveyController {
   constructor(
     private readonly surveyService: SurveyService,
     private readonly auditService: AuditService,
+    private readonly notificationScheduler: NotificationSchedulerService,
   ) {}
 
   /** Catat aksi survei ke audit log (best-effort di AuditService). */
@@ -121,6 +123,24 @@ export class SurveyController {
     const survey = await this.surveyService.activateSurvey(id);
     await this.audit(req, AuditActionType.SURVEY_UPDATE, survey, { action: 'activate' });
     return survey;
+  }
+
+  /**
+   * Kirim email undangan "survei baru" ke responden yang BELUM mengisi survei
+   * ini (manual, ditekan admin). Survei harus aktif. Mengembalikan jumlah penerima.
+   */
+  @Post(':id/invitations')
+  @HttpCode(HttpStatus.OK)
+  async sendInvitations(
+    @Request() req: any,
+    @Param('id') id: string,
+  ): Promise<{ recipients: number }> {
+    const result = await this.notificationScheduler.sendInvitationsForSurvey(id);
+    await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
+      kind: 'survey_invitation',
+      recipients: result.recipients,
+    });
+    return result;
   }
 
   @Put(':id/deactivate')

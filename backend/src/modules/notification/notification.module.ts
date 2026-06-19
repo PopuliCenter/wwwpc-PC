@@ -20,6 +20,6 @@ import { User } from '@modules/auth/entities/user.entity';
     ScheduleModule.forRoot(),
   ],
   providers: [NotificationService, EmailProcessor, EmailTemplateService, NotificationSchedulerService],
-  exports: [NotificationService],
+  exports: [NotificationService, NotificationSchedulerService],
 })
 export class NotificationModule {}

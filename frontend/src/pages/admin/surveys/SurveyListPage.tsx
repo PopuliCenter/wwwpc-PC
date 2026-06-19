@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3, Send } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -108,6 +108,29 @@ export function SurveyListPage() {
     }
   };
 
+  // Kirim email undangan "survei baru" ke responden yang belum mengisi (manual).
+  const handleSendInvitations = async (s: Survey) => {
+    if (
+      !confirm(
+        `Kirim email undangan survei "${s.title}" ke responden yang belum mengisi?`,
+      )
+    )
+      return;
+    try {
+      const res = await api.post<{ recipients: number }>(
+        `/surveys/${s.id}/invitations`,
+      );
+      alert(
+        res.recipients > 0
+          ? `Undangan dikirim ke ${res.recipients} responden.`
+          : 'Tidak ada responden yang perlu diundang (semua sudah mengisi atau belum ada responden aktif).',
+      );
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      alert(e.message || 'Gagal mengirim undangan');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus survei ini?')) return;
     try {
@@ -125,6 +148,9 @@ export function SurveyListPage() {
     s.status === 'active'
       ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }
       : { icon: PlayCircle, label: 'Aktifkan', cls: 'hover:text-emerald-700', onClick: () => handleActivate(s.id) },
+    ...(s.status === 'active'
+      ? [{ icon: Send, label: 'Kirim Undangan', cls: 'hover:text-blue-700', onClick: () => handleSendInvitations(s) }]
+      : []),
     { icon: Archive, label: 'Arsipkan', cls: 'hover:text-gray-900', onClick: () => handleArchive(s.id) },
     { icon: Trash2, label: 'Hapus', cls: 'hover:text-red-700', onClick: () => handleDelete(s.id) },
   ];

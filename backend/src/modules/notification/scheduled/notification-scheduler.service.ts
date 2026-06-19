@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, In } from 'typeorm';
@@ -103,6 +108,46 @@ export class NotificationSchedulerService {
     } catch (error: any) {
       this.logger.error(`H-1 reminder job failed: ${error.message}`, error.stack);
     }
+  }
+
+  /**
+   * Kirim email undangan "survei baru" secara MANUAL (dipicu admin via tombol).
+   * Hanya untuk survei berstatus aktif, dan hanya ke responden yang BELUM
+   * mengisi survei ini (aman dikirim ulang — yang sudah mengisi tidak diganggu).
+   * Mengembalikan jumlah penerima yang di-antre.
+   */
+  async sendInvitationsForSurvey(surveyId: string): Promise<{ recipients: number }> {
+    const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      throw new NotFoundException(`Survei ${surveyId} tidak ditemukan`);
+    }
+    if (survey.status !== SurveyStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Aktifkan survei terlebih dahulu sebelum mengirim undangan.',
+      );
+    }
+
+    const respondents = await this.findRespondentsWhoHaventFilled(surveyId);
+    if (respondents.length === 0) {
+      this.logger.log(`Tidak ada responden untuk diundang pada survei ${surveyId}`);
+      return { recipients: 0 };
+    }
+
+    await this.notificationService.sendSurveyInvitation(
+      respondents,
+      {
+        title: survey.title,
+        description: survey.description ?? undefined,
+        endDatetime: survey.endDatetime?.toISOString() ?? '',
+        id: survey.id,
+      },
+      this.baseUrl,
+    );
+
+    this.logger.log(
+      `Undangan manual di-antre untuk survei "${survey.title}" → ${respondents.length} responden`,
+    );
+    return { recipients: respondents.length };
   }
 
   /**
