@@ -1,58 +1,76 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { WifiOff, CloudUpload } from 'lucide-react';
+import { Outlet, NavLink } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { WifiOff, CloudUpload, Bell, FileText, Gift, User } from 'lucide-react';
+import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isEmbedMode } from '@/utils/embed';
 
 const navItems = [
-  { path: '/surveys', label: 'Survei' },
-  { path: '/rewards', label: 'Reward' },
-  { path: '/profile', label: 'Profil' },
+  { path: '/surveys', label: 'Survei', icon: FileText },
+  { path: '/rewards', label: 'Reward', icon: Gift },
+  { path: '/profile', label: 'Profil', icon: User },
 ];
 
 export function RespondentLayout() {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const online = useOnlineStatus();
   const sync = useOfflineSync();
+  const [points, setPoints] = useState<number | null>(null);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  // Saldo poin di header — terlihat dari semua tab agar reward mudah ditemukan.
+  useEffect(() => {
+    if (isEmbedMode || !user) return;
+    let active = true;
+    api
+      .get<{ available: number }>('/rewards/balance')
+      .then((b) => {
+        if (active) setPoints(b?.available ?? 0);
+      })
+      .catch(() => {
+        if (active) setPoints(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   return (
     <div className={`flex flex-col ${isEmbedMode ? '' : 'min-h-screen'}`}>
       {/* Header — disembunyikan di mode embed (Elementor sudah punya header) */}
       {!isEmbedMode && (
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
-                <img src="/logo-populi-center.png" alt="Populi Center" className="h-9 w-9 object-contain" />
+                <img
+                  src="/logo-populi-center.png"
+                  alt="Populi Center"
+                  className="h-9 w-9 object-contain"
+                />
                 <span className="text-lg font-bold text-primary-600">Survei Online</span>
               </div>
-              <nav className="flex gap-4">
-                {navItems.map((item) => (
+              {/* Nav inline hanya di desktop; di HP memakai tab bawah */}
+              <nav className="hidden gap-5 md:flex">
+                {navItems.map(({ path, label }) => (
                   <NavLink
-                    key={item.path}
-                    to={item.path}
+                    key={path}
+                    to={path}
                     className={({ isActive }) =>
                       `text-sm font-medium transition-colors ${
                         isActive
-                          ? 'text-primary-600 border-b-2 border-primary-600 pb-1'
+                          ? 'border-b-2 border-primary-600 pb-1 text-primary-600'
                           : 'text-gray-600 hover:text-gray-900'
                       }`
                     }
                   >
-                    {item.label}
+                    {label}
                   </NavLink>
                 ))}
               </nav>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
               {!online && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
                   <WifiOff className="h-3.5 w-3.5" /> Offline
@@ -68,23 +86,58 @@ export function RespondentLayout() {
                   <CloudUpload className="h-3.5 w-3.5" /> {sync.queuedCount}
                 </button>
               )}
-              <span className="text-sm text-gray-600">{user?.fullName}</span>
+              {points !== null && (
+                <NavLink
+                  to="/rewards"
+                  title="Saldo poin Anda"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
+                >
+                  <Gift className="h-3.5 w-3.5" /> {points.toLocaleString('id-ID')} poin
+                </NavLink>
+              )}
               <button
-                onClick={handleLogout}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                type="button"
+                aria-label="Notifikasi"
+                title="Notifikasi (segera hadir)"
+                className="text-gray-500 transition-colors hover:text-gray-700"
               >
-                Keluar
+                <Bell className="h-5 w-5" />
               </button>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
       )}
 
       {/* Main content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <main
+        className={`mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 ${
+          isEmbedMode ? '' : 'pb-24 md:pb-8'
+        }`}
+      >
         <Outlet />
       </main>
+
+      {/* Tab bawah — pola mobile yang intuitif; sembunyi di desktop & mode embed */}
+      {!isEmbedMode && (
+        <nav className="sticky bottom-0 z-10 border-t border-gray-200 bg-white md:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-3">
+            {navItems.map(({ path, label, icon: Icon }) => (
+              <NavLink
+                key={path}
+                to={path}
+                className={({ isActive }) =>
+                  `flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+                    isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                  }`
+                }
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

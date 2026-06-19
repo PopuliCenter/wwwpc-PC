@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import type { UserRole } from '@/types';
@@ -32,7 +34,13 @@ function errMessage(e: unknown): string {
 }
 
 export function ProfilePage() {
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -188,6 +196,16 @@ export function ProfilePage() {
           )}
         </div>
       </form>
+
+      {/* Keluar — untuk responden (navigasi tab tak lagi memuat tombol logout) */}
+      {profile?.role === 'respondent' && (
+        <button
+          onClick={handleLogout}
+          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+        >
+          <LogOut className="h-4 w-4" /> Keluar
+        </button>
+      )}
     </div>
   );
 }
