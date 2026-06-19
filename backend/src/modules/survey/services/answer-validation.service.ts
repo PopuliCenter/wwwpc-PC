@@ -90,6 +90,9 @@ export class AnswerValidationService {
 
       for (const question of questions) {
         if (!question.required) continue;
+        // Arm eksperimen diisi otomatis oleh sistem, bukan responden → jangan
+        // pernah paksa "wajib diisi".
+        if (question.type === QuestionType.RANDOM_ARM) continue;
         if (visibility[question.id] === false) continue; // disembunyikan → lewati
         if (skippedSet.has(question.id)) continue; // dilewati skip-logic → lewati
         if (this.isEmpty(answerMap[question.id])) {
@@ -124,6 +127,14 @@ export class AnswerValidationService {
         if (!optionValues.has(value) && !question.hasOtherOption) {
           return 'pilihan tidak valid';
         }
+        return null;
+      }
+
+      case QuestionType.RANDOM_ARM: {
+        // Diisi sistem; tetap divalidasi agar nilai (bila dikirim balik klien)
+        // benar-benar salah satu kelompok yang terdaftar.
+        if (typeof value !== 'string') return 'penugasan acak tidak valid';
+        if (!optionValues.has(value)) return 'penugasan acak tidak valid';
         return null;
       }
 

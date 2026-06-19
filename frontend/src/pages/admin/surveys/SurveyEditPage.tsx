@@ -35,6 +35,7 @@ type QuestionType =
   | 'date'
   | 'rating_scale'
   | 'unique_id'
+  | 'random_arm'
   | 'indonesia_region'
   | 'signature'
   | 'photo'
@@ -206,6 +207,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
   photo: 'Foto (Kamera)',
   gps: 'Titik GPS',
   audio: 'Rekaman Audio',
+  random_arm: 'Penugasan Acak (Eksperimen)',
 };
 
 // Grup tipe untuk dropdown tambah/ubah pertanyaan. (gps & signature SENGAJA
@@ -218,6 +220,7 @@ const typeGroups: { label: string; types: QuestionType[] }[] = [
   { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
   { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region'] },
   { label: 'Media', types: ['photo', 'audio', 'file_upload'] },
+  { label: 'Eksperimen', types: ['random_arm'] },
 ];
 
 /** Default konfigurasi per tipe (opsi/aturan validasi). */
@@ -236,6 +239,15 @@ function defaultsForType(type: QuestionType): Partial<Question> {
   if (type === 'numeric_scale') return { validationRules: { numericRange: { min: 1, max: 10 } } };
   if (type === 'indonesia_region') return { validationRules: { regionDepth: 'village' } };
   if (type === 'unique_id') return { validationRules: { minLength: 5, maxLength: 10 } };
+  if (type === 'random_arm') {
+    // Default 2 kelompok dengan KODE ANGKA (1, 2) — ramah SPSS.
+    return {
+      options: [
+        { id: `arm-${Date.now()}-1`, label: 'Kelompok 1', value: '1', order: 0 },
+        { id: `arm-${Date.now()}-2`, label: 'Kelompok 2', value: '2', order: 1 },
+      ],
+    };
+  }
   return {};
 }
 
@@ -327,6 +339,95 @@ function ChoiceConfig({
           Acak urutan opsi (opsi "Lainnya" tetap di bawah)
         </label>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Editor "Penugasan Acak (Eksperimen)". Tiap baris = satu KELOMPOK (arm) dengan
+ * KODE angka (untuk SPSS) + nama. Sistem mengundi satu kelompok per responden
+ * dengan peluang sama rata; pertanyaan ini tidak ditampilkan ke responden dan
+ * dipakai sebagai sumber di tab "Aturan Tampil" (mis. tampil jika Kode = 2).
+ */
+function ArmConfig({
+  question,
+  onEdit,
+}: {
+  question: Question;
+  onEdit: (q: Question) => void;
+}) {
+  const arms = question.options ?? [];
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-md bg-indigo-50 border border-indigo-100 p-3 text-xs text-indigo-900">
+        <p className="font-medium">Cara kerja</p>
+        <p className="mt-1">
+          Pertanyaan ini <strong>tidak ditampilkan</strong> ke responden. Sistem
+          mengundi satu kelompok di bawah (peluang sama rata) untuk tiap responden.
+          Lalu di tab <strong>“Aturan Tampil”</strong> pada pertanyaan cabang,
+          pilih sumber pertanyaan ini dan kode kelompoknya — mis. <em>“tampilkan
+          jika [pertanyaan ini] = 2”</em>. Gunakan <strong>kode angka</strong>
+          (1, 2, 3) agar mudah diolah di SPSS.
+        </p>
+      </div>
+      <label className="block text-xs font-medium text-gray-600">Kelompok (arm)</label>
+      {arms.map((arm, idx) => (
+        <div key={arm.id} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={arm.value}
+            onChange={(e) => {
+              const next = [...arms];
+              next[idx] = { ...arm, value: e.target.value.trim() };
+              onEdit({ ...question, options: next });
+            }}
+            className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-primary-500"
+            placeholder="Kode"
+            title="Kode kelompok (angka untuk SPSS)"
+          />
+          <input
+            type="text"
+            value={arm.label}
+            onChange={(e) => {
+              const next = [...arms];
+              next[idx] = { ...arm, label: e.target.value };
+              onEdit({ ...question, options: next });
+            }}
+            className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            placeholder={`Nama kelompok ${idx + 1}`}
+          />
+          <button
+            onClick={() => onEdit({ ...question, options: arms.filter((_, i) => i !== idx) })}
+            className="text-red-400 hover:text-red-600 text-sm px-1"
+            title="Hapus kelompok"
+            disabled={arms.length <= 2}
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => {
+          // Kode angka berikutnya = (kode angka terbesar saat ini) + 1.
+          const maxCode = arms.reduce((m, a) => {
+            const n = Number(a.value);
+            return Number.isFinite(n) && n > m ? n : m;
+          }, 0);
+          const nextCode = String(maxCode + 1);
+          const newArm: QuestionOption = {
+            id: `arm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            label: '',
+            value: nextCode,
+            order: arms.length,
+          };
+          onEdit({ ...question, options: [...arms, newArm] });
+        }}
+        className="text-primary-600 text-sm hover:text-primary-800 mt-1 flex items-center gap-1"
+      >
+        + Tambah Kelompok
+      </button>
+      <p className="text-[11px] text-gray-400">Minimal 2 kelompok.</p>
     </div>
   );
 }
@@ -648,7 +749,7 @@ function LogicEditor({
   // Input "Nilai" kondisi: jika pertanyaan sumber bertipe pilihan, tampilkan
   // DROPDOWN opsinya (value = nilai opsi yang sama dgn jawaban responden) supaya
   // kondisi benar-benar cocok. Untuk teks/angka, tetap input bebas.
-  const choiceTypes = new Set(['single_choice', 'multiple_choice', 'dropdown']);
+  const choiceTypes = new Set(['single_choice', 'multiple_choice', 'dropdown', 'random_arm']);
   const renderValueInput = (
     sourceQuestionId: string,
     value: string,
@@ -1111,6 +1212,9 @@ function SortableQuestionCard({
                 )}
                 {question.type === 'unique_id' && (
                   <UniqueIdConfig question={question} onEdit={onEdit} />
+                )}
+                {question.type === 'random_arm' && (
+                  <ArmConfig question={question} onEdit={onEdit} />
                 )}
               </>
             )}

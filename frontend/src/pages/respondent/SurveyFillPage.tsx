@@ -132,6 +132,11 @@ interface SurveyFillData {
   rewardPoints?: number;
   rewardDescription?: string;
   responseId: string;
+  /**
+   * Nilai pra-isi dari server (saat ini: penugasan acak / arm eksperimen),
+   * questionId → nilai. Ditanam ke peta jawaban agar aturan tampil cabang jalan.
+   */
+  assignments?: Record<string, string>;
 }
 
 export type AnswerValue = string | string[] | Record<string, any> | null;
@@ -1558,6 +1563,14 @@ export function SurveyFillPage() {
     };
     fetchSurvey();
   }, [id]);
+
+  // Tanam nilai pra-isi dari server (penugasan acak / arm eksperimen) ke peta
+  // jawaban. Jawaban yang sudah diisi responden TIDAK ditimpa (prev menang).
+  useEffect(() => {
+    const assignments = survey?.assignments;
+    if (!assignments || Object.keys(assignments).length === 0) return;
+    setAnswers((prev) => ({ ...assignments, ...prev }));
+  }, [survey?.assignments]);
 
   // Rekam lokasi awal saat form dibuka — HANYA bila survei mengaktifkan
   // setelan "Rekam lokasi GPS" (alat pendukung). Tidak memblokir pengisian.

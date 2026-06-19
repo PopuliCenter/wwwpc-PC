@@ -25,4 +25,11 @@ export enum QuestionType {
   GPS = 'gps',
   /** Rekaman audio — direkam langsung lewat mikrofon, disimpan di object storage */
   AUDIO = 'audio',
+  /**
+   * Penugasan acak (eksperimen / split-ballot). Pertanyaan TERSEMBUNYI yang
+   * nilainya diundi otomatis oleh sistem (peluang sama rata) sekali per responden
+   * dan disimpan sebagai jawaban. Dipakai sebagai SUMBER aturan tampil agar tiap
+   * responden mendapat cabang pertanyaan berbeda secara acak.
+   */
+  RANDOM_ARM = 'random_arm',
 }

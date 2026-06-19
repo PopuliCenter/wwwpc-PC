@@ -31,6 +31,8 @@ interface Mocks {
   questions?: any[];
   skipRules?: any[];
   visibilityRules?: any[];
+  armQuestions?: any[];
+  armAnswers?: any[];
   access?: { allowed: boolean; reason?: string } | (() => never);
 }
 
@@ -39,13 +41,33 @@ function makeService(m: Mocks = {}) {
     findOne: vi.fn().mockResolvedValue('survey' in m ? m.survey : buildSurvey()),
   };
   const pageRepository = { find: vi.fn().mockResolvedValue(m.pages ?? []) };
-  const questionRepository = { find: vi.fn().mockResolvedValue(m.questions ?? []) };
+  // find() peka pada filter `where.type`: kueri arm (random_arm) mengembalikan
+  // m.armQuestions, selain itu daftar pertanyaan biasa.
+  const questionRepository = {
+    find: vi.fn().mockImplementation((opts: any) => {
+      if (opts?.where?.type === 'random_arm') {
+        return Promise.resolve(m.armQuestions ?? []);
+      }
+      return Promise.resolve(m.questions ?? []);
+    }),
+  };
   const skipLogicRepository = { find: vi.fn().mockResolvedValue(m.skipRules ?? []) };
   const visibilityRepository = { find: vi.fn().mockResolvedValue(m.visibilityRules ?? []) };
   const responseRepository = {
     findOne: vi.fn().mockResolvedValue(m.existingResponse ?? null),
     create: vi.fn().mockImplementation((data: any) => data),
     save: vi.fn().mockImplementation((data: any) => Promise.resolve({ id: 'resp-new', ...data })),
+  };
+  const insertExecute = vi.fn().mockResolvedValue({});
+  const answerRepository = {
+    find: vi.fn().mockResolvedValue(m.armAnswers ?? []),
+    create: vi.fn().mockImplementation((data: any) => data),
+    createQueryBuilder: vi.fn().mockReturnValue({
+      insert: vi.fn().mockReturnThis(),
+      values: vi.fn().mockReturnThis(),
+      orIgnore: vi.fn().mockReturnThis(),
+      execute: insertExecute,
+    }),
   };
   const surveyTimeService = {
     checkSurveyAccess: vi.fn().mockImplementation(async () => {
@@ -61,10 +83,11 @@ function makeService(m: Mocks = {}) {
     skipLogicRepository as any,
     visibilityRepository as any,
     responseRepository as any,
+    answerRepository as any,
     surveyTimeService as any,
   );
 
-  return { service, surveyRepository, responseRepository, surveyTimeService };
+  return { service, surveyRepository, responseRepository, answerRepository, surveyTimeService };
 }
 
 describe('SurveyFillService', () => {
@@ -247,5 +270,63 @@ describe('SurveyFillService', () => {
     expect(q.visibilityConditions).toEqual([
       { questionId: 'q1', operator: 'not_equals', value: 'hidden' },
     ]);
+  });
+
+  it('assigns a random experiment arm, hides it from rendered questions, and persists it', async () => {
+    const armQuestion = {
+      id: 'arm-1',
+      type: 'random_arm',
+      questionText: 'Kelompok eksperimen',
+      required: false,
+      enabled: true,
+      options: [
+        { id: 'o1', label: 'Kelompok 1', value: '1', orderIndex: 0 },
+        { id: 'o2', label: 'Kelompok 2', value: '2', orderIndex: 1 },
+      ],
+    };
+    const { service, answerRepository } = makeService({
+      // Daftar render TIDAK memuat arm (akan difilter); arm dikueri terpisah.
+      questions: [armQuestion],
+      armQuestions: [armQuestion],
+      armAnswers: [], // belum ada penugasan → harus diundi
+    });
+
+    const result = await service.getFillData(SURVEY_ID, RESPONDENT_ID);
+
+    // Arm tidak dirender ke responden.
+    expect(result.questions.find((q) => q.type === 'random_arm')).toBeUndefined();
+    // Penugasan dikembalikan & valid (salah satu kode kelompok).
+    expect(['1', '2']).toContain(result.assignments?.['arm-1']);
+    // Penugasan disimpan sebagai jawaban (insert dijalankan).
+    expect(answerRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ questionId: 'arm-1', responseId: expect.any(String) }),
+    );
+    expect(answerRepository.createQueryBuilder).toHaveBeenCalled();
+  });
+
+  it('reuses an existing arm assignment instead of re-rolling on resume', async () => {
+    const armQuestion = {
+      id: 'arm-1',
+      type: 'random_arm',
+      questionText: 'Kelompok eksperimen',
+      required: false,
+      enabled: true,
+      options: [
+        { id: 'o1', label: 'Kelompok 1', value: '1', orderIndex: 0 },
+        { id: 'o2', label: 'Kelompok 2', value: '2', orderIndex: 1 },
+      ],
+    };
+    const { service, answerRepository } = makeService({
+      existingResponse: { id: 'resp-existing', status: ResponseStatus.IN_PROGRESS },
+      questions: [armQuestion],
+      armQuestions: [armQuestion],
+      armAnswers: [{ questionId: 'arm-1', value: '2' }], // sudah ada → pakai ulang
+    });
+
+    const result = await service.getFillData(SURVEY_ID, RESPONDENT_ID);
+
+    expect(result.assignments?.['arm-1']).toBe('2');
+    // Tidak ada penyisipan baru karena penugasan sudah ada.
+    expect(answerRepository.create).not.toHaveBeenCalled();
   });
 });

@@ -16,6 +16,8 @@ import {
   SurveyResponse,
   ResponseStatus,
 } from '@modules/response/entities/survey-response.entity';
+import { Answer } from '@modules/response/entities/answer.entity';
+import { QuestionType } from '@shared/enums';
 import { SurveyTimeService } from './survey-time.service';
 import { checkEligibility } from '../utils/eligibility';
 
@@ -97,6 +99,12 @@ export interface SurveyFillData {
   rewardPoints?: number;
   rewardDescription?: string;
   responseId: string;
+  /**
+   * Nilai pra-isi yang sudah ditetapkan sistem untuk responden ini — saat ini
+   * berisi penugasan acak (arm eksperimen), dipetakan questionId → nilai arm.
+   * Frontend menanamkannya ke peta jawaban agar aturan tampil cabang berjalan.
+   */
+  assignments?: Record<string, string>;
 }
 
 /**
@@ -122,6 +130,8 @@ export class SurveyFillService {
     private readonly visibilityRepository: Repository<VisibilityRule>,
     @InjectRepository(SurveyResponse)
     private readonly responseRepository: Repository<SurveyResponse>,
+    @InjectRepository(Answer)
+    private readonly answerRepository: Repository<Answer>,
     private readonly surveyTimeService: SurveyTimeService,
   ) {}
 
@@ -156,8 +166,70 @@ export class SurveyFillService {
       existing,
     );
 
+    // Undi (atau muat) penugasan arm eksperimen untuk respons ini. Dilakukan
+    // sebelum merakit data agar nilai arm bisa dikirim ke frontend sebagai
+    // pra-isi untuk aturan tampil cabang.
+    const assignments = await this.ensureArmAssignments(surveyId, responseId);
+
     const data = await this.assembleFillData(survey);
-    return { ...data, responseId };
+    return { ...data, responseId, assignments };
+  }
+
+  /**
+   * Pastikan setiap pertanyaan "Penugasan Acak (Eksperimen)" (random_arm) di
+   * survei punya nilai arm untuk respons ini. Bila belum ada, sistem mengundi
+   * satu opsi dengan peluang sama rata lalu menyimpannya sebagai jawaban —
+   * sekali saja, stabil saat responden melanjutkan pengisian. Mengembalikan
+   * peta questionId → nilai arm untuk seluruh pertanyaan arm.
+   */
+  private async ensureArmAssignments(
+    surveyId: string,
+    responseId: string,
+  ): Promise<Record<string, string>> {
+    const armQuestions = await this.questionRepository.find({
+      where: { surveyId, type: QuestionType.RANDOM_ARM, enabled: true },
+      relations: ['options'],
+    });
+    if (armQuestions.length === 0) return {};
+
+    const existing = await this.answerRepository.find({
+      where: { responseId, questionId: In(armQuestions.map((q) => q.id)) },
+    });
+    const existingByQuestion = new Map(
+      existing.map((a) => [a.questionId, a.value]),
+    );
+
+    const assignments: Record<string, string> = {};
+    const toInsert: Answer[] = [];
+
+    for (const q of armQuestions) {
+      if (existingByQuestion.has(q.id)) {
+        assignments[q.id] = String(existingByQuestion.get(q.id));
+        continue;
+      }
+      const options = q.options ?? [];
+      if (options.length === 0) continue; // arm tanpa kelompok → lewati
+      // Undian seragam: tiap kelompok berpeluang sama.
+      const picked = options[Math.floor(Math.random() * options.length)];
+      const value = picked.value || picked.label;
+      assignments[q.id] = value;
+      toInsert.push(
+        this.answerRepository.create({ responseId, questionId: q.id, value }),
+      );
+    }
+
+    if (toInsert.length > 0) {
+      // orIgnore: kalau ada balapan (dua permintaan paralel), constraint unik
+      // (response_id, question_id) menjaga satu arm saja per respons.
+      await this.answerRepository
+        .createQueryBuilder()
+        .insert()
+        .values(toInsert)
+        .orIgnore()
+        .execute();
+    }
+
+    return assignments;
   }
 
   /**
@@ -202,15 +274,19 @@ export class SurveyFillService {
     const skipByQuestion = this.groupSkipConditions(skipRules);
     const visibilityByQuestion = this.groupVisibilityConditions(visibilityRules);
 
-    const fillQuestions: FillQuestion[] = questions.map((q) =>
-      this.mapQuestion(
-        q,
-        survey.randomizeOptions,
-        pageNumberById.get(q.pageId) ?? 1,
-        skipByQuestion.get(q.id) ?? [],
-        visibilityByQuestion.get(q.id) ?? [],
-      ),
-    );
+    const fillQuestions: FillQuestion[] = questions
+      // Pertanyaan arm eksperimen TIDAK ditampilkan ke responden — nilainya
+      // diundi sistem & dikirim lewat `assignments`, hanya jadi sumber aturan tampil.
+      .filter((q) => q.type !== QuestionType.RANDOM_ARM)
+      .map((q) =>
+        this.mapQuestion(
+          q,
+          survey.randomizeOptions,
+          pageNumberById.get(q.pageId) ?? 1,
+          skipByQuestion.get(q.id) ?? [],
+          visibilityByQuestion.get(q.id) ?? [],
+        ),
+      );
 
     const totalPages = this.computeTotalPages(pages, fillQuestions);
     const reward = this.mapReward(survey);

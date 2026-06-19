@@ -23,6 +23,7 @@ import { SkipLogicRule } from './entities/skip-logic-rule.entity';
 import { VisibilityRule } from './entities/visibility-rule.entity';
 import { BranchingRule } from './entities/branching-rule.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { Answer } from '@modules/response/entities/answer.entity';
 import { AuthModule } from '@modules/auth';
 import { AuditModule } from '@modules/audit';
 
@@ -39,6 +40,7 @@ import { AuditModule } from '@modules/audit';
       VisibilityRule,
       BranchingRule,
       SurveyResponse,
+      Answer,
     ]),
     AuthModule,
     AuditModule,
