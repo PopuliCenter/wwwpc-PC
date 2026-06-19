@@ -629,6 +629,44 @@ function LogicEditor({
     visibilityAction: 'show',
   });
 
+  // Input "Nilai" kondisi: jika pertanyaan sumber bertipe pilihan, tampilkan
+  // DROPDOWN opsinya (value = nilai opsi yang sama dgn jawaban responden) supaya
+  // kondisi benar-benar cocok. Untuk teks/angka, tetap input bebas.
+  const choiceTypes = new Set(['single_choice', 'multiple_choice', 'dropdown']);
+  const renderValueInput = (
+    sourceQuestionId: string,
+    value: string,
+    onChange: (v: string) => void,
+  ) => {
+    const src = others.find((q) => q.id === sourceQuestionId);
+    const opts = src && choiceTypes.has(src.type) ? src.options ?? [] : null;
+    if (opts && opts.length > 0) {
+      return (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+        >
+          <option value="">— pilih nilai —</option>
+          {opts.map((o) => (
+            <option key={o.id} value={o.value || o.label}>
+              {o.label || o.value}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    return (
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+        placeholder="nilai..."
+      />
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Skip Logic */}
@@ -682,13 +720,11 @@ function LogicEditor({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
-                <input
-                  type="text"
-                  value={rule.conditionValue}
-                  onChange={(e) => { const n = [...skipRules]; n[idx] = { ...rule, conditionValue: e.target.value }; setSkip(n); }}
-                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
-                  placeholder="nilai..."
-                />
+                {renderValueInput(rule.sourceQuestionId, rule.conditionValue, (v) => {
+                  const n = [...skipRules];
+                  n[idx] = { ...rule, conditionValue: v };
+                  setSkip(n);
+                })}
               </div>
             </div>
             <div className="flex items-center justify-between">
@@ -779,13 +815,11 @@ function LogicEditor({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
-                <input
-                  type="text"
-                  value={rule.conditionValue}
-                  onChange={(e) => { const n = [...visRules]; n[idx] = { ...rule, conditionValue: e.target.value }; setVis(n); }}
-                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
-                  placeholder="nilai..."
-                />
+                {renderValueInput(rule.sourceQuestionId, rule.conditionValue, (v) => {
+                  const n = [...visRules];
+                  n[idx] = { ...rule, conditionValue: v };
+                  setVis(n);
+                })}
               </div>
             </div>
             <div className="flex items-center justify-between">
