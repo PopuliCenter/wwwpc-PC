@@ -8,6 +8,8 @@ interface AnswerItem {
   questionText: string;
   questionType: string;
   answer: string | string[] | number | null;
+  // Wilayah & matriks dipecah jadi beberapa baris label→nilai (rapi + kode SPSS).
+  parts?: { label: string; value: string }[] | null;
 }
 
 interface ResponseDetail {
@@ -121,9 +123,23 @@ export function ResponseDetailPage() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{answer.questionText}</p>
                   <p className="text-xs text-gray-400 mb-1 capitalize">{answer.questionType.replace('_', ' ')}</p>
-                  <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded">
-                    {formatAnswer(answer.answer)}
-                  </p>
+                  {answer.parts && answer.parts.length > 0 ? (
+                    <div className="overflow-hidden rounded border border-gray-100">
+                      {answer.parts.map((p, i) => (
+                        <div
+                          key={i}
+                          className="flex items-start justify-between gap-3 bg-gray-50 px-3 py-1.5 text-sm odd:bg-white"
+                        >
+                          <span className="text-gray-500">{p.label}</span>
+                          <span className="text-right text-gray-800">{p.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded">
+                      {formatAnswer(answer.answer)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

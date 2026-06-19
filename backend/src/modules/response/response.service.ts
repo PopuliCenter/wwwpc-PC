@@ -482,6 +482,7 @@ export class ResponseService {
       questionText: string;
       questionType: string;
       answer: any;
+      parts: Array<{ label: string; value: string }> | null;
     }>;
   }> {
     const r = await this.responseRepository.findOne({
@@ -492,20 +493,41 @@ export class ResponseService {
       throw new NotFoundException(`Respons ${id} tidak ditemukan`);
     }
 
-    // Petakan jawaban → teks & tipe pertanyaan (urut sesuai order_index).
+    // Petakan jawaban → teks & tipe pertanyaan (urut sesuai order_index), plus
+    // opsi & aturan (untuk pengkodean angka & pemecahan wilayah/matriks — SPSS).
     const qIds = (r.answers ?? []).map((a) => a.questionId);
     const qRows: Array<{
       id: string;
       question_text: string;
       type: string;
       order_index: number;
+      validation_rules: Record<string, any> | null;
     }> = qIds.length
       ? await this.dataSource.query(
-          `SELECT id, question_text, type, order_index FROM question WHERE id = ANY($1)`,
+          `SELECT id, question_text, type, order_index, validation_rules FROM question WHERE id = ANY($1)`,
           [qIds],
         )
       : [];
     const qMap = new Map(qRows.map((q) => [q.id, q]));
+
+    const optRows: Array<{
+      question_id: string;
+      label: string;
+      value: string;
+      order_index: number;
+    }> = qIds.length
+      ? await this.dataSource.query(
+          `SELECT question_id, label, value, order_index FROM question_option WHERE question_id = ANY($1) ORDER BY order_index ASC`,
+          [qIds],
+        )
+      : [];
+    // value → { kode (posisi 1..N), label } per pertanyaan.
+    const codeByQuestion = new Map<string, Map<string, { code: number; label: string }>>();
+    for (const o of optRows) {
+      const m = codeByQuestion.get(o.question_id) ?? new Map();
+      m.set(o.value, { code: m.size + 1, label: o.label });
+      codeByQuestion.set(o.question_id, m);
+    }
 
     const reverseStatus: Record<ResponseStatus, 'completed' | 'partial' | 'abandoned'> = {
       [ResponseStatus.COMPLETE]: 'completed',
@@ -516,15 +538,19 @@ export class ResponseService {
     const answers = (r.answers ?? [])
       .map((a) => {
         const q = qMap.get(a.questionId);
+        const built = this.buildDetailAnswer(
+          q?.type ?? '',
+          a.value,
+          codeByQuestion.get(a.questionId),
+          (q?.validation_rules?.matrixColumns as string[] | undefined) ?? undefined,
+        );
         return {
           questionId: a.questionId,
           questionText: q?.question_text ?? a.questionId,
           questionType: q?.type ?? '',
-          // Objek (mis. matriks/wilayah) di-JSON-kan agar tampil rapi; lainnya apa adanya.
-          answer:
-            a.value && typeof a.value === 'object' && !Array.isArray(a.value)
-              ? JSON.stringify(a.value)
-              : a.value ?? null,
+          answer: built.answer,
+          // Wilayah & matriks dipecah jadi beberapa baris label→nilai agar rapi.
+          parts: built.parts,
           _order: q?.order_index ?? 0,
         };
       })
@@ -542,6 +568,66 @@ export class ResponseService {
       deviceType: r.deviceType ?? '-',
       answers,
     };
+  }
+
+  /**
+   * Format jawaban untuk Detail Respons agar selaras dengan export/SPSS:
+   * - Wilayah (indonesia_region) → dipecah baris Provinsi/Kab-Kota/Kecamatan/
+   *   Kelurahan, menampilkan nama + kode BPS.
+   * - Matriks → satu baris per pernyataan, isi = "kode — label".
+   * - Pilihan tunggal/dropdown/jamak → "kode — label" (angka untuk SPSS).
+   * - Lainnya → teks apa adanya.
+   */
+  private buildDetailAnswer(
+    type: string,
+    value: any,
+    codeMap?: Map<string, { code: number; label: string }>,
+    matrixColumns?: string[],
+  ): { answer: string | null; parts: Array<{ label: string; value: string }> | null } {
+    const coded = (v: string): string => {
+      const m = codeMap?.get(v);
+      return m ? `${m.code} — ${m.label}` : v;
+    };
+
+    if (type === 'indonesia_region' && value && typeof value === 'object' && !Array.isArray(value)) {
+      const levels: Array<{ label: string; idKey: string; nameKey: string }> = [
+        { label: 'Provinsi', idKey: 'province_id', nameKey: 'province_name' },
+        { label: 'Kabupaten/Kota', idKey: 'regency_id', nameKey: 'regency_name' },
+        { label: 'Kecamatan', idKey: 'district_id', nameKey: 'district_name' },
+        { label: 'Kelurahan/Desa', idKey: 'village_id', nameKey: 'village_name' },
+      ];
+      const v = value as Record<string, unknown>;
+      const parts = levels
+        .filter((lvl) => v[lvl.nameKey] != null || v[lvl.idKey] != null)
+        .map((lvl) => {
+          const name = v[lvl.nameKey] != null ? String(v[lvl.nameKey]) : '-';
+          const id = v[lvl.idKey];
+          return { label: lvl.label, value: id != null ? `${name} (${id})` : name };
+        });
+      return { answer: null, parts: parts.length ? parts : null };
+    }
+
+    if (type === 'matrix_likert' && value && typeof value === 'object' && !Array.isArray(value)) {
+      const cols = matrixColumns ?? [];
+      const parts = Object.entries(value as Record<string, unknown>).map(([row, col]) => {
+        const idx = cols.indexOf(String(col));
+        const code = idx >= 0 ? idx + 1 : null;
+        return { label: row, value: code != null ? `${code} — ${col}` : String(col) };
+      });
+      return { answer: null, parts: parts.length ? parts : null };
+    }
+
+    if ((type === 'single_choice' || type === 'dropdown') && typeof value === 'string') {
+      return { answer: coded(value), parts: null };
+    }
+
+    if (type === 'multiple_choice' && Array.isArray(value)) {
+      return { answer: value.map((v) => coded(String(v))).join(', '), parts: null };
+    }
+
+    if (value == null) return { answer: null, parts: null };
+    if (typeof value === 'object') return { answer: JSON.stringify(value), parts: null };
+    return { answer: String(value), parts: null };
   }
 
   /**
