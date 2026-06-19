@@ -34,3 +34,9 @@ temp/
 # Pricelist IAK / data harga (berisi margin — jangan masuk git atau folder web publik)
 docs/iak/*.xlsx
 frontend/public/*.xlsx
+
+# Capacitor — proyek native di-generate lokal via `cap add` (butuh Android Studio/Xcode)
+frontend/android/
+frontend/ios/
+*.keystore
+*.jks
