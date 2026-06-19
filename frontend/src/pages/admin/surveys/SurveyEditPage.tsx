@@ -669,11 +669,18 @@ function LogicEditor({
 
   return (
     <div className="space-y-4">
+      {/* Penjelasan singkat untuk pengguna awam */}
+      <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+        Atur pertanyaan ini agar <b>muncul atau hilang otomatis</b> tergantung
+        jawaban pertanyaan sebelumnya. Contoh: tampilkan "Akun Instagram" hanya
+        jika responden menjawab "Ya" pada "Punya Instagram?".
+      </div>
+
       {/* Skip Logic */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
-            Skip Logic
+            Sembunyikan otomatis
           </h4>
           <button
             onClick={() => setSkip([...skipRules, blankSkip()])}
@@ -768,7 +775,7 @@ function LogicEditor({
       <div>
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-            Visibilitas
+            Tampilkan otomatis
           </h4>
           <button
             onClick={() => setVis([...visRules, blankVis()])}
@@ -912,7 +919,7 @@ function SortableQuestionCard({
               <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Wajib</span>
             )}
             {hasLogic && (
-              <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Logic</span>
+              <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Aturan</span>
             )}
           </div>
         </div>
@@ -974,7 +981,7 @@ function SortableQuestionCard({
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {t === 'edit' ? '✏️ Edit' : t === 'logic' ? '🔀 Logic' : '✅ Validasi'}
+                {t === 'edit' ? '✏️ Pertanyaan' : t === 'logic' ? '🔀 Aturan Tampil' : '✅ Batasan Isian'}
               </button>
             ))}
           </div>
