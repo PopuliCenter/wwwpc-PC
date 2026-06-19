@@ -13,8 +13,9 @@ export function AuthLayout() {
   const { isAuthenticated, user, isLoading } = useAuthStore();
 
   if (isLoading) {
+    // Di mode embed hindari min-h-screen (100vh) agar iframe tidak overshoot.
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}>
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600" />
       </div>
     );

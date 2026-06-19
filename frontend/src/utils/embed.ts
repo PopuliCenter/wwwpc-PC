@@ -25,10 +25,24 @@ if (isEmbedMode && typeof document !== 'undefined') {
   document.documentElement.classList.add('embed');
 }
 
+// Tinggi terakhir yang dilaporkan — hanya kirim saat berubah, agar iframe tidak
+// "overshoot" (tetap tinggi setelah pindah ke halaman yang lebih pendek) dan
+// induk tidak di-spam pesan.
+let lastReportedHeight = 0;
+
 // Kirim tinggi konten ke halaman induk (Elementor) agar iframe bisa auto-resize
 // tanpa scrollbar ganda. Aman lintas-origin (targetOrigin '*' hanya mengirim tinggi).
+// Mengukur tinggi KONTEN sebenarnya (bukan minimal viewport) supaya tidak kelebihan.
 export function postEmbedHeight(): void {
   if (!isEmbedMode || typeof window === 'undefined' || window.parent === window) return;
-  const height = Math.ceil(document.documentElement.scrollHeight);
+  const body = document.body;
+  const html = document.documentElement;
+  // scrollHeight body = tinggi konten nyata; pakai yang terbesar yang masuk akal,
+  // tetapi hindari html.scrollHeight yang bisa ikut membesar oleh min-h-screen.
+  const height = Math.ceil(
+    Math.max(body?.scrollHeight ?? 0, body?.offsetHeight ?? 0, html.scrollHeight),
+  );
+  if (height <= 0 || height === lastReportedHeight) return;
+  lastReportedHeight = height;
   window.parent.postMessage({ type: 'survei-embed:height', height }, '*');
 }
