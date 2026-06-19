@@ -1551,6 +1551,10 @@ export function SurveyFillPage() {
         const e = err as { statusCode?: number; message?: string };
         if (e?.statusCode === 409) {
           setError(e.message || 'Anda sudah mengisi survei ini. Satu responden hanya boleh mengisi satu kali.');
+        } else if (e?.statusCode === 403) {
+          // Gerbang (mis. data diri belum lengkap / tidak memenuhi target) —
+          // tampilkan pesan, JANGAN jatuh ke cache.
+          setError(e.message || 'Anda belum dapat mengisi survei ini.');
         } else {
           // Offline / gagal jaringan → coba muat dari cache.
           const cached = await cacheGet<SurveyFillData>(`respondent-fill:${id}`);

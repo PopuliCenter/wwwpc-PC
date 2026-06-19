@@ -77,6 +77,22 @@ export class ResponseService {
    * Tegakkan kelayakan targeting (gender & wilayah) saat submit, berdasarkan
    * kriteria survei + profil responden. Lewati cepat bila tak ada batasan.
    */
+  /**
+   * Wajib lengkapi data diri (demografi pembobot) sebelum mengirim respons.
+   * Otoritatif di server — mencegah jawaban tanpa data pembobot (tak bisa diolah).
+   */
+  private async assertProfileCompleted(respondentId: string): Promise<void> {
+    const rows = await this.responseRepository.manager.query(
+      'SELECT profile_completed FROM users WHERE id = $1 LIMIT 1',
+      [respondentId],
+    );
+    if (!rows[0]?.profile_completed) {
+      throw new ForbiddenException(
+        'Lengkapi data diri Anda terlebih dahulu sebelum mengisi survei.',
+      );
+    }
+  }
+
   private async assertEligible(
     surveyId: string,
     respondentId: string,
@@ -145,6 +161,9 @@ export class ResponseService {
     if (!submissionCheck.allowed) {
       throw new ForbiddenException(submissionCheck.reason);
     }
+
+    // Gerbang: wajib lengkapi data diri sebelum mengirim respons (otoritatif).
+    await this.assertProfileCompleted(respondentId);
 
     // Targeting (gender & wilayah) — tegakkan otoritatif saat submit juga.
     await this.assertEligible(surveyId, respondentId);

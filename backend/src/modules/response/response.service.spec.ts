@@ -28,8 +28,16 @@ describe('ResponseService', () => {
     create: vi.fn(),
     save: vi.fn(),
     createQueryBuilder: vi.fn(),
-    // assertEligible() membaca survey targeting + profil via raw query.
-    manager: { query: vi.fn().mockResolvedValue([]) },
+    // Raw query: assertProfileCompleted() (users.profile_completed) + assertEligible()
+    // (survey targeting / user_profile). Default: profil lengkap, tanpa targeting.
+    manager: {
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (typeof sql === 'string' && sql.includes('profile_completed')) {
+          return Promise.resolve([{ profile_completed: true }]);
+        }
+        return Promise.resolve([]);
+      }),
+    },
   };
 
   const mockAnswerRepository = {
@@ -86,6 +94,13 @@ describe('ResponseService', () => {
     );
     mockManager.save.mockImplementation((e: any) => Promise.resolve(e));
     mockManager.query.mockResolvedValue(undefined);
+    // clearAllMocks() tidak mereset implementasi → tegakkan ulang default
+    // raw-query (profil lengkap, tanpa targeting) agar tak bocor antar-test.
+    mockResponseRepository.manager.query.mockImplementation((sql: string) =>
+      typeof sql === 'string' && sql.includes('profile_completed')
+        ? Promise.resolve([{ profile_completed: true }])
+        : Promise.resolve([]),
+    );
     mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
     mockDataSource.query.mockResolvedValue([
       { email: 'respondent@example.com', fullName: 'Respondent', surveyTitle: 'Survey', rewardPoints: 250 },
@@ -145,6 +160,21 @@ describe('ResponseService', () => {
       await expect(
         service.submitResponse(surveyId, respondentId, dto),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject submission with 403 when respondent profile is not completed', async () => {
+      responseRepository.findOne.mockResolvedValue(null);
+      surveyTimeService.checkSubmissionAllowed.mockResolvedValue({ allowed: true });
+      // Gerbang data diri: users.profile_completed = false → tolak.
+      responseRepository.manager.query.mockImplementation((sql: string) =>
+        typeof sql === 'string' && sql.includes('profile_completed')
+          ? Promise.resolve([{ profile_completed: false }])
+          : Promise.resolve([]),
+      );
+
+      await expect(
+        service.submitResponse(surveyId, respondentId, dto),
+      ).rejects.toThrow(/Lengkapi data diri/i);
     });
 
     it('should reject submission if timer has expired for in-progress response', async () => {

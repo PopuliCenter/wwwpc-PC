@@ -25,6 +25,7 @@ import { DataCleanupPage } from '@/pages/admin/DataCleanupPage';
 import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/SurveyListPage';
 import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
 import { RewardPage } from '@/pages/respondent/RewardPage';
+import { ProfileCompletionPage } from '@/pages/respondent/ProfileCompletionPage';
 
 
 export const router = createBrowserRouter([
@@ -49,6 +50,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      { path: 'complete-profile', element: <ProfileCompletionPage /> },
       { path: 'surveys', element: <RespondentSurveyListPage /> },
       { path: 'surveys/:id/fill', element: <SurveyFillPage /> },
       { path: 'rewards', element: <RewardPage /> },

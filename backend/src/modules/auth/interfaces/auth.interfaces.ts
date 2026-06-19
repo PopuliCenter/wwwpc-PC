@@ -16,6 +16,8 @@ export interface UserProfile {
   email: string;
   fullName: string;
   role: UserRole;
+  /** Apakah data diri (demografi pembobot) sudah lengkap — untuk gerbang survei. */
+  profileCompleted?: boolean;
 }
 
 export interface SessionInfo {

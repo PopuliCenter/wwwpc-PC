@@ -152,6 +152,10 @@ export class SurveyFillService {
       );
     }
 
+    // Gerbang: wajib lengkapi data diri (demografi pembobot) sebelum mengisi
+    // survei apa pun — berlaku untuk semua jalur login.
+    await this.assertProfileCompleted(respondentId);
+
     // Access (time window / respondent cap) is enforced only when STARTING a
     // new response. A respondent who already has an in-progress response is
     // allowed to resume; the submit endpoint re-checks time/cap on submission.
@@ -309,6 +313,23 @@ export class SurveyFillService {
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * Tegakkan kelengkapan profil (data diri/demografi) responden. Tanpa data
+   * pembobot, jawaban tidak bisa dianalisis — jadi responden harus melengkapi
+   * profil dulu. Otoritatif di sisi server (redirect frontend hanya UX).
+   */
+  private async assertProfileCompleted(respondentId: string): Promise<void> {
+    const rows = await this.responseRepository.manager.query(
+      'SELECT profile_completed FROM users WHERE id = $1 LIMIT 1',
+      [respondentId],
+    );
+    if (!rows[0]?.profile_completed) {
+      throw new ForbiddenException(
+        'Lengkapi data diri Anda terlebih dahulu sebelum mengisi survei.',
+      );
+    }
+  }
 
   private async assertSurveyAccessible(surveyId: string): Promise<void> {
     try {

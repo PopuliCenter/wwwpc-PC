@@ -7,6 +7,8 @@ export interface User {
   role: UserRole;
   phone?: string;
   isActive: boolean;
+  /** Apakah data diri sudah lengkap. Gerbang: false → wajib lengkapi dulu. */
+  profileCompleted?: boolean;
 }
 
 export interface UserProfile {

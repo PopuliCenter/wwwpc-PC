@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom';
+import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { WifiOff, CloudUpload, Bell, FileText, Gift, User } from 'lucide-react';
 import { api } from '@/services/api';
@@ -15,6 +15,7 @@ const navItems = [
 
 export function RespondentLayout() {
   const { user } = useAuthStore();
+  const location = useLocation();
   const online = useOnlineStatus();
   const sync = useOfflineSync();
   const [points, setPoints] = useState<number | null>(null);
@@ -35,6 +36,16 @@ export function RespondentLayout() {
       active = false;
     };
   }, [user]);
+
+  // Gerbang data diri: responden yang profilnya BELUM lengkap diarahkan ke
+  // halaman "Lengkapi Data Diri" sebelum bisa membuka tab lain. Blokir hanya
+  // bila eksplisit false (user lama tanpa flag = anggap lengkap).
+  if (
+    user?.profileCompleted === false &&
+    location.pathname !== '/complete-profile'
+  ) {
+    return <Navigate to="/complete-profile" replace />;
+  }
 
   return (
     <div className={`flex flex-col ${isEmbedMode ? '' : 'min-h-screen'}`}>

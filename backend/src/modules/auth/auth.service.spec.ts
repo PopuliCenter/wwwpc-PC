@@ -107,6 +107,7 @@ describe('AuthService', () => {
           email: 'test@example.com',
           fullName: 'Test User',
           role: UserRole.RESPONDENT,
+          profileCompleted: true,
         },
       });
     });
