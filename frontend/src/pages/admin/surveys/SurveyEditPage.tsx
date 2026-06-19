@@ -170,6 +170,22 @@ function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
   };
 }
 
+/**
+ * Ikon (?) kecil dengan penjelasan singkat (muncul saat kursor diarahkan) —
+ * membantu pengguna awam memahami istilah tanpa membuat tampilan penuh teks.
+ */
+function InfoHint({ text }: { text: string }) {
+  return (
+    <span
+      title={text}
+      aria-label={text}
+      className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600 align-middle"
+    >
+      ?
+    </span>
+  );
+}
+
 // ─── Metadata tipe pertanyaan ─────────────────────────────────────────────────
 const questionTypeLabels: Record<QuestionType, string> = {
   single_choice: 'Pilihan Tunggal',
@@ -177,15 +193,15 @@ const questionTypeLabels: Record<QuestionType, string> = {
   short_text: 'Teks Pendek',
   long_text: 'Teks Panjang',
   phone_number: 'No. Telepon',
-  numeric_scale: 'Skala Numerik',
-  dropdown: 'Dropdown',
-  matrix_likert: 'Matriks / Likert',
-  file_upload: 'Upload File',
+  numeric_scale: 'Skala Angka',
+  dropdown: 'Pilih dari Daftar',
+  matrix_likert: 'Tabel Penilaian',
+  file_upload: 'Unggah Berkas',
   date_time: 'Tanggal & Waktu',
   date: 'Tanggal',
-  rating_scale: 'Skala Rating',
-  unique_id: 'ID Unik',
-  indonesia_region: 'Wilayah Indonesia',
+  rating_scale: 'Bintang/Rating',
+  unique_id: 'Nomor Unik',
+  indonesia_region: 'Wilayah (Prov/Kab/Kec)',
   signature: 'Tanda Tangan',
   photo: 'Foto (Kamera)',
   gps: 'Titik GPS',
@@ -1105,6 +1121,10 @@ function SortableQuestionCard({
 
             {tab === 'validation' && (
               <div className="space-y-3">
+                <p className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+                  Batasan untuk jawaban (mis. panjang minimal/maksimal). Semua opsional —
+                  boleh dibiarkan kosong bila tidak diperlukan.
+                </p>
                 {(question.type === 'short_text' || question.type === 'long_text') && (
                   <>
                     <div className="grid grid-cols-2 gap-3">
@@ -1145,7 +1165,10 @@ function SortableQuestionCard({
                       </label>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Pola Regex (opsional)</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Pola Regex (lanjutan)
+                        <InfoHint text="Khusus pengguna mahir — pola pencocokan teks. Biarkan kosong jika tidak paham." />
+                      </label>
                       <input
                         type="text"
                         value={question.validationRules?.regex ?? ''}
@@ -1579,15 +1602,18 @@ export function SurveyEditPage() {
             </datalist>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Mode Tampilan Form</label>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              Cara Menampilkan Pertanyaan
+              <InfoHint text="Mengatur bagaimana pertanyaan muncul ke responden: per halaman, semua sekaligus, atau satu per satu." />
+            </label>
             <select
               value={settingsFormMode}
               onChange={(e) => setSettingsFormMode(e.target.value as typeof settingsFormMode)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
             >
-              <option value="paginated">Paginasi</option>
-              <option value="scroll">Scroll</option>
-              <option value="wizard">Wizard (1 pertanyaan/langkah)</option>
+              <option value="paginated">Per Halaman (beberapa pertanyaan per halaman)</option>
+              <option value="scroll">Satu Halaman (gulir ke bawah)</option>
+              <option value="wizard">Satu per Satu (1 pertanyaan tiap langkah)</option>
             </select>
           </div>
         </div>
@@ -1595,7 +1621,8 @@ export function SurveyEditPage() {
         {/* Alat pendukung — bukan tipe pertanyaan, melainkan setelan survei */}
         <div className="mt-4 border-t border-gray-100 pt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Alat Pendukung
+            Fitur Tambahan
+            <InfoHint text="Fitur opsional yang berlaku untuk seluruh survei, mis. merekam lokasi GPS atau meminta tanda tangan." />
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
