@@ -117,9 +117,15 @@ export function RespondentLayout() {
         <Outlet />
       </main>
 
-      {/* Tab bawah — pola mobile yang intuitif; sembunyi di desktop & mode embed */}
+      {/* Tab bawah — pola mobile yang intuitif; sembunyi di desktop & mode embed.
+          'fixed' (bukan 'sticky') agar selalu terlihat menempel di bawah layar —
+          di browser mobile, sticky di dalam min-h-screen (100vh) bisa terdorong
+          ke bawah area yang terlihat. paddingBottom menghormati safe-area iOS. */}
       {!isEmbedMode && (
-        <nav className="sticky bottom-0 z-10 border-t border-gray-200 bg-white md:hidden">
+        <nav
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white md:hidden"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
           <div className="mx-auto grid max-w-md grid-cols-3">
             {navItems.map(({ path, label, icon: Icon }) => (
               <NavLink
