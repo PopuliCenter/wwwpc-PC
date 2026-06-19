@@ -346,6 +346,33 @@ export function ResponseListPage() {
         </div>
       </div>
 
+      {/* Panduan singkat pembersihan data — boleh ditutup, untuk admin awam */}
+      <details className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
+        <summary className="cursor-pointer font-semibold text-amber-800">
+          Aturan pembersihan data — kapan Arsip, kapan Hapus?
+        </summary>
+        <div className="mt-3 space-y-2 text-amber-900">
+          <p>
+            <span className="font-semibold">Arsip (disarankan):</span> data jawaban
+            tetap tersimpan, hanya disembunyikan dari daftar aktif. Bisa dilihat lagi
+            lewat tombol <span className="font-medium">“Tampilkan arsip”</span>, dan
+            responden tetap bisa mengisi survei ini lagi. Pakai untuk salah isi,
+            pengisian tertahan, atau data mencurigakan.
+          </p>
+          <p>
+            <span className="font-semibold">Hapus (permanen):</span> jawaban hilang dan
+            tidak bisa dikembalikan. Pakai hanya untuk data uji coba/testing atau
+            permintaan penghapusan data pribadi. Responden juga bisa mengisi ulang
+            setelahnya.
+          </p>
+          <p className="text-amber-800">
+            Keduanya membebaskan responden untuk mengisi ulang dan mengembalikan kuota
+            (jika respons sudah selesai). Setiap tindakan dicatat di log audit.
+            <span className="font-medium"> Ragu? Pilih Arsip.</span>
+          </p>
+        </div>
+      </details>
+
       {/* Filter Panel */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
         {/* Survei — filter utama, ditempatkan di atas & diperbesar */}
