@@ -22,9 +22,10 @@ export interface CleanupFilter {
 export interface CleanupCandidate {
   surveyId: string;
   surveyTitle: string;
-  responseCount: number;
-  oldestResponseDate: Date;
-  newestResponseDate: Date;
+  totalResponses: number;
+  exportedResponses: number;
+  deletableCount: number;
+  lastExportDate: Date | null;
 }
 
 export interface PurgeConfig {

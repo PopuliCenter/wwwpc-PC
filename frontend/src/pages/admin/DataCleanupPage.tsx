@@ -5,11 +5,11 @@ import { format } from 'date-fns';
 // Types
 interface CleanupCandidate {
   surveyId: string;
-  surveyName: string;
+  surveyTitle: string;
   totalResponses: number;
   exportedResponses: number;
   deletableCount: number;
-  lastExportDate?: string;
+  lastExportDate?: string | null;
 }
 
 interface DeletionRequestResult {
@@ -228,7 +228,7 @@ function CleanupCandidatesSection() {
               ) : (
                 candidates.map((c) => (
                   <tr key={c.surveyId} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{c.surveyName}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{c.surveyTitle}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{c.totalResponses}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{c.exportedResponses}</td>
                     <td className="px-4 py-3 text-sm font-medium text-orange-600">
@@ -273,7 +273,7 @@ function CleanupCandidatesSection() {
               <option value="">Pilih survei...</option>
               {candidates.map((c) => (
                 <option key={c.surveyId} value={c.surveyId}>
-                  {c.surveyName}
+                  {c.surveyTitle}
                 </option>
               ))}
             </select>

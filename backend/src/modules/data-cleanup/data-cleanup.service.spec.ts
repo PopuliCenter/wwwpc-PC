@@ -36,6 +36,7 @@ describe('DataCleanupService', () => {
     addSelect: vi.fn().mockReturnThis(),
     groupBy: vi.fn().mockReturnThis(),
     addGroupBy: vi.fn().mockReturnThis(),
+    having: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
   };
 
@@ -405,9 +406,10 @@ describe('DataCleanupService', () => {
         {
           surveyId: 'survey-1',
           surveyTitle: 'Test Survey',
-          responseCount: '10',
-          oldestResponseDate: '2024-01-01',
-          newestResponseDate: '2024-06-01',
+          totalResponses: '10',
+          exportedResponses: '7',
+          deletableCount: '5',
+          lastExportDate: '2024-06-01',
         },
       ]);
 
@@ -415,7 +417,11 @@ describe('DataCleanupService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].surveyId).toBe('survey-1');
-      expect(result[0].responseCount).toBe(10);
+      expect(result[0].surveyTitle).toBe('Test Survey');
+      expect(result[0].totalResponses).toBe(10);
+      expect(result[0].exportedResponses).toBe(7);
+      expect(result[0].deletableCount).toBe(5);
+      expect(result[0].lastExportDate).toEqual(new Date('2024-06-01'));
     });
   });
 });

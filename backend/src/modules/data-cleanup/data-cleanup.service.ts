@@ -311,9 +311,17 @@ export class DataCleanupService {
       .leftJoin('response.survey', 'survey')
       .select('response.survey_id', 'surveyId')
       .addSelect('survey.title', 'surveyTitle')
-      .addSelect('COUNT(response.id)', 'responseCount')
-      .addSelect('MIN(response.submitted_at)', 'oldestResponseDate')
-      .addSelect('MAX(response.submitted_at)', 'newestResponseDate')
+      .addSelect('COUNT(response.id)', 'totalResponses')
+      .addSelect(
+        'COUNT(response.id) FILTER (WHERE response.exported_at IS NOT NULL)',
+        'exportedResponses',
+      )
+      // Dapat dihapus = sudah diekspor DAN belum diarsipkan.
+      .addSelect(
+        'COUNT(response.id) FILTER (WHERE response.exported_at IS NOT NULL AND response.archived_at IS NULL)',
+        'deletableCount',
+      )
+      .addSelect('MAX(response.exported_at)', 'lastExportDate')
       .groupBy('response.survey_id')
       .addGroupBy('survey.title');
 
@@ -332,14 +340,18 @@ export class DataCleanupService {
       });
     }
 
-    if (filters.exportStatus === 'exported_only') {
-      queryBuilder.andWhere('response.exported_at IS NOT NULL');
-    }
-
     if (filters.surveyStatus) {
       queryBuilder.andWhere('survey.status = :surveyStatus', {
         surveyStatus: filters.surveyStatus,
       });
+    }
+
+    // "Hanya yang sudah diekspor": tampilkan survei yang punya ≥1 respons
+    // terekspor (kandidat layak dibersihkan), tanpa memfilter hitungan total.
+    if (filters.exportStatus === 'exported_only') {
+      queryBuilder.having(
+        'COUNT(response.id) FILTER (WHERE response.exported_at IS NOT NULL) > 0',
+      );
     }
 
     const results = await queryBuilder.getRawMany();
@@ -347,9 +359,10 @@ export class DataCleanupService {
     return results.map((r) => ({
       surveyId: r.surveyId,
       surveyTitle: r.surveyTitle,
-      responseCount: parseInt(r.responseCount, 10),
-      oldestResponseDate: r.oldestResponseDate ? new Date(r.oldestResponseDate) : new Date(),
-      newestResponseDate: r.newestResponseDate ? new Date(r.newestResponseDate) : new Date(),
+      totalResponses: parseInt(r.totalResponses, 10),
+      exportedResponses: parseInt(r.exportedResponses, 10),
+      deletableCount: parseInt(r.deletableCount, 10),
+      lastExportDate: r.lastExportDate ? new Date(r.lastExportDate) : null,
     }));
   }
 
