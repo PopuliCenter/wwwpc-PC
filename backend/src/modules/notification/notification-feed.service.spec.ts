@@ -5,12 +5,15 @@ import { NotificationFeedService } from './notification-feed.service';
 import { UserNotification } from './entities/user-notification.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { DeviceTokenService } from './device-token.service';
+import { NotificationService } from './notification.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('NotificationFeedService', () => {
   let service: NotificationFeedService;
   let feedRepo: any;
   let userRepo: any;
   let deviceTokenService: any;
+  let notificationService: any;
 
   beforeEach(async () => {
     feedRepo = {
@@ -22,6 +25,7 @@ describe('NotificationFeedService', () => {
     };
     userRepo = { find: vi.fn().mockResolvedValue([]) };
     deviceTokenService = { pushToUsers: vi.fn().mockResolvedValue(0) };
+    notificationService = { sendAnnouncementEmail: vi.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +33,8 @@ describe('NotificationFeedService', () => {
         { provide: getRepositoryToken(UserNotification), useValue: feedRepo },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: DeviceTokenService, useValue: deviceTokenService },
+        { provide: NotificationService, useValue: notificationService },
+        { provide: ConfigService, useValue: { get: vi.fn().mockReturnValue('https://survei.example.com') } },
       ],
     }).compile();
 
@@ -64,21 +70,46 @@ describe('NotificationFeedService', () => {
       sendPush: true,
     });
 
-    expect(result).toEqual({ recipients: 3, pushed: 2 });
+    expect(result).toEqual({ recipients: 3, pushed: 2, emailed: 0 });
     expect(feedRepo.save).toHaveBeenCalled();
     expect(deviceTokenService.pushToUsers).toHaveBeenCalledWith(
       ['r1', 'r2', 'r3'],
       expect.objectContaining({ title: 'Info', data: { link: '/rewards' } }),
     );
+    expect(notificationService.sendAnnouncementEmail).not.toHaveBeenCalled();
   });
 
-  it('broadcastAnnouncement does not push when sendPush is false', async () => {
+  it('broadcastAnnouncement emails recipients with an absolute action URL when sendEmail', async () => {
+    userRepo.find.mockResolvedValue([
+      { id: 'r1', email: 'a@x.com', fullName: 'A' },
+      { id: 'r2', email: 'b@x.com', fullName: 'B' },
+    ]);
+
+    const result = await service.broadcastAnnouncement({
+      title: 'Promo',
+      body: 'Isi',
+      link: '/rewards',
+      sendEmail: true,
+    });
+
+    expect(result).toEqual({ recipients: 2, pushed: 0, emailed: 2 });
+    expect(notificationService.sendAnnouncementEmail).toHaveBeenCalledWith(
+      [
+        { email: 'a@x.com', fullName: 'A' },
+        { email: 'b@x.com', fullName: 'B' },
+      ],
+      expect.objectContaining({ title: 'Promo', actionUrl: 'https://survei.example.com/rewards' }),
+    );
+  });
+
+  it('broadcastAnnouncement does not push/email when both flags are false', async () => {
     userRepo.find.mockResolvedValue([{ id: 'r1' }]);
 
     const result = await service.broadcastAnnouncement({ title: 'x', body: 'y' });
 
-    expect(result).toEqual({ recipients: 1, pushed: 0 });
+    expect(result).toEqual({ recipients: 1, pushed: 0, emailed: 0 });
     expect(deviceTokenService.pushToUsers).not.toHaveBeenCalled();
+    expect(notificationService.sendAnnouncementEmail).not.toHaveBeenCalled();
   });
 
   it('markRead targets all unread when no ids given', async () => {

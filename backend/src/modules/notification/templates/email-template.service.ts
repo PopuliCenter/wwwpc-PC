@@ -9,6 +9,7 @@ import {
   RedemptionFailedContext,
   OtpContext,
   PasswordResetContext,
+  AnnouncementContext,
 } from '../interfaces';
 
 @Injectable()
@@ -33,9 +34,34 @@ export class EmailTemplateService {
         return this.renderOtp(context as OtpContext);
       case EmailTemplate.PASSWORD_RESET:
         return this.renderPasswordReset(context as PasswordResetContext);
+      case EmailTemplate.ANNOUNCEMENT:
+        return this.renderAnnouncement(context as AnnouncementContext);
       default:
         throw new Error(`Unknown email template: ${template}`);
     }
+  }
+
+  private renderAnnouncement(context: AnnouncementContext) {
+    const subject = context.title;
+    // Escape minimal + pertahankan baris baru sebagai <br>.
+    const safeBody = context.body
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/\n/g, '<br>');
+    const button = context.actionUrl
+      ? `<a href="${context.actionUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Buka</a>`
+      : '';
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="margin: 0 0 8px 0;">Halo ${context.respondentName},</h2>
+        <h3 style="margin: 0 0 8px 0;">${context.title}</h3>
+        <p style="margin: 0 0 16px 0;">${safeBody}</p>
+        ${button}
+      </div>
+    `;
+    const text = `${context.title}\n\nHalo ${context.respondentName},\n${context.body}${context.actionUrl ? `\n\nBuka: ${context.actionUrl}` : ''}`;
+    return { subject, html, text };
   }
 
   private renderSurveyInvitation(context: SurveyInvitationContext) {

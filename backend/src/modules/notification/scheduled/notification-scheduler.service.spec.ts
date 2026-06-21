@@ -22,10 +22,12 @@ describe('NotificationSchedulerService', () => {
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
+    addSelect: vi.fn().mockReturnThis(),
     innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     andWhere: vi.fn().mockReturnThis(),
     getMany: vi.fn().mockResolvedValue([]),
+    getRawMany: vi.fn().mockResolvedValue([]),
     getCount: vi.fn().mockResolvedValue(0),
   };
 
@@ -287,10 +289,10 @@ describe('NotificationSchedulerService', () => {
         status: SurveyStatus.ACTIVE,
         endDatetime: new Date('2026-07-01T00:00:00.000Z'),
       });
-      mockQueryBuilder.getMany.mockResolvedValue([
-        { id: 'u1', email: 'a@x.com', fullName: 'A' },
-        { id: 'u2', email: 'b@x.com', fullName: 'B' },
-        { id: 'u3', email: 'c@x.com', fullName: 'C' },
+      mockQueryBuilder.getRawMany.mockResolvedValue([
+        { id: 'u1', email: 'a@x.com', fullName: 'A', province: 'JABAR' },
+        { id: 'u2', email: 'b@x.com', fullName: 'B', province: 'JABAR' },
+        { id: 'u3', email: 'c@x.com', fullName: 'C', province: 'JATENG' },
       ]);
       deviceTokenService.pushToUsers.mockResolvedValue(1);
 
@@ -304,6 +306,28 @@ describe('NotificationSchedulerService', () => {
       const sentTo = notificationService.sendSurveyInvitation.mock.calls[0][0];
       expect(sentTo).toHaveLength(2);
       expect(feedService.createForUsers).toHaveBeenCalled();
+    });
+
+    it('sendTargetedInvitations applies a per-province quota (stratified)', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'Survei',
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date(),
+      });
+      mockQueryBuilder.getRawMany.mockResolvedValue([
+        { id: 'u1', email: 'a@x.com', fullName: 'A', province: 'JABAR' },
+        { id: 'u2', email: 'b@x.com', fullName: 'B', province: 'JABAR' },
+        { id: 'u3', email: 'c@x.com', fullName: 'C', province: 'JABAR' },
+        { id: 'u4', email: 'd@x.com', fullName: 'D', province: 'JATENG' },
+      ]);
+
+      // 1 per provinsi → 1 dari JABAR + 1 dari JATENG = 2.
+      const result = await service.sendTargetedInvitations('survey-1', {
+        perProvince: 1,
+      });
+
+      expect(result.recipients).toBe(2);
     });
 
     it('sendTargetedInvitations rejects when the survey is not active', async () => {
@@ -325,7 +349,7 @@ describe('NotificationSchedulerService', () => {
         status: SurveyStatus.ACTIVE,
         endDatetime: new Date(),
       });
-      mockQueryBuilder.getMany.mockResolvedValue([]);
+      mockQueryBuilder.getRawMany.mockResolvedValue([]);
 
       const result = await service.sendTargetedInvitations('survey-1', {
         provinces: ['ACEH'],

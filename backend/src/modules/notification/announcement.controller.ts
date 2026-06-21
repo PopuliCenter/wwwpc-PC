@@ -41,18 +41,24 @@ export class AnnouncementController {
   async send(
     @Req() req: any,
     @Body() dto: SendAnnouncementDto,
-  ): Promise<{ recipients: number; pushed: number }> {
+  ): Promise<{ recipients: number; pushed: number; emailed: number }> {
     const result = await this.feedService.broadcastAnnouncement({
       title: dto.title,
       body: dto.body,
       link: dto.link,
       sendPush: dto.sendPush,
+      sendEmail: dto.sendEmail,
     });
     await this.auditService.log({
       userId: req.user.userId,
       actionType: AuditActionType.NOTIFICATION_SENT,
       module: 'notification',
-      details: { kind: 'announcement', title: dto.title, recipients: result.recipients },
+      details: {
+        kind: 'announcement',
+        title: dto.title,
+        recipients: result.recipients,
+        emailed: result.emailed,
+      },
       ipAddress: clientIp(req),
     });
     return result;

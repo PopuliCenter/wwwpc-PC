@@ -24,11 +24,14 @@ export interface TargetCriteria {
   educations?: string[];
   ageMin?: number;
   ageMax?: number;
-  /** Ambil acak sejumlah ini dari yang cocok (kosong = semua yang cocok). */
+  /** Ambil acak sejumlah ini dari TOTAL yang cocok (kosong = semua yang cocok). */
   sampleSize?: number;
+  /** Kuota terstratifikasi: ambil acak sejumlah ini PER PROVINSI (menimpa sampleSize). */
+  perProvince?: number;
 }
 
 type InviteRecipient = { id: string; email: string; fullName: string };
+type MatchRow = InviteRecipient & { province: string | null };
 
 @Injectable()
 export class NotificationSchedulerService {
@@ -192,13 +195,31 @@ export class NotificationSchedulerService {
     }
 
     const qb = await this.buildTargetedQuery(surveyId, criteria);
-    const matching = (await qb.getMany()) as unknown as InviteRecipient[];
+    const matching = (await qb.getRawMany()) as MatchRow[];
 
-    // Sampling acak di sisi aplikasi (aman lintas-DB): kocok lalu ambil N.
-    let recipients = matching;
-    const n = criteria.sampleSize;
-    if (n && n > 0 && n < matching.length) {
-      recipients = this.shuffle(matching).slice(0, n);
+    // Sampling acak di sisi aplikasi (aman lintas-DB).
+    let recipients: InviteRecipient[];
+    if (criteria.perProvince && criteria.perProvince > 0) {
+      // Kuota terstratifikasi: ambil acak N per provinsi.
+      const byProvince = new Map<string, MatchRow[]>();
+      for (const r of matching) {
+        const key = r.province ?? '-';
+        const list = byProvince.get(key) ?? [];
+        list.push(r);
+        byProvince.set(key, list);
+      }
+      recipients = [];
+      for (const group of byProvince.values()) {
+        recipients.push(...this.shuffle(group).slice(0, criteria.perProvince));
+      }
+    } else if (
+      criteria.sampleSize &&
+      criteria.sampleSize > 0 &&
+      criteria.sampleSize < matching.length
+    ) {
+      recipients = this.shuffle(matching).slice(0, criteria.sampleSize);
+    } else {
+      recipients = matching;
     }
 
     if (recipients.length === 0) {
@@ -260,7 +281,10 @@ export class NotificationSchedulerService {
     const qb = this.userRepository
       .createQueryBuilder('u')
       .innerJoin(UserProfile, 'p', 'p.user_id = u.id')
-      .select(['u.id', 'u.email', 'u.fullName'])
+      .select('u.id', 'id')
+      .addSelect('u.email', 'email')
+      .addSelect('u.fullName', 'fullName')
+      .addSelect('p.province', 'province')
       .where('u.emailVerified = :verified', { verified: true })
       .andWhere('u.profileCompleted = :completed', { completed: true })
       .andWhere('u.status = :status', { status: 'active' })

@@ -1,11 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { In, IsNull, Repository } from 'typeorm';
 import { UserNotification } from './entities/user-notification.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { UserRole } from '@shared/enums';
 import { UserStatus } from '@modules/auth/entities/user.entity';
 import { DeviceTokenService } from './device-token.service';
+import { NotificationService } from './notification.service';
 
 export interface FeedItemInput {
   type: 'survey_new' | 'announcement';
@@ -20,6 +22,8 @@ export interface BroadcastInput {
   link?: string | null;
   /** Sekalian kirim push ke perangkat responden (bila FCM aktif). */
   sendPush?: boolean;
+  /** Sekalian kirim email ke responden. */
+  sendEmail?: boolean;
 }
 
 /**
@@ -36,6 +40,8 @@ export class NotificationFeedService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly deviceTokenService: DeviceTokenService,
+    private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   /** Buat notifikasi feed untuk sekumpulan user (batch). */
@@ -81,13 +87,13 @@ export class NotificationFeedService {
    */
   async broadcastAnnouncement(
     dto: BroadcastInput,
-  ): Promise<{ recipients: number; pushed: number }> {
+  ): Promise<{ recipients: number; pushed: number; emailed: number }> {
     const respondents = await this.userRepository.find({
       where: { role: UserRole.RESPONDENT, status: UserStatus.ACTIVE },
-      select: ['id'],
+      select: ['id', 'email', 'fullName'],
     });
     const ids = respondents.map((r) => r.id);
-    if (ids.length === 0) return { recipients: 0, pushed: 0 };
+    if (ids.length === 0) return { recipients: 0, pushed: 0, emailed: 0 };
 
     await this.createForUsers(ids, {
       type: 'announcement',
@@ -110,9 +116,27 @@ export class NotificationFeedService {
         });
     }
 
+    let emailed = 0;
+    if (dto.sendEmail) {
+      const baseUrl =
+        this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+      const actionUrl = dto.link
+        ? `${baseUrl.replace(/\/+$/, '')}${dto.link}`
+        : undefined;
+      await this.notificationService
+        .sendAnnouncementEmail(
+          respondents.map((r) => ({ email: r.email, fullName: r.fullName })),
+          { title: dto.title, body: dto.body, actionUrl },
+        )
+        .then(() => {
+          emailed = respondents.length;
+        })
+        .catch((e) => this.logger.warn(`Gagal email pengumuman: ${e.message}`));
+    }
+
     this.logger.log(
-      `Pengumuman disiarkan → ${ids.length} responden (feed), ${pushed} push`,
+      `Pengumuman disiarkan → ${ids.length} feed, ${pushed} push, ${emailed} email`,
     );
-    return { recipients: ids.length, pushed };
+    return { recipients: ids.length, pushed, emailed };
   }
 }

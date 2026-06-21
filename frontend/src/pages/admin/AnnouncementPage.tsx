@@ -11,6 +11,7 @@ export function AnnouncementPage() {
   const [body, setBody] = useState('');
   const [link, setLink] = useState('');
   const [sendPush, setSendPush] = useState(true);
+  const [sendEmail, setSendEmail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,15 +27,20 @@ export function AnnouncementPage() {
     if (!confirm('Kirim pengumuman ini ke semua responden aktif?')) return;
     setSubmitting(true);
     try {
-      const res = await api.post<{ recipients: number; pushed: number }>('/announcements', {
+      const res = await api.post<{ recipients: number; pushed: number; emailed: number }>('/announcements', {
         title: title.trim(),
         body: body.trim(),
         link: link.trim() || undefined,
         sendPush,
+        sendEmail,
       });
+      const extras = [
+        res.pushed > 0 ? `push ${res.pushed}` : null,
+        res.emailed > 0 ? `email ${res.emailed}` : null,
+      ].filter(Boolean);
       setResult(
-        `Pengumuman terkirim ke ${res.recipients} responden` +
-          (res.pushed > 0 ? `, push ke ${res.pushed} perangkat.` : '.'),
+        `Pengumuman terkirim ke ${res.recipients} responden (lonceng)` +
+          (extras.length ? ` — ${extras.join(', ')}.` : '.'),
       );
       setTitle('');
       setBody('');
@@ -120,6 +126,16 @@ export function AnnouncementPage() {
             className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
           Kirim juga sebagai push notifikasi (bila perangkat terdaftar)
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={sendEmail}
+            onChange={(e) => setSendEmail(e.target.checked)}
+            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          Kirim juga sebagai email ke semua responden
         </label>
 
         <button

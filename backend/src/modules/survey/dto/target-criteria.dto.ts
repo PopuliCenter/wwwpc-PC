@@ -42,4 +42,10 @@ export class TargetCriteriaDto {
   @IsInt()
   @Min(1)
   sampleSize?: number;
+
+  /** Kuota terstratifikasi: ambil acak sejumlah ini PER PROVINSI. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  perProvince?: number;
 }

@@ -13,6 +13,7 @@ import {
   RedemptionFailedContext,
   OtpContext,
   PasswordResetContext,
+  AnnouncementContext,
 } from './interfaces';
 import {
   NOTIFICATION_QUEUE,
@@ -74,6 +75,42 @@ export class NotificationService {
     }
 
     this.logger.log(`Queued ${payloads.length} invitation emails in ${Math.ceil(payloads.length / BATCH_SIZE)} batches`);
+  }
+
+  /**
+   * Kirim email Pengumuman (broadcast) ke daftar responden.
+   */
+  async sendAnnouncementEmail(
+    recipients: Array<{ email: string; fullName: string }>,
+    data: { title: string; body: string; actionUrl?: string },
+  ): Promise<void> {
+    const payloads: EmailPayload[] = recipients.map((r) => ({
+      to: r.email,
+      subject: data.title,
+      template: EmailTemplate.ANNOUNCEMENT,
+      context: {
+        respondentName: r.fullName,
+        title: data.title,
+        body: data.body,
+        actionUrl: data.actionUrl,
+      } as AnnouncementContext,
+    }));
+
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < payloads.length; i += BATCH_SIZE) {
+      const batch = payloads.slice(i, i + BATCH_SIZE);
+      const batchId = uuidv4();
+      await this.notificationQueue.add(
+        BULK_EMAIL_JOB,
+        { payloads: batch, batchId },
+        {
+          attempts: EMAIL_RETRY_ATTEMPTS,
+          backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
+          removeOnComplete: true,
+        },
+      );
+    }
+    this.logger.log(`Queued ${payloads.length} announcement emails`);
   }
 
   /**

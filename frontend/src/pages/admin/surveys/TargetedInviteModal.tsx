@@ -12,6 +12,7 @@ interface Criteria {
   ageMin?: number;
   ageMax?: number;
   sampleSize?: number;
+  perProvince?: number;
 }
 
 /**
@@ -34,6 +35,7 @@ export function TargetedInviteModal({
   const [ageMin, setAgeMin] = useState('');
   const [ageMax, setAgeMax] = useState('');
   const [sampleSize, setSampleSize] = useState('');
+  const [perProvince, setPerProvince] = useState('');
   const [matching, setMatching] = useState<number | null>(null);
   const [busy, setBusy] = useState<'preview' | 'send' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,19 +80,19 @@ export function TargetedInviteModal({
   const handleSend = async () => {
     setError(null);
     const n = sampleSize ? Number(sampleSize) : undefined;
-    const target = n && matching !== null ? Math.min(n, matching) : matching;
-    if (
-      !confirm(
-        `Kirim undangan survei "${surveyTitle}" ke ${
-          target ?? 'responden yang cocok'
-        } responden?`,
-      )
-    )
+    const pp = perProvince ? Number(perProvince) : undefined;
+    const target = pp
+      ? `acak ${pp} per provinsi`
+      : n && matching !== null
+        ? `${Math.min(n, matching)}`
+        : (matching ?? 'responden yang cocok');
+    if (!confirm(`Kirim undangan survei "${surveyTitle}" ke ${target} responden?`))
       return;
     setBusy('send');
     try {
       const body = buildCriteria() as Criteria;
-      if (n) body.sampleSize = n;
+      if (pp) body.perProvince = pp;
+      else if (n) body.sampleSize = n;
       const r = await api.post<{ recipients: number; pushed: number }>(
         `/surveys/${surveyId}/target-invite`,
         body,
@@ -222,16 +224,36 @@ export function TargetedInviteModal({
           {/* Sampling */}
           <div>
             <p className="mb-1.5 text-sm font-medium text-gray-700">
-              Ambil acak <span className="text-gray-400">(opsional)</span>
+              Ambil acak total <span className="text-gray-400">(opsional)</span>
             </p>
             <input
               type="number"
               min={1}
               value={sampleSize}
               onChange={(e) => setSampleSize(e.target.value)}
+              disabled={!!perProvince}
               placeholder="mis. 200 — kosong = semua yang cocok"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+            />
+          </div>
+
+          {/* Kuota terstratifikasi per provinsi */}
+          <div>
+            <p className="mb-1.5 text-sm font-medium text-gray-700">
+              Atau ambil acak per provinsi <span className="text-gray-400">(opsional)</span>
+            </p>
+            <input
+              type="number"
+              min={1}
+              value={perProvince}
+              onChange={(e) => setPerProvince(e.target.value)}
+              placeholder="mis. 100 per provinsi"
               className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
             />
+            <p className="mt-1 text-xs text-gray-400">
+              Mengambil N acak dari TIAP provinsi yang cocok (sampel lebih merata).
+              Bila diisi, menimpa "ambil acak total".
+            </p>
           </div>
 
           {matching !== null && (

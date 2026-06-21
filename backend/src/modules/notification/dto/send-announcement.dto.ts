@@ -25,4 +25,8 @@ export class SendAnnouncementDto {
   @IsOptional()
   @IsBoolean()
   sendPush?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
 }

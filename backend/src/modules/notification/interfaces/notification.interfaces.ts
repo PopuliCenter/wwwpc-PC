@@ -15,6 +15,7 @@ export enum EmailTemplate {
   REDEMPTION_FAILED = 'redemption_failed',
   OTP_VERIFICATION = 'otp_verification',
   PASSWORD_RESET = 'password_reset',
+  ANNOUNCEMENT = 'announcement',
 }
 
 export interface EmailJobData {
@@ -40,6 +41,14 @@ export interface SurveyInvitationContext {
   deadline: string;
   surveyUrl: string;
   rewardInfo?: string;
+}
+
+export interface AnnouncementContext {
+  respondentName: string;
+  title: string;
+  body: string;
+  /** URL absolut tujuan (opsional) untuk tombol "Buka". */
+  actionUrl?: string;
 }
 
 export interface ReminderContext {
