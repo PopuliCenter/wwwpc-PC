@@ -10,6 +10,7 @@ import { Repository, Between, Not, In } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
+import { NotificationFeedService } from '../notification-feed.service';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -30,6 +31,7 @@ export class NotificationSchedulerService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly deviceTokenService: DeviceTokenService,
+    private readonly feedService: NotificationFeedService,
   ) {
     this.baseUrl = this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
   }
@@ -147,6 +149,19 @@ export class NotificationSchedulerService {
       },
       this.baseUrl,
     );
+
+    // Notifikasi DALAM aplikasi (lonceng) — selalu, agar terlihat saat buka app.
+    await this.feedService
+      .createForUsers(
+        respondents.map((r) => r.id),
+        {
+          type: 'survey_new',
+          title: `Survei baru: ${survey.title}`,
+          body: 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.',
+          link: `/surveys/${survey.id}/fill`,
+        },
+      )
+      .catch((e) => this.logger.warn(`Gagal menulis feed undangan: ${e.message}`));
 
     // Push notifikasi ke perangkat (aplikasi Capacitor). Aman/no-op bila FCM
     // belum dikonfigurasi atau responden tak punya token perangkat.

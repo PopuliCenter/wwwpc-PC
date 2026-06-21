@@ -22,6 +22,7 @@ import { ResponseDetailPage } from '@/pages/admin/responses/ResponseDetailPage';
 import { UserManagementPage } from '@/pages/admin/UserManagementPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
 import { DataCleanupPage } from '@/pages/admin/DataCleanupPage';
+import { AnnouncementPage } from '@/pages/admin/AnnouncementPage';
 import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/SurveyListPage';
 import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
 import { RewardPage } from '@/pages/respondent/RewardPage';
@@ -81,6 +82,7 @@ export const router = createBrowserRouter([
       { path: 'users', element: <RequireRoles roles={access.users}><UserManagementPage /></RequireRoles> },
       { path: 'audit', element: <RequireRoles roles={access.audit}><AuditLogPage /></RequireRoles> },
       { path: 'cleanup', element: <RequireRoles roles={access.cleanup}><DataCleanupPage /></RequireRoles> },
+      { path: 'announcements', element: <RequireRoles roles={access.announcements}><AnnouncementPage /></RequireRoles> },
       { path: 'profile', element: <ProfilePage /> },
     ],
   },

@@ -1,0 +1,118 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, IsNull, Repository } from 'typeorm';
+import { UserNotification } from './entities/user-notification.entity';
+import { User } from '@modules/auth/entities/user.entity';
+import { UserRole } from '@shared/enums';
+import { UserStatus } from '@modules/auth/entities/user.entity';
+import { DeviceTokenService } from './device-token.service';
+
+export interface FeedItemInput {
+  type: 'survey_new' | 'announcement';
+  title: string;
+  body: string;
+  link?: string | null;
+}
+
+export interface BroadcastInput {
+  title: string;
+  body: string;
+  link?: string | null;
+  /** Sekalian kirim push ke perangkat responden (bila FCM aktif). */
+  sendPush?: boolean;
+}
+
+/**
+ * Notifikasi DALAM aplikasi (feed lonceng responden). Mengisi feed otomatis
+ * (mis. "survei baru") dan menyiarkan Pengumuman dari admin.
+ */
+@Injectable()
+export class NotificationFeedService {
+  private readonly logger = new Logger(NotificationFeedService.name);
+
+  constructor(
+    @InjectRepository(UserNotification)
+    private readonly feedRepository: Repository<UserNotification>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly deviceTokenService: DeviceTokenService,
+  ) {}
+
+  /** Buat notifikasi feed untuk sekumpulan user (batch). */
+  async createForUsers(userIds: string[], item: FeedItemInput): Promise<void> {
+    if (userIds.length === 0) return;
+    const rows = userIds.map((userId) =>
+      this.feedRepository.create({
+        userId,
+        type: item.type,
+        title: item.title,
+        body: item.body,
+        link: item.link ?? null,
+      }),
+    );
+    await this.feedRepository.save(rows, { chunk: 500 });
+  }
+
+  /** Daftar notifikasi terbaru milik user. */
+  async getFeed(userId: string, limit = 30): Promise<UserNotification[]> {
+    return this.feedRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: Math.min(limit, 100),
+    });
+  }
+
+  /** Jumlah notifikasi belum dibaca. */
+  async unreadCount(userId: string): Promise<number> {
+    return this.feedRepository.count({ where: { userId, readAt: IsNull() } });
+  }
+
+  /** Tandai sudah dibaca. Tanpa `ids` → tandai semua milik user. */
+  async markRead(userId: string, ids?: string[]): Promise<void> {
+    const where = ids && ids.length > 0
+      ? { userId, id: In(ids), readAt: IsNull() }
+      : { userId, readAt: IsNull() };
+    await this.feedRepository.update(where, { readAt: new Date() });
+  }
+
+  /**
+   * Siarkan Pengumuman ke SEMUA responden aktif: masuk feed lonceng + opsional
+   * push. Mengembalikan jumlah penerima.
+   */
+  async broadcastAnnouncement(
+    dto: BroadcastInput,
+  ): Promise<{ recipients: number; pushed: number }> {
+    const respondents = await this.userRepository.find({
+      where: { role: UserRole.RESPONDENT, status: UserStatus.ACTIVE },
+      select: ['id'],
+    });
+    const ids = respondents.map((r) => r.id);
+    if (ids.length === 0) return { recipients: 0, pushed: 0 };
+
+    await this.createForUsers(ids, {
+      type: 'announcement',
+      title: dto.title,
+      body: dto.body,
+      link: dto.link ?? null,
+    });
+
+    let pushed = 0;
+    if (dto.sendPush) {
+      pushed = await this.deviceTokenService
+        .pushToUsers(ids, {
+          title: dto.title,
+          body: dto.body,
+          data: dto.link ? { link: dto.link } : {},
+        })
+        .catch((e) => {
+          this.logger.warn(`Gagal push pengumuman: ${e.message}`);
+          return 0;
+        });
+    }
+
+    this.logger.log(
+      `Pengumuman disiarkan → ${ids.length} responden (feed), ${pushed} push`,
+    );
+    return { recipients: ids.length, pushed };
+  }
+}

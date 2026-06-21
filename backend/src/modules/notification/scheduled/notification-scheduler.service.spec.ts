@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { NotificationSchedulerService } from './notification-scheduler.service';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
+import { NotificationFeedService } from '../notification-feed.service';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -17,6 +18,7 @@ describe('NotificationSchedulerService', () => {
   let responseRepository: any;
   let userRepository: any;
   let deviceTokenService: any;
+  let feedService: any;
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
@@ -48,6 +50,10 @@ describe('NotificationSchedulerService', () => {
       pushToUsers: vi.fn().mockResolvedValue(0),
     };
 
+    feedService = {
+      createForUsers: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationSchedulerService,
@@ -57,6 +63,7 @@ describe('NotificationSchedulerService', () => {
         { provide: getRepositoryToken(SurveyResponse), useValue: responseRepository },
         { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: DeviceTokenService, useValue: deviceTokenService },
+        { provide: NotificationFeedService, useValue: feedService },
       ],
     }).compile();
 

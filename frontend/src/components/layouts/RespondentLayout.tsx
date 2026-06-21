@@ -1,7 +1,8 @@
 import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { WifiOff, CloudUpload, Bell, FileText, Gift, User } from 'lucide-react';
+import { WifiOff, CloudUpload, FileText, Gift, User } from 'lucide-react';
 import { api } from '@/services/api';
+import { NotificationBell } from '@/components/common/NotificationBell';
 import { useAuthStore } from '@/stores/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -106,14 +107,7 @@ export function RespondentLayout() {
                   <Gift className="h-3.5 w-3.5" /> {points.toLocaleString('id-ID')} poin
                 </NavLink>
               )}
-              <button
-                type="button"
-                aria-label="Notifikasi"
-                title="Notifikasi (segera hadir)"
-                className="text-gray-500 transition-colors hover:text-gray-700"
-              >
-                <Bell className="h-5 w-5" />
-              </button>
+              <NotificationBell />
             </div>
           </div>
         </header>
