@@ -1,4 +1,9 @@
-const BASE_URL = '/api';
+// Web: '/api' relatif (di-proxy nginx). Aplikasi native (Capacitor) HARUS pakai
+// URL absolut karena '/api' akan menunjuk ke dalam app, bukan server — set
+// VITE_API_BASE_URL=https://survei.risetcenter.com/api saat build native.
+const BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
+  '/api';
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;

@@ -42,6 +42,24 @@ showAppNotice({ title: 'Survei baru tersedia', body: 'Survei Kepuasan 2026', lin
 - **Android**: Android Studio + JDK 17.
 - **iOS**: hanya di **macOS** dengan Xcode + akun Apple Developer ($99/th).
 
+## 2b. ⚠️ WAJIB untuk build native (2 hal — kalau tidak, aplikasi blank/gagal)
+Berbeda dari web, aplikasi native memanggil server dari origin lokal, jadi:
+
+1. **URL API absolut.** Saat build native, set di `frontend/.env.production`:
+   ```bash
+   VITE_API_BASE_URL=https://survei.risetcenter.com/api
+   ```
+   (Di web ini kosong → otomatis `/api` relatif. Native WAJIB absolut — tanpa ini
+   semua panggilan API gagal karena `/api` menunjuk ke dalam app.)
+
+2. **Izinkan origin aplikasi di CORS backend.** Di `backend/.env` VPS, tambahkan
+   origin Capacitor ke `ALLOWED_ORIGINS`:
+   ```bash
+   ALLOWED_ORIGINS=https://survei.risetcenter.com,https://localhost,capacitor://localhost
+   ```
+   Lalu `docker compose up -d backend`. (Android pakai `https://localhost`, iOS
+   `capacitor://localhost`.)
+
 ## 3. Tambah platform native (sekali saja)
 Dari folder `frontend/`:
 ```bash
@@ -51,6 +69,7 @@ npx cap add ios          # hanya di macOS
 ```
 > Folder `frontend/android` & `frontend/ios` di-generate lokal (di-`.gitignore`).
 > `capacitor.config.ts` sudah ada (appId `com.populicenter.survei`, webDir `dist`).
+> Pastikan §2b sudah dikerjakan SEBELUM `npm run cap:android` (URL API di-bake saat build).
 
 ## 4. Build & jalankan
 ```bash
