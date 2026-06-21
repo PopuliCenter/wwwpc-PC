@@ -72,12 +72,13 @@ export function LoginPage() {
 
   return (
     <div>
-      {/* Compact brand mark — visible mainly on mobile where the side panel is hidden */}
-      <div className="mb-8">
+      {/* Compact brand mark — visible mainly on mobile where the side panel is hidden.
+          Di mobile: logo & judul dipusatkan agar rapi; di desktop rata kiri. */}
+      <div className="mb-8 text-center lg:text-left">
         <img
           src="/logo-populi-center.png"
           alt="Populi Center"
-          className="mb-6 h-12 w-12 object-contain lg:hidden"
+          className="mx-auto mb-6 h-14 w-14 object-contain lg:hidden"
         />
         <h2 className="text-2xl font-bold text-gray-900">Selamat datang kembali</h2>
         <p className="mt-1.5 text-sm text-gray-500">
