@@ -4,3 +4,4 @@ export { RequestPasswordResetDto } from './request-password-reset.dto';
 export { ResetPasswordDto } from './reset-password.dto';
 export { UpdateProfileDto } from './update-profile.dto';
 export { ChangePasswordDto } from './change-password.dto';
+export { GoogleLoginDto } from './google-login.dto';

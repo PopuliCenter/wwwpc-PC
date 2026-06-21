@@ -18,6 +18,7 @@ import {
   ResetPasswordDto,
   UpdateProfileDto,
   ChangePasswordDto,
+  GoogleLoginDto,
 } from './dto';
 import { JwtAuthGuard } from './guards';
 import { AuthResult, TokenPair } from './interfaces';
@@ -50,6 +51,24 @@ export class AuthController {
       actionType: AuditActionType.LOGIN,
       module: 'auth',
       details: { email: result.user.email, role: result.user.role },
+      ipAddress: clientIp(req),
+    });
+    return result;
+  }
+
+  @Post('google')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  async googleLogin(
+    @Body() dto: GoogleLoginDto,
+    @Request() req: any,
+  ): Promise<AuthResult> {
+    const result = await this.authService.loginWithGoogle(dto.idToken);
+    await this.auditService.log({
+      userId: result.user.id,
+      actionType: AuditActionType.LOGIN,
+      module: 'auth',
+      details: { email: result.user.email, role: result.user.role, via: 'google' },
       ipAddress: clientIp(req),
     });
     return result;

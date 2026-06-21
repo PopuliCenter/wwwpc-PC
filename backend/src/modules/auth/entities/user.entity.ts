@@ -21,8 +21,10 @@ export class User {
   @Column({ type: 'varchar', length: 255, unique: true })
   email: string;
 
-  @Column({ type: 'varchar', length: 20, unique: true })
-  phone: string;
+  // Nullable: akun via Google tidak punya nomor HP. Unique tetap (Postgres
+  // mengizinkan banyak NULL pada unique index).
+  @Column({ type: 'varchar', length: 20, unique: true, nullable: true })
+  phone: string | null;
 
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   passwordHash: string;

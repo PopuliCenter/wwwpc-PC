@@ -42,6 +42,8 @@ describe('AuthService', () => {
     userRepository = {
       findOne: vi.fn(),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
+      create: vi.fn().mockImplementation((data: any) => data),
+      save: vi.fn().mockImplementation((data: any) => Promise.resolve({ id: 'new-user-id', ...data })),
     };
 
     jwtService = {
@@ -494,6 +496,65 @@ describe('AuthService', () => {
       await expect(
         service.resetPassword('test@example.com', '123456', 'ValidP4ss!'),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('loginWithGoogle', () => {
+    beforeEach(() => {
+      jwtService.signAsync
+        .mockResolvedValueOnce('access-token-g')
+        .mockResolvedValueOnce('refresh-token-g');
+      (bcrypt.hash as any) = vi.fn().mockResolvedValue('hashed-random');
+    });
+
+    it('creates a new respondent (profile NOT completed) for a first-time Google email', async () => {
+      vi.spyOn(service as any, 'verifyGoogleToken').mockResolvedValue({
+        email: 'new@gmail.com',
+        emailVerified: true,
+        name: 'New Google User',
+      });
+      userRepository.findOne.mockResolvedValue(null); // belum ada akun
+
+      const result = await service.loginWithGoogle('id-token');
+
+      expect(userRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'new@gmail.com',
+          role: UserRole.RESPONDENT,
+          emailVerified: true,
+          profileCompleted: false,
+          phone: null,
+        }),
+      );
+      expect(result.accessToken).toBe('access-token-g');
+      expect(result.user.profileCompleted).toBe(false);
+    });
+
+    it('links to an existing account (no new user) when the email already exists', async () => {
+      vi.spyOn(service as any, 'verifyGoogleToken').mockResolvedValue({
+        email: 'test@example.com',
+        emailVerified: true,
+        name: 'Test User',
+      });
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      const result = await service.loginWithGoogle('id-token');
+
+      expect(userRepository.save).not.toHaveBeenCalled();
+      expect(result.user.id).toBe('user-id-123');
+      expect(result.accessToken).toBe('access-token-g');
+    });
+
+    it('rejects when the Google email is not verified', async () => {
+      vi.spyOn(service as any, 'verifyGoogleToken').mockResolvedValue({
+        email: 'unverified@gmail.com',
+        emailVerified: false,
+        name: 'X',
+      });
+
+      await expect(service.loginWithGoogle('id-token')).rejects.toThrow(
+        /belum terverifikasi/i,
+      );
     });
   });
 });

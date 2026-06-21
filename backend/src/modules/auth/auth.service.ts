@@ -8,6 +8,7 @@ import { Cache } from 'cache-manager';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { OAuth2Client } from 'google-auth-library';
 import { User, UserStatus } from './entities';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
@@ -22,7 +23,7 @@ import {
 export interface ProfileResult {
   id: string;
   email: string;
-  phone: string;
+  phone: string | null;
   fullName: string;
   role: UserRole;
   status: UserStatus;
@@ -133,6 +134,114 @@ export class AuthService {
     );
 
     // Store refresh token mapping
+    await this.cacheManager.set(
+      this.getRefreshTokenKey(sessionId),
+      tokenPair.refreshToken,
+      sessionTtl * 1000,
+    );
+
+    return {
+      ...tokenPair,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+      },
+    };
+  }
+
+  /**
+   * Login/registrasi via Google. Memverifikasi ID token Google, lalu menautkan
+   * ke akun yang ada (email sama) atau membuat akun responden baru. Akun baru
+   * berstatus aktif + email terverifikasi (Google sudah memverifikasi), tapi
+   * profile_completed=false → digerbang melengkapi data diri sebelum isi survei.
+   */
+  async loginWithGoogle(idToken: string): Promise<AuthResult> {
+    const profile = await this.verifyGoogleToken(idToken);
+    if (!profile.emailVerified) {
+      throw new UnauthorizedException('Email akun Google Anda belum terverifikasi.');
+    }
+
+    let user = await this.userRepository.findOne({ where: { email: profile.email } });
+
+    if (user) {
+      if (user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException('Akun Anda tidak aktif. Hubungi admin.');
+      }
+      // Google sudah memverifikasi email → tandai terverifikasi bila belum.
+      if (!user.emailVerified) {
+        user.emailVerified = true;
+        await this.userRepository.update(user.id, { emailVerified: true });
+      }
+    } else {
+      // Akun responden baru. Password acak (login hanya via Google); tanpa nomor HP.
+      const randomHash = await bcrypt.hash(
+        crypto.randomBytes(32).toString('hex'),
+        BCRYPT_SALT_ROUNDS,
+      );
+      user = await this.userRepository.save(
+        this.userRepository.create({
+          email: profile.email,
+          phone: null,
+          passwordHash: randomHash,
+          fullName: profile.name,
+          role: UserRole.RESPONDENT,
+          status: UserStatus.ACTIVE,
+          emailVerified: true,
+          profileCompleted: false,
+        }),
+      );
+      this.logger.log(`Akun responden baru via Google: ${user.email}`);
+    }
+
+    return this.createSession(user);
+  }
+
+  /**
+   * Verifikasi ID token Google → payload terverifikasi. Dipisah agar mudah diuji
+   * dan agar konfigurasi (GOOGLE_CLIENT_ID) terpusat.
+   */
+  protected async verifyGoogleToken(
+    idToken: string,
+  ): Promise<{ email: string; emailVerified: boolean; name: string }> {
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    if (!clientId) {
+      throw new BadRequestException('Login Google belum dikonfigurasi di server.');
+    }
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+    const payload = ticket.getPayload();
+    if (!payload?.email) {
+      throw new UnauthorizedException('Token Google tidak valid.');
+    }
+    return {
+      email: payload.email.toLowerCase(),
+      emailVerified: payload.email_verified === true,
+      name: payload.name ?? payload.email.split('@')[0],
+    };
+  }
+
+  /**
+   * Terbitkan sesi (token + simpan di Redis) untuk user. Dipakai login biasa &
+   * login Google agar penerbitan token konsisten.
+   */
+  private async createSession(user: User): Promise<AuthResult> {
+    const sessionId = uuidv4();
+    const tokenPair = await this.generateTokenPair(user, sessionId);
+    const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
+
+    await this.cacheManager.set(
+      this.getSessionKey(sessionId),
+      JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: new Date().toISOString(),
+      }),
+      sessionTtl * 1000,
+    );
     await this.cacheManager.set(
       this.getRefreshTokenKey(sessionId),
       tokenPair.refreshToken,

@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
+import { GoogleSignInButton } from '@/components/common/GoogleSignInButton';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
 import type { LoginResponse } from '@/types';
@@ -21,6 +22,23 @@ export function LoginPage() {
   // /surveys/<id>/fill?embed=1). Dipakai untuk kembali ke survei yang dituju.
   const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
 
+  // Arahkan setelah login berhasil sesuai peran. Responden dengan profil belum
+  // lengkap akan otomatis digerbang ke /complete-profile oleh RespondentLayout.
+  const redirectAfterLogin = useCallback(
+    (response: LoginResponse) => {
+      login(response.user, response.accessToken, response.refreshToken);
+      const role = response.user.role;
+      const isAdmin = role === 'admin' || role === 'super_admin';
+      const redirectPath = isAdmin
+        ? '/admin/dashboard'
+        : from?.pathname
+          ? `${from.pathname}${from.search ?? ''}`
+          : '/surveys';
+      navigate(redirectPath, { replace: true });
+    },
+    [login, navigate, from],
+  );
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -28,18 +46,7 @@ export function LoginPage() {
 
     try {
       const response = await api.post<LoginResponse>('/auth/login', { email, password });
-      login(response.user, response.accessToken, response.refreshToken);
-
-      const role = response.user.role;
-      const isAdmin = role === 'admin' || role === 'super_admin';
-      // Role surveyor dinonaktifkan — akun lama diarahkan ke tampilan responden.
-      // Responden: kembali ke halaman asal bila ada (deep-link survei), jika tidak ke /surveys.
-      const redirectPath = isAdmin
-        ? '/admin/dashboard'
-        : from?.pathname
-          ? `${from.pathname}${from.search ?? ''}`
-          : '/surveys';
-      navigate(redirectPath, { replace: true });
+      redirectAfterLogin(response);
     } catch (err: unknown) {
       const apiError = err as { message?: string; statusCode?: number };
       setError(apiError.message || 'Login gagal. Periksa email dan password Anda.');
@@ -47,6 +54,21 @@ export function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // Login via Google: kirim ID token ke backend → terima sesi seperti login biasa.
+  const handleGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setError('');
+      try {
+        const response = await api.post<LoginResponse>('/auth/google', { idToken });
+        redirectAfterLogin(response);
+      } catch (err: unknown) {
+        const apiError = err as { message?: string };
+        setError(apiError.message || 'Login Google gagal. Coba lagi.');
+      }
+    },
+    [redirectAfterLogin],
+  );
 
   return (
     <div>
@@ -120,6 +142,18 @@ export function LoginPage() {
           Masuk
         </Button>
       </form>
+
+      {/* Login Google — hanya tampil bila VITE_GOOGLE_CLIENT_ID diset */}
+      {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+        <>
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs text-gray-400">atau</span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
+        </>
+      )}
 
       <p className="mt-8 text-center text-sm text-gray-600">
         Belum punya akun?{' '}
