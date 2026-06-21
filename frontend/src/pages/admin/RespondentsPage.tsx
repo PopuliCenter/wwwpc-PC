@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, FileSpreadsheet, FileText, Loader2, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Search, FileSpreadsheet, FileText, Loader2, Trash2, ChevronUp, ChevronDown, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '@/services/api';
 
@@ -74,6 +74,8 @@ export function RespondentsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async (q: string) => {
     setLoading(true);
@@ -193,6 +195,80 @@ export function RespondentsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Impor responden dari Excel/CSV ──────────────────────────────────────────
+  // Unduh template Excel (kolom: Nama Lengkap, Email, Nomor Telepon).
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet(
+      [{ 'Nama Lengkap': 'Budi Santoso', Email: 'budi@email.com', 'Nomor Telepon': '081234567890' }],
+      { header: ['Nama Lengkap', 'Email', 'Nomor Telepon'] },
+    );
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Responden');
+    XLSX.writeFile(wb, 'template-impor-responden.xlsx');
+  };
+
+  // Ambil nilai kolom secara fleksibel (case-insensitive, beberapa alias).
+  const pick = (row: Record<string, unknown>, aliases: string[]): string => {
+    const norm = (s: string) => s.toLowerCase().replace(/[\s_]/g, '');
+    const wanted = aliases.map(norm);
+    for (const key of Object.keys(row)) {
+      if (wanted.includes(norm(key))) return String(row[key] ?? '').trim();
+    }
+    return '';
+  };
+
+  const handleImportFile = async (file: File) => {
+    setError('');
+    setInfo('');
+    setImporting(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+
+      // Bersihkan koma/baris baru (CSV backend dipisah koma per baris).
+      const clean = (s: string) => s.replace(/[\n\r,]/g, ' ').trim();
+      const csvLines: string[] = [];
+      let skipped = 0;
+      for (const row of rows) {
+        const name = clean(pick(row, ['Nama Lengkap', 'Nama', 'Name', 'fullName']));
+        const email = clean(pick(row, ['Email', 'email']));
+        const phone = clean(pick(row, ['Nomor Telepon', 'Telepon', 'No HP', 'Phone', 'HP']));
+        if (!name && !email && !phone) continue; // baris kosong
+        if (!email) { skipped++; continue; }
+        csvLines.push(`${name},${email},${phone},respondent`);
+      }
+
+      if (csvLines.length === 0) {
+        setError('Tidak ada baris valid. Pastikan ada kolom Nama Lengkap, Email, Nomor Telepon.');
+        return;
+      }
+
+      const res = await api.post<{ successCount: number; errors: { row: number; email?: string; reason: string }[] }>(
+        '/users/bulk-import',
+        { csv: csvLines.join('\n') },
+      );
+
+      const failParts: string[] = [];
+      if (res.errors?.length) failParts.push(`${res.errors.length} gagal`);
+      if (skipped) failParts.push(`${skipped} dilewati (tanpa email)`);
+      setInfo(
+        `${res.successCount} responden diimpor` +
+          (failParts.length ? ` — ${failParts.join(', ')}.` : '.') +
+          (res.errors?.length
+            ? ` Contoh: ${res.errors.slice(0, 3).map((e) => `baris ${e.row}: ${e.reason}`).join('; ')}`
+            : ''),
+      );
+      void fetchData(search.trim());
+    } catch {
+      setError('Gagal membaca file. Pastikan format Excel (.xlsx) atau CSV yang benar.');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const selectedCount = displayed.filter((r) => selected.has(r.id)).length;
 
   const SortHead = ({ k, label, className = '' }: { k: SortKey; label: string; className?: string }) => (
@@ -211,7 +287,26 @@ export function RespondentsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Responden</h1>
           <p className="text-sm text-gray-500">Daftar responden mandiri — filter, urutkan, dan kelola.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleImportFile(f);
+            }}
+          />
+          <button onClick={downloadTemplate}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Download className="h-4 w-4" /> Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Impor Excel
+          </button>
           <button onClick={exportExcel} disabled={displayed.length === 0}
             className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
             <FileSpreadsheet className="h-4 w-4" /> Excel

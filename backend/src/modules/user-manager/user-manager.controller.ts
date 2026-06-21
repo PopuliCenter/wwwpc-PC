@@ -130,6 +130,7 @@ export class UserManagerController {
   }
 
   @Post('bulk-import')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async bulkImportUsers(@Body('csv') csv: string, @Req() req: any) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
