@@ -34,6 +34,7 @@ interface Mocks {
   armQuestions?: any[];
   armAnswers?: any[];
   profileCompleted?: boolean;
+  phone?: string | null;
   access?: { allowed: boolean; reason?: string } | (() => never);
 }
 
@@ -57,6 +58,7 @@ function makeService(m: Mocks = {}) {
   // assertProfileCompleted() + assertEligible() membaca via raw query. Default
   // profil lengkap kecuali test mengeset m.profileCompleted = false.
   const profileCompleted = m.profileCompleted ?? true;
+  const phone = 'phone' in m ? m.phone : '08123456789';
   const responseRepository = {
     findOne: vi.fn().mockResolvedValue(m.existingResponse ?? null),
     create: vi.fn().mockImplementation((data: any) => data),
@@ -64,7 +66,7 @@ function makeService(m: Mocks = {}) {
     manager: {
       query: vi.fn().mockImplementation((sql: string) => {
         if (typeof sql === 'string' && sql.includes('profile_completed')) {
-          return Promise.resolve([{ profile_completed: profileCompleted }]);
+          return Promise.resolve([{ profile_completed: profileCompleted, phone }]);
         }
         return Promise.resolve([]);
       }),
@@ -289,6 +291,14 @@ describe('SurveyFillService', () => {
 
     await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
       /Lengkapi data diri/i,
+    );
+  });
+
+  it('blocks filling with 403 when the respondent has no phone number', async () => {
+    const { service } = makeService({ profileCompleted: true, phone: null });
+
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
+      /nomor telepon/i,
     );
   });
 

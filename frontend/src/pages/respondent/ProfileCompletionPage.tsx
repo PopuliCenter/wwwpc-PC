@@ -39,14 +39,22 @@ export function ProfileCompletionPage() {
   const [religion, setReligion] = useState('');
   const [wilayah, setWilayah] = useState({ province: '', city: '', district: '' });
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Akun tanpa nomor telepon (mis. via Google) wajib mengisinya di sini.
+  const needPhone = !user?.phone;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (!wilayah.province || !wilayah.city || !wilayah.district) {
       setError('Lengkapi provinsi, kabupaten/kota, dan kecamatan.');
+      return;
+    }
+    if (needPhone && !/^[0-9+\-\s]{8,20}$/.test(phone.trim())) {
+      setError('Masukkan nomor telepon yang valid.');
       return;
     }
     setIsLoading(true);
@@ -63,8 +71,16 @@ export function ProfileCompletionPage() {
         district: wilayah.district,
         address,
       });
+      // Simpan nomor telepon (bila belum ada) lewat endpoint profil.
+      let savedPhone = user?.phone ?? null;
+      if (needPhone) {
+        const updated = await api.patch<{ phone: string }>('/auth/profile', {
+          phone: phone.trim(),
+        });
+        savedPhone = updated.phone;
+      }
       // Tandai profil lengkap di state agar gerbang terbuka, lalu ke daftar survei.
-      if (user) setUser({ ...user, profileCompleted: true });
+      if (user) setUser({ ...user, profileCompleted: true, phone: savedPhone ?? undefined });
       navigate('/surveys', { replace: true });
     } catch (err: unknown) {
       const e2 = err as { message?: string };
@@ -156,6 +172,22 @@ export function ProfileCompletionPage() {
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
           />
         </div>
+
+        {needPhone && (
+          <div>
+            <Input
+              label="Nomor Telepon"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="08xxxxxxxxxx"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Dipakai untuk pengiriman reward. Wajib diisi untuk mengikuti survei.
+            </p>
+          </div>
+        )}
 
         <Button type="submit" isLoading={isLoading} className="w-full">
           Simpan & Lanjutkan

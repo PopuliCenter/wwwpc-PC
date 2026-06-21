@@ -114,9 +114,14 @@ export function ProfilePage() {
     setSavingProfile(true);
     setProfileMsg(null);
     try {
-      // Responden hanya boleh ubah NAMA; HP/email dikunci (butuh verifikasi).
-      const body =
-        profile?.role === 'respondent' ? { fullName } : { fullName, phone, email };
+      // Responden boleh ubah NAMA; HP boleh DIISI saat masih kosong (akun Google),
+      // tapi setelah terisi dikunci (butuh verifikasi). Email tetap dikunci.
+      const isResp = profile?.role === 'respondent';
+      const body = isResp
+        ? profile?.phone
+          ? { fullName }
+          : { fullName, phone }
+        : { fullName, phone, email };
       const updated = await api.patch<ProfileData>('/auth/profile', body);
       setProfile(updated);
       // Sinkronkan ke store agar sidebar/header ikut terbarui
@@ -161,6 +166,9 @@ export function ProfilePage() {
   const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
 
   const isRespondent = profile?.role === 'respondent';
+  // HP responden: bisa diisi saat masih kosong (akun Google), terkunci setelah terisi.
+  const phoneLocked = isRespondent && !!profile?.phone;
+  const phoneNeeded = isRespondent && !profile?.phone;
   const demo = profile?.demographics ?? null;
 
   // Baris read-only untuk data demografi (pembobot) — tak bisa diubah responden.
@@ -191,7 +199,21 @@ export function ProfilePage() {
           </div>
           <div>
             <label htmlFor="phone" className={labelClass}>Nomor Telepon</label>
-            <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} required disabled={isRespondent} />
+            <input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={inputClass}
+              placeholder={phoneNeeded ? '08xxxxxxxxxx' : undefined}
+              required
+              disabled={phoneLocked}
+            />
+            {phoneNeeded && (
+              <p className="mt-1 text-xs text-amber-600">
+                Wajib diisi untuk bisa mengikuti survei.
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="email" className={labelClass}>Email</label>
@@ -199,8 +221,9 @@ export function ProfilePage() {
           </div>
           {isRespondent && (
             <p className="text-xs text-gray-400">
-              Nomor telepon & email terkait pengiriman reward dan login, jadi
-              perubahannya butuh verifikasi — hubungi admin untuk koreksi.
+              {phoneNeeded
+                ? 'Email terkait login dikunci. Nomor telepon dipakai untuk pengiriman reward — setelah diisi, perubahannya butuh verifikasi admin.'
+                : 'Nomor telepon & email terkait pengiriman reward dan login, jadi perubahannya butuh verifikasi — hubungi admin untuk koreksi.'}
             </p>
           )}
         </div>

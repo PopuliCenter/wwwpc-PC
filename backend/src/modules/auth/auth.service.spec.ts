@@ -110,6 +110,7 @@ describe('AuthService', () => {
           fullName: 'Test User',
           role: UserRole.RESPONDENT,
           profileCompleted: true,
+          phone: '081234567890',
         },
       });
     });

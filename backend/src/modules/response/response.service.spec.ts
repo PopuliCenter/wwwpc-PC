@@ -98,7 +98,7 @@ describe('ResponseService', () => {
     // raw-query (profil lengkap, tanpa targeting) agar tak bocor antar-test.
     mockResponseRepository.manager.query.mockImplementation((sql: string) =>
       typeof sql === 'string' && sql.includes('profile_completed')
-        ? Promise.resolve([{ profile_completed: true }])
+        ? Promise.resolve([{ profile_completed: true, phone: '08123456789' }])
         : Promise.resolve([]),
     );
     mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));

@@ -18,6 +18,8 @@ export interface UserProfile {
   role: UserRole;
   /** Apakah data diri (demografi pembobot) sudah lengkap — untuk gerbang survei. */
   profileCompleted?: boolean;
+  /** Nomor telepon (null untuk akun Google yang belum mengisi) — gerbang survei. */
+  phone?: string | null;
 }
 
 export interface SessionInfo {

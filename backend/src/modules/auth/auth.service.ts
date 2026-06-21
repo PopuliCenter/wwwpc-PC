@@ -148,6 +148,7 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         profileCompleted: user.profileCompleted,
+        phone: user.phone,
       },
     };
   }
@@ -256,6 +257,7 @@ export class AuthService {
         fullName: user.fullName,
         role: user.role,
         profileCompleted: user.profileCompleted,
+        phone: user.phone,
       },
     };
   }
@@ -459,6 +461,14 @@ export class AuthService {
     }
 
     if (dto.phone !== undefined && dto.phone !== user.phone) {
+      // Responden boleh MENGISI nomor telepon saat masih kosong (mis. akun
+      // Google), tapi tidak boleh MENGUBAH yang sudah ada (perubahan butuh
+      // verifikasi via admin). Admin/peran lain bebas mengubah.
+      if (user.role === UserRole.RESPONDENT && user.phone) {
+        throw new BadRequestException(
+          'Nomor telepon sudah terisi. Perubahan harus lewat admin.',
+        );
+      }
       const existing = await this.userRepository.findOne({ where: { phone: dto.phone } });
       if (existing && existing.id !== userId) {
         throw new BadRequestException('Nomor telepon sudah dipakai akun lain');

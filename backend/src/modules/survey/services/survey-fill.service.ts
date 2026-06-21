@@ -321,12 +321,18 @@ export class SurveyFillService {
    */
   private async assertProfileCompleted(respondentId: string): Promise<void> {
     const rows = await this.responseRepository.manager.query(
-      'SELECT profile_completed FROM users WHERE id = $1 LIMIT 1',
+      'SELECT profile_completed, phone FROM users WHERE id = $1 LIMIT 1',
       [respondentId],
     );
-    if (!rows[0]?.profile_completed) {
+    const row = rows[0];
+    if (!row?.profile_completed) {
       throw new ForbiddenException(
         'Lengkapi data diri Anda terlebih dahulu sebelum mengisi survei.',
+      );
+    }
+    if (!row.phone) {
+      throw new ForbiddenException(
+        'Lengkapi nomor telepon Anda di halaman Profil sebelum mengisi survei.',
       );
     }
   }
