@@ -24,13 +24,17 @@ Pakai **Client ID yang sama** di backend (verifikasi audience) dan frontend (ren
   ```bash
   GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
   ```
-- **Frontend** — variabel Vite **build-time** (di-embed saat build). Set saat build
-  image frontend, mis. di `frontend/.env` atau argumen build:
+- **Frontend** — variabel Vite **build-time** (di-embed saat build image). Buat file
+  **`frontend/.env.production`** (BUKAN `.env` — `.dockerignore` mengecualikan `.env`
+  & `**/.env`, tapi TIDAK `.env.production`; Vite memuat `.env.production` otomatis
+  saat `vite build`):
   ```bash
+  # /var/www/online-survei/frontend/.env.production
   VITE_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
   ```
-  > Karena di-embed saat build, frontend harus **di-build ulang** setelah menambah
-  > variabel ini (`docker compose up -d --build frontend`).
+  > Client ID Google **bukan rahasia** (memang ikut ter-embed di bundel browser),
+  > jadi aman ada di file ini. Karena di-embed saat build, frontend **harus di-build
+  > ulang** setelah menambah/mengubahnya (`docker compose up -d --build frontend`).
 
 ## 3. Deploy
 ```bash
