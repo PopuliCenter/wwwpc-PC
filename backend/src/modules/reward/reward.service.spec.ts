@@ -374,8 +374,9 @@ describe('RewardService', () => {
     });
 
     it('should reject if balance below minimum threshold', async () => {
+      // Ambang minimum penukaran = 500 poin; saldo 300 → ditolak.
       mockQueryBuilder.getRawOne
-        .mockResolvedValueOnce({ total: '5000' }) // credits
+        .mockResolvedValueOnce({ total: '300' }) // credits
         .mockResolvedValueOnce({ total: '0' }) // debits
         .mockResolvedValueOnce({ total: '0' }) // pending
         .mockResolvedValueOnce({ total: '0' }); // expiring
@@ -386,9 +387,9 @@ describe('RewardService', () => {
     });
 
     it('should reject if balance insufficient for reward', async () => {
-      // Balance is 10000 (above threshold) but pulsa-50000 costs 85000
+      // Saldo 2000 (di atas ambang 500) tapi pulsa-50000 kini berharga 5000 poin.
       mockQueryBuilder.getRawOne
-        .mockResolvedValueOnce({ total: '10000' }) // credits
+        .mockResolvedValueOnce({ total: '2000' }) // credits
         .mockResolvedValueOnce({ total: '0' }) // debits
         .mockResolvedValueOnce({ total: '0' }) // pending
         .mockResolvedValueOnce({ total: '0' }); // expiring
@@ -417,7 +418,7 @@ describe('RewardService', () => {
         expect.objectContaining({
           userId: 'user-1',
           rewardType: 'pulsa-5000',
-          pointsSpent: 10000,
+          pointsSpent: 500, // Rp 5.000 = 500 poin (1 poin = Rp 10)
           destinationNumber: '08123456789',
           status: RedemptionStatus.PENDING,
         }),

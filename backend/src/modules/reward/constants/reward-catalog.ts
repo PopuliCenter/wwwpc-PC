@@ -15,12 +15,14 @@ function rp(n: number): string {
   return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+// Nilai tukar: 1 poin = Rp 10 (mis. Rp 5.000 = 500 poin). Angka bulat & menarik
+// secara psikologis agar responden rajin mengisi survei.
 const POINTS_BY_NOMINAL: Record<number, number> = {
-  5000: 10000,
-  10000: 20000,
-  25000: 45000,
-  50000: 85000,
-  100000: 160000,
+  5000: 500,
+  10000: 1000,
+  25000: 2500,
+  50000: 5000,
+  100000: 10000,
 };
 
 const PULSA_NOMINALS = [5000, 10000, 25000, 50000, 100000];
@@ -54,13 +56,13 @@ const ewalletItems: RewardItem[] = EWALLETS.flatMap((w) =>
 
 export const REWARD_CATALOG: RewardItem[] = [...pulsaItems, ...ewalletItems];
 
-/** Minimum points required for any redemption */
-export const MINIMUM_REDEMPTION_THRESHOLD = 10000;
+/** Minimum points required for any redemption (= reward termurah, Rp 5.000). */
+export const MINIMUM_REDEMPTION_THRESHOLD = 500;
 
-/** Points awarded for specific actions */
+/** Points awarded for specific actions (rate 1 poin = Rp 10). */
 export const POINT_VALUES = {
-  REGISTRATION: 500,
-  PROFILE_COMPLETION: 250,
+  REGISTRATION: 100,
+  PROFILE_COMPLETION: 50,
 } as const;
 
 /** Streak multiplier thresholds */
