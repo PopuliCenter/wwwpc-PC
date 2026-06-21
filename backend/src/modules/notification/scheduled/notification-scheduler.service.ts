@@ -14,7 +14,21 @@ import { NotificationFeedService } from '../notification-feed.service';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
+import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { SurveyStatus } from '@shared/enums';
+
+/** Kriteria penargetan undangan (semua opsional). */
+export interface TargetCriteria {
+  provinces?: string[];
+  genders?: string[];
+  educations?: string[];
+  ageMin?: number;
+  ageMax?: number;
+  /** Ambil acak sejumlah ini dari yang cocok (kosong = semua yang cocok). */
+  sampleSize?: number;
+}
+
+type InviteRecipient = { id: string; email: string; fullName: string };
 
 @Injectable()
 export class NotificationSchedulerService {
@@ -139,6 +153,70 @@ export class NotificationSchedulerService {
       return { recipients: 0, pushed: 0 };
     }
 
+    const pushed = await this.dispatchInvitations(survey, respondents);
+    this.logger.log(
+      `Undangan manual untuk survei "${survey.title}" → ${respondents.length} email, ${pushed} push`,
+    );
+    return { recipients: respondents.length, pushed };
+  }
+
+  /**
+   * Hitung jumlah responden yang COCOK kriteria & belum mengisi survei (untuk
+   * pratinjau sebelum mengirim undangan bertarget). Tidak mengirim apa pun.
+   */
+  async countTargetedAudience(
+    surveyId: string,
+    criteria: TargetCriteria,
+  ): Promise<{ matching: number }> {
+    const qb = await this.buildTargetedQuery(surveyId, criteria);
+    return { matching: await qb.getCount() };
+  }
+
+  /**
+   * Kirim undangan BERTARGET: pilih responden yang cocok kriteria (provinsi,
+   * gender, umur, pendidikan) & belum mengisi, opsional ambil ACAK sejumlah
+   * `sampleSize`, lalu kirim (email + lonceng + push). Survei harus aktif.
+   */
+  async sendTargetedInvitations(
+    surveyId: string,
+    criteria: TargetCriteria,
+  ): Promise<{ recipients: number; pushed: number }> {
+    const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
+    if (!survey) {
+      throw new NotFoundException(`Survei ${surveyId} tidak ditemukan`);
+    }
+    if (survey.status !== SurveyStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Aktifkan survei terlebih dahulu sebelum mengirim undangan.',
+      );
+    }
+
+    const qb = await this.buildTargetedQuery(surveyId, criteria);
+    const matching = (await qb.getMany()) as unknown as InviteRecipient[];
+
+    // Sampling acak di sisi aplikasi (aman lintas-DB): kocok lalu ambil N.
+    let recipients = matching;
+    const n = criteria.sampleSize;
+    if (n && n > 0 && n < matching.length) {
+      recipients = this.shuffle(matching).slice(0, n);
+    }
+
+    if (recipients.length === 0) {
+      return { recipients: 0, pushed: 0 };
+    }
+
+    const pushed = await this.dispatchInvitations(survey, recipients);
+    this.logger.log(
+      `Undangan bertarget "${survey.title}" → ${recipients.length}/${matching.length} cocok, ${pushed} push`,
+    );
+    return { recipients: recipients.length, pushed };
+  }
+
+  /** Kirim undangan (email + lonceng + push) ke daftar responden. Return jumlah push. */
+  private async dispatchInvitations(
+    survey: Survey,
+    respondents: InviteRecipient[],
+  ): Promise<number> {
     await this.notificationService.sendSurveyInvitation(
       respondents,
       {
@@ -150,39 +228,77 @@ export class NotificationSchedulerService {
       this.baseUrl,
     );
 
-    // Notifikasi DALAM aplikasi (lonceng) — selalu, agar terlihat saat buka app.
+    const body = 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.';
+    const link = `/surveys/${survey.id}/fill`;
+
     await this.feedService
       .createForUsers(
         respondents.map((r) => r.id),
-        {
-          type: 'survey_new',
-          title: `Survei baru: ${survey.title}`,
-          body: 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.',
-          link: `/surveys/${survey.id}/fill`,
-        },
+        { type: 'survey_new', title: `Survei baru: ${survey.title}`, body, link },
       )
       .catch((e) => this.logger.warn(`Gagal menulis feed undangan: ${e.message}`));
 
-    // Push notifikasi ke perangkat (aplikasi Capacitor). Aman/no-op bila FCM
-    // belum dikonfigurasi atau responden tak punya token perangkat.
-    const pushed = await this.deviceTokenService
+    return this.deviceTokenService
       .pushToUsers(
         respondents.map((r) => r.id),
-        {
-          title: `Survei baru: ${survey.title}`,
-          body: 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.',
-          data: { link: `/surveys/${survey.id}/fill` },
-        },
+        { title: `Survei baru: ${survey.title}`, body, data: { link } },
       )
       .catch((e) => {
         this.logger.warn(`Gagal mengirim push undangan: ${e.message}`);
         return 0;
       });
+  }
 
-    this.logger.log(
-      `Undangan manual untuk survei "${survey.title}" → ${respondents.length} email, ${pushed} push`,
-    );
-    return { recipients: respondents.length, pushed };
+  /** Query builder responden yang cocok kriteria & BELUM mengisi survei. */
+  private async buildTargetedQuery(surveyId: string, criteria: TargetCriteria) {
+    const existing = await this.responseRepository.find({
+      where: { surveyId },
+      select: ['respondentId'],
+    });
+    const respondedIds = existing.map((r) => r.respondentId);
+
+    const qb = this.userRepository
+      .createQueryBuilder('u')
+      .innerJoin(UserProfile, 'p', 'p.user_id = u.id')
+      .select(['u.id', 'u.email', 'u.fullName'])
+      .where('u.emailVerified = :verified', { verified: true })
+      .andWhere('u.profileCompleted = :completed', { completed: true })
+      .andWhere('u.status = :status', { status: 'active' })
+      .andWhere('u.role = :role', { role: 'respondent' });
+
+    if (criteria.provinces?.length) {
+      qb.andWhere('p.province IN (:...provinces)', { provinces: criteria.provinces });
+    }
+    if (criteria.genders?.length) {
+      qb.andWhere('p.gender IN (:...genders)', { genders: criteria.genders });
+    }
+    if (criteria.educations?.length) {
+      qb.andWhere('p.education IN (:...educations)', { educations: criteria.educations });
+    }
+    if (criteria.ageMin != null) {
+      qb.andWhere("date_part('year', age(p.date_of_birth)) >= :ageMin", {
+        ageMin: criteria.ageMin,
+      });
+    }
+    if (criteria.ageMax != null) {
+      qb.andWhere("date_part('year', age(p.date_of_birth)) <= :ageMax", {
+        ageMax: criteria.ageMax,
+      });
+    }
+    if (respondedIds.length > 0) {
+      qb.andWhere('u.id NOT IN (:...respondedIds)', { respondedIds });
+    }
+    return qb;
+  }
+
+  /** Fisher-Yates shuffle (salinan, tidak mengubah input). */
+  private shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
   }
 
   /**

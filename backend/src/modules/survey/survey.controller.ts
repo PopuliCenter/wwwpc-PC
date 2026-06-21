@@ -20,6 +20,7 @@ import { UserRole, AuditActionType } from '@shared/enums';
 import { Survey } from './entities/survey.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { NotificationSchedulerService } from '@modules/notification/scheduled';
+import { TargetCriteriaDto } from './dto/target-criteria.dto';
 
 /** Ambil IP klien dari request (hormati proxy bila ada). */
 function clientIp(req: any): string {
@@ -138,6 +139,39 @@ export class SurveyController {
     const result = await this.notificationScheduler.sendInvitationsForSurvey(id);
     await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
       kind: 'survey_invitation',
+      recipients: result.recipients,
+      pushed: result.pushed,
+    });
+    return result;
+  }
+
+  /**
+   * Pratinjau jumlah responden yang COCOK kriteria & belum mengisi survei
+   * (sebelum kirim undangan bertarget). Tidak mengirim apa pun.
+   */
+  @Post(':id/target-preview')
+  @HttpCode(HttpStatus.OK)
+  async targetPreview(
+    @Param('id') id: string,
+    @Body() criteria: TargetCriteriaDto,
+  ): Promise<{ matching: number }> {
+    return this.notificationScheduler.countTargetedAudience(id, criteria);
+  }
+
+  /**
+   * Kirim undangan BERTARGET (filter kriteria + opsional ambil acak N) ke
+   * responden yang belum mengisi. Survei harus aktif.
+   */
+  @Post(':id/target-invite')
+  @HttpCode(HttpStatus.OK)
+  async targetInvite(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() criteria: TargetCriteriaDto,
+  ): Promise<{ recipients: number; pushed: number }> {
+    const result = await this.notificationScheduler.sendTargetedInvitations(id, criteria);
+    await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
+      kind: 'survey_invitation_targeted',
       recipients: result.recipients,
       pushed: result.pushed,
     });

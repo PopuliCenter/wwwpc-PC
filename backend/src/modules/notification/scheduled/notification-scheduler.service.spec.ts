@@ -22,9 +22,11 @@ describe('NotificationSchedulerService', () => {
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     andWhere: vi.fn().mockReturnThis(),
     getMany: vi.fn().mockResolvedValue([]),
+    getCount: vi.fn().mockResolvedValue(0),
   };
 
   beforeEach(async () => {
@@ -260,6 +262,77 @@ describe('NotificationSchedulerService', () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
       await expect(service.sendInvitationsForSurvey('missing')).rejects.toThrow();
+    });
+  });
+
+  describe('targeted invitations', () => {
+    it('countTargetedAudience returns the matching count without sending', async () => {
+      mockQueryBuilder.getCount.mockResolvedValue(42);
+
+      const result = await service.countTargetedAudience('survey-1', {
+        provinces: ['JAWA BARAT'],
+        genders: ['male'],
+        ageMin: 20,
+        ageMax: 35,
+      });
+
+      expect(result).toEqual({ matching: 42 });
+      expect(notificationService.sendSurveyInvitation).not.toHaveBeenCalled();
+    });
+
+    it('sendTargetedInvitations dispatches to a random sample of the matching set', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'Survei Target',
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date('2026-07-01T00:00:00.000Z'),
+      });
+      mockQueryBuilder.getMany.mockResolvedValue([
+        { id: 'u1', email: 'a@x.com', fullName: 'A' },
+        { id: 'u2', email: 'b@x.com', fullName: 'B' },
+        { id: 'u3', email: 'c@x.com', fullName: 'C' },
+      ]);
+      deviceTokenService.pushToUsers.mockResolvedValue(1);
+
+      const result = await service.sendTargetedInvitations('survey-1', {
+        genders: ['female'],
+        sampleSize: 2,
+      });
+
+      expect(result.recipients).toBe(2); // ambil acak 2 dari 3
+      expect(notificationService.sendSurveyInvitation).toHaveBeenCalledTimes(1);
+      const sentTo = notificationService.sendSurveyInvitation.mock.calls[0][0];
+      expect(sentTo).toHaveLength(2);
+      expect(feedService.createForUsers).toHaveBeenCalled();
+    });
+
+    it('sendTargetedInvitations rejects when the survey is not active', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'X',
+        status: SurveyStatus.INACTIVE,
+      });
+
+      await expect(
+        service.sendTargetedInvitations('survey-1', {}),
+      ).rejects.toThrow();
+    });
+
+    it('sendTargetedInvitations returns 0 when nobody matches', async () => {
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: 'X',
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date(),
+      });
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      const result = await service.sendTargetedInvitations('survey-1', {
+        provinces: ['ACEH'],
+      });
+
+      expect(result).toEqual({ recipients: 0, pushed: 0 });
+      expect(notificationService.sendSurveyInvitation).not.toHaveBeenCalled();
     });
   });
 });

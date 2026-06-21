@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3, Send } from 'lucide-react';
+import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3, Send, Users } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
+import { TargetedInviteModal } from './TargetedInviteModal';
 import { format } from 'date-fns';
 
 interface Survey {
@@ -44,6 +45,7 @@ export function SurveyListPage() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [targetSurvey, setTargetSurvey] = useState<{ id: string; title: string } | null>(null);
   const navigate = useNavigate();
 
   const categories = [...new Set(surveys.map((s) => s.category).filter(Boolean) as string[])].sort();
@@ -150,7 +152,10 @@ export function SurveyListPage() {
       ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }
       : { icon: PlayCircle, label: 'Aktifkan', cls: 'hover:text-emerald-700', onClick: () => handleActivate(s.id) },
     ...(s.status === 'active'
-      ? [{ icon: Send, label: 'Kirim Undangan', cls: 'hover:text-blue-700', onClick: () => handleSendInvitations(s) }]
+      ? [
+          { icon: Send, label: 'Kirim Undangan', cls: 'hover:text-blue-700', onClick: () => handleSendInvitations(s) },
+          { icon: Users, label: 'Undang Bertarget', cls: 'hover:text-indigo-700', onClick: () => setTargetSurvey({ id: s.id, title: s.title }) },
+        ]
       : []),
     { icon: Archive, label: 'Arsipkan', cls: 'hover:text-gray-900', onClick: () => handleArchive(s.id) },
     { icon: Trash2, label: 'Hapus', cls: 'hover:text-red-700', onClick: () => handleDelete(s.id) },
@@ -280,6 +285,14 @@ export function SurveyListPage() {
           </div>
         )}
       </Card>
+
+      {targetSurvey && (
+        <TargetedInviteModal
+          surveyId={targetSurvey.id}
+          surveyTitle={targetSurvey.title}
+          onClose={() => setTargetSurvey(null)}
+        />
+      )}
     </div>
   );
 }
