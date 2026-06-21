@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -52,9 +52,17 @@ function initials(name?: string): string {
 export function AdminLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   // Drawer sidebar untuk mobile (di desktop sidebar selalu tampil).
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = () => setSidebarOpen(false);
+
+  // Tutup drawer otomatis tiap kali pindah halaman, apa pun pemicunya — jadi
+  // pengguna tak perlu menutupnya berulang kali. State bertahan (layout tak
+  // remount), jadi tetap tertutup di halaman berikutnya.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const visibleNav = navItems.filter((item) => hasRole(user?.role, item.roles));
 
