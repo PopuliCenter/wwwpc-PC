@@ -14,6 +14,7 @@ import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption
 import { StreakTracker } from './entities/streak-tracker.entity';
 import { User } from '@modules/auth/entities';
 import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationFeedService } from '@modules/notification/notification-feed.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   EventType,
@@ -63,6 +64,7 @@ export class RewardService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly notificationService: NotificationService,
+    private readonly feedService: NotificationFeedService,
     private readonly eventEmitter: EventEmitter2,
     @Inject(REWARD_FULFILLMENT_PROVIDER)
     private readonly fulfillmentProvider: RewardFulfillmentProvider,
@@ -112,7 +114,47 @@ export class RewardService {
       `Points credited: userId=${userId}, amount=${amount}, reason=${reason}, referenceId=${referenceId || 'none'}`,
     );
 
+    // Notifikasi "dapat poin" (feed + push). Survei selesai diberi judul khusus.
+    const isSurvey = reason === PointCreditReason.SURVEY_COMPLETION;
+    void this.feedService
+      .notifyUser(
+        userId,
+        {
+          type: isSurvey ? 'survey_done' : 'point_earned',
+          title: isSurvey ? 'Survei selesai 🎉' : 'Poin bertambah',
+          body: isSurvey
+            ? `Anda mendapat ${amount.toLocaleString('id-ID')} poin dari survei.`
+            : `Anda mendapat ${amount.toLocaleString('id-ID')} poin (${this.reasonLabel(reason)}).`,
+          link: '/rewards',
+        },
+        true,
+      )
+      .catch(() => {
+        /* notifikasi best-effort */
+      });
+
     return saved;
+  }
+
+  /** Label ramah untuk alasan kredit poin (dipakai di notifikasi). */
+  private reasonLabel(reason: PointCreditReason): string {
+    switch (reason) {
+      case PointCreditReason.REGISTRATION:
+        return 'bonus registrasi';
+      case PointCreditReason.PROFILE_COMPLETION:
+        return 'melengkapi data diri';
+      case PointCreditReason.SURVEY_COMPLETION:
+        return 'menyelesaikan survei';
+      case PointCreditReason.STREAK_BONUS:
+        return 'bonus streak';
+      default:
+        return 'kredit poin';
+    }
+  }
+
+  /** Nama reward dari id katalog (mis. 'pulsa-5000' → 'Pulsa Rp 5.000'). */
+  private rewardNameOf(rewardId: string): string {
+    return REWARD_CATALOG.find((r) => r.id === rewardId)?.name ?? 'Reward';
   }
 
   /**
@@ -611,6 +653,22 @@ export class RewardService {
     redemption.providerRefId = redemption.providerRefId ?? this.generateRefId();
     await this.redemptionRepository.save(redemption);
 
+    // Notifikasi "poin keluar" (penukaran diproses).
+    void this.feedService
+      .notifyUser(
+        userId,
+        {
+          type: 'point_spent',
+          title: 'Poin ditukar',
+          body: `-${redemption.pointsSpent.toLocaleString('id-ID')} poin untuk ${this.rewardNameOf(redemption.rewardType)}. Sedang diproses.`,
+          link: '/rewards',
+        },
+        true,
+      )
+      .catch(() => {
+        /* notifikasi best-effort */
+      });
+
     this.logger.log(
       `[AUDIT] Reward redemption: userId=${userId}, rewardType=${redemption.rewardType}, points=${redemption.pointsSpent}, destination=${redemption.destinationNumber}, provider=${this.fulfillmentProvider.name}`,
     );
@@ -663,6 +721,22 @@ export class RewardService {
     if (outcome.status === 'completed') {
       redemption.status = RedemptionStatus.COMPLETED;
       redemption.providerSn = outcome.sn ?? redemption.providerSn ?? null;
+      // Notifikasi "reward berhasil dikirim" (mis. pulsa). Berlaku utk konfirmasi
+      // sinkron maupun callback async karena applyOutcome dipakai keduanya.
+      void this.feedService
+        .notifyUser(
+          redemption.userId,
+          {
+            type: 'reward_fulfilled',
+            title: 'Reward berhasil dikirim 🎁',
+            body: `${this.rewardNameOf(redemption.rewardType)} telah dikirim ke ${redemption.destinationNumber ?? 'tujuan Anda'}.`,
+            link: '/rewards',
+          },
+          true,
+        )
+        .catch(() => {
+          /* notifikasi best-effort */
+        });
     } else if (outcome.status === 'failed') {
       redemption.status = RedemptionStatus.FAILED;
       await this.refundRedemption(redemption);

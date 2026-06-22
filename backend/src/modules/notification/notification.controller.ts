@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
+  Param,
   Body,
   Query,
   Req,
@@ -56,6 +58,22 @@ export class NotificationController {
   @HttpCode(HttpStatus.OK)
   async markRead(@Req() req: any, @Body() dto: MarkReadDto): Promise<{ ok: true }> {
     await this.feedService.markRead(req.user.userId, dto.ids);
+    return { ok: true };
+  }
+
+  /** Hapus SEMUA notifikasi milik user. (Sebelum '/feed/:id' agar tidak bentrok.) */
+  @Delete('feed')
+  @HttpCode(HttpStatus.OK)
+  async clearAll(@Req() req: any): Promise<{ ok: true }> {
+    await this.feedService.clearAll(req.user.userId);
+    return { ok: true };
+  }
+
+  /** Hapus satu notifikasi milik user. */
+  @Delete('feed/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteOne(@Req() req: any, @Param('id') id: string): Promise<{ ok: true }> {
+    await this.feedService.deleteOne(req.user.userId, id);
     return { ok: true };
   }
 }

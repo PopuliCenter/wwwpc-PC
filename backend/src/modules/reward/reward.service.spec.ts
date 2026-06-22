@@ -9,6 +9,7 @@ import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption
 import { StreakTracker } from './entities/streak-tracker.entity';
 import { User } from '@modules/auth/entities';
 import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationFeedService } from '@modules/notification/notification-feed.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REWARD_FULFILLMENT_PROVIDER } from './fulfillment';
 import { PointCreditReason } from '@shared/enums';
@@ -79,6 +80,10 @@ describe('RewardService', () => {
         {
           provide: NotificationService,
           useValue: { sendOtpEmail: vi.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: NotificationFeedService,
+          useValue: { notifyUser: vi.fn().mockResolvedValue(undefined) },
         },
         {
           provide: EventEmitter2,

@@ -140,6 +140,16 @@ export function NotificationBell() {
               })
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              navigate('/notifications');
+            }}
+            className="w-full border-t border-gray-100 px-4 py-2.5 text-center text-xs font-medium text-primary-600 hover:bg-gray-50"
+          >
+            Lihat semua notifikasi
+          </button>
         </div>
       )}
     </div>

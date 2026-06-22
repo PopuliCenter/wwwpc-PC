@@ -9,8 +9,16 @@ import { UserStatus } from '@modules/auth/entities/user.entity';
 import { DeviceTokenService } from './device-token.service';
 import { NotificationService } from './notification.service';
 
+export type FeedItemType =
+  | 'survey_new'
+  | 'survey_done'
+  | 'point_earned'
+  | 'point_spent'
+  | 'reward_fulfilled'
+  | 'announcement';
+
 export interface FeedItemInput {
-  type: 'survey_new' | 'announcement';
+  type: FeedItemType;
   title: string;
   body: string;
   link?: string | null;
@@ -57,6 +65,37 @@ export class NotificationFeedService {
       }),
     );
     await this.feedRepository.save(rows, { chunk: 500 });
+  }
+
+  /**
+   * Notifikasi untuk SATU user: tulis ke feed (lonceng) + opsional push ke
+   * perangkatnya. Best-effort — push yang gagal tidak menggagalkan pemanggil.
+   */
+  async notifyUser(
+    userId: string,
+    item: FeedItemInput,
+    push = false,
+  ): Promise<void> {
+    await this.createForUsers([userId], item);
+    if (push) {
+      await this.deviceTokenService
+        .pushToUsers([userId], {
+          title: item.title,
+          body: item.body,
+          data: item.link ? { link: item.link } : {},
+        })
+        .catch((e) => this.logger.warn(`Gagal push notifikasi user: ${e.message}`));
+    }
+  }
+
+  /** Hapus satu notifikasi milik user. */
+  async deleteOne(userId: string, id: string): Promise<void> {
+    await this.feedRepository.delete({ id, userId });
+  }
+
+  /** Hapus SEMUA notifikasi milik user (bersihkan tumpukan). */
+  async clearAll(userId: string): Promise<void> {
+    await this.feedRepository.delete({ userId });
   }
 
   /** Daftar notifikasi terbaru milik user. */
