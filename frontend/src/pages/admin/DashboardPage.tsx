@@ -76,21 +76,29 @@ interface CompletionRate {
 const COLORS = ['#4f46e5', '#f97316', '#0ea5e9', '#10b981', '#a855f7', '#f59e0b', '#64748b', '#ec4899'];
 const CHART_PRIMARY = '#4f46e5';
 
+// Aksen warna per-kartu (kelas literal agar terbaca Tailwind JIT).
+const CARD_ACCENTS: Record<string, string> = {
+  indigo: 'bg-indigo-50 text-indigo-600 ring-indigo-100',
+  sky: 'bg-sky-50 text-sky-600 ring-sky-100',
+  orange: 'bg-orange-50 text-orange-600 ring-orange-100',
+  emerald: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+};
+
 function OverviewCards({ data, loading }: { data: OverviewData | null; loading: boolean }) {
-  const cards: { label: string; value: number; icon: LucideIcon }[] = [
-    { label: 'Registrasi 24 Jam', value: data?.registrationsLast24h ?? 0, icon: FileText },
-    { label: 'Total Responden', value: data?.totalRespondents ?? 0, icon: Users },
-    { label: 'Survei Aktif', value: data?.activeSurveys ?? 0, icon: ClipboardList },
-    { label: 'Total Respons', value: data?.totalResponses ?? 0, icon: BarChart3 },
+  const cards: { label: string; value: number; icon: LucideIcon; accent: string }[] = [
+    { label: 'Registrasi 24 Jam', value: data?.registrationsLast24h ?? 0, icon: FileText, accent: 'indigo' },
+    { label: 'Total Responden', value: data?.totalRespondents ?? 0, icon: Users, accent: 'sky' },
+    { label: 'Survei Aktif', value: data?.activeSurveys ?? 0, icon: ClipboardList, accent: 'orange' },
+    { label: 'Total Respons', value: data?.totalResponses ?? 0, icon: BarChart3, accent: 'emerald' },
   ];
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="animate-pulse">
-            <div className="mb-3 h-4 w-3/4 rounded bg-gray-200" />
-            <div className="h-8 w-1/2 rounded bg-gray-200" />
+            <div className="mb-3 h-3.5 w-3/4 rounded bg-gray-200" />
+            <div className="h-7 w-1/2 rounded bg-gray-200" />
           </Card>
         ))}
       </div>
@@ -98,17 +106,19 @@ function OverviewCards({ data, loading }: { data: OverviewData | null; loading: 
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {cards.map(({ label, value, icon: Icon }) => (
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {cards.map(({ label, value, icon: Icon, accent }) => (
         <Card key={label}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">{label}</p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-gray-500 sm:text-sm">{label}</p>
+              <p className="mt-1.5 text-xl font-bold tracking-tight text-gray-900 sm:text-2xl">
                 {value.toLocaleString('id-ID')}
               </p>
             </div>
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary-50 text-primary-600 ring-1 ring-inset ring-primary-100">
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${CARD_ACCENTS[accent]}`}
+            >
               <Icon className="h-5 w-5" strokeWidth={1.85} />
             </span>
           </div>
