@@ -6,6 +6,8 @@ export interface User {
   fullName: string;
   role: UserRole;
   phone?: string;
+  /** URL avatar (foto Google / avatar pilihan). Kosong/null = pakai inisial. */
+  avatarUrl?: string | null;
   isActive: boolean;
   /** Apakah data diri sudah lengkap. Gerbang: false → wajib lengkapi dulu. */
   profileCompleted?: boolean;

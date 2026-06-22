@@ -20,6 +20,8 @@ export interface UserProfile {
   profileCompleted?: boolean;
   /** Nomor telepon (null untuk akun Google yang belum mengisi) — gerbang survei. */
   phone?: string | null;
+  /** URL avatar (foto Google / avatar pilihan). Null = pakai inisial. */
+  avatarUrl?: string | null;
 }
 
 export interface SessionInfo {

@@ -19,4 +19,10 @@ export class UpdateProfileDto {
   @IsEmail({}, { message: 'Email tidak valid' })
   @MaxLength(255)
   email?: string;
+
+  /** URL avatar (foto Google / avatar generated). String kosong = hapus avatar. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  avatarUrl?: string;
 }

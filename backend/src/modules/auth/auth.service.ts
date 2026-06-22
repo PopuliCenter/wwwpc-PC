@@ -25,6 +25,7 @@ export interface ProfileResult {
   email: string;
   phone: string | null;
   fullName: string;
+  avatarUrl: string | null;
   role: UserRole;
   status: UserStatus;
   emailVerified: boolean;
@@ -149,6 +150,7 @@ export class AuthService {
         role: user.role,
         profileCompleted: user.profileCompleted,
         phone: user.phone,
+        avatarUrl: user.avatarUrl,
       },
     };
   }
@@ -176,6 +178,11 @@ export class AuthService {
         user.emailVerified = true;
         await this.userRepository.update(user.id, { emailVerified: true });
       }
+      // Pakai foto Google sebagai avatar bila user belum memilih avatar sendiri.
+      if (!user.avatarUrl && profile.picture) {
+        user.avatarUrl = profile.picture;
+        await this.userRepository.update(user.id, { avatarUrl: profile.picture });
+      }
     } else {
       // Akun responden baru. Password acak (login hanya via Google); tanpa nomor HP.
       const randomHash = await bcrypt.hash(
@@ -188,6 +195,7 @@ export class AuthService {
           phone: null,
           passwordHash: randomHash,
           fullName: profile.name,
+          avatarUrl: profile.picture ?? null,
           role: UserRole.RESPONDENT,
           status: UserStatus.ACTIVE,
           emailVerified: true,
@@ -206,7 +214,7 @@ export class AuthService {
    */
   protected async verifyGoogleToken(
     idToken: string,
-  ): Promise<{ email: string; emailVerified: boolean; name: string }> {
+  ): Promise<{ email: string; emailVerified: boolean; name: string; picture: string | null }> {
     const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) {
       throw new BadRequestException('Login Google belum dikonfigurasi di server.');
@@ -221,6 +229,7 @@ export class AuthService {
       email: payload.email.toLowerCase(),
       emailVerified: payload.email_verified === true,
       name: payload.name ?? payload.email.split('@')[0],
+      picture: payload.picture ?? null,
     };
   }
 
@@ -258,6 +267,7 @@ export class AuthService {
         role: user.role,
         profileCompleted: user.profileCompleted,
         phone: user.phone,
+        avatarUrl: user.avatarUrl,
       },
     };
   }
@@ -447,7 +457,7 @@ export class AuthService {
   /** Edit data diri sendiri: fullName, phone, email (cek keunikan email & phone). */
   async updateProfile(
     userId: string,
-    dto: { fullName?: string; phone?: string; email?: string },
+    dto: { fullName?: string; phone?: string; email?: string; avatarUrl?: string },
   ): Promise<ProfileResult> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -482,6 +492,12 @@ export class AuthService {
         throw new BadRequestException('Email sudah dipakai akun lain');
       }
       updates.email = dto.email;
+    }
+
+    if (dto.avatarUrl !== undefined) {
+      // String kosong → null (kembali ke inisial). Terima URL http(s) saja.
+      const url = dto.avatarUrl.trim();
+      updates.avatarUrl = url && /^https?:\/\//i.test(url) ? url.slice(0, 500) : null;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -525,6 +541,7 @@ export class AuthService {
       email: user.email,
       phone: user.phone,
       fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
       role: user.role,
       status: user.status,
       emailVerified: user.emailVerified,

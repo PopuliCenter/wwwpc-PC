@@ -2,6 +2,7 @@ import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { WifiOff, CloudUpload, FileText, Gift, User, LifeBuoy } from 'lucide-react';
 import { NotificationBell } from '@/components/common/NotificationBell';
+import { Avatar } from '@/components/common/Avatar';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePointsStore } from '@/stores/points.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -101,6 +102,9 @@ export function RespondentLayout() {
                 </NavLink>
               )}
               <NotificationBell />
+              <NavLink to="/profile" aria-label="Profil" className="shrink-0">
+                <Avatar name={user?.fullName} url={user?.avatarUrl} size={32} />
+              </NavLink>
             </div>
           </div>
         </header>

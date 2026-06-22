@@ -32,6 +32,10 @@ export class User {
   @Column({ type: 'varchar', length: 255, name: 'full_name' })
   fullName: string;
 
+  /** URL avatar (foto Google atau avatar pilihan). Null = pakai inisial. */
+  @Column({ type: 'varchar', length: 500, nullable: true, name: 'avatar_url' })
+  avatarUrl: string | null;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.RESPONDENT })
   role: UserRole;
 

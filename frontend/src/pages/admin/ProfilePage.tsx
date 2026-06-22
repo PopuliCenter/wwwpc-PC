@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Lock, BadgeCheck, BarChart3 } from 'lucide-react';
+import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
+import { Avatar } from '@/components/common/Avatar';
 import { useAuthStore } from '@/stores/auth.store';
 import type { UserRole } from '@/types';
 
@@ -23,6 +24,7 @@ interface ProfileData {
   email: string;
   phone: string;
   fullName: string;
+  avatarUrl: string | null;
   role: UserRole;
   status: string;
   emailVerified: boolean;
@@ -36,16 +38,6 @@ const GENDER_LABELS: Record<string, string> = {
   female: 'Perempuan',
   other: 'Lainnya',
 };
-
-function initials(name?: string): string {
-  if (!name) return 'PC';
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('') || 'PC';
-}
 
 function fmtDate(value: string | null): string {
   if (!value) return '-';
@@ -83,6 +75,8 @@ export function ProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
 
   // Form data diri
   const [fullName, setFullName] = useState('');
@@ -167,6 +161,23 @@ export function ProfilePage() {
     }
   };
 
+  // Set / hapus avatar (url null/'' = kembali ke inisial). Sinkron ke store agar
+  // header/sidebar ikut berubah.
+  const applyAvatar = async (url: string | null) => {
+    setAvatarSaving(true);
+    setProfileMsg(null);
+    try {
+      const updated = await api.patch<ProfileData>('/auth/profile', { avatarUrl: url ?? '' });
+      setProfile(updated);
+      if (user) setUser({ ...user, avatarUrl: updated.avatarUrl });
+      setAvatarPickerOpen(false);
+    } catch (e) {
+      setProfileMsg({ ok: false, text: errMessage(e) });
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-6 text-center text-gray-500">Memuat profil...</div>;
   }
@@ -181,6 +192,12 @@ export function ProfilePage() {
   const phoneNeeded = isRespondent && !profile?.phone;
   const demo = profile?.demographics ?? null;
 
+  // Avatar generated (DiceBear) seed dari nama — tanpa upload file.
+  const avatarSeed = encodeURIComponent(profile?.fullName || profile?.email || 'populi');
+  const generatedAvatars = ['avataaars', 'bottts', 'fun-emoji', 'thumbs', 'identicon', 'adventurer'].map(
+    (style) => `https://api.dicebear.com/9.x/${style}/svg?seed=${avatarSeed}`,
+  );
+
   // Baris read-only untuk data demografi (pembobot) — tak bisa diubah responden.
   const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
     <div>
@@ -192,8 +209,16 @@ export function ProfilePage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xl font-bold text-white">
-          {initials(profile?.fullName)}
+        <div className="relative shrink-0">
+          <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
+          <button
+            type="button"
+            onClick={() => setAvatarPickerOpen((v) => !v)}
+            aria-label="Ubah foto profil"
+            className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-primary-600 p-1.5 text-white shadow-sm transition-colors hover:bg-primary-700"
+          >
+            <Camera className="h-3.5 w-3.5" />
+          </button>
         </div>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-bold text-gray-900">
@@ -212,6 +237,56 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Pemilih avatar */}
+      {avatarPickerOpen && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-900">Pilih Avatar</h2>
+            <button
+              type="button"
+              onClick={() => setAvatarPickerOpen(false)}
+              className="text-xs text-gray-400 hover:text-gray-600"
+            >
+              Tutup
+            </button>
+          </div>
+          <p className="mb-3 text-xs text-gray-500">
+            Pilih salah satu avatar, atau hapus untuk memakai inisial nama. Foto akun Google
+            terpasang otomatis saat login.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {generatedAvatars.map((url) => (
+              <button
+                key={url}
+                type="button"
+                disabled={avatarSaving}
+                onClick={() => applyAvatar(url)}
+                className={`rounded-full ring-2 transition disabled:opacity-50 ${
+                  profile?.avatarUrl === url ? 'ring-primary-500' : 'ring-transparent hover:ring-gray-200'
+                }`}
+              >
+                <img
+                  src={url}
+                  alt="Pilihan avatar"
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 rounded-full bg-gray-50"
+                />
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={avatarSaving || !profile?.avatarUrl}
+            onClick={() => applyAvatar(null)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Hapus foto (pakai inisial)
+          </button>
+          {avatarSaving && <p className="mt-2 text-xs text-gray-400">Menyimpan…</p>}
+        </div>
+      )}
 
       {/* Data diri */}
       <form onSubmit={handleSaveProfile} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
