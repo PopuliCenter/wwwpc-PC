@@ -18,6 +18,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/services/api';
+import { showAppNotice } from '@/stores/notification.store';
 import { getProvinces } from '@/utils/wilayah';
 
 // ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
@@ -1485,7 +1486,7 @@ export function SurveyEditPage() {
         setSettingsRewardDescription(survey.rewardConfig?.manualRewardType ?? '');
         setQuestions(mapped);
       } catch {
-        alert('Gagal memuat survei');
+        showAppNotice({ title: 'Gagal memuat survei', tone: 'error' });
         navigate('/admin/surveys');
       } finally {
         setLoading(false);

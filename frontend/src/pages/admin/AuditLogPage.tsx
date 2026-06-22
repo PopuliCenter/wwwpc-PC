@@ -3,6 +3,7 @@ import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 // Types
 interface AuditLogEntry {
@@ -109,6 +110,7 @@ export function AuditLogPage() {
   const isSuperAdmin = user?.role === 'super_admin';
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   const limit = 20;
 
@@ -197,7 +199,13 @@ export function AuditLogPage() {
 
   const handleDeleteSelected = async () => {
     if (selected.size === 0) return;
-    if (!window.confirm(`Hapus ${selected.size} log terpilih secara PERMANEN?`)) return;
+    const ok = await confirm({
+      title: 'Hapus log audit',
+      message: `Hapus ${selected.size} log terpilih secara PERMANEN?`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     setActionMsg(null);
     try {
       const res = await api.post<{ deleted: number }>('/audit/delete', { ids: [...selected] });
@@ -219,7 +227,13 @@ export function AuditLogPage() {
       setActionMsg('Jumlah hari tidak valid.');
       return;
     }
-    if (!window.confirm(`Hapus PERMANEN semua log lebih lama dari ${days} hari?`)) return;
+    const ok = await confirm({
+      title: 'Bersihkan log lama',
+      message: `Hapus PERMANEN semua log lebih lama dari ${days} hari?`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     setActionMsg(null);
     try {
       const res = await api.post<{ deleted: number }>('/audit/purge', { olderThanDays: days });
@@ -236,6 +250,7 @@ export function AuditLogPage() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
         <div className="flex items-center gap-2">

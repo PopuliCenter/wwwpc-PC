@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 interface Assignment {
   surveyorId: string;
@@ -43,6 +44,7 @@ function parseNumbers(input: string, prefix = ''): string[] {
 export function SurveySurveyorsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirm();
   const [surveyTitle, setSurveyTitle] = useState('');
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [available, setAvailable] = useState<AvailableSurveyor[]>([]);
@@ -122,9 +124,13 @@ export function SurveySurveyorsPage() {
   };
 
   const handleRemove = async (surveyorId: string) => {
-    if (!window.confirm('Lepas surveyor ini dari survei? Respons yang sudah masuk tetap tersimpan.')) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Lepas surveyor',
+      message: 'Lepas surveyor ini dari survei? Respons yang sudah masuk tetap tersimpan.',
+      confirmText: 'Lepas',
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     try {
       await api.delete(`/surveys/${id}/surveyors/${surveyorId}`);
@@ -141,6 +147,7 @@ export function SurveySurveyorsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      {dialog}
       <div className="flex items-center gap-4">
         <button onClick={() => navigate('/admin/surveys')} className="text-gray-600 hover:text-gray-900">
           ← Kembali

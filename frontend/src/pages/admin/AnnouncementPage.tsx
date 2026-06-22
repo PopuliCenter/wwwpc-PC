@@ -1,12 +1,14 @@
 import { useState, type FormEvent } from 'react';
 import { Megaphone, Send } from 'lucide-react';
 import { api } from '@/services/api';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 /**
  * Pengumuman/Berita ke responden. Disiarkan ke lonceng (in-app) semua responden
  * aktif, dan opsional sekalian push ke perangkat (bila FCM aktif).
  */
 export function AnnouncementPage() {
+  const { confirm, dialog } = useConfirm();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [link, setLink] = useState('');
@@ -24,7 +26,13 @@ export function AnnouncementPage() {
       setError('Judul dan isi pengumuman wajib diisi.');
       return;
     }
-    if (!confirm('Kirim pengumuman ini ke semua responden aktif?')) return;
+    const ok = await confirm({
+      title: 'Kirim pengumuman',
+      message: 'Kirim pengumuman ini ke semua responden aktif?',
+      confirmText: 'Kirim',
+      danger: false,
+    });
+    if (!ok) return;
     setSubmitting(true);
     try {
       const res = await api.post<{ recipients: number; pushed: number; emailed: number }>('/announcements', {
@@ -55,6 +63,7 @@ export function AnnouncementPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {dialog}
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
           <Megaphone className="h-6 w-6 text-primary-600" /> Pengumuman

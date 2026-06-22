@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 // Types
 interface UserItem {
@@ -451,6 +452,8 @@ export function UserManagementPage() {
   // Edit user modal
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
 
+  const { confirm, dialog } = useConfirm();
+
   const limit = 20;
 
   const fetchUsers = useCallback(async () => {
@@ -517,7 +520,13 @@ export function UserManagementPage() {
   };
 
   const handleDelete = async (user: { id: string; fullName: string; email: string }) => {
-    if (!window.confirm(`Hapus permanen akun "${user.fullName}" (${user.email})? Tindakan ini tidak dapat dibatalkan.`)) {
+    const ok = await confirm({
+      title: 'Hapus akun',
+      message: `Hapus permanen akun "${user.fullName}" (${user.email})? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) {
       return;
     }
     try {
@@ -533,6 +542,7 @@ export function UserManagementPage() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Pengguna</h1>
         <div className="flex gap-2">

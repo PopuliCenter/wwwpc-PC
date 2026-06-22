@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, FileSpreadsheet, FileText, Loader2, Trash2, ChevronUp, ChevronDown, Upload, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '@/services/api';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 interface Respondent {
   id: string;
@@ -74,6 +75,7 @@ export function RespondentsPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,7 +144,13 @@ export function RespondentsPage() {
     setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const handleDelete = async (r: Respondent) => {
-    if (!window.confirm(`Hapus permanen responden "${r.fullName}" (${r.email})?`)) return;
+    const ok = await confirm({
+      title: 'Hapus responden',
+      message: `Hapus permanen responden "${r.fullName}" (${r.email})?`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/users/${r.id}`);
       setRespondents((prev) => prev.filter((x) => x.id !== r.id));
@@ -154,7 +162,13 @@ export function RespondentsPage() {
   const handleBulkDelete = async () => {
     const ids = displayed.filter((r) => selected.has(r.id)).map((r) => r.id);
     if (ids.length === 0) return;
-    if (!window.confirm(`Hapus permanen ${ids.length} responden terpilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+    const ok = await confirm({
+      title: 'Hapus responden terpilih',
+      message: `Hapus permanen ${ids.length} responden terpilih? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     setBulkBusy(true);
     setError('');
     setInfo('');
@@ -282,6 +296,7 @@ export function RespondentsPage() {
 
   return (
     <div className="space-y-4">
+      {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Responden</h1>

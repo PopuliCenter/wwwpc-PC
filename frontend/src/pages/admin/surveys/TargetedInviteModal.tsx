@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Users, Send, Search } from 'lucide-react';
 import { api } from '@/services/api';
 import { getProvinces, type WilayahItem } from '@/utils/wilayah';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 const EDUCATIONS = ['SD', 'SMP', 'SMA/SMK', 'D1/D2/D3', 'D4/S1', 'S2', 'S3', 'Lainnya'];
 
@@ -28,6 +29,7 @@ export function TargetedInviteModal({
   surveyTitle: string;
   onClose: () => void;
 }) {
+  const { confirm, dialog } = useConfirm();
   const [provincesList, setProvincesList] = useState<WilayahItem[]>([]);
   const [provinces, setProvinces] = useState<string[]>([]);
   const [genders, setGenders] = useState<string[]>([]);
@@ -86,8 +88,13 @@ export function TargetedInviteModal({
       : n && matching !== null
         ? `${Math.min(n, matching)}`
         : (matching ?? 'responden yang cocok');
-    if (!confirm(`Kirim undangan survei "${surveyTitle}" ke ${target} responden?`))
-      return;
+    const ok = await confirm({
+      title: 'Kirim undangan',
+      message: `Kirim undangan survei "${surveyTitle}" ke ${target} responden?`,
+      confirmText: 'Kirim',
+      danger: false,
+    });
+    if (!ok) return;
     setBusy('send');
     try {
       const body = buildCriteria() as Criteria;
@@ -112,6 +119,7 @@ export function TargetedInviteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+      {dialog}
       <div className="my-8 w-full max-w-lg rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
           <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">

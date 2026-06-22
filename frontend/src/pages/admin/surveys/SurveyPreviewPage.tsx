@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { showAppNotice } from '@/stores/notification.store';
 
 interface BackendQuestion {
   id: string;
@@ -184,7 +185,7 @@ export function SurveyPreviewPage() {
         setDescription(survey.description ?? '');
         setQuestions((rawQuestions ?? []).map(mapQuestion).filter((q) => q.enabled));
       } catch {
-        alert('Gagal memuat survei');
+        showAppNotice({ title: 'Gagal memuat survei', tone: 'error' });
         navigate('/admin/surveys');
       } finally {
         setLoading(false);

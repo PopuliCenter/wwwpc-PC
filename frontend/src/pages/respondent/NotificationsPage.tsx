@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 interface FeedItem {
   id: string;
@@ -57,6 +58,7 @@ function timeAgo(iso: string): string {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirm();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Category>('semua');
@@ -95,13 +97,20 @@ export function NotificationsPage() {
 
   const clearAll = async () => {
     if (!items.length) return;
-    if (!window.confirm('Hapus semua notifikasi?')) return;
+    const ok = await confirm({
+      title: 'Hapus notifikasi',
+      message: 'Hapus semua notifikasi?',
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     setItems([]);
     await api.delete('/notifications/feed').catch(() => {});
   };
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      {dialog}
       <div className="flex items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
           <Bell className="h-6 w-6 text-primary-600" /> Notifikasi

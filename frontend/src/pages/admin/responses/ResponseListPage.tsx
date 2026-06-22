@@ -237,7 +237,7 @@ export function ResponseListPage() {
 
   const handleExport = async (fmt: 'csv' | 'excel' | 'pdf' | 'json') => {
     if (!filters.surveyId) {
-      alert('Pilih survei dulu di filter untuk mengekspor data.');
+      showAppNotice({ title: 'Pilih survei dulu', body: 'Pilih survei di filter untuk mengekspor data.', tone: 'warning' });
       return;
     }
     try {
@@ -249,7 +249,7 @@ export function ResponseListPage() {
       const job = await api.post<{ id: string }>(`/export/${fmt}?${params.toString()}`);
       await pollAndDownloadExport(job.id);
     } catch (e) {
-      alert((e as Error).message || `Gagal export ${fmt.toUpperCase()}`);
+      showAppNotice({ title: `Gagal export ${fmt.toUpperCase()}`, body: (e as { message?: string })?.message, tone: 'error' });
     }
   };
 
@@ -258,7 +258,7 @@ export function ResponseListPage() {
       await api.post('/rewards/mark-distributed', { responseIds: ids });
       fetchResponses();
     } catch {
-      alert('Gagal menandai reward');
+      showAppNotice({ title: 'Gagal menandai reward', tone: 'error' });
     }
   };
 

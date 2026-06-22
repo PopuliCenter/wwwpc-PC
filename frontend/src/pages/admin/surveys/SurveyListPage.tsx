@@ -6,6 +6,8 @@ import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { TargetedInviteModal } from './TargetedInviteModal';
+import { useConfirm } from '@/components/common/ConfirmDialog';
+import { showAppNotice } from '@/stores/notification.store';
 import { format } from 'date-fns';
 
 interface Survey {
@@ -46,6 +48,7 @@ export function SurveyListPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [targetSurvey, setTargetSurvey] = useState<{ id: string; title: string } | null>(null);
+  const { confirm, dialog } = useConfirm();
   const navigate = useNavigate();
 
   const categories = [...new Set(surveys.map((s) => s.category).filter(Boolean) as string[])].sort();
@@ -76,7 +79,7 @@ export function SurveyListPage() {
       await api.post(`/surveys/${id}/duplicate`);
       fetchSurveys();
     } catch {
-      alert('Gagal menduplikasi survei');
+      showAppNotice({ title: 'Gagal menduplikasi survei', tone: 'error' });
     }
   };
 
@@ -86,7 +89,7 @@ export function SurveyListPage() {
       fetchSurveys();
     } catch (err: unknown) {
       const e = err as { message?: string };
-      alert(e.message || 'Gagal mengaktifkan survei');
+      showAppNotice({ title: 'Gagal mengaktifkan survei', body: e.message, tone: 'error' });
     }
   };
 
@@ -96,7 +99,7 @@ export function SurveyListPage() {
       fetchSurveys();
     } catch (err: unknown) {
       const e = err as { message?: string };
-      alert(e.message || 'Gagal menonaktifkan survei');
+      showAppNotice({ title: 'Gagal menonaktifkan survei', body: e.message, tone: 'error' });
     }
   };
 
@@ -106,41 +109,50 @@ export function SurveyListPage() {
       fetchSurveys();
     } catch (err: unknown) {
       const e = err as { message?: string };
-      alert(e.message || 'Gagal mengarsipkan survei');
+      showAppNotice({ title: 'Gagal mengarsipkan survei', body: e.message, tone: 'error' });
     }
   };
 
   // Kirim email undangan "survei baru" ke responden yang belum mengisi (manual).
   const handleSendInvitations = async (s: Survey) => {
-    if (
-      !confirm(
-        `Kirim email undangan survei "${s.title}" ke responden yang belum mengisi?`,
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: 'Kirim undangan',
+      message: `Kirim email undangan survei "${s.title}" ke responden yang belum mengisi?`,
+      confirmText: 'Kirim',
+      danger: false,
+    });
+    if (!ok) return;
     try {
       const res = await api.post<{ recipients: number; pushed: number }>(
         `/surveys/${s.id}/invitations`,
       );
-      alert(
-        res.recipients > 0
-          ? `Undangan email dikirim ke ${res.recipients} responden` +
+      showAppNotice({
+        title:
+          res.recipients > 0
+            ? `Undangan email dikirim ke ${res.recipients} responden` +
               (res.pushed > 0 ? `, push ke ${res.pushed} perangkat.` : '.')
-          : 'Tidak ada responden yang perlu diundang (semua sudah mengisi atau belum ada responden aktif).',
-      );
+            : 'Tidak ada responden yang perlu diundang (semua sudah mengisi atau belum ada responden aktif).',
+        tone: 'success',
+      });
     } catch (err: unknown) {
       const e = err as { message?: string };
-      alert(e.message || 'Gagal mengirim undangan');
+      showAppNotice({ title: 'Gagal mengirim undangan', body: e.message, tone: 'error' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus survei ini?')) return;
+    const ok = await confirm({
+      title: 'Hapus survei',
+      message: 'Apakah Anda yakin ingin menghapus survei ini?',
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/surveys/${id}`);
       fetchSurveys();
     } catch {
-      alert('Gagal menghapus survei');
+      showAppNotice({ title: 'Gagal menghapus survei', tone: 'error' });
     }
   };
 
@@ -293,6 +305,7 @@ export function SurveyListPage() {
           onClose={() => setTargetSurvey(null)}
         />
       )}
+      {dialog}
     </div>
   );
 }

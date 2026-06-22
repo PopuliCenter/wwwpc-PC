@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
+import { showAppNotice } from '@/stores/notification.store';
 import { format } from 'date-fns';
 
 interface AnswerItem {
@@ -36,7 +37,7 @@ export function ResponseDetailPage() {
         const result = await api.get<ResponseDetail>(`/responses/${id}`);
         setResponse(result);
       } catch {
-        alert('Gagal memuat detail respons');
+        showAppNotice({ title: 'Gagal memuat detail respons', tone: 'error' });
         navigate('/admin/responses');
       } finally {
         setLoading(false);
