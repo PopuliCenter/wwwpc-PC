@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { GeolocationResult } from '@/types';
+import { getPosition } from '@/utils/geo';
 
 interface UseGeolocationReturn {
   location: GeolocationResult | null;
@@ -13,66 +14,47 @@ export function useGeolocation(): UseGeolocationReturn {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const requestLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError('Geolocation tidak didukung oleh browser Anda');
-      return;
-    }
-
+  const requestLocation = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
+    // getPosition() menangani native (plugin + izin lokasi Android) maupun web.
+    const pos = await getPosition({
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 300000,
+    });
+    if (!pos) {
+      setIsLoading(false);
+      setError('Tidak bisa mendapatkan lokasi. Izinkan akses lokasi & aktifkan GPS.');
+      return;
+    }
 
-        try {
-          // Reverse geocode using a free API
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=id`,
-          );
+    const { latitude, longitude } = pos;
+    try {
+      // Reverse geocode using a free API
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=id`,
+      );
 
-          if (response.ok) {
-            const data = await response.json();
-            const address = data.address || {};
-            setLocation({
-              latitude,
-              longitude,
-              city: address.city || address.town || address.county || '',
-              province: address.state || '',
-            });
-          } else {
-            setLocation({ latitude, longitude });
-          }
-        } catch {
-          // If reverse geocoding fails, still return coordinates
-          setLocation({ latitude, longitude });
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      (err) => {
-        setIsLoading(false);
-        switch (err.code) {
-          case err.PERMISSION_DENIED:
-            setError('Izin lokasi ditolak. Silakan aktifkan di pengaturan browser.');
-            break;
-          case err.POSITION_UNAVAILABLE:
-            setError('Informasi lokasi tidak tersedia.');
-            break;
-          case err.TIMEOUT:
-            setError('Permintaan lokasi timeout.');
-            break;
-          default:
-            setError('Terjadi kesalahan saat mendapatkan lokasi.');
-        }
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 300000, // Cache for 5 minutes
-      },
-    );
+      if (response.ok) {
+        const data = await response.json();
+        const address = data.address || {};
+        setLocation({
+          latitude,
+          longitude,
+          city: address.city || address.town || address.county || '',
+          province: address.state || '',
+        });
+      } else {
+        setLocation({ latitude, longitude });
+      }
+    } catch {
+      // If reverse geocoding fails, still return coordinates
+      setLocation({ latitude, longitude });
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   return { location, isLoading, error, requestLocation };

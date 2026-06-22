@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { getPosition } from '@/utils/geo';
 import {
   Timer,
   Gift,
@@ -152,17 +153,10 @@ export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
  * bila izin ditolak / tidak didukung / timeout, agar pengisian tetap berjalan.
  */
 export function captureGeo(): Promise<{ lat: number; lng: number } | null> {
-  return new Promise((resolve) => {
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-      resolve(null);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-    );
-  });
+  // getPosition() menangani native (plugin + izin lokasi) maupun web.
+  return getPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }).then(
+    (p) => (p ? { lat: p.latitude, lng: p.longitude } : null),
+  );
 }
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -1183,27 +1177,16 @@ function GpsQuestion({ value, onChange, invalid }: RendererProps) {
   const acc = typeof coords?.accuracy === 'number' ? coords.accuracy : null;
 
   const capture = () => {
-    if (!('geolocation' in navigator)) {
-      setError('Perangkat tidak mendukung GPS.');
-      return;
-    }
     setLoading(true);
     setError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        onChange({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
-        setLoading(false);
-      },
-      (err) => {
-        setError(err.message || 'Gagal mengambil lokasi. Izinkan akses lokasi di browser.');
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
+    void getPosition({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }).then((p) => {
+      if (p) {
+        onChange({ latitude: p.latitude, longitude: p.longitude, accuracy: p.accuracy ?? 0 });
+      } else {
+        setError('Gagal mengambil lokasi. Pastikan izin lokasi & GPS aktif.');
+      }
+      setLoading(false);
+    });
   };
 
   return (
