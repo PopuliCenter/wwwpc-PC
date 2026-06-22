@@ -15,6 +15,7 @@ export const access: Record<string, UserRole[]> = {
   users: ['super_admin'],
   audit: ['super_admin', 'admin'],
   cleanup: ['super_admin', 'admin'],
+  storage: ['super_admin'],
   announcements: ['super_admin', 'admin'],
   profile: ['super_admin', 'admin', 'analyst', 'viewer'],
 };

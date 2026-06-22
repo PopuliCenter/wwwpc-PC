@@ -9,6 +9,7 @@ import {
   UserCheck,
   ScrollText,
   Trash2,
+  HardDrive,
   UserCog,
   Megaphone,
   LogOut,
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { path: '/admin/announcements', label: 'Pengumuman', icon: Megaphone, roles: access.announcements },
   { path: '/admin/audit', label: 'Audit Log', icon: ScrollText, roles: access.audit },
   { path: '/admin/cleanup', label: 'Data Cleanup', icon: Trash2, roles: access.cleanup },
+  { path: '/admin/storage', label: 'Penyimpanan', icon: HardDrive, roles: access.storage },
   { path: '/admin/profile', label: 'Profil', icon: UserCog, roles: access.profile },
 ];
 

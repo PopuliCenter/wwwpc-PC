@@ -161,9 +161,30 @@ async function uploadRequest<T>(endpoint: string, formData: FormData): Promise<T
   return response.json();
 }
 
+/**
+ * Ambil isi biner (gambar/video/audio/file) dengan header auth lalu kembalikan
+ * Blob. Untuk pratinjau/unduh berkas privat yang di-stream backend (mis. objek
+ * MinIO) — `<img src>` tak bisa mengirim header Authorization.
+ */
+async function getBlob(endpoint: string): Promise<Blob> {
+  const token = getAccessToken();
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw await response.json().catch(() => ({
+      statusCode: response.status,
+      message: response.statusText,
+    }));
+  }
+  return response.blob();
+}
+
 export const api = {
   get: <T>(endpoint: string, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'GET' }),
+
+  getBlob: (endpoint: string) => getBlob(endpoint),
 
   post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'POST', body }),

@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ExportService } from './export.service';
 import { ExportController } from './export.controller';
+import { StorageController } from './storage.controller';
 import { ExportProcessor } from './processors';
 import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
@@ -24,7 +25,7 @@ import { EXPORT_QUEUE } from './constants';
     AuthModule,
     AuditModule,
   ],
-  controllers: [ExportController],
+  controllers: [ExportController, StorageController],
   providers: [ExportService, ExportProcessor, S3StorageService],
   exports: [ExportService, S3StorageService],
 })

@@ -12,6 +12,7 @@ import {
   DeleteObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
@@ -224,6 +225,38 @@ export class S3StorageService implements OnModuleInit {
         `Failed to read S3 object '${s3Key}': ${err.message}`,
       );
     }
+  }
+
+  /**
+   * Telusur isi bucket (untuk panel admin penyimpanan). Mengembalikan daftar
+   * objek + token untuk halaman berikutnya (pagination ala S3).
+   */
+  async listObjects(
+    bucket: string,
+    prefix = '',
+    continuationToken?: string,
+    maxKeys = 100,
+  ): Promise<{
+    objects: { key: string; size: number; lastModified: string | null }[];
+    nextToken?: string;
+  }> {
+    const res = await this.s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix || undefined,
+        ContinuationToken: continuationToken || undefined,
+        MaxKeys: maxKeys,
+      }),
+    );
+    const objects = (res.Contents ?? []).map((o) => ({
+      key: o.Key ?? '',
+      size: o.Size ?? 0,
+      lastModified: o.LastModified ? o.LastModified.toISOString() : null,
+    }));
+    return {
+      objects,
+      nextToken: res.IsTruncated ? res.NextContinuationToken : undefined,
+    };
   }
 
   /**

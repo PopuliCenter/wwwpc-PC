@@ -1,0 +1,77 @@
+import {
+  Controller,
+  Get,
+  Delete,
+  Query,
+  Res,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
+import type { Response } from 'express';
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@modules/auth/guards/roles.guard';
+import { Roles } from '@modules/auth/decorators';
+import { UserRole } from '@shared/enums';
+import { S3StorageService } from './s3-storage.service';
+
+/**
+ * Panel admin penyimpanan (MinIO/S3): telusur, lihat, dan HAPUS berkas mentah
+ * (unggahan responden: foto/video/audio/tanda tangan, & file export).
+ *
+ * HANYA super_admin — operasi ini langsung ke storage & bisa menghapus berkas
+ * yang masih dirujuk respons. Gunakan untuk pembersihan/koreksi.
+ */
+@Controller('admin/storage')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.SUPER_ADMIN)
+export class StorageController {
+  constructor(private readonly s3: S3StorageService) {}
+
+  /** Hanya izinkan dua bucket yang dikenal (cegah akses bucket sembarang). */
+  private bucketFor(bucket?: string): string {
+    return bucket === 'exports' ? this.s3.exportsBucket : this.s3.uploadsBucket;
+  }
+
+  /** Daftar objek di bucket (paginasi via token). */
+  @Get('objects')
+  async list(
+    @Query('bucket') bucket?: string,
+    @Query('prefix') prefix?: string,
+    @Query('token') token?: string,
+  ) {
+    const result = await this.s3.listObjects(
+      this.bucketFor(bucket),
+      prefix ?? '',
+      token,
+    );
+    return { bucket: bucket === 'exports' ? 'exports' : 'uploads', ...result };
+  }
+
+  /** Stream isi objek (untuk pratinjau/unduh di admin). Butuh auth. */
+  @Get('object')
+  async getObject(
+    @Query('key') key: string,
+    @Res() res: Response,
+    @Query('bucket') bucket?: string,
+  ): Promise<void> {
+    if (!key) throw new BadRequestException('Parameter "key" wajib diisi.');
+    const { buffer, contentType } = await this.s3.getObjectBuffer(
+      key,
+      this.bucketFor(bucket),
+    );
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.send(buffer);
+  }
+
+  /** Hapus objek. PERMANEN. */
+  @Delete('object')
+  async deleteObject(
+    @Query('key') key: string,
+    @Query('bucket') bucket?: string,
+  ): Promise<{ ok: true }> {
+    if (!key) throw new BadRequestException('Parameter "key" wajib diisi.');
+    await this.s3.deleteObject(key, this.bucketFor(bucket));
+    return { ok: true };
+  }
+}
