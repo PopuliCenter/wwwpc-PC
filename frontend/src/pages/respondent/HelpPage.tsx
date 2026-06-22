@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { ChevronDown, Mail, Globe, LifeBuoy } from 'lucide-react';
+import { ChevronDown, Mail, Globe, LifeBuoy, MessageCircle } from 'lucide-react';
 
 // Ganti sesuai kontak dukungan resmi Populi Center bila perlu.
 const SUPPORT = {
   email: 'info@populicenter.org',
   website: 'https://populicenter.org',
+  // Format internasional tanpa '+' untuk tautan wa.me (0812... → 62812...).
+  whatsapp: '6281292068362',
+  whatsappDisplay: '0812-9206-8362',
 };
+
+const WA_TEXT = encodeURIComponent('Halo Populi, saya butuh bantuan terkait aplikasi survei.');
 
 const FAQS: { q: string; a: string }[] = [
   {
@@ -80,6 +85,17 @@ export function HelpPage() {
       <section className="rounded-xl border border-gray-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-gray-800">Masih butuh bantuan?</h2>
         <div className="space-y-2">
+          <a
+            href={`https://wa.me/${SUPPORT.whatsapp}?text=${WA_TEXT}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm hover:bg-emerald-100"
+          >
+            <MessageCircle className="h-4 w-4 text-emerald-600" />
+            <span className="font-medium text-emerald-800">
+              WhatsApp {SUPPORT.whatsappDisplay}
+            </span>
+          </a>
           <a
             href={`mailto:${SUPPORT.email}`}
             className="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm hover:bg-gray-50"
