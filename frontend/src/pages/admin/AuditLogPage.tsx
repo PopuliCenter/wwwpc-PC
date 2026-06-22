@@ -25,6 +25,16 @@ const roleLabels: Record<string, string> = {
   respondent: 'Responden',
 };
 
+/** Warna badge per kategori aksi (hijau=buat, biru=ubah, merah=hapus, dst). */
+function actionTone(action: string): string {
+  if (action.includes('delete') || action.includes('cleanup')) return 'bg-red-50 text-red-700';
+  if (action.includes('create')) return 'bg-emerald-50 text-emerald-700';
+  if (action.includes('update') || action.includes('change')) return 'bg-blue-50 text-blue-700';
+  if (action.includes('export')) return 'bg-indigo-50 text-indigo-700';
+  if (action.includes('redemption') || action.includes('reward')) return 'bg-amber-50 text-amber-700';
+  return 'bg-gray-100 text-gray-600';
+}
+
 /** Render details (objek JSONB / string) jadi teks aman untuk React. */
 function formatDetails(details?: Record<string, unknown> | string | null): string {
   if (!details) return '-';
@@ -274,7 +284,7 @@ export function AuditLogPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-2xl border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -399,7 +409,7 @@ export function AuditLogPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Memuat data...</div>
         ) : (
@@ -471,7 +481,7 @@ export function AuditLogPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${actionTone(log.actionType)}`}>
                           {log.actionType.replace(/_/g, ' ')}
                         </span>
                       </td>
