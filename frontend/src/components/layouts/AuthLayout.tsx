@@ -92,9 +92,20 @@ export function AuthLayout() {
       </div>
 
       {/* Form panel */}
-      <div className="flex items-center justify-center bg-surface px-4 py-12 sm:px-6">
-        <div className="w-full max-w-sm">
-          <Outlet />
+      <div className="flex flex-col bg-surface">
+        <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
+          <div className="w-full max-w-sm">
+            <Outlet />
+          </div>
+        </div>
+        {/* Footer logo + hak cipta — tampil di mobile (desktop sudah ada di panel brand) */}
+        <div className="flex items-center justify-center gap-2 pb-6 text-xs text-gray-400 lg:hidden">
+          <img
+            src="/logo-populi-center.png"
+            alt="Populi Center"
+            className="h-4 w-4 object-contain opacity-70"
+          />
+          <span>© {new Date().getFullYear()} Populi Center</span>
         </div>
       </div>
     </div>
