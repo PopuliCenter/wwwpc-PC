@@ -57,6 +57,8 @@ export class SurveyService {
       surveyType: string;
       category: string | null;
       completed: boolean;
+      startsAt: string | null;
+      upcoming: boolean;
     }>
   > {
     const surveys = await this.surveyRepository.find({
@@ -101,6 +103,9 @@ export class SurveyService {
           where: { surveyId: s.id, enabled: true },
         });
         const deadline = s.endDatetime ?? s.timeConfig?.endDatetime ?? null;
+        const startsAt = s.startDatetime ?? s.timeConfig?.startDatetime ?? null;
+        // "Akan datang": survei sudah aktif tapi waktu mulainya masih di depan.
+        const upcoming = startsAt ? new Date(startsAt).getTime() > Date.now() : false;
         return {
           id: s.id,
           title: s.title,
@@ -114,6 +119,8 @@ export class SurveyService {
           surveyType: s.surveyType ?? 'lainnya',
           category: s.category ?? null,
           completed: completedIds.has(s.id),
+          startsAt: startsAt ? new Date(startsAt).toISOString() : null,
+          upcoming,
         };
       }),
     );
