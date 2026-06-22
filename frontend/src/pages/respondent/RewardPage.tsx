@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Wallet, Gift, Hourglass, Clock } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
 import { usePointsStore } from '@/stores/points.store';
@@ -127,30 +128,45 @@ function describeTransaction(tx: BackendTransaction): string {
 function BalanceCard({ balance, loading }: { balance: PointBalance | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-6 text-white animate-pulse">
-        <div className="h-4 bg-primary-400 rounded w-1/3 mb-3"></div>
-        <div className="h-10 bg-primary-400 rounded w-1/2"></div>
+      <div className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-6">
+        <div className="mb-3 h-4 w-1/3 animate-pulse rounded bg-white/20" />
+        <div className="h-10 w-1/2 animate-pulse rounded bg-white/20" />
       </div>
     );
   }
 
   const available = balance?.available ?? 0;
+  const pending = balance?.pending ?? 0;
   const expiring = balance?.expiringWithin30Days ?? 0;
 
   return (
-    <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-6 text-white">
-      <p className="text-sm text-primary-100">Saldo Poin Anda</p>
-      <p className="text-4xl font-bold mt-1">{available.toLocaleString()}</p>
-      <p className="text-sm text-primary-200 mt-1">poin</p>
-
-      {expiring > 0 && (
-        <div className="mt-4 bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-3">
-          <p className="text-sm text-yellow-100">
-            ⚠️ <span className="font-medium">{expiring.toLocaleString()} poin</span>{' '}
-            akan kedaluwarsa dalam 30 hari
-          </p>
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-6 text-white shadow-sm">
+      <Gift className="pointer-events-none absolute -right-5 -top-5 h-28 w-28 text-white/10" />
+      <div className="relative">
+        <div className="flex items-center gap-2 text-primary-100">
+          <Wallet className="h-4 w-4" />
+          <p className="text-sm">Saldo Poin Anda</p>
         </div>
-      )}
+        <p className="mt-1 text-4xl font-bold tracking-tight">
+          {available.toLocaleString('id-ID')}
+        </p>
+        <p className="text-sm text-primary-200">poin tersedia</p>
+
+        {(pending > 0 || expiring > 0) && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {pending > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
+                <Hourglass className="h-3.5 w-3.5" /> {pending.toLocaleString('id-ID')} diproses
+              </span>
+            )}
+            {expiring > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-medium text-amber-50 ring-1 ring-inset ring-amber-300/30">
+                <Clock className="h-3.5 w-3.5" /> {expiring.toLocaleString('id-ID')} kedaluwarsa &lt;30 hari
+              </span>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -182,7 +198,7 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
   }, [page, refreshKey]);
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-2xl border border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Riwayat Transaksi</h3>
       </div>
@@ -306,7 +322,7 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
   }, [hasInFlight, fetchRedemptions]);
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-2xl border border-gray-200">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Riwayat Penukaran</h3>
         {hasInFlight && (
@@ -402,7 +418,7 @@ function RewardCatalog({
       : rewards.filter((r) => r.category === activeCategory);
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div className="bg-white rounded-2xl border border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Katalog Reward</h3>
       </div>
@@ -444,24 +460,26 @@ function RewardCatalog({
             return (
               <div
                 key={reward.id}
-                className={`flex w-[240px] shrink-0 snap-start flex-col rounded-lg border p-4 transition-colors ${
-                  canAfford ? 'hover:border-primary-300' : 'opacity-60'
+                className={`flex w-[230px] shrink-0 snap-start flex-col rounded-xl border border-gray-200 p-4 transition-all ${
+                  canAfford ? 'hover:border-primary-300 hover:shadow-sm' : 'opacity-60'
                 }`}
               >
                 <div className="flex flex-1 items-start gap-3">
-                  <span className="text-2xl">{CATEGORY_ICONS[reward.category] ?? '🎁'}</span>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-gray-900">{reward.name}</h4>
-                    <p className="text-xs text-gray-500 mt-1">{reward.description}</p>
-                    <p className="text-sm font-bold text-primary-600 mt-2">
-                      {reward.pointsCost.toLocaleString()} poin
-                    </p>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-xl ring-1 ring-inset ring-gray-100">
+                    {CATEGORY_ICONS[reward.category] ?? '🎁'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{reward.description}</p>
                   </div>
                 </div>
+                <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
+                  <Gift className="h-3.5 w-3.5" /> {reward.pointsCost.toLocaleString('id-ID')} poin
+                </span>
                 <button
                   onClick={() => onSelectReward(reward)}
                   disabled={!canAfford}
-                  className="mt-3 w-full px-3 py-1.5 text-sm font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-primary-600 text-white hover:bg-primary-700"
+                  className="mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors bg-primary-600 text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                 >
                   {canAfford ? 'Tukar' : 'Poin tidak cukup'}
                 </button>
