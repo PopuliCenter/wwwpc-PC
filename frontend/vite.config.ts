@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['logo-populi-center.png'],
       manifest: {
-        name: 'Populi Survei',
-        short_name: 'Survei',
+        name: 'Survei Populi',
+        short_name: 'Survei Populi',
         description: 'Platform survei & pengumpulan data lapangan',
         theme_color: '#4f46e5',
         background_color: '#ffffff',
