@@ -3,6 +3,7 @@ import {
   Get,
   Delete,
   Query,
+  Req,
   Res,
   UseGuards,
   BadRequestException,
@@ -11,7 +12,8 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators';
-import { UserRole } from '@shared/enums';
+import { UserRole, AuditActionType } from '@shared/enums';
+import { AuditService } from '@modules/audit/audit.service';
 import { S3StorageService } from './s3-storage.service';
 
 /**
@@ -25,7 +27,10 @@ import { S3StorageService } from './s3-storage.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN)
 export class StorageController {
-  constructor(private readonly s3: S3StorageService) {}
+  constructor(
+    private readonly s3: S3StorageService,
+    private readonly audit: AuditService,
+  ) {}
 
   /** Hanya izinkan dua bucket yang dikenal (cegah akses bucket sembarang). */
   private bucketFor(bucket?: string): string {
@@ -64,14 +69,23 @@ export class StorageController {
     res.send(buffer);
   }
 
-  /** Hapus objek. PERMANEN. */
+  /** Hapus objek. PERMANEN — tercatat di Audit Log (siapa hapus apa). */
   @Delete('object')
   async deleteObject(
     @Query('key') key: string,
+    @Req() req: any,
     @Query('bucket') bucket?: string,
   ): Promise<{ ok: true }> {
     if (!key) throw new BadRequestException('Parameter "key" wajib diisi.');
+    const resolvedBucket = bucket === 'exports' ? 'exports' : 'uploads';
     await this.s3.deleteObject(key, this.bucketFor(bucket));
+    await this.audit.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.DATA_CLEANUP,
+      module: 'export',
+      details: { action: 'storage_delete', bucket: resolvedBucket, key },
+      ipAddress: req.ip || '0.0.0.0',
+    });
     return { ok: true };
   }
 }
