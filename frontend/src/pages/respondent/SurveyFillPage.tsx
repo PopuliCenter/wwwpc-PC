@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { getPosition } from '@/utils/geo';
 import {
   Timer,
@@ -1480,6 +1480,18 @@ function ProgressBar({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+/** Serialisasi kanonik (key terurut) agar perbandingan "berubah?" stabil. */
+function serializeAnswers(o: Record<string, AnswerValue>): string {
+  return JSON.stringify(
+    Object.keys(o)
+      .sort()
+      .reduce<Record<string, AnswerValue>>((acc, k) => {
+        acc[k] = o[k];
+        return acc;
+      }, {}),
+  );
+}
+
 export function SurveyFillPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1501,6 +1513,20 @@ export function SurveyFillPage() {
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const online = useOnlineStatus();
   const sync = useOfflineSync();
+  /** True bila draft tersimpan berhasil dimuat (pengisian dilanjutkan). */
+  const [resumedDraft, setResumedDraft] = useState(false);
+  /** Salinan answers/submitted terbaru untuk dibaca di cleanup (unmount). */
+  const answersRef = useRef(answers);
+  const submittedRef = useRef(false);
+  /** Snapshot kanonik jawaban awal (assignments + draft) → deteksi perubahan. */
+  const baselineRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
 
   // Upload media: online → endpoint responden; offline → simpan blob lokal,
   // kembalikan referensi local-media:// yang di-resolve saat sinkron.
@@ -1528,6 +1554,25 @@ export function SurveyFillPage() {
         const result = await api.get<SurveyFillData>(`/surveys/${id}/fill`);
         setSurvey(result);
         void cachePut(`respondent-fill:${id}`, result);
+
+        // Lanjutkan pengisian: muat draft tersimpan dari server (best-effort,
+        // hanya online). Jawaban yang tersimpan diisikan kembali ke form, lalu
+        // pra-isi assignments melengkapi yang belum ada.
+        const seed: Record<string, AnswerValue> = { ...(result.assignments ?? {}) };
+        try {
+          const mine = await api.get<{
+            status?: string;
+            answers?: { questionId: string; value: AnswerValue }[];
+          } | null>(`/surveys/${id}/responses/mine`);
+          if (mine && mine.status !== 'complete' && mine.answers?.length) {
+            for (const a of mine.answers) seed[a.questionId] = a.value;
+            setAnswers((prev) => ({ ...seed, ...prev }));
+            setResumedDraft(true);
+          }
+        } catch {
+          /* tak ada draft / offline → mulai baru */
+        }
+        baselineRef.current = serializeAnswers(seed);
       } catch (err: unknown) {
         // Sudah pernah menyelesaikan survei ini (409) → pesan jelas, JANGAN
         // jatuh ke cache (yang akan keliru menampilkan form lagi).
@@ -1736,6 +1781,74 @@ export function SurveyFillPage() {
     void handleSubmit();
   }, [handleSubmit]);
 
+  // Ada progres yang belum dikirim? (berubah dari snapshot awal & belum submit)
+  const isDirty = useMemo(() => {
+    if (submitted || baselineRef.current === null) return false;
+    return serializeAnswers(answers) !== baselineRef.current;
+  }, [answers, submitted]);
+
+  // Simpan progres SEGERA (dipakai saat meninggalkan halaman) — pakai answersRef
+  // agar selalu nilai terbaru. Best-effort, abaikan kegagalan.
+  const flushSave = useCallback(async () => {
+    if (!survey || submittedRef.current) return;
+    try {
+      await api.post(`/surveys/${survey.id}/responses/save-progress`, {
+        answers: Object.entries(answersRef.current).map(([questionId, value]) => ({
+          questionId,
+          value,
+        })),
+        deviceType: DEVICE_TYPE,
+        ...(startGeoRef.current
+          ? {
+              startLatitude: startGeoRef.current.lat,
+              startLongitude: startGeoRef.current.lng,
+            }
+          : {}),
+      });
+    } catch {
+      /* abaikan: auto-save berikutnya / antrean akan menyusul */
+    }
+  }, [survey]);
+
+  // Kunci navigasi dalam-app (mis. ketuk Reward/Profil di bar bawah) saat ada
+  // progres belum dikirim — tampilkan konfirmasi sebelum meninggalkan survei.
+  const blocker = useBlocker(
+    useCallback(
+      ({
+        currentLocation,
+        nextLocation,
+      }: {
+        currentLocation: { pathname: string };
+        nextLocation: { pathname: string };
+      }) => isDirty && currentLocation.pathname !== nextLocation.pathname,
+      [isDirty],
+    ),
+  );
+
+  // Peringatan bawaan browser saat menutup/refresh tab dengan progres tersisa.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
+
+  // Jaring pengaman: saat komponen dilepas dengan progres tersisa, simpan sekali.
+  useEffect(() => {
+    return () => {
+      if (
+        baselineRef.current !== null &&
+        !submittedRef.current &&
+        serializeAnswers(answersRef.current) !== baselineRef.current
+      ) {
+        void flushSave();
+      }
+    };
+  }, [flushSave]);
+
   if (loading) {
     return (
       <div className="mx-auto max-w-3xl">
@@ -1833,6 +1946,45 @@ export function SurveyFillPage() {
   return (
     <MediaUploadProvider value={uploadMedia}>
     <div className="mx-auto max-w-3xl space-y-5">
+      {/* Konfirmasi saat akan meninggalkan survei dengan progres belum dikirim. */}
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold text-gray-900">Tinggalkan pengisian survei?</h3>
+            <p className="mt-1.5 text-sm text-gray-600">
+              Jawaban Anda <span className="font-medium">tersimpan otomatis</span> dan bisa
+              dilanjutkan nanti. Anda yakin ingin keluar sekarang?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => blocker.reset?.()}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Lanjut isi
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void flushSave();
+                  blocker.proceed?.();
+                }}
+                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
+              >
+                Simpan & keluar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resumedDraft && (
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Pengisian sebelumnya dilanjutkan — jawaban Anda tersimpan otomatis.
+        </div>
+      )}
+
       {survey.maxDuration && (
         <CountdownTimer minutes={survey.maxDuration} onExpire={handleTimerExpire} />
       )}
