@@ -1468,9 +1468,9 @@ function ProgressBar({
         </span>
         <span className="text-gray-500">{percentage}%</span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-2 rounded-full bg-primary-600 transition-all duration-500 ease-out"
+          className="h-2.5 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -1904,11 +1904,14 @@ export function SurveyFillPage() {
         )}
       </div>
 
-      <ProgressBar
-        current={currentPage}
-        total={totalSteps}
-        unit={isWizard ? 'Pertanyaan' : 'Halaman'}
-      />
+      {/* Progress menempel di bawah header (sticky) agar selalu terlihat saat scroll */}
+      <div className="sticky top-16 z-10 rounded-xl border border-gray-200 bg-surface/95 px-4 py-2.5 shadow-sm backdrop-blur">
+        <ProgressBar
+          current={currentPage}
+          total={totalSteps}
+          unit={isWizard ? 'Pertanyaan' : 'Halaman'}
+        />
+      </div>
 
       {error && (
         <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
