@@ -32,7 +32,11 @@ export class FileUploadService {
     const { ext, contentType } = this.fileValidation.validate(file);
 
     // Unggahan responden → bucket UPLOADS (terpisah dari file export).
-    const key = `survey-uploads/${surveyId}/${respondentId}/${uuidv4()}.${ext}`;
+    // Sisipkan nama asli berkas (di-sanitasi) agar mudah dikenali di panel
+    // admin, lalu UUID di belakang menjaga keunikan. Prefix tetap
+    // `survey-uploads/<surveyId>/<respondentId>/` agar validasi kepemilikan jalan.
+    const safeName = this.safeBaseName(file!.originalname);
+    const key = `survey-uploads/${surveyId}/${respondentId}/${safeName}-${uuidv4()}.${ext}`;
     await this.s3.uploadBuffer(file!.buffer, key, contentType, this.s3.uploadsBucket);
     const url = await this.s3.getPresignedDownloadUrl(key, this.s3.uploadsBucket);
 
@@ -41,5 +45,22 @@ export class FileUploadService {
     );
 
     return { key, url, originalName: file!.originalname };
+  }
+
+  /**
+   * Sanitasi nama asli berkas untuk dijadikan bagian key S3: buang path &
+   * ekstensi (ekstensi tervalidasi ditambahkan terpisah), ganti karakter tak
+   * aman dengan '_', batasi panjang. Mengembalikan 'berkas' bila kosong.
+   */
+  private safeBaseName(originalName: string | undefined): string {
+    const raw = (originalName ?? '').split(/[\\/]/).pop() ?? '';
+    const base = raw
+      .replace(/\.[^.]+$/, '') // buang ekstensi asli
+      .normalize('NFKD')
+      .replace(/[^\w.-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^[._-]+|[._-]+$/g, '')
+      .slice(0, 60);
+    return base || 'berkas';
   }
 }

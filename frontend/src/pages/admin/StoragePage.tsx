@@ -33,28 +33,57 @@ interface ListResponse {
 
 type BucketKey = 'uploads' | 'exports';
 
+type Kind = 'image' | 'video' | 'audio' | 'doc' | 'other';
+
 const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'heic'];
 const VIDEO_EXT = ['mp4', 'webm', 'mov', 'm4v', '3gp', 'mkv'];
 const AUDIO_EXT = ['mp3', 'wav', 'm4a', 'ogg', 'aac', 'opus'];
+const DOC_EXT = ['pdf', 'csv', 'xlsx', 'xls', 'json', 'txt', 'doc', 'docx'];
 
 function extOf(key: string): string {
   return key.split('.').pop()?.toLowerCase() ?? '';
 }
-function kindOf(key: string): 'image' | 'video' | 'audio' | 'doc' | 'other' {
+function kindOf(key: string): Kind {
+  // Avatar disimpan tanpa ekstensi (key `avatars/<userId>`) tapi selalu gambar.
+  if (key.startsWith('avatars/')) return 'image';
   const e = extOf(key);
   if (IMAGE_EXT.includes(e)) return 'image';
   if (VIDEO_EXT.includes(e)) return 'video';
   if (AUDIO_EXT.includes(e)) return 'audio';
-  if (['pdf', 'csv', 'xlsx', 'json', 'txt'].includes(e)) return 'doc';
+  if (DOC_EXT.includes(e)) return 'doc';
   return 'other';
 }
-const KIND_ICON: Record<string, LucideIcon> = {
+/** Tentukan jenis pratinjau dari MIME content-type (lebih andal dari ekstensi). */
+function kindFromMime(mime: string, key: string): Kind | 'pdf' {
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+  if (mime === 'application/pdf') return 'pdf';
+  const k = kindOf(key);
+  return k === 'doc' && extOf(key) === 'pdf' ? 'pdf' : k;
+}
+const KIND_ICON: Record<Kind, LucideIcon> = {
   image: ImageIcon,
   video: Film,
   audio: Music,
   doc: FileText,
   other: FileIcon,
 };
+const KIND_FILTERS: { key: 'all' | Kind; label: string }[] = [
+  { key: 'all', label: 'Semua' },
+  { key: 'image', label: 'Foto' },
+  { key: 'video', label: 'Video' },
+  { key: 'audio', label: 'Audio' },
+  { key: 'doc', label: 'Dokumen' },
+  { key: 'other', label: 'Lainnya' },
+];
+type SortKey = 'recent' | 'name' | 'size' | 'kind';
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'recent', label: 'Terbaru' },
+  { key: 'name', label: 'Nama' },
+  { key: 'size', label: 'Ukuran (besar→kecil)' },
+  { key: 'kind', label: 'Tipe' },
+];
 function fmtSize(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -62,6 +91,20 @@ function fmtSize(n: number): string {
 }
 function baseName(key: string): string {
   return key.split('/').pop() || key;
+}
+/**
+ * Nama tampil: buang UUID unik yang disisipkan saat upload
+ * (`<nama>-<uuid>.<ext>`), tampilkan nama asli yang ramah. Untuk avatar
+ * (key `avatars/<userId>`) tampilkan label generik.
+ */
+const UUID_RE = /-?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+function displayName(key: string): string {
+  if (key.startsWith('avatars/')) return 'Foto profil (avatar)';
+  const base = baseName(key);
+  const ext = base.includes('.') ? base.slice(base.lastIndexOf('.')) : '';
+  const stem = ext ? base.slice(0, base.length - ext.length) : base;
+  const cleaned = stem.replace(UUID_RE, '').replace(/^[-_]+|[-_]+$/g, '');
+  return (cleaned || stem) + ext;
 }
 
 export function StoragePage() {
@@ -76,6 +119,8 @@ export function StoragePage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [kindFilter, setKindFilter] = useState<'all' | Kind>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
   const { confirm, dialog } = useConfirm();
 
   const fetchPage = useCallback(
@@ -112,14 +157,16 @@ export function StoragePage() {
     try {
       const blob = await api.getBlob(objectEndpoint(key));
       const url = URL.createObjectURL(blob);
-      const kind = kindOf(key);
-      if (kind === 'image' || kind === 'video' || kind === 'audio') {
-        setPreview({ url, kind, name: baseName(key) });
+      // Tentukan jenis dari MIME content-type sebenarnya — andal walau key tanpa
+      // ekstensi (mis. avatar). image/video/audio/pdf → pratinjau inline.
+      const kind = kindFromMime(blob.type || '', key);
+      if (kind === 'image' || kind === 'video' || kind === 'audio' || kind === 'pdf') {
+        setPreview({ url, kind, name: displayName(key) });
       } else {
-        // Dokumen/lainnya → unduh.
+        // Tipe tak dikenal → unduh.
         const a = document.createElement('a');
         a.href = url;
-        a.download = baseName(key);
+        a.download = displayName(key);
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 4000);
       }
@@ -162,11 +209,41 @@ export function StoragePage() {
       return next;
     });
 
-  const allSelected = objects.length > 0 && selected.size === objects.length;
+  // Daftar yang ditampilkan: filter per-tipe + urutkan (di sisi klien, atas
+  // objek yang sudah dimuat).
+  const visibleObjects = useMemo(() => {
+    const filtered =
+      kindFilter === 'all' ? objects : objects.filter((o) => kindOf(o.key) === kindFilter);
+    const sorted = [...filtered];
+    sorted.sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return displayName(a.key).localeCompare(displayName(b.key), 'id');
+        case 'size':
+          return b.size - a.size;
+        case 'kind':
+          return kindOf(a.key).localeCompare(kindOf(b.key)) ||
+            displayName(a.key).localeCompare(displayName(b.key), 'id');
+        case 'recent':
+        default:
+          return (b.lastModified ?? '').localeCompare(a.lastModified ?? '');
+      }
+    });
+    return sorted;
+  }, [objects, kindFilter, sortKey]);
+
+  const allSelected = visibleObjects.length > 0 && visibleObjects.every((o) => selected.has(o.key));
   const toggleAll = () =>
-    setSelected((prev) =>
-      prev.size === objects.length ? new Set() : new Set(objects.map((o) => o.key)),
-    );
+    setSelected((prev) => {
+      if (visibleObjects.every((o) => prev.has(o.key))) {
+        const next = new Set(prev);
+        visibleObjects.forEach((o) => next.delete(o.key));
+        return next;
+      }
+      const next = new Set(prev);
+      visibleObjects.forEach((o) => next.add(o.key));
+      return next;
+    });
 
   const selectedKeys = useMemo(() => Array.from(selected), [selected]);
 
@@ -250,6 +327,39 @@ export function StoragePage() {
         </div>
       </div>
 
+      {/* Filter tipe + urutan */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {KIND_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setKindFilter(key)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                kindFilter === key
+                  ? 'bg-primary-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-xs text-gray-500">
+          Urutkan
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-lg border border-gray-300 py-1.5 pl-2 pr-7 text-xs text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          >
+            {SORT_OPTIONS.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
@@ -257,7 +367,7 @@ export function StoragePage() {
       {/* Daftar */}
       {loading ? (
         <p className="py-10 text-center text-sm text-gray-400">Memuat…</p>
-      ) : objects.length === 0 ? (
+      ) : visibleObjects.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
           <HardDrive className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="text-gray-600">Tidak ada berkas pada filter ini.</p>
@@ -280,7 +390,7 @@ export function StoragePage() {
             </button>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-400">
-                {selected.size > 0 ? `${selected.size} dipilih` : `${objects.length} berkas`}
+                {selected.size > 0 ? `${selected.size} dipilih` : `${visibleObjects.length} berkas`}
               </span>
               <button
                 type="button"
@@ -299,7 +409,7 @@ export function StoragePage() {
           </div>
 
           <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          {objects.map((o) => {
+          {visibleObjects.map((o) => {
             const Icon = KIND_ICON[kindOf(o.key)];
             const busy = busyKey === o.key;
             const checked = selected.has(o.key);
@@ -324,7 +434,7 @@ export function StoragePage() {
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{baseName(o.key)}</p>
+                  <p className="truncate text-sm font-medium text-gray-900">{displayName(o.key)}</p>
                   <p className="truncate text-xs text-gray-400">{o.key}</p>
                   <p className="text-[11px] text-gray-400">
                     {fmtSize(o.size)}
@@ -404,6 +514,9 @@ export function StoragePage() {
               <video src={preview.url} controls className="max-h-[78vh] rounded-lg" />
             )}
             {preview.kind === 'audio' && <audio src={preview.url} controls className="w-80" />}
+            {preview.kind === 'pdf' && (
+              <iframe src={preview.url} title={preview.name} className="h-[78vh] w-[80vw] max-w-2xl rounded-lg" />
+            )}
           </div>
         </div>
       )}
