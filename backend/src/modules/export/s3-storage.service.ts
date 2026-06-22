@@ -260,7 +260,9 @@ export class S3StorageService implements OnModuleInit {
   }
 
   /**
-   * Delete an object from S3/MinIO (e.g. after scheduled cleanup).
+   * Hapus objek dari S3/MinIO. MELEMPAR error bila gagal — agar pemanggil
+   * (mis. panel admin) tahu penghapusan benar-benar gagal alih-alih
+   * "pura-pura sukses" lalu berkas muncul lagi saat daftar dimuat ulang.
    */
   async deleteObject(
     s3Key: string,
@@ -273,6 +275,9 @@ export class S3StorageService implements OnModuleInit {
       this.logger.log(`Deleted S3 object: ${s3Key} (bucket '${bucket}')`);
     } catch (err: any) {
       this.logger.warn(`Failed to delete S3 object '${s3Key}': ${err.message}`);
+      throw new InternalServerErrorException(
+        `Gagal menghapus berkas '${s3Key}': ${err.message}`,
+      );
     }
   }
 
