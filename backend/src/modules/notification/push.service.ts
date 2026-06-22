@@ -86,6 +86,22 @@ export class PushService {
           tokens: batch,
           notification: { title: payload.title, body: payload.body },
           data: payload.data ?? {},
+          // Prioritas tinggi + channel khusus agar notifikasi muncul HEADS-UP
+          // (pop di layar HP) dan berbunyi. channelId HARUS sama dengan channel
+          // yang dibuat aplikasi (frontend notifications.ts: 'survei_penting').
+          android: {
+            priority: 'high',
+            notification: {
+              channelId: 'survei_penting',
+              sound: 'default',
+              defaultSound: true,
+              priority: 'high',
+              defaultVibrateTimings: true,
+            },
+          },
+          apns: {
+            payload: { aps: { sound: 'default' } },
+          },
         });
         sent += res.successCount;
         res.responses.forEach((r, idx) => {

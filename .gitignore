@@ -9,6 +9,10 @@ build/
 .env
 .env.local
 .env.*.local
+# .env.production berisi konfigurasi BUILD NATIVE (Capacitor) lokal: URL API
+# absolut, VITE_GOOGLE_CLIENT_ID, VITE_ENABLE_PUSH. JANGAN di-commit — VPS punya
+# .env.production sendiri untuk build web; commit akan menimpanya saat git pull.
+.env.production
 
 # IDE
 .vscode/

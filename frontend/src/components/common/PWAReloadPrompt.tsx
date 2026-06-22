@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Capacitor } from '@capacitor/core';
 
 // Seberapa sering tab yang terbuka mengecek versi baru (deploy terbaru).
 const UPDATE_CHECK_MS = 60 * 1000;
@@ -21,6 +22,14 @@ const hadController =
  * versi baru tetap tampil begitu pindah halaman / refresh).
  */
 export function PWAReloadPrompt() {
+  // Di aplikasi NATIVE (Capacitor) service worker TIDAK dipakai: Capacitor sudah
+  // menyajikan aset secara lokal/offline, dan SW justru bikin layar blank (stuck
+  // di splash) + cache basi setelah update. Hanya web yang memakai SW/PWA.
+  if (Capacitor.isNativePlatform()) return null;
+  return <PWAReloadPromptWeb />;
+}
+
+function PWAReloadPromptWeb() {
   useRegisterSW({
     immediate: true,
     onRegisteredSW(_swUrl, registration) {

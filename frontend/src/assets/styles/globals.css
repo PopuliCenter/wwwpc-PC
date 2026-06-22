@@ -77,6 +77,15 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-gray-300) transparent;
   }
+
+  /* Leaflet: kurung z-index internal peta (pane & kontrol bisa mencapai 1000)
+     dalam stacking context-nya sendiri agar TIDAK menembus sidebar/drawer/modal
+     di atasnya — mis. drawer admin yang terbuka di mobile menampilkan peta
+     dashboard menembus menu. */
+  .leaflet-container {
+    position: relative;
+    z-index: 0;
+  }
 }
 
 @layer utilities {

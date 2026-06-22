@@ -1,12 +1,13 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { WilayahPicker } from '@/components/common/WilayahPicker';
+import { GoogleSignInButton } from '@/components/common/GoogleSignInButton';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
-import type { UserRole } from '@/types';
+import type { UserRole, LoginResponse } from '@/types';
 
 interface RegisterResult {
   userId: string;
@@ -161,6 +162,23 @@ export function RegisterPage() {
       setError(apiError.message || 'Gagal mengirim ulang OTP.');
     }
   };
+
+  // Daftar/masuk via Google: backend membuat akun responden baru bila email belum
+  // terdaftar, lalu langsung memberi sesi (tanpa OTP — Google sudah verifikasi).
+  const handleGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setError('');
+      try {
+        const res = await api.post<LoginResponse>('/auth/google', { idToken });
+        login(res.user, res.accessToken, res.refreshToken);
+        navigate('/surveys');
+      } catch (err: unknown) {
+        const apiError = err as { message?: string };
+        setError(apiError.message || 'Daftar dengan Google gagal. Coba lagi.');
+      }
+    },
+    [login, navigate],
+  );
 
   const Header = ({ title, subtitle }: { title: string; subtitle: string }) => (
     <div className="mb-6 flex flex-col items-center">
@@ -355,6 +373,18 @@ export function RegisterPage() {
           Lanjut
         </Button>
       </form>
+
+      {/* Daftar dengan Google — hanya tampil bila VITE_GOOGLE_CLIENT_ID diset */}
+      {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+        <>
+          <div className="my-6 flex items-center gap-3">
+            <span className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs text-gray-400">atau</span>
+            <span className="h-px flex-1 bg-gray-200" />
+          </div>
+          <GoogleSignInButton onCredential={handleGoogleCredential} />
+        </>
+      )}
 
       <p className="mt-6 text-center text-sm text-gray-600">
         Sudah punya akun?{' '}

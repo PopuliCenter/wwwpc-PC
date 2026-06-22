@@ -78,7 +78,7 @@ export function LoginPage() {
         <img
           src="/logo-populi-center.png"
           alt="Populi Center"
-          className="mx-auto mb-6 h-14 w-14 object-contain lg:hidden"
+          className="mx-auto mb-6 h-20 w-20 object-contain lg:hidden"
         />
         <h2 className="text-2xl font-bold text-gray-900">Selamat datang kembali</h2>
         <p className="mt-1.5 text-sm text-gray-500">

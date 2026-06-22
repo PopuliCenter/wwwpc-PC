@@ -12,6 +12,10 @@ export default defineConfig({
       // refresh). Tab yang masih terbuka juga otomatis dimuat ulang saat SW baru
       // aktif (lihat PWAReloadPrompt) — kecuali saat sedang mengisi survei.
       registerType: 'autoUpdate',
+      // Registrasi SW hanya lewat useRegisterSW (PWAReloadPrompt), yang di-skip
+      // di native. Tanpa ini, plugin menyuntik skrip auto-register ke index.html
+      // sehingga SW tetap aktif di Capacitor → layar blank. null = jangan suntik.
+      injectRegister: null,
       includeAssets: ['logo-populi-center.png'],
       manifest: {
         name: 'Survei Populi',

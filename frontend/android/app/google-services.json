@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "525476228760",
+    "project_id": "app-survei-online-pc",
+    "storage_bucket": "app-survei-online-pc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:525476228760:android:7e74fe5ca954f97fa7aaed",
+        "android_client_info": {
+          "package_name": "com.populicenter.survei"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA08JWQW6gEWwYsqGupjYkm186SWnMMdrA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
