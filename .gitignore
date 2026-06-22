@@ -35,8 +35,17 @@ temp/
 docs/iak/*.xlsx
 frontend/public/*.xlsx
 
-# Capacitor — proyek native di-generate lokal via `cap add` (butuh Android Studio/Xcode)
-frontend/android/
+# Capacitor — proyek native (butuh Android Studio/Xcode untuk build)
+# frontend/android/ SENGAJA DI-COMMIT agar mudah ditemukan & kustomisasi
+# (ikon, izin, signing config) tersimpan. Capacitor membuat android/.gitignore
+# sendiri yang mengabaikan artefak build (build/, .gradle/, local.properties).
+# iOS menyusul — diabaikan dulu sampai `cap add ios` dijalankan
 frontend/ios/
+# Jaga-jaga: jangan pernah commit artefak/rahasia native
+frontend/android/build/
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/app/release/
 *.keystore
 *.jks
