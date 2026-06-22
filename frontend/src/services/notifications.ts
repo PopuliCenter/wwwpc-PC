@@ -105,6 +105,8 @@ async function showSystemNotification(
           title,
           body: body ?? '',
           channelId: CHANNEL_ID,
+          smallIcon: 'ic_stat_notification',
+          iconColor: '#F26522',
           extra: { link },
         },
       ],
