@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, User, Lock, BadgeCheck, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
@@ -36,6 +36,16 @@ const GENDER_LABELS: Record<string, string> = {
   female: 'Perempuan',
   other: 'Lainnya',
 };
+
+function initials(name?: string): string {
+  if (!name) return 'PC';
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('') || 'PC';
+}
 
 function fmtDate(value: string | null): string {
   if (!value) return '-';
@@ -181,17 +191,33 @@ export function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Profil Saya</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Kelola data diri dan password akun Anda
-          {profile ? ` — ${roleLabels[profile.role]}` : ''}.
-        </p>
+      <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xl font-bold text-white">
+          {initials(profile?.fullName)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-bold text-gray-900">
+            {profile?.fullName || 'Profil Saya'}
+          </h1>
+          <p className="truncate text-sm text-gray-500">{profile?.email}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+              {profile ? roleLabels[profile.role] : ''}
+            </span>
+            {profile?.emailVerified && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                <BadgeCheck className="h-3 w-3" /> Email terverifikasi
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Data diri */}
-      <form onSubmit={handleSaveProfile} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Data Diri</h2>
+      <form onSubmit={handleSaveProfile} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
+          <User className="h-4 w-4 text-primary-600" /> Data Diri
+        </h2>
         <div className="space-y-4">
           <div>
             <label htmlFor="fullName" className={labelClass}>Nama Lengkap</label>
@@ -239,8 +265,10 @@ export function ProfilePage() {
 
       {/* Data demografi (pembobot) — read-only untuk responden */}
       {demo && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 text-base font-semibold text-gray-900">Data Demografi (Pembobot)</h2>
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-gray-900">
+            <BarChart3 className="h-4 w-4 text-primary-600" /> Data Demografi (Pembobot)
+          </h2>
           <p className="mb-4 text-xs text-gray-500">
             Data ini dikunci untuk menjaga kualitas analisis dan mencegah penyalahgunaan
             targeting. Untuk koreksi, hubungi admin.
@@ -267,8 +295,10 @@ export function ProfilePage() {
       )}
 
       {/* Ganti password */}
-      <form onSubmit={handleChangePassword} className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Ganti Password</h2>
+      <form onSubmit={handleChangePassword} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
+          <Lock className="h-4 w-4 text-primary-600" /> Ganti Password
+        </h2>
         <div className="space-y-4">
           <div>
             <label htmlFor="currentPassword" className={labelClass}>Password Lama</label>
