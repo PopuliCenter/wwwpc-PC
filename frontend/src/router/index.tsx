@@ -27,6 +27,7 @@ import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/S
 import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
 import { RewardPage } from '@/pages/respondent/RewardPage';
 import { ProfileCompletionPage } from '@/pages/respondent/ProfileCompletionPage';
+import { HelpPage } from '@/pages/respondent/HelpPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 
@@ -56,6 +57,7 @@ export const router = createBrowserRouter([
       { path: 'surveys', element: <RespondentSurveyListPage /> },
       { path: 'surveys/:id/fill', element: <SurveyFillPage /> },
       { path: 'rewards', element: <RewardPage /> },
+      { path: 'help', element: <HelpPage /> },
       { path: 'profile', element: <ProfilePage /> },
     ],
   },

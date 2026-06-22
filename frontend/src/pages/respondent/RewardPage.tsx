@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
+import { usePointsStore } from '@/stores/points.store';
 
 // Types — disesuaikan dgn kontrak backend (modules/reward)
 interface PointBalance {
@@ -682,6 +683,8 @@ export function RewardPage() {
     try {
       const result = await api.get<PointBalance>('/rewards/balance');
       setBalance(result);
+      // Sinkronkan saldo header (store bersama).
+      usePointsStore.getState().setAvailable(result.available);
     } catch {
       setBalance({ total: 0, available: 0, pending: 0, expiringWithin30Days: 0 });
     } finally {
