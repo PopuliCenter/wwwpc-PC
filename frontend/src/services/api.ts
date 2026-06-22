@@ -202,4 +202,13 @@ export const api = {
     request<T>(endpoint, { ...options, method: 'DELETE' }),
 };
 
+/**
+ * Resolusi URL media: URL absolut (http, mis. foto Google/DiceBear) dipakai
+ * apa adanya; path relatif (mis. '/avatar/<id>' dari upload sendiri) di-prefix
+ * dengan base API agar bisa dimuat <img> di web maupun native.
+ */
+export function mediaUrl(path: string): string {
+  return /^https?:\/\//i.test(path) ? path : `${BASE_URL}${path}`;
+}
+
 export { clearTokens, setTokens, getAccessToken, getRefreshToken };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -77,6 +77,7 @@ export function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form data diri
   const [fullName, setFullName] = useState('');
@@ -158,6 +159,31 @@ export function ProfilePage() {
       setPasswordMsg({ ok: false, text: errMessage(e) });
     } finally {
       setSavingPassword(false);
+    }
+  };
+
+  // Upload foto avatar sendiri → MinIO (lewat POST /avatar multipart).
+  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset agar memilih file sama tetap memicu onChange
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setProfileMsg({ ok: false, text: 'Avatar harus berupa gambar.' });
+      return;
+    }
+    setAvatarSaving(true);
+    setProfileMsg(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.upload<{ avatarUrl: string }>('/avatar', fd);
+      setProfile((p) => (p ? { ...p, avatarUrl: res.avatarUrl } : p));
+      if (user) setUser({ ...user, avatarUrl: res.avatarUrl });
+      setAvatarPickerOpen(false);
+    } catch (err) {
+      setProfileMsg({ ok: false, text: errMessage(err) });
+    } finally {
+      setAvatarSaving(false);
     }
   };
 
@@ -276,14 +302,31 @@ export function ProfilePage() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            disabled={avatarSaving || !profile?.avatarUrl}
-            onClick={() => applyAvatar(null)}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Hapus foto (pakai inisial)
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUploadAvatar}
+            />
+            <button
+              type="button"
+              disabled={avatarSaving}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              <Camera className="h-3.5 w-3.5" /> Upload foto
+            </button>
+            <button
+              type="button"
+              disabled={avatarSaving || !profile?.avatarUrl}
+              onClick={() => applyAvatar(null)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Hapus (pakai inisial)
+            </button>
+          </div>
           {avatarSaving && <p className="mt-2 text-xs text-gray-400">Menyimpan…</p>}
         </div>
       )}

@@ -5,12 +5,14 @@ import { ConfigModule } from '@nestjs/config';
 import { ExportService } from './export.service';
 import { ExportController } from './export.controller';
 import { StorageController } from './storage.controller';
+import { AvatarController } from './avatar.controller';
 import { ExportProcessor } from './processors';
 import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { Question } from '@modules/survey/entities/question.entity';
+import { User } from '@modules/auth/entities/user.entity';
 import { AuthModule } from '@modules/auth';
 import { AuditModule } from '@modules/audit';
 import { EXPORT_QUEUE } from './constants';
@@ -21,11 +23,11 @@ import { EXPORT_QUEUE } from './constants';
     BullModule.registerQueue({
       name: EXPORT_QUEUE,
     }),
-    TypeOrmModule.forFeature([ExportJob, SurveyResponse, UserProfile, Question]),
+    TypeOrmModule.forFeature([ExportJob, SurveyResponse, UserProfile, Question, User]),
     AuthModule,
     AuditModule,
   ],
-  controllers: [ExportController, StorageController],
+  controllers: [ExportController, StorageController, AvatarController],
   providers: [ExportService, ExportProcessor, S3StorageService],
   exports: [ExportService, S3StorageService],
 })

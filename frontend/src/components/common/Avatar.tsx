@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { mediaUrl } from '@/services/api';
 
 function initials(name?: string): string {
   if (!name) return 'PC';
@@ -31,7 +32,7 @@ export function Avatar({ name, url, size = 40, className = '' }: AvatarProps) {
   if (url && !failed) {
     return (
       <img
-        src={url}
+        src={mediaUrl(url)}
         alt={name || 'Avatar'}
         style={dim}
         // no-referrer penting agar foto Google (lh3.googleusercontent.com) tidak 403.
