@@ -126,7 +126,9 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [showPw, setShowPw] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -475,7 +477,6 @@ export function ProfilePage() {
       {/* Password — "Ganti" bila sudah punya, "Buat" bila akun Google (belum punya) */}
       {(() => {
         const hasPassword = profile?.passwordSet !== false;
-        const pwType = showPw ? 'text' : 'password';
         return (
           <form
             onSubmit={hasPassword ? handleChangePassword : handleSetPassword}
@@ -495,27 +496,47 @@ export function ProfilePage() {
               {hasPassword && (
                 <div>
                   <label htmlFor="currentPassword" className={labelClass}>Password Lama</label>
-                  <input id="currentPassword" type={pwType} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputClass} required autoComplete="current-password" />
+                  <div className="relative">
+                    <input id="currentPassword" type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="current-password" />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPw((v) => !v)}
+                      aria-label={showCurrentPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               )}
               <div>
                 <label htmlFor="newPassword" className={labelClass}>Password Baru</label>
                 <div className="relative">
-                  <input id="newPassword" type={pwType} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
+                  <input id="newPassword" type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
                   <button
                     type="button"
-                    onClick={() => setShowPw((v) => !v)}
-                    aria-label={showPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                    onClick={() => setShowNewPw((v) => !v)}
+                    aria-label={showNewPw ? 'Sembunyikan password' : 'Tampilkan password'}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
               </div>
               <div>
                 <label htmlFor="confirmPassword" className={labelClass}>Konfirmasi Password Baru</label>
-                <input id="confirmPassword" type={pwType} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} required autoComplete="new-password" />
+                <div className="relative">
+                  <input id="confirmPassword" type={showConfirmPw ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPw((v) => !v)}
+                    aria-label={showConfirmPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-5 flex items-center gap-3">
