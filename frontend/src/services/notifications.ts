@@ -36,6 +36,32 @@ function navigateToLink(link: string | undefined): void {
   }
 }
 
+// Token FCM terakhir yang diterima. Disimpan agar bisa dikirim ULANG ke backend
+// setelah login — token sering tiba SAAT masih di layar login (belum ada sesi),
+// sehingga POST pertamanya 401 dan token tak tersimpan untuk user mana pun.
+let fcmToken: string | null = null;
+
+async function postDeviceToken(token: string): Promise<void> {
+  await api
+    .post('/notifications/device-token', {
+      token,
+      platform: Capacitor.getPlatform(), // 'android' | 'ios'
+    })
+    .catch(() => {
+      /* gagal kirim token tidak boleh mengganggu UI */
+    });
+}
+
+/**
+ * Kirim ulang device token untuk user yang SEDANG login. Dipanggil setelah login
+ * berhasil (lihat App.tsx) agar token yang sempat gagal terkirim (karena belum
+ * login) kini tersimpan & terkait user → push bisa sampai. Aman & idempoten.
+ */
+export async function syncDeviceToken(): Promise<void> {
+  if (!Capacitor.isNativePlatform() || !fcmToken) return;
+  await postDeviceToken(fcmToken);
+}
+
 /** Buat channel Android prioritas tinggi (heads-up). iOS tidak punya channel. */
 async function ensureAndroidChannel(): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
@@ -114,16 +140,11 @@ export async function initNativeNotifications(): Promise<void> {
     // Channel prioritas tinggi agar notifikasi muncul heads-up (pop di layar).
     await ensureAndroidChannel();
 
-    // Token perangkat dari FCM/APNs → simpan di backend untuk pengiriman push.
+    // Token perangkat dari FCM/APNs → simpan & kirim ke backend. Token juga
+    // disimpan agar bisa dikirim ulang setelah login (lihat syncDeviceToken).
     PushNotifications.addListener('registration', (token) => {
-      void api
-        .post('/notifications/device-token', {
-          token: token.value,
-          platform: Capacitor.getPlatform(), // 'android' | 'ios'
-        })
-        .catch(() => {
-          /* gagal kirim token tidak boleh mengganggu UI */
-        });
+      fcmToken = token.value;
+      void postDeviceToken(token.value);
     });
 
     PushNotifications.addListener('registrationError', () => {
