@@ -362,14 +362,16 @@ export class RewardService {
 
     const totalDebits = parseInt(totalDebitsResult?.total || '0', 10);
 
-    // Pending redemptions (points locked in pending/processing redemptions)
+    // Poin tertahan = redemption yang DIINISIASI tapi BELUM di-debit, yaitu hanya
+    // status PENDING (menunggu konfirmasi OTP). Begitu dikonfirmasi, poin langsung
+    // dipotong sebagai DEBIT (lihat confirm) dan status → PROCESSING. Jadi jangan
+    // hitung PROCESSING di sini, kalau tidak poin terhitung DUA KALI (debit +
+    // pending) → saldo berkurang dobel.
     const pendingResult = await this.redemptionRepository
       .createQueryBuilder('rr')
       .select('COALESCE(SUM(rr.points_spent), 0)', 'total')
       .where('rr.user_id = :userId', { userId })
-      .andWhere('rr.status IN (:...statuses)', {
-        statuses: [RedemptionStatus.PENDING, RedemptionStatus.PROCESSING],
-      })
+      .andWhere('rr.status = :status', { status: RedemptionStatus.PENDING })
       .getRawOne();
 
     const pending = parseInt(pendingResult?.total || '0', 10);
