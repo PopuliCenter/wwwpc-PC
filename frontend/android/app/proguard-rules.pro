@@ -19,3 +19,24 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ── Capacitor & plugin keep-rules (R8) ──────────────────────────────────────
+# Bridge Capacitor menemukan plugin via refleksi/anotasi → JANGAN di-strip.
+-keep class com.getcapacitor.** { *; }
+-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }
+-keep class * extends com.getcapacitor.Plugin { *; }
+-keepclassmembers class * {
+    @com.getcapacitor.annotation.PermissionCallback <methods>;
+    @com.getcapacitor.PluginMethod <methods>;
+}
+# Interface JavaScript ke WebView.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+# Plugin pihak ketiga (push, geolocation, local-notif, social login).
+-keep class com.capacitorjs.** { *; }
+-keep class ee.forgr.capacitor.social.login.** { *; }
+# Firebase / Google Play Services (FCM, Google Sign-In).
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.**

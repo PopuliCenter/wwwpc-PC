@@ -4,6 +4,8 @@ import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2, Eye, EyeOff 
 import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { Avatar } from '@/components/common/Avatar';
+import { useConfirm } from '@/components/common/ConfirmDialog';
+import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
 import type { UserRole } from '@/types';
 
@@ -68,10 +70,41 @@ function errMessage(e: unknown): string {
 export function ProfilePage() {
   const { user, setUser, logout } = useAuthStore();
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirm();
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    const ok = await confirm({
+      title: 'Hapus akun permanen',
+      message:
+        'Akun Anda beserta SEMUA data (profil, jawaban survei, dan saldo poin) ' +
+        'akan dihapus permanen dan tidak bisa dikembalikan. Poin yang belum ' +
+        'ditukar akan hangus.\n\nLanjutkan menghapus akun?',
+      confirmText: 'Hapus akun saya',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeletingAccount(true);
+    try {
+      await api.delete('/users/me');
+      showAppNotice({ title: 'Akun Anda telah dihapus', tone: 'success', durationMs: 5000 });
+      logout();
+      navigate('/login');
+    } catch (e) {
+      showAppNotice({
+        title: 'Gagal menghapus akun',
+        body: errMessage(e),
+        tone: 'error',
+        durationMs: 7000,
+      });
+    } finally {
+      setDeletingAccount(false);
+    }
   };
 
   const [loading, setLoading] = useState(true);
@@ -506,6 +539,28 @@ export function ProfilePage() {
           <LogOut className="h-4 w-4" /> Keluar
         </button>
       )}
+
+      {/* Zona berbahaya — hapus akun sendiri (wajib untuk Play Store) */}
+      {profile?.role === 'respondent' && (
+        <div className="mt-2 rounded-xl border border-red-200 bg-red-50/50 p-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-red-700">
+            <Trash2 className="h-4 w-4" /> Hapus Akun
+          </h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Menghapus akun bersifat permanen — profil, jawaban survei, dan saldo poin
+            Anda akan dihapus dan tidak dapat dikembalikan.
+          </p>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={deletingAccount}
+            className="mt-3 inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-60"
+          >
+            <Trash2 className="h-4 w-4" />
+            {deletingAccount ? 'Menghapus…' : 'Hapus akun saya'}
+          </button>
+        </div>
+      )}
+      {dialog}
     </div>
   );
 }

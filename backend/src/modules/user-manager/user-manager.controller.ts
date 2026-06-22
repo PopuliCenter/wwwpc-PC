@@ -108,6 +108,25 @@ export class UserManagerController {
   }
 
   /**
+   * Hapus AKUN SENDIRI (self-service, wajib untuk Play Store). Tersedia untuk
+   * semua peran yang login (override @Roles kelas yang super_admin-only). HARUS
+   * dideklarasikan SEBELUM @Delete(':id') agar "me" tidak tertangkap sbg :id.
+   */
+  @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.ANALYST,
+    UserRole.SURVEYOR,
+    UserRole.RESPONDENT,
+  )
+  async deleteOwnAccount(@Req() req: any) {
+    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    await this.userManagerService.deleteOwnAccount(req.user.userId, ipAddress);
+  }
+
+  /**
    * Hapus permanen akun + data terkait. Boleh super_admin & admin (admin tak
    * bisa hapus super_admin; tak bisa hapus diri sendiri; tak bisa hapus akun
    * pembuat survei).

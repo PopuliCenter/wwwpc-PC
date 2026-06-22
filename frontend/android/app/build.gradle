@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+// Kredensial penandatanganan rilis dibaca dari keystore.properties (root modul
+// android/, DI-GITIGNORE). Bila tidak ada (mis. mesin lain / CI tanpa key),
+// build release jatuh ke debug-signing agar tidak gagal — JANGAN unggah AAB
+// seperti itu ke Play. Lihat android/keystore.properties.example.
+def keystorePropsFile = rootProject.file("keystore.properties")
+def hasKeystore = keystorePropsFile.exists()
+def keystoreProps = new Properties()
+if (hasKeystore) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
 android {
     namespace = "com.populicenter.survei"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +27,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasKeystore) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Pakai key rilis bila tersedia; jika tidak, biarkan default (debug).
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
+            // R8: minify + obfuscate shell native. Logika app ada di bundle JS
+            // (sudah diminify Vite). Bila build rilis bermasalah, set false &
+            // uji ulang. Aturan keep ada di proguard-rules.pro.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

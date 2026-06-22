@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, DataSource } from 'typeorm';
+import { Repository, ILike, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { UserRole, AuditActionType } from '@shared/enums';
@@ -404,33 +404,9 @@ export class UserManagerService {
       );
     }
 
-    await this.dataSource.transaction(async (manager) => {
-      const id = [targetUserId];
-      await manager.query('DELETE FROM point_transaction WHERE user_id = $1', id);
-      await manager.query('DELETE FROM reward_redemption WHERE user_id = $1', id);
-      await manager.query('DELETE FROM streak_tracker WHERE user_id = $1', id);
-      await manager.query('DELETE FROM geolocation WHERE user_id = $1', id);
-      await manager.query(
-        'DELETE FROM manual_reward_distribution WHERE respondent_id = $1',
-        id,
-      );
-      await manager.query('DELETE FROM export_job WHERE requested_by = $1', id);
-      // Jawaban tertaut → hapus dulu sebelum survey_response (jaga-jaga bila FK
-      // tidak CASCADE di DB).
-      await manager.query(
-        'DELETE FROM answer WHERE response_id IN (SELECT id FROM survey_response WHERE respondent_id = $1)',
-        id,
-      );
-      await manager.query('DELETE FROM survey_response WHERE respondent_id = $1', id);
-      await manager.query(
-        'UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1',
-        id,
-      );
-      await manager.query('DELETE FROM surveyor_quota WHERE surveyor_id = $1', id);
-      await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
-      // Tabel user bernama "users".
-      await manager.query('DELETE FROM "users" WHERE id = $1', id);
-    });
+    await this.dataSource.transaction((manager) =>
+      this.purgeUserData(manager, targetUserId),
+    );
 
     await this.auditService.log({
       userId: requester.userId,
@@ -444,6 +420,78 @@ export class UserManagerService {
       ipAddress,
     });
     this.logger.log(`User deleted: ${target.email} by ${requester.userId}`);
+  }
+
+  /**
+   * Bersihkan semua data dependen sebuah user lalu hapus baris user, dalam satu
+   * transaksi. Aman apa pun konfigurasi ON DELETE di DB. audit_log SENGAJA tidak
+   * dihapus (tanpa FK) agar jejak audit utuh.
+   */
+  private async purgeUserData(
+    manager: EntityManager,
+    userId: string,
+  ): Promise<void> {
+    const id = [userId];
+    await manager.query('DELETE FROM point_transaction WHERE user_id = $1', id);
+    await manager.query('DELETE FROM reward_redemption WHERE user_id = $1', id);
+    await manager.query('DELETE FROM streak_tracker WHERE user_id = $1', id);
+    await manager.query('DELETE FROM geolocation WHERE user_id = $1', id);
+    await manager.query(
+      'DELETE FROM manual_reward_distribution WHERE respondent_id = $1',
+      id,
+    );
+    await manager.query('DELETE FROM export_job WHERE requested_by = $1', id);
+    // Jawaban tertaut → hapus dulu sebelum survey_response (jaga-jaga bila FK
+    // tidak CASCADE di DB).
+    await manager.query(
+      'DELETE FROM answer WHERE response_id IN (SELECT id FROM survey_response WHERE respondent_id = $1)',
+      id,
+    );
+    await manager.query('DELETE FROM survey_response WHERE respondent_id = $1', id);
+    await manager.query(
+      'UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1',
+      id,
+    );
+    await manager.query('DELETE FROM surveyor_quota WHERE surveyor_id = $1', id);
+    await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
+    // Tabel user bernama "users".
+    await manager.query('DELETE FROM "users" WHERE id = $1', id);
+  }
+
+  /**
+   * Hapus AKUN SENDIRI (self-service) — wajib untuk Play Store. Menghapus akun
+   * + seluruh data pribadi terkait secara permanen. Akun pembuat survei tidak
+   * boleh hapus mandiri (FK survey.created_by RESTRICT) → diarahkan ke admin.
+   */
+  async deleteOwnAccount(userId: string, ipAddress: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Pengguna tidak ditemukan.');
+    }
+
+    const ownsSurvey = await this.dataSource.query(
+      'SELECT 1 FROM survey WHERE created_by = $1 LIMIT 1',
+      [userId],
+    );
+    if (ownsSurvey.length > 0) {
+      throw new BadRequestException(
+        'Akun Anda terkait pembuatan survei sehingga tidak dapat dihapus mandiri. ' +
+          'Silakan hubungi admin untuk proses penghapusan.',
+      );
+    }
+
+    await this.dataSource.transaction((manager) =>
+      this.purgeUserData(manager, userId),
+    );
+
+    await this.auditService.log({
+      userId,
+      actionType: AuditActionType.USER_DELETE,
+      module: 'auth',
+      details: { selfDeleted: true, email: user.email, role: user.role },
+      ipAddress,
+    });
+    this.logger.log(`Account self-deleted: ${user.email}`);
   }
 
   /**
