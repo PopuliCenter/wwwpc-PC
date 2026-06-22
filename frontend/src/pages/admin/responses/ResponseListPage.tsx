@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
+import { useConfirm } from '@/components/common/ConfirmDialog';
+import { showAppNotice } from '@/stores/notification.store';
 
 interface ResponseItem {
   id: string;
@@ -152,6 +154,7 @@ function ManualRewardPanel({
 
 export function ResponseListPage() {
   const navigate = useNavigate();
+  const { confirm, dialog } = useConfirm();
   const [responses, setResponses] = useState<ResponseItem[]>([]);
   const [surveys, setSurveys] = useState<SurveyOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -261,33 +264,52 @@ export function ResponseListPage() {
 
   // Hapus respons → responden bisa mengisi survei ini lagi (salah isi / tertahan).
   const handleDelete = async (r: ResponseItem) => {
-    const ok = window.confirm(
-      `Hapus respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
+    const ok = await confirm({
+      title: 'Hapus respons',
+      message:
+        `Hapus respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
         'Jawaban akan dihapus permanen dan responden dapat mengisi survei ini kembali.',
-    );
+      confirmText: 'Hapus',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await api.delete(`/responses/${r.id}`);
       setResponses((prev) => prev.filter((x) => x.id !== r.id));
+      showAppNotice({ title: 'Respons dihapus', tone: 'success', durationMs: 4000 });
     } catch (e) {
-      alert((e as Error).message || 'Gagal menghapus respons');
+      showAppNotice({
+        title: 'Gagal menghapus respons',
+        body: (e as { message?: string })?.message,
+        tone: 'error',
+        durationMs: 6000,
+      });
     }
   };
 
   // Arsipkan respons → data tetap tersimpan, disembunyikan dari daftar aktif,
   // dan responden bisa mengisi survei ini lagi (alternatif aman dari hapus).
   const handleArchive = async (r: ResponseItem) => {
-    const ok = window.confirm(
-      `Arsipkan respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
+    const ok = await confirm({
+      title: 'Arsipkan respons',
+      message:
+        `Arsipkan respons dari "${r.respondentName}" pada survei "${r.surveyTitle}"?\n\n` +
         'Data tetap tersimpan (bisa dilihat lewat "Tampilkan arsip"), dan responden ' +
         'dapat mengisi survei ini kembali.',
-    );
+      confirmText: 'Arsipkan',
+    });
     if (!ok) return;
     try {
       await api.patch(`/responses/${r.id}/archive`);
       setResponses((prev) => prev.filter((x) => x.id !== r.id));
+      showAppNotice({ title: 'Respons diarsipkan', tone: 'success', durationMs: 4000 });
     } catch (e) {
-      alert((e as Error).message || 'Gagal mengarsipkan respons');
+      showAppNotice({
+        title: 'Gagal mengarsipkan respons',
+        body: (e as { message?: string })?.message,
+        tone: 'error',
+        durationMs: 6000,
+      });
     }
   };
 
@@ -316,6 +338,7 @@ export function ResponseListPage() {
 
   return (
     <div className="space-y-6">
+      {dialog}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Respons</h1>
         <div className="flex gap-2">

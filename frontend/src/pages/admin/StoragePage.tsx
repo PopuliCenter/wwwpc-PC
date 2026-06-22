@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { useConfirm } from '@/components/common/ConfirmDialog';
 
 interface StorageObject {
   key: string;
@@ -75,6 +76,7 @@ export function StoragePage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const { confirm, dialog } = useConfirm();
 
   const fetchPage = useCallback(
     async (token?: string, append = false) => {
@@ -129,7 +131,13 @@ export function StoragePage() {
   };
 
   const handleDelete = async (key: string) => {
-    if (!window.confirm(`Hapus berkas ini secara PERMANEN?\n\n${key}`)) return;
+    const ok = await confirm({
+      title: 'Hapus berkas',
+      message: `Hapus berkas ini secara PERMANEN?\n\n${key}`,
+      confirmText: 'Hapus',
+      danger: true,
+    });
+    if (!ok) return;
     setBusyKey(key);
     try {
       await api.delete(`/admin/storage/object?bucket=${bucket}&key=${encodeURIComponent(key)}`);
@@ -164,12 +172,13 @@ export function StoragePage() {
 
   const handleBulkDelete = async () => {
     if (selectedKeys.length === 0) return;
-    if (
-      !window.confirm(
-        `Hapus ${selectedKeys.length} berkas terpilih secara PERMANEN?\n\nTindakan ini tidak bisa dibatalkan.`,
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: 'Hapus berkas terpilih',
+      message: `Hapus ${selectedKeys.length} berkas terpilih secara PERMANEN?\n\nTindakan ini tidak bisa dibatalkan.`,
+      confirmText: `Hapus ${selectedKeys.length} berkas`,
+      danger: true,
+    });
+    if (!ok) return;
     setBulkBusy(true);
     setError(null);
     try {
@@ -197,6 +206,7 @@ export function StoragePage() {
 
   return (
     <div className="space-y-5">
+      {dialog}
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900">
           <HardDrive className="h-6 w-6 text-primary-600" /> Penyimpanan (MinIO)
