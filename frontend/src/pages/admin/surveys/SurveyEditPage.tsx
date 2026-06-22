@@ -1356,6 +1356,10 @@ export function SurveyEditPage() {
   const [settingsType, setSettingsType] = useState<'nasional' | 'daerah' | 'lainnya'>('lainnya');
   const [settingsCategory, setSettingsCategory] = useState('');
   const [settingsFormMode, setSettingsFormMode] = useState<'paginated' | 'scroll' | 'wizard'>('paginated');
+  // Reward — poin & deskripsi bisa diubah agar survei tidak mubazir bila salah set.
+  const [settingsRewardMode, setSettingsRewardMode] = useState<'automatic' | 'manual'>('automatic');
+  const [settingsRewardPoints, setSettingsRewardPoints] = useState('');
+  const [settingsRewardDescription, setSettingsRewardDescription] = useState('');
   // Alat pendukung (bukan tipe pertanyaan): rekam GPS & minta tanda tangan.
   const [settingsCaptureGps, setSettingsCaptureGps] = useState(false);
   const [settingsRequireSignature, setSettingsRequireSignature] = useState(false);
@@ -1377,6 +1381,14 @@ export function SurveyEditPage() {
         surveyType: settingsType,
         category: settingsCategory || undefined,
         formMode: settingsFormMode,
+        rewardMode: settingsRewardMode,
+        rewardConfig: {
+          // rewardMode WAJIB ada di RewardConfigDto (validasi backend).
+          rewardMode: settingsRewardMode,
+          pointsValue:
+            settingsRewardPoints !== '' ? Number(settingsRewardPoints) : undefined,
+          manualRewardType: settingsRewardDescription || undefined,
+        },
         captureGps: settingsCaptureGps,
         requireSignature: settingsRequireSignature,
         uppercaseAnswers: settingsUppercaseAnswers,
@@ -1427,6 +1439,11 @@ export function SurveyEditPage() {
             startDatetime?: string | null;
             endDatetime?: string | null;
             maxDurationMinutes?: number | null;
+            rewardMode?: 'automatic' | 'manual';
+            rewardConfig?: {
+              pointsValue?: number | null;
+              manualRewardType?: string | null;
+            } | null;
           }>(`/surveys/${id}`),
           api.get<BackendQuestion[]>(`/surveys/${id}/questions`),
         ]);
@@ -1459,6 +1476,13 @@ export function SurveyEditPage() {
         setSettingsCaptureGps(survey.captureGps ?? false);
         setSettingsRequireSignature(survey.requireSignature ?? false);
         setSettingsUppercaseAnswers(survey.uppercaseAnswers ?? false);
+        setSettingsRewardMode(survey.rewardMode ?? 'automatic');
+        setSettingsRewardPoints(
+          survey.rewardConfig?.pointsValue != null
+            ? String(survey.rewardConfig.pointsValue)
+            : '',
+        );
+        setSettingsRewardDescription(survey.rewardConfig?.manualRewardType ?? '');
         setQuestions(mapped);
       } catch {
         alert('Gagal memuat survei');
@@ -1719,6 +1743,48 @@ export function SurveyEditPage() {
               <option value="scroll">Satu Halaman (gulir ke bawah)</option>
               <option value="wizard">Satu per Satu (1 pertanyaan tiap langkah)</option>
             </select>
+          </div>
+        </div>
+
+        {/* Reward — poin & deskripsi dapat diubah agar survei tidak mubazir */}
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Reward
+            <InfoHint text="Hadiah untuk responden yang menyelesaikan survei. Bisa diubah kapan saja, termasuk setelah survei dibuat." />
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Mode Reward</label>
+              <select
+                value={settingsRewardMode}
+                onChange={(e) => setSettingsRewardMode(e.target.value as typeof settingsRewardMode)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="automatic">Otomatis (poin)</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Poin Reward</label>
+              <input
+                type="number"
+                min={0}
+                value={settingsRewardPoints}
+                onChange={(e) => setSettingsRewardPoints(e.target.value)}
+                placeholder="mis. 500"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Deskripsi Reward</label>
+              <input
+                type="text"
+                value={settingsRewardDescription}
+                onChange={(e) => setSettingsRewardDescription(e.target.value)}
+                placeholder="mis. Pulsa 5rb / e-wallet"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
           </div>
         </div>
 

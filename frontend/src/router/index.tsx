@@ -27,6 +27,7 @@ import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/S
 import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
 import { RewardPage } from '@/pages/respondent/RewardPage';
 import { ProfileCompletionPage } from '@/pages/respondent/ProfileCompletionPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 
 export const router = createBrowserRouter([
@@ -86,4 +87,8 @@ export const router = createBrowserRouter([
       { path: 'profile', element: <ProfilePage /> },
     ],
   },
+
+  // Catch-all — rute tak dikenal (mis. notifikasi dgn link tak cocok) → 404 ramah
+  // alih-alih layar error bawaan React Router.
+  { path: '*', element: <NotFoundPage /> },
 ]);

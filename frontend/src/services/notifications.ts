@@ -25,6 +25,17 @@ let localNotifId = 1;
 // notifikasi memakai channel prioritas tinggi ini (heads-up + suara).
 const CHANNEL_ID = 'survei_penting';
 
+/**
+ * Navigasi aman dari notifikasi: hanya path INTERNAL (diawali '/'). Link kosong
+ * atau URL eksternal/aneh diabaikan agar tidak memicu 404. Tetap aman bila
+ * pengumuman dikirim tanpa link / dengan link salah.
+ */
+function navigateToLink(link: string | undefined): void {
+  if (typeof link === 'string' && link.startsWith('/')) {
+    router.navigate(link);
+  }
+}
+
 /** Buat channel Android prioritas tinggi (heads-up). iOS tidak punya channel. */
 async function ensureAndroidChannel(): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
@@ -130,16 +141,14 @@ export async function initNativeNotifications(): Promise<void> {
 
     // Notifikasi push diketuk (app di belakang/tertutup) → buka rute.
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const link = action.notification.data?.link as string | undefined;
-      if (link) router.navigate(link);
+      navigateToLink(action.notification.data?.link as string | undefined);
     });
 
     // Notifikasi SISTEM (local, dari foreground) diketuk → buka rute.
     void LocalNotifications.addListener(
       'localNotificationActionPerformed',
       (action) => {
-        const link = action.notification.extra?.link as string | undefined;
-        if (link) router.navigate(link);
+        navigateToLink(action.notification.extra?.link as string | undefined);
       },
     );
 
