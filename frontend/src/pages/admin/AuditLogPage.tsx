@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
 
@@ -93,6 +94,12 @@ export function AuditLogPage() {
   const [endDate, setEndDate] = useState('');
   const [ipFilter, setIpFilter] = useState('');
 
+  // Hapus/bersihkan log — hanya super_admin (endpoint juga dibatasi).
+  const { user } = useAuthStore();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+
   const limit = 20;
 
   const fetchLogs = useCallback(async () => {
@@ -160,18 +167,104 @@ export function AuditLogPage() {
     setPage(1);
   };
 
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const allOnPageSelected = logs.length > 0 && logs.every((l) => selected.has(l.id));
+  const toggleSelectAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) logs.forEach((l) => next.delete(l.id));
+      else logs.forEach((l) => next.add(l.id));
+      return next;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Hapus ${selected.size} log terpilih secara PERMANEN?`)) return;
+    setActionMsg(null);
+    try {
+      const res = await api.post<{ deleted: number }>('/audit/delete', { ids: [...selected] });
+      setActionMsg(`${res.deleted} log dihapus.`);
+      setSelected(new Set());
+      fetchLogs();
+    } catch (e) {
+      setActionMsg((e as Error).message || 'Gagal menghapus log.');
+    } finally {
+      setTimeout(() => setActionMsg(null), 5000);
+    }
+  };
+
+  const handlePurge = async () => {
+    const input = window.prompt('Hapus log yang LEBIH LAMA dari berapa hari? (mis. 90)', '90');
+    if (input === null) return;
+    const days = Math.floor(Number(input));
+    if (!Number.isFinite(days) || days < 0) {
+      setActionMsg('Jumlah hari tidak valid.');
+      return;
+    }
+    if (!window.confirm(`Hapus PERMANEN semua log lebih lama dari ${days} hari?`)) return;
+    setActionMsg(null);
+    try {
+      const res = await api.post<{ deleted: number }>('/audit/purge', { olderThanDays: days });
+      setActionMsg(`${res.deleted} log lama dihapus.`);
+      setSelected(new Set());
+      setPage(1);
+      fetchLogs();
+    } catch (e) {
+      setActionMsg((e as Error).message || 'Gagal membersihkan log.');
+    } finally {
+      setTimeout(() => setActionMsg(null), 5000);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
-        >
-          {exporting ? 'Mengexport...' : 'Export CSV'}
-        </button>
+        <div className="flex items-center gap-2">
+          {isSuperAdmin && (
+            <button
+              onClick={handlePurge}
+              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              title="Hapus log lama agar data tidak menumpuk"
+            >
+              Bersihkan log lama
+            </button>
+          )}
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            {exporting ? 'Mengexport...' : 'Export CSV'}
+          </button>
+        </div>
       </div>
+
+      {actionMsg && (
+        <div className="rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-800">
+          {actionMsg}
+        </div>
+      )}
+
+      {isSuperAdmin && selected.size > 0 && (
+        <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm">
+          <span className="font-medium text-red-700">{selected.size} log dipilih</span>
+          <button
+            onClick={handleDeleteSelected}
+            className="rounded-md bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-700"
+          >
+            Hapus terpilih
+          </button>
+        </div>
+      )}
 
       {/* Export message */}
       {exportMessage && (
@@ -314,6 +407,16 @@ export function AuditLogPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  {isSuperAdmin && (
+                    <th className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Pilih semua di halaman ini"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Waktu
                   </th>
@@ -337,13 +440,23 @@ export function AuditLogPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={isSuperAdmin ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
                       Tidak ada log ditemukan
                     </td>
                   </tr>
                 ) : (
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
+                      {isSuperAdmin && (
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(log.id)}
+                            onChange={() => toggleSelect(log.id)}
+                            aria-label="Pilih log"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                         {format(new Date(log.createdAt), 'dd/MM/yyyy HH:mm:ss')}
                       </td>

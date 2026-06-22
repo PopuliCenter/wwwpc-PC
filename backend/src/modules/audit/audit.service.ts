@@ -169,6 +169,28 @@ export class AuditService {
     };
   }
 
+  /** Hapus audit log terpilih (super_admin). Mengembalikan jumlah terhapus. */
+  async deleteByIds(ids: string[]): Promise<number> {
+    if (!ids || ids.length === 0) return 0;
+    const res = await this.auditLogRepository.delete({ id: In(ids) });
+    return res.affected || 0;
+  }
+
+  /**
+   * Purge MANUAL: hapus log lebih lama dari `days` hari (aksi disengaja
+   * super_admin). Tanpa batas minimum retensi — beda dari pembersihan otomatis.
+   */
+  async purgeOlderThanDays(days: number): Promise<number> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - Math.max(0, days));
+    const res = await this.auditLogRepository.delete({
+      createdAt: LessThan(cutoff),
+    });
+    const deleted = res.affected || 0;
+    this.logger.log(`Purge manual: ${deleted} audit log > ${days} hari dihapus`);
+    return deleted;
+  }
+
   /**
    * Cleanup old audit logs beyond the retention period.
    * Default retention is 12 months - logs younger than this are never deleted.
