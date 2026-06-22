@@ -55,7 +55,9 @@ export function RespondentLayout() {
                   alt="Populi Center"
                   className="h-9 w-9 object-contain"
                 />
-                <span className="text-lg font-bold text-primary-600">Survei Online</span>
+                <span className="hidden text-lg font-bold text-primary-600 sm:inline">
+                  Survei Online
+                </span>
               </div>
               {/* Nav inline hanya di desktop; di HP memakai tab bawah */}
               <nav className="hidden gap-5 md:flex">
@@ -98,7 +100,8 @@ export function RespondentLayout() {
                   title="Saldo poin Anda"
                   className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                 >
-                  <Gift className="h-3.5 w-3.5" /> {points.toLocaleString('id-ID')} poin
+                  <Gift className="h-3.5 w-3.5" /> {points.toLocaleString('id-ID')}
+                  <span className="hidden sm:inline">&nbsp;poin</span>
                 </NavLink>
               )}
               <NotificationBell />
