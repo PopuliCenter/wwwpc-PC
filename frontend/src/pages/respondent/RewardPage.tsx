@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Gift, Hourglass, Clock } from 'lucide-react';
+import { Wallet, Gift, Hourglass, Clock, Smartphone } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
 import { usePointsStore } from '@/stores/points.store';
@@ -74,16 +74,21 @@ interface BackendRedemption {
 
 type RedemptionStep = 'destination' | 'otp' | 'success';
 
-// Kategori aktif saat ini: pulsa + e-wallet. Paket data & voucher menyusul.
-const CATEGORY_LABELS: Record<string, string> = {
-  pulsa: 'Pulsa',
-  e_wallet: 'E-Wallet',
-};
+// E-wallet dipecah jadi tab per-dompet agar katalog terlihat penuh & jelas.
+// Setiap dompet punya warna aksen sendiri (ikon kartu). Urut sesuai katalog.
+const EWALLETS: { key: string; label: string; tone: string }[] = [
+  { key: 'gopay', label: 'GoPay', tone: 'bg-teal-50 text-teal-600 ring-teal-100' },
+  { key: 'ovo', label: 'OVO', tone: 'bg-violet-50 text-violet-600 ring-violet-100' },
+  { key: 'dana', label: 'DANA', tone: 'bg-sky-50 text-sky-600 ring-sky-100' },
+  { key: 'shopeepay', label: 'ShopeePay', tone: 'bg-orange-50 text-orange-600 ring-orange-100' },
+  { key: 'linkaja', label: 'LinkAja', tone: 'bg-red-50 text-red-600 ring-red-100' },
+];
 
-const CATEGORY_ICONS: Record<string, string> = {
-  pulsa: '📱',
-  e_wallet: '💳',
-};
+/** Ambil kunci dompet dari id katalog (mis. 'ewallet-gopay-25000' → 'gopay'). */
+function walletOf(id: string): string | null {
+  const m = /^ewallet-([a-z]+)-/.exec(id);
+  return m ? m[1] : null;
+}
 
 const REDEMPTION_STATUS_META: Record<
   RedemptionStatus,
@@ -411,11 +416,24 @@ function RewardCatalog({
     fetchCatalog();
   }, []);
 
-  const categories = ['all', ...Object.keys(CATEGORY_LABELS)];
+  const hasPulsa = rewards.some((r) => r.category === 'pulsa');
+  const presentWallets = EWALLETS.filter((w) =>
+    rewards.some((r) => walletOf(r.id) === w.key),
+  );
+  // Tab: Semua · Pulsa · lalu satu tab per dompet (GoPay/OVO/DANA/…).
+  const tabs: { key: string; label: string }[] = [
+    { key: 'all', label: 'Semua' },
+    ...(hasPulsa ? [{ key: 'pulsa', label: 'Pulsa' }] : []),
+    ...presentWallets.map((w) => ({ key: `ewallet:${w.key}`, label: w.label })),
+  ];
   const filteredRewards =
     activeCategory === 'all'
       ? rewards
-      : rewards.filter((r) => r.category === activeCategory);
+      : activeCategory === 'pulsa'
+        ? rewards.filter((r) => r.category === 'pulsa')
+        : activeCategory.startsWith('ewallet:')
+          ? rewards.filter((r) => walletOf(r.id) === activeCategory.slice(8))
+          : rewards;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200">
@@ -423,21 +441,25 @@ function RewardCatalog({
         <h3 className="text-lg font-semibold text-gray-900">Katalog Reward</h3>
       </div>
 
-      {/* Category tabs */}
-      <div className="p-4 border-b border-gray-200 flex gap-2 overflow-x-auto">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-colors ${
-              activeCategory === cat
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {cat === 'all' ? 'Semua' : `${CATEGORY_ICONS[cat] ?? ''} ${CATEGORY_LABELS[cat] ?? cat}`}
-          </button>
-        ))}
+      {/* Category tabs — Semua · Pulsa · per dompet */}
+      <div className="flex gap-2 overflow-x-auto border-b border-gray-200 p-4">
+        {tabs.map((t) => {
+          const Icon = t.key === 'pulsa' ? Smartphone : Wallet;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setActiveCategory(t.key)}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
+                activeCategory === t.key
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {t.key !== 'all' && <Icon className="h-3.5 w-3.5" />}
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -465,9 +487,23 @@ function RewardCatalog({
                 }`}
               >
                 <div className="flex flex-1 items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-xl ring-1 ring-inset ring-gray-100">
-                    {CATEGORY_ICONS[reward.category] ?? '🎁'}
-                  </span>
+                  {(() => {
+                    const w = walletOf(reward.id);
+                    const meta = w ? EWALLETS.find((x) => x.key === w) : null;
+                    const Icon = reward.category === 'pulsa' ? Smartphone : Wallet;
+                    const tone =
+                      meta?.tone ??
+                      (reward.category === 'pulsa'
+                        ? 'bg-indigo-50 text-indigo-600 ring-indigo-100'
+                        : 'bg-gray-50 text-gray-500 ring-gray-100');
+                    return (
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${tone}`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                    );
+                  })()}
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
                     <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{reward.description}</p>
