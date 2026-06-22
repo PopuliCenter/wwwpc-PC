@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Delete,
+  Body,
   Query,
   Req,
   Res,
@@ -15,6 +16,7 @@ import { Roles } from '@modules/auth/decorators';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
 import { S3StorageService } from './s3-storage.service';
+import { DeleteObjectsDto } from './dto/delete-objects.dto';
 
 /**
  * Panel admin penyimpanan (MinIO/S3): telusur, lihat, dan HAPUS berkas mentah
@@ -87,5 +89,43 @@ export class StorageController {
       ipAddress: req.ip || '0.0.0.0',
     });
     return { ok: true };
+  }
+
+  /**
+   * Hapus banyak objek sekaligus (pilih-banyak). PERMANEN — tercatat di Audit
+   * Log sebagai satu entri berisi daftar key. Mengembalikan key yang gagal.
+   */
+  @Delete('objects')
+  async deleteObjects(
+    @Body() dto: DeleteObjectsDto,
+    @Req() req: any,
+  ): Promise<{ ok: true; deleted: string[]; failed: string[] }> {
+    const resolvedBucket = dto.bucket === 'exports' ? 'exports' : 'uploads';
+    const target = this.bucketFor(dto.bucket);
+    const deleted: string[] = [];
+    const failed: string[] = [];
+    for (const key of dto.keys) {
+      try {
+        await this.s3.deleteObject(key, target);
+        deleted.push(key);
+      } catch {
+        failed.push(key);
+      }
+    }
+    if (deleted.length > 0) {
+      await this.audit.log({
+        userId: req.user.userId,
+        actionType: AuditActionType.DATA_CLEANUP,
+        module: 'export',
+        details: {
+          action: 'storage_delete_bulk',
+          bucket: resolvedBucket,
+          count: deleted.length,
+          keys: deleted,
+        },
+        ipAddress: req.ip || '0.0.0.0',
+      });
+    }
+    return { ok: true, deleted, failed };
   }
 }

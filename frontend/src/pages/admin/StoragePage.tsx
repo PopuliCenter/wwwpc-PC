@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   HardDrive,
   Image as ImageIcon,
@@ -12,6 +12,8 @@ import {
   X,
   Search,
   Loader2,
+  CheckSquare,
+  Square,
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/services/api';
@@ -71,6 +73,8 @@ export function StoragePage() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; kind: string; name: string } | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const fetchPage = useCallback(
     async (token?: string, append = false) => {
@@ -83,6 +87,7 @@ export function StoragePage() {
         const res = await api.get<ListResponse>(`/admin/storage/objects?${q.toString()}`);
         setObjects((prev) => (append ? [...prev, ...(res.objects ?? [])] : res.objects ?? []));
         setNextToken(res.nextToken);
+        if (!append) setSelected(new Set());
       } catch (e) {
         setError((e as { message?: string })?.message || 'Gagal memuat daftar berkas.');
         if (!append) setObjects([]);
@@ -129,10 +134,59 @@ export function StoragePage() {
     try {
       await api.delete(`/admin/storage/object?bucket=${bucket}&key=${encodeURIComponent(key)}`);
       setObjects((prev) => prev.filter((o) => o.key !== key));
+      setSelected((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     } catch (e) {
       setError((e as { message?: string })?.message || 'Gagal menghapus berkas.');
     } finally {
       setBusyKey(null);
+    }
+  };
+
+  const toggleOne = (key: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const allSelected = objects.length > 0 && selected.size === objects.length;
+  const toggleAll = () =>
+    setSelected((prev) =>
+      prev.size === objects.length ? new Set() : new Set(objects.map((o) => o.key)),
+    );
+
+  const selectedKeys = useMemo(() => Array.from(selected), [selected]);
+
+  const handleBulkDelete = async () => {
+    if (selectedKeys.length === 0) return;
+    if (
+      !window.confirm(
+        `Hapus ${selectedKeys.length} berkas terpilih secara PERMANEN?\n\nTindakan ini tidak bisa dibatalkan.`,
+      )
+    )
+      return;
+    setBulkBusy(true);
+    setError(null);
+    try {
+      const res = await api.delete<{ deleted: string[]; failed: string[] }>(
+        '/admin/storage/objects',
+        { body: { bucket, keys: selectedKeys } },
+      );
+      const deletedSet = new Set(res.deleted ?? []);
+      setObjects((prev) => prev.filter((o) => !deletedSet.has(o.key)));
+      setSelected(new Set(res.failed ?? []));
+      if ((res.failed?.length ?? 0) > 0) {
+        setError(`${res.failed.length} berkas gagal dihapus dan masih terpilih.`);
+      }
+    } catch (e) {
+      setError((e as { message?: string })?.message || 'Gagal menghapus berkas terpilih.');
+    } finally {
+      setBulkBusy(false);
     }
   };
 
@@ -199,12 +253,63 @@ export function StoragePage() {
           <p className="text-gray-600">Tidak ada berkas pada filter ini.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <>
+          {/* Toolbar seleksi */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-primary-600"
+            >
+              {allSelected ? (
+                <CheckSquare className="h-4 w-4 text-primary-600" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              {allSelected ? 'Batal pilih semua' : 'Pilih semua di halaman'}
+            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">
+                {selected.size > 0 ? `${selected.size} dipilih` : `${objects.length} berkas`}
+              </span>
+              <button
+                type="button"
+                disabled={selected.size === 0 || bulkBusy}
+                onClick={handleBulkDelete}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
+              >
+                {bulkBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+                Hapus terpilih
+              </button>
+            </div>
+          </div>
+
+          <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
           {objects.map((o) => {
             const Icon = KIND_ICON[kindOf(o.key)];
             const busy = busyKey === o.key;
+            const checked = selected.has(o.key);
             return (
-              <li key={o.key} className="flex items-center gap-3 px-4 py-3">
+              <li
+                key={o.key}
+                className={`flex items-center gap-3 px-4 py-3 ${checked ? 'bg-primary-50/50' : ''}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleOne(o.key)}
+                  title={checked ? 'Batal pilih' : 'Pilih'}
+                  className="shrink-0 text-gray-400 hover:text-primary-600"
+                >
+                  {checked ? (
+                    <CheckSquare className="h-4 w-4 text-primary-600" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </button>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-inset ring-gray-100">
                   <Icon className="h-4 w-4" />
                 </span>
@@ -239,7 +344,8 @@ export function StoragePage() {
               </li>
             );
           })}
-        </ul>
+          </ul>
+        </>
       )}
 
       {nextToken && !loading && (
