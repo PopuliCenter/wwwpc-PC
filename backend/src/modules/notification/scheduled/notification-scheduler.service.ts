@@ -249,7 +249,16 @@ export class NotificationSchedulerService {
       this.baseUrl,
     );
 
-    const body = 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.';
+    // Isi notifikasi yang informatif: tampilkan poin & estimasi agar responden
+    // langsung tahu "survei apa & bagaimana" dari banner sistem (judul = nama survei).
+    const rewardPoints = survey.rewardConfig?.pointsValue ?? null;
+    const estimate = survey.maxDurationMinutes ?? null;
+    const detailParts: string[] = [];
+    if (rewardPoints) detailParts.push(`${rewardPoints} poin`);
+    if (estimate) detailParts.push(`±${estimate} menit`);
+    const body = detailParts.length
+      ? `${detailParts.join(' • ')}. Ketuk untuk mulai mengisi.`
+      : 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.';
     const link = `/surveys/${survey.id}/fill`;
 
     await this.feedService
