@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2 } from 'lucide-react';
+import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2, Eye, EyeOff } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { Avatar } from '@/components/common/Avatar';
@@ -25,6 +25,7 @@ interface ProfileData {
   phone: string;
   fullName: string;
   avatarUrl: string | null;
+  passwordSet: boolean;
   role: UserRole;
   status: string;
   emailVerified: boolean;
@@ -92,6 +93,7 @@ export function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [showPw, setShowPw] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -155,6 +157,31 @@ export function ProfilePage() {
       setNewPassword('');
       setConfirmPassword('');
       setPasswordMsg({ ok: true, text: 'Password berhasil diganti.' });
+    } catch (e) {
+      setPasswordMsg({ ok: false, text: errMessage(e) });
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  // Buat password untuk akun tanpa password (mis. dibuat via Google) — tanpa pw lama.
+  const handleSetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordMsg(null);
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ ok: false, text: 'Konfirmasi password tidak sama.' });
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await api.patch('/auth/profile/set-password', { newPassword });
+      setNewPassword('');
+      setConfirmPassword('');
+      setProfile((p) => (p ? { ...p, passwordSet: true } : p));
+      setPasswordMsg({
+        ok: true,
+        text: 'Password berhasil dibuat. Kini Anda bisa login dengan email & password.',
+      });
     } catch (e) {
       setPasswordMsg({ ok: false, text: errMessage(e) });
     } finally {
@@ -412,35 +439,63 @@ export function ProfilePage() {
         </div>
       )}
 
-      {/* Ganti password */}
-      <form onSubmit={handleChangePassword} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
-          <Lock className="h-4 w-4 text-primary-600" /> Ganti Password
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="currentPassword" className={labelClass}>Password Lama</label>
-            <input id="currentPassword" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputClass} required autoComplete="current-password" />
-          </div>
-          <div>
-            <label htmlFor="newPassword" className={labelClass}>Password Baru</label>
-            <input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={inputClass} required autoComplete="new-password" />
-            <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
-          </div>
-          <div>
-            <label htmlFor="confirmPassword" className={labelClass}>Konfirmasi Password Baru</label>
-            <input id="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} required autoComplete="new-password" />
-          </div>
-        </div>
-        <div className="mt-5 flex items-center gap-3">
-          <button type="submit" disabled={savingPassword} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50">
-            {savingPassword ? 'Menyimpan...' : 'Ganti Password'}
-          </button>
-          {passwordMsg && (
-            <span className={`text-sm ${passwordMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{passwordMsg.text}</span>
-          )}
-        </div>
-      </form>
+      {/* Password — "Ganti" bila sudah punya, "Buat" bila akun Google (belum punya) */}
+      {(() => {
+        const hasPassword = profile?.passwordSet !== false;
+        const pwType = showPw ? 'text' : 'password';
+        return (
+          <form
+            onSubmit={hasPassword ? handleChangePassword : handleSetPassword}
+            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
+              <Lock className="h-4 w-4 text-primary-600" />
+              {hasPassword ? 'Ganti Password' : 'Buat Password'}
+            </h2>
+            {!hasPassword && (
+              <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                Akun Anda dibuat lewat Google (belum punya password). Buat password agar bisa juga
+                login dengan email &amp; password — login Google tetap berfungsi.
+              </p>
+            )}
+            <div className="space-y-4">
+              {hasPassword && (
+                <div>
+                  <label htmlFor="currentPassword" className={labelClass}>Password Lama</label>
+                  <input id="currentPassword" type={pwType} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={inputClass} required autoComplete="current-password" />
+                </div>
+              )}
+              <div>
+                <label htmlFor="newPassword" className={labelClass}>Password Baru</label>
+                <div className="relative">
+                  <input id="newPassword" type={pwType} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((v) => !v)}
+                    aria-label={showPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
+              </div>
+              <div>
+                <label htmlFor="confirmPassword" className={labelClass}>Konfirmasi Password Baru</label>
+                <input id="confirmPassword" type={pwType} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={inputClass} required autoComplete="new-password" />
+              </div>
+            </div>
+            <div className="mt-5 flex items-center gap-3">
+              <button type="submit" disabled={savingPassword} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50">
+                {savingPassword ? 'Menyimpan...' : hasPassword ? 'Ganti Password' : 'Buat Password'}
+              </button>
+              {passwordMsg && (
+                <span className={`text-sm ${passwordMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{passwordMsg.text}</span>
+              )}
+            </div>
+          </form>
+        );
+      })()}
 
       {/* Keluar — untuk responden (navigasi tab tak lagi memuat tombol logout) */}
       {profile?.role === 'respondent' && (

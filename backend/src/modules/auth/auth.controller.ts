@@ -18,6 +18,7 @@ import {
   ResetPasswordDto,
   UpdateProfileDto,
   ChangePasswordDto,
+  SetPasswordDto,
   GoogleLoginDto,
 } from './dto';
 import { JwtAuthGuard } from './guards';
@@ -139,5 +140,16 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  /** Buat password (akun tanpa password, mis. dibuat via Google). Tanpa pw lama. */
+  @Patch('profile/set-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard)
+  async setPassword(
+    @Request() req: any,
+    @Body() dto: SetPasswordDto,
+  ): Promise<void> {
+    await this.authService.setPasswordWithoutOld(req.user.userId, dto.newPassword);
   }
 }

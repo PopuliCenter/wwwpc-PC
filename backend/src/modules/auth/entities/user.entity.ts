@@ -29,6 +29,11 @@ export class User {
   @Column({ type: 'varchar', length: 255, name: 'password_hash' })
   passwordHash: string;
 
+  /** Apakah user sudah punya password pilihannya sendiri. false = akun Google
+   * dgn password acak → tampilkan "Buat Password" (bukan "Ganti Password"). */
+  @Column({ type: 'boolean', default: true, name: 'password_set' })
+  passwordSet: boolean;
+
   @Column({ type: 'varchar', length: 255, name: 'full_name' })
   fullName: string;
 

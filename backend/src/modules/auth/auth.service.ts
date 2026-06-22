@@ -26,6 +26,7 @@ export interface ProfileResult {
   phone: string | null;
   fullName: string;
   avatarUrl: string | null;
+  passwordSet: boolean;
   role: UserRole;
   status: UserStatus;
   emailVerified: boolean;
@@ -194,6 +195,7 @@ export class AuthService {
           email: profile.email,
           phone: null,
           passwordHash: randomHash,
+          passwordSet: false, // password acak → user belum punya password pilihan
           fullName: profile.name,
           avatarUrl: profile.picture ?? null,
           role: UserRole.RESPONDENT,
@@ -531,8 +533,33 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
-    await this.userRepository.update(userId, { passwordHash });
+    await this.userRepository.update(userId, { passwordHash, passwordSet: true });
     this.logger.log(`Password changed by user ${user.email}`);
+  }
+
+  /**
+   * Buat password untuk akun yang BELUM punya (mis. dibuat via Google). Tidak
+   * butuh password lama (memang tak ada). Setelah ini user bisa login via email
+   * juga. Bila akun sudah punya password, arahkan ke Ganti Password.
+   */
+  async setPasswordWithoutOld(userId: string, newPassword: string): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    if (user.passwordSet) {
+      throw new BadRequestException(
+        'Akun sudah memiliki password. Gunakan Ganti Password.',
+      );
+    }
+    if (!this.isValidPassword(newPassword)) {
+      throw new BadRequestException(
+        'Password minimal 8 karakter, mengandung huruf besar dan angka',
+      );
+    }
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+    await this.userRepository.update(userId, { passwordHash, passwordSet: true });
+    this.logger.log(`Password dibuat (akun tanpa password) oleh ${user.email}`);
   }
 
   private toProfile(user: User): ProfileResult {
@@ -542,6 +569,7 @@ export class AuthService {
       phone: user.phone,
       fullName: user.fullName,
       avatarUrl: user.avatarUrl,
+      passwordSet: user.passwordSet,
       role: user.role,
       status: user.status,
       emailVerified: user.emailVerified,
