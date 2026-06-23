@@ -123,7 +123,14 @@ describe('AuditService', () => {
       // query() memperkaya tiap entri dengan actor (userName/userRole) & details.
       expect(result).toEqual({
         data: [
-          { ...mockData[0], userName: null, userRole: null, details: {} },
+          {
+            ...mockData[0],
+            userName: null,
+            userRole: null,
+            userEmail: null,
+            userExists: false,
+            details: {},
+          },
         ],
         total: 1,
         page: 1,

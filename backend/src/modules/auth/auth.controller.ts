@@ -125,7 +125,19 @@ export class AuthController {
     @Request() req: any,
     @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResult> {
-    return this.authService.updateProfile(req.user.userId, dto);
+    const result = await this.authService.updateProfile(req.user.userId, dto);
+    // Catat perubahan data diri (lewati bila hanya ganti avatar agar tak berisik).
+    const fields = Object.keys(dto ?? {});
+    if (fields.some((f) => f !== 'avatarUrl')) {
+      await this.auditService.log({
+        userId: req.user.userId,
+        actionType: AuditActionType.USER_UPDATE,
+        module: 'auth',
+        details: { self: true, fields },
+        ipAddress: clientIp(req),
+      });
+    }
+    return result;
   }
 
   @Patch('profile/password')
@@ -140,6 +152,13 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.USER_PASSWORD_RESET,
+      module: 'auth',
+      details: { self: true, kind: 'change' },
+      ipAddress: clientIp(req),
+    });
   }
 
   /** Buat password (akun tanpa password, mis. dibuat via Google). Tanpa pw lama. */
@@ -151,5 +170,12 @@ export class AuthController {
     @Body() dto: SetPasswordDto,
   ): Promise<void> {
     await this.authService.setPasswordWithoutOld(req.user.userId, dto.newPassword);
+    await this.auditService.log({
+      userId: req.user.userId,
+      actionType: AuditActionType.USER_PASSWORD_RESET,
+      module: 'auth',
+      details: { self: true, kind: 'set' },
+      ipAddress: clientIp(req),
+    });
   }
 }

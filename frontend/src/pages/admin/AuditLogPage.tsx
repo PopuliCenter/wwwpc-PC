@@ -11,6 +11,8 @@ interface AuditLogEntry {
   userId: string;
   userName?: string | null;
   userRole?: string | null;
+  userEmail?: string | null;
+  userExists?: boolean;
   actionType: string;
   module: string;
   ipAddress: string;
@@ -487,12 +489,22 @@ export function AuditLogPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex flex-col">
-                          <span className="font-medium">{log.userName || 'Pengguna'}</span>
-                          {log.userRole && (
-                            <span className="text-xs text-gray-400">
-                              {roleLabels[log.userRole] ?? log.userRole}
-                            </span>
-                          )}
+                          <span className="font-medium">
+                            {log.userName || log.userEmail || (log.userId ? 'Tanpa nama' : 'Sistem')}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {[
+                              log.userRole ? roleLabels[log.userRole] ?? log.userRole : null,
+                              // Tampilkan email bila ada nama (agar jelas akun mana);
+                              // kalau hanya email yg tampil di atas, jangan diulang.
+                              log.userName && log.userEmail ? log.userEmail : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                            {log.userExists === false && (
+                              <span className="text-amber-500"> · akun terhapus</span>
+                            )}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">

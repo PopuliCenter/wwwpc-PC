@@ -135,14 +135,14 @@ export class AuditService {
       if (typeof t === 'string') ids.add(t);
     }
 
-    const userMap = new Map<string, { fullName: string; role: string }>();
+    const userMap = new Map<string, { fullName: string; role: string; email: string }>();
     if (ids.size > 0) {
       const users = await this.userRepository.find({
         where: { id: In([...ids]) },
-        select: ['id', 'fullName', 'role'],
+        select: ['id', 'fullName', 'role', 'email'],
       });
       for (const u of users) {
-        userMap.set(u.id, { fullName: u.fullName, role: u.role });
+        userMap.set(u.id, { fullName: u.fullName, role: u.role, email: u.email });
       }
     }
 
@@ -152,10 +152,16 @@ export class AuditService {
       if (typeof details.targetUserId === 'string' && userMap.has(details.targetUserId)) {
         details.targetUserName = userMap.get(details.targetUserId)!.fullName;
       }
+      // Email pelaku dari record user, atau (bila akun sudah dihapus) dari detail
+      // login yang menyimpan email. Agar admin tetap tahu SIAPA pelakunya.
+      const detailEmail = typeof details.email === 'string' ? details.email : null;
+      const detailRole = typeof details.role === 'string' ? details.role : null;
       return {
         ...e,
         userName: actor?.fullName ?? null,
-        userRole: actor?.role ?? null,
+        userRole: actor?.role ?? detailRole,
+        userEmail: actor?.email ?? detailEmail,
+        userExists: Boolean(actor),
         details,
       };
     });
