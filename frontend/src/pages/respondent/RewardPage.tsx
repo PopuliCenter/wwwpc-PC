@@ -758,7 +758,12 @@ export function RewardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Reward Saya</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Reward Saya</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          Tukar poin Anda jadi pulsa atau saldo e-wallet.
+        </p>
+      </div>
 
       {/* Balance Card */}
       <BalanceCard balance={balance} loading={balanceLoading} />

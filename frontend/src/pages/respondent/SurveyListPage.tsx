@@ -9,9 +9,11 @@ import {
   CheckCircle2,
   Hourglass,
   ClipboardList,
+  Coins,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
+import { usePointsStore } from '@/stores/points.store';
 import { format } from 'date-fns';
 
 interface AvailableSurvey {
@@ -131,6 +133,7 @@ export function SurveyListPage() {
   const [error, setError] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const { user } = useAuthStore();
+  const points = usePointsStore((s) => s.available);
   const firstName = user?.fullName?.trim().split(' ')[0] ?? '';
 
   useEffect(() => {
@@ -186,6 +189,47 @@ export function SurveyListPage() {
             ? `Ada ${available.length} survei menunggu untuk diisi. Setiap survei berhadiah poin.`
             : 'Belum ada survei baru untuk Anda saat ini. Cek lagi nanti, ya.'}
         </p>
+      </div>
+
+      {/* Kartu statistik */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          {
+            icon: Coins,
+            label: 'Poin Saya',
+            value: points == null ? '—' : points.toLocaleString('id-ID'),
+            ring: 'ring-amber-100',
+            bg: 'bg-amber-50',
+            text: 'text-amber-600',
+          },
+          {
+            icon: ClipboardList,
+            label: 'Tersedia',
+            value: available.length,
+            ring: 'ring-indigo-100',
+            bg: 'bg-indigo-50',
+            text: 'text-indigo-600',
+          },
+          {
+            icon: CheckCircle2,
+            label: 'Selesai',
+            value: completed.length,
+            ring: 'ring-emerald-100',
+            bg: 'bg-emerald-50',
+            text: 'text-emerald-600',
+          },
+        ].map(({ icon: Icon, label, value, ring, bg, text }) => (
+          <div
+            key={label}
+            className={`rounded-2xl border border-gray-100 bg-white p-3 text-center shadow-sm ring-1 ${ring}`}
+          >
+            <span className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-full ${bg} ${text}`}>
+              <Icon className="h-4 w-4" />
+            </span>
+            <p className="text-lg font-bold leading-none text-gray-900">{value}</p>
+            <p className="mt-1 text-[11px] font-medium text-gray-500">{label}</p>
+          </div>
+        ))}
       </div>
 
       {/* Tersedia */}
