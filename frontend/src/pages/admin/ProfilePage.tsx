@@ -25,6 +25,7 @@ import { useConfirm } from '@/components/common/ConfirmDialog';
 import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { getAppVersion, WEB_APP_VERSION } from '@/utils/appVersion';
+import { Capacitor } from '@capacitor/core';
 import type { UserRole } from '@/types';
 
 interface Demographics {
@@ -153,6 +154,26 @@ export function ProfilePage() {
       .then(setAppVersion)
       .catch(() => {});
   }, []);
+
+  // Tombol back Android: saat di sub-layar Settings, kembali ke menu (bukan
+  // keluar app). Listener hanya aktif selama di sub-layar; di menu dilepas agar
+  // perilaku back default (navigasi/keluar) kembali normal.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (!(profile?.role === 'respondent' && view !== 'menu')) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    void import('@capacitor/app').then(({ App }) => {
+      void App.addListener('backButton', () => setView('menu')).then((handle) => {
+        if (cancelled) void handle.remove();
+        else cleanup = () => void handle.remove();
+      });
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [profile?.role, view]);
 
   const openStoreRating = () => {
     window.open(
