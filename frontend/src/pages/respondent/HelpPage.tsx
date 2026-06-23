@@ -15,6 +15,7 @@ import {
   SendHorizontal,
   type LucideIcon,
 } from 'lucide-react';
+import { api } from '@/services/api';
 
 // Ganti sesuai kontak dukungan resmi Populi Center bila perlu.
 const SUPPORT = {
@@ -103,6 +104,36 @@ function FaqItem({ faq, defaultOpen }: { faq: Faq; defaultOpen?: boolean }) {
 
 export function HelpPage() {
   const [query, setQuery] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
+
+  const askAi = async () => {
+    const q = query.trim();
+    if (!q || aiLoading) return;
+    setAiLoading(true);
+    setAiAnswer(null);
+    setAiUnavailable(false);
+    try {
+      const res = await api.post<{ answer: string | null; configured: boolean }>(
+        '/assistant/ask',
+        { question: q },
+      );
+      if (!res.configured || !res.answer) setAiUnavailable(true);
+      else setAiAnswer(res.answer);
+    } catch {
+      setAiUnavailable(true);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Reset jawaban AI saat pertanyaan berubah.
+  const onQueryChange = (v: string) => {
+    setQuery(v);
+    setAiAnswer(null);
+    setAiUnavailable(false);
+  };
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -136,14 +167,14 @@ export function HelpPage() {
             <Search className="ml-2 h-5 w-5 shrink-0 text-gray-400" />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
               placeholder="Tanya apa saja… (mis. cara tukar poin)"
               className="min-w-0 flex-1 bg-transparent py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none"
             />
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={() => onQueryChange('')}
                 className="rounded-lg px-2 py-1 text-xs font-medium text-gray-400 hover:text-gray-600"
               >
                 Hapus
@@ -157,7 +188,7 @@ export function HelpPage() {
               <button
                 key={s}
                 type="button"
-                onClick={() => setQuery(s)}
+                onClick={() => onQueryChange(s)}
                 className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur transition-colors hover:bg-white/25"
               >
                 {s}
@@ -173,27 +204,76 @@ export function HelpPage() {
           {searching ? `Hasil untuk “${query.trim()}”` : 'Pertanyaan yang sering diajukan'}
         </h2>
 
-        {noResult ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center">
-            <p className="text-sm font-medium text-gray-700">
-              Belum ketemu jawaban yang pas.
-            </p>
-            <p className="mt-1 text-sm text-gray-500">
-              Tanyakan langsung ke tim kami via WhatsApp — biasanya dibalas cepat.
-            </p>
-            <a
-              href={waLink(`Halo Populi, saya butuh bantuan: ${query.trim()}`)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
-            >
-              <SendHorizontal className="h-4 w-4" /> Tanya via WhatsApp
-            </a>
-          </div>
-        ) : (
+        {!noResult &&
           results.map((f) => (
             <FaqItem key={f.q} faq={f} defaultOpen={searching && results.length === 1} />
-          ))
+          ))}
+
+        {/* Asisten AI (fallback) — hanya saat sedang mencari */}
+        {searching && (
+          <div className="space-y-3 pt-1">
+            {!aiLoading && !aiAnswer && !aiUnavailable && (
+              <button
+                type="button"
+                onClick={askAi}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100"
+              >
+                <Sparkles className="h-4 w-4" />
+                {noResult ? 'Belum ketemu — Tanya Asisten AI' : 'Masih bingung? Tanya Asisten AI'}
+              </button>
+            )}
+
+            {aiLoading && (
+              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span className="text-sm text-gray-500">
+                  Asisten sedang mengetik<span className="animate-pulse">…</span>
+                </span>
+              </div>
+            )}
+
+            {aiAnswer && (
+              <div className="rounded-2xl border border-primary-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary-600">
+                  <Sparkles className="h-3.5 w-3.5" /> Asisten Populi
+                </div>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-700">
+                  {aiAnswer}
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-2 border-t border-gray-100 pt-2">
+                  <span className="text-[11px] text-gray-400">
+                    Jawaban AI bisa keliru — untuk hal terkait akun/poin, hubungi tim kami.
+                  </span>
+                  <a
+                    href={waLink(`Halo Populi, saya butuh bantuan: ${query.trim()}`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {aiUnavailable && (
+              <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-center">
+                <p className="text-sm text-gray-600">
+                  Asisten AI sedang tidak tersedia. Tim kami siap membantu via WhatsApp.
+                </p>
+                <a
+                  href={waLink(`Halo Populi, saya butuh bantuan: ${query.trim()}`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
+                >
+                  <SendHorizontal className="h-4 w-4" /> Tanya via WhatsApp
+                </a>
+              </div>
+            )}
+          </div>
         )}
       </section>
 

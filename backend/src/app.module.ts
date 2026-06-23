@@ -19,6 +19,7 @@ import { AuditModule } from './modules/audit';
 import { UserManagerModule } from './modules/user-manager';
 import { DataCleanupModule } from './modules/data-cleanup';
 import { EventsModule } from './modules/events';
+import { AssistantModule } from './modules/assistant/assistant.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { EventsModule } from './modules/events';
     UserManagerModule,
     DataCleanupModule,
     EventsModule,
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [
