@@ -1,12 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User, Lock, BadgeCheck, BarChart3, Camera, Trash2, Eye, EyeOff } from 'lucide-react';
+import {
+  LogOut,
+  User,
+  Lock,
+  BadgeCheck,
+  BarChart3,
+  Camera,
+  Trash2,
+  Eye,
+  EyeOff,
+  ChevronRight,
+  ArrowLeft,
+  ShieldCheck,
+  FileText,
+  HelpCircle,
+  Star,
+  type LucideIcon,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { Avatar } from '@/components/common/Avatar';
 import { useConfirm } from '@/components/common/ConfirmDialog';
 import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { getAppVersion, WEB_APP_VERSION } from '@/utils/appVersion';
 import type { UserRole } from '@/types';
 
 interface Demographics {
@@ -71,7 +89,6 @@ export function ProfilePage() {
   const { user, setUser, logout } = useAuthStore();
   const navigate = useNavigate();
   const { confirm, dialog } = useConfirm();
-  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -89,7 +106,6 @@ export function ProfilePage() {
       danger: true,
     });
     if (!ok) return;
-    setDeletingAccount(true);
     try {
       await api.delete('/users/me');
       showAppNotice({ title: 'Akun Anda telah dihapus', tone: 'success', durationMs: 5000 });
@@ -102,8 +118,6 @@ export function ProfilePage() {
         tone: 'error',
         durationMs: 7000,
       });
-    } finally {
-      setDeletingAccount(false);
     }
   };
 
@@ -129,6 +143,23 @@ export function ProfilePage() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  // Tampilan menu Settings responden: 'menu' (daftar) atau sub-layar.
+  const [view, setView] = useState<'menu' | 'edit' | 'security' | 'privacy' | 'terms'>('menu');
+  const [appVersion, setAppVersion] = useState(WEB_APP_VERSION);
+
+  useEffect(() => {
+    getAppVersion()
+      .then(setAppVersion)
+      .catch(() => {});
+  }, []);
+
+  const openStoreRating = () => {
+    window.open(
+      'https://play.google.com/store/apps/details?id=com.populicenter.survei',
+      '_blank',
+    );
+  };
 
   useEffect(() => {
     let active = true;
@@ -294,8 +325,65 @@ export function ProfilePage() {
     </div>
   );
 
+  // Untuk responden, halaman jadi menu Settings dengan sub-layar; admin tetap
+  // satu halaman penuh seperti sebelumnya.
+  const isMenu = isRespondent && view === 'menu';
+  const showHeader = !isRespondent || view === 'menu' || view === 'edit';
+  const showDataDiri = !isRespondent || view === 'edit';
+  const showPassword = !isRespondent || view === 'security';
+
+  // Satu baris menu (ikon + label + chevron).
+  const MenuRow = ({
+    icon: Icon,
+    label,
+    onClick,
+    danger,
+  }: {
+    icon: LucideIcon;
+    label: string;
+    onClick: () => void;
+    danger?: boolean;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-gray-50"
+    >
+      <Icon className={`h-5 w-5 shrink-0 ${danger ? 'text-red-500' : 'text-primary-600'}`} />
+      <span className={`flex-1 text-sm font-medium ${danger ? 'text-red-600' : 'text-gray-800'}`}>
+        {label}
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+    </button>
+  );
+
+  const backBar = (title: string) => (
+    <button
+      type="button"
+      onClick={() => setView('menu')}
+      className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+    >
+      <ArrowLeft className="h-4 w-4" /> {title}
+    </button>
+  );
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {isRespondent && view !== 'menu' && (
+        <div>
+          {backBar(
+            view === 'edit'
+              ? 'Ubah Data Diri'
+              : view === 'security'
+                ? 'Keamanan Akun'
+                : view === 'privacy'
+                  ? 'Kebijakan Privasi'
+                  : 'Syarat & Ketentuan',
+          )}
+        </div>
+      )}
+
+      {showHeader && (
       <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="relative shrink-0">
           <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
@@ -325,6 +413,43 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* Menu Settings responden */}
+      {isMenu && (
+        <>
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <p className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Akun
+            </p>
+            <div className="divide-y divide-gray-100">
+              <MenuRow icon={User} label="Ubah Data Diri" onClick={() => setView('edit')} />
+              <MenuRow icon={Lock} label="Keamanan Akun" onClick={() => setView('security')} />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <p className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Info Lainnya
+            </p>
+            <div className="divide-y divide-gray-100">
+              <MenuRow icon={HelpCircle} label="Pertanyaan Umum &amp; Bantuan" onClick={() => navigate('/help')} />
+              <MenuRow icon={ShieldCheck} label="Kebijakan Privasi" onClick={() => setView('privacy')} />
+              <MenuRow icon={FileText} label="Syarat &amp; Ketentuan" onClick={() => setView('terms')} />
+              <MenuRow icon={Star} label="Beri Review &amp; Rating" onClick={openStoreRating} />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="divide-y divide-gray-100">
+              <MenuRow icon={LogOut} label="Keluar" danger onClick={handleLogout} />
+              <MenuRow icon={Trash2} label="Hapus Akun" danger onClick={handleDeleteAccount} />
+            </div>
+          </div>
+
+          <p className="pt-1 text-center text-xs text-gray-400">Versi {appVersion}</p>
+        </>
+      )}
 
       {/* Pemilih avatar */}
       {avatarPickerOpen && (
@@ -393,6 +518,8 @@ export function ProfilePage() {
         </div>
       )}
 
+      {showDataDiri && (
+      <>
       {/* Data diri */}
       <form onSubmit={handleSaveProfile} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
@@ -473,9 +600,11 @@ export function ProfilePage() {
           </p>
         </div>
       )}
+      </>
+      )}
 
       {/* Password — "Ganti" bila sudah punya, "Buat" bila akun Google (belum punya) */}
-      {(() => {
+      {showPassword && (() => {
         const hasPassword = profile?.passwordSet !== false;
         return (
           <form
@@ -551,36 +680,54 @@ export function ProfilePage() {
         );
       })()}
 
-      {/* Keluar — untuk responden (navigasi tab tak lagi memuat tombol logout) */}
-      {profile?.role === 'respondent' && (
-        <button
-          onClick={handleLogout}
-          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-        >
-          <LogOut className="h-4 w-4" /> Keluar
-        </button>
-      )}
-
-      {/* Zona berbahaya — hapus akun sendiri (wajib untuk Play Store) */}
-      {profile?.role === 'respondent' && (
-        <div className="mt-2 rounded-xl border border-red-200 bg-red-50/50 p-4">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-red-700">
-            <Trash2 className="h-4 w-4" /> Hapus Akun
-          </h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Menghapus akun bersifat permanen — profil, jawaban survei, dan saldo poin
-            Anda akan dihapus dan tidak dapat dikembalikan.
+      {/* Kebijakan Privasi (sub-layar responden) */}
+      {isRespondent && view === 'privacy' && (
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-900">Kebijakan Privasi</h2>
+          <p>
+            Kami mengumpulkan data akun (nama, email, telepon), data profil/demografi,
+            jawaban survei (termasuk foto/audio/berkas bila diminta), serta lokasi GPS
+            hanya saat survei yang mengaktifkannya. Data dipakai untuk menjalankan layanan
+            survei &amp; program poin, mengirim notifikasi, dan memproses penukaran reward.
           </p>
-          <button
-            onClick={handleDeleteAccount}
-            disabled={deletingAccount}
-            className="mt-3 inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-60"
-          >
-            <Trash2 className="h-4 w-4" />
-            {deletingAccount ? 'Menghapus…' : 'Hapus akun saya'}
-          </button>
+          <p>
+            Kami tidak menjual data Anda. Data dibagikan terbatas hanya ke penyedia layanan
+            seperlunya (notifikasi, login Google, pemrosesan pulsa/e-wallet, pengiriman
+            email). Transmisi data dienkripsi via HTTPS.
+          </p>
+          <p>
+            Anda dapat memperbarui data di menu Profil dan menghapus akun kapan saja
+            (Profil → Hapus Akun). Pertanyaan: <strong>info@populicenter.org</strong>.
+          </p>
+          <p className="text-xs text-gray-400">
+            Versi lengkap tersedia di situs resmi Populi Center.
+          </p>
         </div>
       )}
+
+      {/* Syarat &amp; Ketentuan (sub-layar responden) */}
+      {isRespondent && view === 'terms' && (
+        <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
+          <h2 className="text-base font-semibold text-gray-900">Syarat &amp; Ketentuan</h2>
+          <p>
+            Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan
+            data yang benar. Satu orang hanya boleh memiliki satu akun.
+          </p>
+          <p>
+            Poin diberikan atas survei yang diselesaikan sesuai ketentuan tiap survei, dan
+            dapat ditukar menjadi pulsa/e-wallet. Poin tidak dapat diuangkan secara tunai,
+            dapat kedaluwarsa, dan akan hangus bila akun dihapus.
+          </p>
+          <p>
+            Kecurangan (jawaban asal, akun ganda, manipulasi) dapat mengakibatkan poin
+            dibatalkan dan akun dinonaktifkan. Kami dapat memperbarui ketentuan ini sewaktu-waktu.
+          </p>
+          <p>
+            Kontak: <strong>info@populicenter.org</strong> · WhatsApp 0812-9206-8362.
+          </p>
+        </div>
+      )}
+
       {dialog}
     </div>
   );
