@@ -20,6 +20,7 @@ import { UserManagerModule } from './modules/user-manager';
 import { DataCleanupModule } from './modules/data-cleanup';
 import { EventsModule } from './modules/events';
 import { AssistantModule } from './modules/assistant/assistant.module';
+import { ClientLogModule } from './modules/client-log/client-log.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AssistantModule } from './modules/assistant/assistant.module';
     DataCleanupModule,
     EventsModule,
     AssistantModule,
+    ClientLogModule,
   ],
   controllers: [AppController],
   providers: [

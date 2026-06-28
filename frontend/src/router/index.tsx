@@ -22,6 +22,7 @@ import { ResponseListPage } from '@/pages/admin/responses/ResponseListPage';
 import { ResponseDetailPage } from '@/pages/admin/responses/ResponseDetailPage';
 import { UserManagementPage } from '@/pages/admin/UserManagementPage';
 import { AuditLogPage } from '@/pages/admin/AuditLogPage';
+import { ClientLogsPage } from '@/pages/admin/ClientLogsPage';
 import { DataCleanupPage } from '@/pages/admin/DataCleanupPage';
 import { AnnouncementPage } from '@/pages/admin/AnnouncementPage';
 import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/SurveyListPage';
@@ -87,6 +88,7 @@ export const router = createBrowserRouter([
       { path: 'respondents', element: <RequireRoles roles={access.respondents}><RespondentsPage /></RequireRoles> },
       { path: 'users', element: <RequireRoles roles={access.users}><UserManagementPage /></RequireRoles> },
       { path: 'audit', element: <RequireRoles roles={access.audit}><AuditLogPage /></RequireRoles> },
+      { path: 'client-logs', element: <RequireRoles roles={access.audit}><ClientLogsPage /></RequireRoles> },
       { path: 'cleanup', element: <RequireRoles roles={access.cleanup}><DataCleanupPage /></RequireRoles> },
       { path: 'storage', element: <RequireRoles roles={access.storage}><StoragePage /></RequireRoles> },
       { path: 'announcements', element: <RequireRoles roles={access.announcements}><AnnouncementPage /></RequireRoles> },
