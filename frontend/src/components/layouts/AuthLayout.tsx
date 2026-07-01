@@ -1,7 +1,9 @@
 import { Outlet, Navigate } from 'react-router-dom';
+import { Suspense } from 'react';
 import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { isEmbedMode } from '@/utils/embed';
+import { PageLoader } from '@/components/common/PageLoader';
 
 const highlights = [
   {
@@ -46,7 +48,9 @@ export function AuthLayout() {
     return (
       <div className="flex w-full items-center justify-center px-4 py-8 sm:px-6">
         <div className="w-full max-w-sm">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </div>
       </div>
     );
@@ -109,7 +113,9 @@ export function AuthLayout() {
       <div className="flex flex-col bg-surface">
         <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
           <div className="w-full max-w-sm">
-            <Outlet />
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
           </div>
         </div>
         {/* Footer logo + hak cipta — tampil di mobile (desktop sudah ada di panel brand) */}

@@ -1,8 +1,9 @@
 import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { WifiOff, CloudUpload, FileText, Gift, User, LifeBuoy } from 'lucide-react';
 import { NotificationBell } from '@/components/common/NotificationBell';
 import { Avatar } from '@/components/common/Avatar';
+import { PageLoader } from '@/components/common/PageLoader';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePointsStore } from '@/stores/points.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -116,7 +117,9 @@ export function RespondentLayout() {
           isEmbedMode ? '' : 'pb-24 md:pb-8'
         }`}
       >
-        <Outlet />
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       {/* Tab bawah — pola mobile yang intuitif; sembunyi di desktop & mode embed.

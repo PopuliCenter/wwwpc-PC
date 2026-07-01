@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
@@ -5,33 +6,97 @@ import { RespondentLayout } from '@/components/layouts/RespondentLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RequireRoles } from './RequireRoles';
 import { access } from '@/config/access';
-import { ProfilePage } from '@/pages/admin/ProfilePage';
-import { MapsPage } from '@/pages/admin/MapsPage';
-import { StoragePage } from '@/pages/admin/StoragePage';
-import { RespondentsPage } from '@/pages/admin/RespondentsPage';
-import { LoginPage } from '@/pages/auth/LoginPage';
-import { RegisterPage } from '@/pages/auth/RegisterPage';
-import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage';
-import { DashboardPage } from '@/pages/admin/DashboardPage';
-import { SurveyListPage } from '@/pages/admin/surveys/SurveyListPage';
-import { SurveyCreatePage } from '@/pages/admin/surveys/SurveyCreatePage';
-import { SurveyEditPage } from '@/pages/admin/surveys/SurveyEditPage';
-import { SurveyPreviewPage } from '@/pages/admin/surveys/SurveyPreviewPage';
-import { SurveySummaryPage } from '@/pages/admin/surveys/SurveySummaryPage';
-import { ResponseListPage } from '@/pages/admin/responses/ResponseListPage';
-import { ResponseDetailPage } from '@/pages/admin/responses/ResponseDetailPage';
-import { UserManagementPage } from '@/pages/admin/UserManagementPage';
-import { AuditLogPage } from '@/pages/admin/AuditLogPage';
-import { ClientLogsPage } from '@/pages/admin/ClientLogsPage';
-import { DataCleanupPage } from '@/pages/admin/DataCleanupPage';
-import { AnnouncementPage } from '@/pages/admin/AnnouncementPage';
-import { SurveyListPage as RespondentSurveyListPage } from '@/pages/respondent/SurveyListPage';
-import { SurveyFillPage } from '@/pages/respondent/SurveyFillPage';
-import { RewardPage } from '@/pages/respondent/RewardPage';
-import { ProfileCompletionPage } from '@/pages/respondent/ProfileCompletionPage';
-import { HelpPage } from '@/pages/respondent/HelpPage';
-import { NotificationsPage } from '@/pages/respondent/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+
+// Code-splitting: setiap halaman jadi chunk terpisah (dimuat saat rute dibuka),
+// bukan satu bundle raksasa untuk semua peran (admin/responden/auth sekaligus).
+// Layout (AdminLayout/RespondentLayout/AuthLayout) tetap statis — itu shell yang
+// selalu dibutuhkan. Loading state ditangani oleh <Suspense> di tiap layout.
+const LoginPage = lazy(() =>
+  import('@/pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })),
+);
+const RegisterPage = lazy(() =>
+  import('@/pages/auth/RegisterPage').then((m) => ({ default: m.RegisterPage })),
+);
+const ForgotPasswordPage = lazy(() =>
+  import('@/pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
+);
+
+const ProfileCompletionPage = lazy(() =>
+  import('@/pages/respondent/ProfileCompletionPage').then((m) => ({
+    default: m.ProfileCompletionPage,
+  })),
+);
+const RespondentSurveyListPage = lazy(() =>
+  import('@/pages/respondent/SurveyListPage').then((m) => ({ default: m.SurveyListPage })),
+);
+const SurveyFillPage = lazy(() =>
+  import('@/pages/respondent/SurveyFillPage').then((m) => ({ default: m.SurveyFillPage })),
+);
+const RewardPage = lazy(() =>
+  import('@/pages/respondent/RewardPage').then((m) => ({ default: m.RewardPage })),
+);
+const HelpPage = lazy(() =>
+  import('@/pages/respondent/HelpPage').then((m) => ({ default: m.HelpPage })),
+);
+const NotificationsPage = lazy(() =>
+  import('@/pages/respondent/NotificationsPage').then((m) => ({ default: m.NotificationsPage })),
+);
+// ProfilePage dipakai bersama admin & responden (rute /profile dan /admin/profile).
+const ProfilePage = lazy(() =>
+  import('@/pages/admin/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+);
+
+const DashboardPage = lazy(() =>
+  import('@/pages/admin/DashboardPage').then((m) => ({ default: m.DashboardPage })),
+);
+const SurveyListPage = lazy(() =>
+  import('@/pages/admin/surveys/SurveyListPage').then((m) => ({ default: m.SurveyListPage })),
+);
+const SurveyCreatePage = lazy(() =>
+  import('@/pages/admin/surveys/SurveyCreatePage').then((m) => ({ default: m.SurveyCreatePage })),
+);
+const SurveyEditPage = lazy(() =>
+  import('@/pages/admin/surveys/SurveyEditPage').then((m) => ({ default: m.SurveyEditPage })),
+);
+const SurveyPreviewPage = lazy(() =>
+  import('@/pages/admin/surveys/SurveyPreviewPage').then((m) => ({ default: m.SurveyPreviewPage })),
+);
+const SurveySummaryPage = lazy(() =>
+  import('@/pages/admin/surveys/SurveySummaryPage').then((m) => ({ default: m.SurveySummaryPage })),
+);
+const ResponseListPage = lazy(() =>
+  import('@/pages/admin/responses/ResponseListPage').then((m) => ({ default: m.ResponseListPage })),
+);
+const ResponseDetailPage = lazy(() =>
+  import('@/pages/admin/responses/ResponseDetailPage').then((m) => ({
+    default: m.ResponseDetailPage,
+  })),
+);
+const MapsPage = lazy(() =>
+  import('@/pages/admin/MapsPage').then((m) => ({ default: m.MapsPage })),
+);
+const RespondentsPage = lazy(() =>
+  import('@/pages/admin/RespondentsPage').then((m) => ({ default: m.RespondentsPage })),
+);
+const UserManagementPage = lazy(() =>
+  import('@/pages/admin/UserManagementPage').then((m) => ({ default: m.UserManagementPage })),
+);
+const AuditLogPage = lazy(() =>
+  import('@/pages/admin/AuditLogPage').then((m) => ({ default: m.AuditLogPage })),
+);
+const ClientLogsPage = lazy(() =>
+  import('@/pages/admin/ClientLogsPage').then((m) => ({ default: m.ClientLogsPage })),
+);
+const DataCleanupPage = lazy(() =>
+  import('@/pages/admin/DataCleanupPage').then((m) => ({ default: m.DataCleanupPage })),
+);
+const StoragePage = lazy(() =>
+  import('@/pages/admin/StoragePage').then((m) => ({ default: m.StoragePage })),
+);
+const AnnouncementPage = lazy(() =>
+  import('@/pages/admin/AnnouncementPage').then((m) => ({ default: m.AnnouncementPage })),
+);
 
 export const router = createBrowserRouter([
   // Public auth routes

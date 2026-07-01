@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { PageLoader } from '@/components/common/PageLoader';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -175,7 +176,9 @@ export function AdminLayout() {
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">
-          <Outlet />
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
