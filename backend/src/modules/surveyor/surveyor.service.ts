@@ -10,10 +10,7 @@ import { DataSource, Repository } from 'typeorm';
 import { SurveyorQuota } from '@modules/survey/entities/surveyor-quota.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { User } from '@modules/auth/entities';
-import {
-  SurveyResponse,
-  ResponseStatus,
-} from '@modules/response/entities/survey-response.entity';
+import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
 import { Answer } from '@modules/response/entities/answer.entity';
 import { SurveyFillService } from '@modules/survey/services/survey-fill.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
@@ -62,10 +59,7 @@ export class SurveyorService {
 
   // ─── Admin ────────────────────────────────────────────────────────────────
 
-  async assignSurveyor(
-    surveyId: string,
-    dto: AssignSurveyorDto,
-  ): Promise<SurveyorQuota> {
+  async assignSurveyor(surveyId: string, dto: AssignSurveyorDto): Promise<SurveyorQuota> {
     await this.assertSurveyExists(surveyId);
 
     const user = await this.userRepository.findOne({
@@ -75,9 +69,7 @@ export class SurveyorService {
       throw new NotFoundException('Pengguna surveyor tidak ditemukan');
     }
     if (user.role !== UserRole.SURVEYOR) {
-      throw new BadRequestException(
-        'Pengguna yang ditugaskan harus memiliki role surveyor',
-      );
+      throw new BadRequestException('Pengguna yang ditugaskan harus memiliki role surveyor');
     }
 
     const existing = await this.quotaRepository.findOne({
@@ -97,9 +89,7 @@ export class SurveyorService {
       assignedNumbers: numbers,
     });
     const saved = await this.quotaRepository.save(quota);
-    this.logger.log(
-      `Surveyor ${dto.surveyorId} ditugaskan ke survei ${surveyId}`,
-    );
+    this.logger.log(`Surveyor ${dto.surveyorId} ditugaskan ke survei ${surveyId}`);
     return saved;
   }
 
@@ -168,9 +158,7 @@ export class SurveyorService {
     numbers: string[],
   ): Promise<SurveyorQuota> {
     const quota = await this.getAssignmentOrThrow(surveyId, surveyorId);
-    const toAdd = this.dedupe(numbers).filter(
-      (n) => !quota.assignedNumbers.includes(n),
-    );
+    const toAdd = this.dedupe(numbers).filter((n) => !quota.assignedNumbers.includes(n));
     await this.assertNumbersFree(surveyId, toAdd, surveyorId);
     quota.assignedNumbers = [...quota.assignedNumbers, ...toAdd];
     return this.quotaRepository.save(quota);
@@ -179,9 +167,7 @@ export class SurveyorService {
   async removeSurveyor(surveyId: string, surveyorId: string): Promise<void> {
     const quota = await this.getAssignmentOrThrow(surveyId, surveyorId);
     await this.quotaRepository.remove(quota);
-    this.logger.log(
-      `Surveyor ${surveyorId} dilepas dari survei ${surveyId}`,
-    );
+    this.logger.log(`Surveyor ${surveyorId} dilepas dari survei ${surveyId}`);
   }
 
   // ─── Surveyor ───────────────────────────────────────────────────────────────
@@ -253,9 +239,7 @@ export class SurveyorService {
     }
 
     if (!quota.assignedNumbers.includes(number)) {
-      throw new BadRequestException(
-        'Nomor kuesioner tidak termasuk dalam alokasi Anda',
-      );
+      throw new BadRequestException('Nomor kuesioner tidak termasuk dalam alokasi Anda');
     }
 
     // Nomor harus belum dipakai pada survei ini.
@@ -322,9 +306,7 @@ export class SurveyorService {
       throw error;
     }
 
-    this.logger.log(
-      `Surveyor ${surveyorId} submit kuesioner #${number} survei ${surveyId}`,
-    );
+    this.logger.log(`Surveyor ${surveyorId} submit kuesioner #${number} survei ${surveyId}`);
     return { id: responseId, questionnaireNumber: number };
   }
 
@@ -343,17 +325,12 @@ export class SurveyorService {
     }
   }
 
-  private async getAssignmentOrThrow(
-    surveyId: string,
-    surveyorId: string,
-  ): Promise<SurveyorQuota> {
+  private async getAssignmentOrThrow(surveyId: string, surveyorId: string): Promise<SurveyorQuota> {
     const quota = await this.quotaRepository.findOne({
       where: { surveyId, surveyorId },
     });
     if (!quota) {
-      throw new NotFoundException(
-        'Surveyor tidak ditugaskan pada survei ini',
-      );
+      throw new NotFoundException('Surveyor tidak ditugaskan pada survei ini');
     }
     return quota;
   }
@@ -364,11 +341,7 @@ export class SurveyorService {
       where: { surveyId },
       select: ['questionnaireNumber'],
     });
-    return new Set(
-      rows
-        .map((r) => r.questionnaireNumber)
-        .filter((n): n is string => !!n),
-    );
+    return new Set(rows.map((r) => r.questionnaireNumber).filter((n): n is string => !!n));
   }
 
   /**
@@ -389,9 +362,7 @@ export class SurveyorService {
     }
     const clash = numbers.filter((n) => taken.has(n));
     if (clash.length > 0) {
-      throw new ConflictException(
-        `Nomor sudah dialokasikan ke surveyor lain: ${clash.join(', ')}`,
-      );
+      throw new ConflictException(`Nomor sudah dialokasikan ke surveyor lain: ${clash.join(', ')}`);
     }
   }
 }

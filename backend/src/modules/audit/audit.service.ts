@@ -4,12 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { In, Repository, LessThan, ILike } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
 import { User } from '@modules/auth/entities/user.entity';
-import {
-  AuditEvent,
-  AuditFilter,
-  PaginationOptions,
-  PaginatedAuditEntries,
-} from './interfaces';
+import { AuditEvent, AuditFilter, PaginationOptions, PaginatedAuditEntries } from './interfaces';
 
 const DEFAULT_RETENTION_MONTHS = 12;
 
@@ -41,9 +36,7 @@ export class AuditService {
       });
 
       await this.auditLogRepository.save(entry);
-      this.logger.debug(
-        `Audit log: ${event.actionType} by ${event.userId} in ${event.module}`,
-      );
+      this.logger.debug(`Audit log: ${event.actionType} by ${event.userId} in ${event.module}`);
     } catch (error: any) {
       this.logger.error(
         `Gagal menulis audit log (${event.actionType} di ${event.module}): ${error.message}`,
@@ -73,8 +66,7 @@ export class AuditService {
       // (pencarian parsial). Tanpa ini, mengetik nama mengirim teks bukan-UUID
       // ke kolom uuid → Postgres 500 ("invalid input syntax for type uuid").
       const raw = filters.userId.trim();
-      const isUuid =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw);
       if (isUuid) {
         queryBuilder.andWhere('audit.user_id = :userId', { userId: raw });
       } else {
@@ -217,9 +209,7 @@ export class AuditService {
     });
 
     const deletedCount = result.affected || 0;
-    this.logger.log(
-      `Cleaned up ${deletedCount} audit logs older than ${retentionMonths} months`,
-    );
+    this.logger.log(`Cleaned up ${deletedCount} audit logs older than ${retentionMonths} months`);
 
     return deletedCount;
   }

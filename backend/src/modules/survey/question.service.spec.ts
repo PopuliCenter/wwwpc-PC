@@ -60,14 +60,18 @@ describe('QuestionService', () => {
 
     questionRepository = {
       create: vi.fn().mockImplementation((data) => ({ ...data, id: mockQuestionId })),
-      save: vi.fn().mockImplementation((entity) =>
-        Promise.resolve(Array.isArray(entity) ? entity : { ...createMockQuestion(), ...entity }),
-      ),
+      save: vi
+        .fn()
+        .mockImplementation((entity) =>
+          Promise.resolve(Array.isArray(entity) ? entity : { ...createMockQuestion(), ...entity }),
+        ),
       findOne: vi.fn().mockImplementation(() => Promise.resolve(createMockQuestion())),
-      find: vi.fn().mockResolvedValue([
-        createMockQuestion({ id: 'q1', orderIndex: 0 }),
-        createMockQuestion({ id: 'q2', orderIndex: 1 }),
-      ]),
+      find: vi
+        .fn()
+        .mockResolvedValue([
+          createMockQuestion({ id: 'q1', orderIndex: 0 }),
+          createMockQuestion({ id: 'q2', orderIndex: 1 }),
+        ]),
       remove: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
       delete: vi.fn().mockResolvedValue({ affected: 1 }),
@@ -182,9 +186,7 @@ describe('QuestionService', () => {
         hasOtherOption: true,
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject choice questions without options', async () => {
@@ -195,9 +197,7 @@ describe('QuestionService', () => {
         options: [],
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if survey does not exist', async () => {
@@ -209,9 +209,7 @@ describe('QuestionService', () => {
         pageId: mockPageId,
       };
 
-      await expect(service.addQuestion('non-existent', dto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.addQuestion('non-existent', dto)).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException if page does not exist', async () => {
@@ -223,9 +221,7 @@ describe('QuestionService', () => {
         pageId: 'non-existent-page',
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(NotFoundException);
     });
 
     it('should create a phone_number question with phoneFormat validation', async () => {
@@ -294,9 +290,7 @@ describe('QuestionService', () => {
         validationRules: { maxCheckbox: 2 },
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should create a short_text question with email format validation', async () => {
@@ -381,15 +375,14 @@ describe('QuestionService', () => {
           type,
           text: `Question of type ${type}`,
           pageId: mockPageId,
-          options:
-            [
-              QuestionType.SINGLE_CHOICE,
-              QuestionType.MULTIPLE_CHOICE,
-              QuestionType.DROPDOWN,
-              QuestionType.MATRIX_LIKERT,
-            ].includes(type)
-              ? [{ label: 'Option 1', value: 'opt1' }]
-              : undefined,
+          options: [
+            QuestionType.SINGLE_CHOICE,
+            QuestionType.MULTIPLE_CHOICE,
+            QuestionType.DROPDOWN,
+            QuestionType.MATRIX_LIKERT,
+          ].includes(type)
+            ? [{ label: 'Option 1', value: 'opt1' }]
+            : undefined,
         };
 
         const result = await service.addQuestion(mockSurveyId, dto);
@@ -470,9 +463,9 @@ describe('QuestionService', () => {
     it('should throw NotFoundException if question does not exist', async () => {
       questionRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.updateQuestion('non-existent', { text: 'X' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateQuestion('non-existent', { text: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw NotFoundException if new page does not belong to survey', async () => {
@@ -482,9 +475,7 @@ describe('QuestionService', () => {
         pageId: 'invalid-page-id',
       };
 
-      await expect(
-        service.updateQuestion(mockQuestionId, dto),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateQuestion(mockQuestionId, dto)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -499,9 +490,7 @@ describe('QuestionService', () => {
     it('should throw NotFoundException if question does not exist', async () => {
       questionRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.deleteQuestion('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.deleteQuestion('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -526,9 +515,9 @@ describe('QuestionService', () => {
 
       const dto: ReorderQuestionsDto = { questionIds: ['q1'] };
 
-      await expect(
-        service.reorderQuestions('non-existent', dto),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.reorderQuestions('non-existent', dto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException if question does not belong to survey', async () => {
@@ -536,9 +525,9 @@ describe('QuestionService', () => {
         questionIds: ['q1', 'q2', 'non-existent-q'],
       };
 
-      await expect(
-        service.reorderQuestions(mockSurveyId, dto),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.reorderQuestions(mockSurveyId, dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -557,9 +546,7 @@ describe('QuestionService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getQuestionsBySurvey('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getQuestionsBySurvey('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -572,9 +559,7 @@ describe('QuestionService', () => {
         validationRules: { emailFormat: true },
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject phoneFormat for non-phone/short_text questions', async () => {
@@ -585,9 +570,7 @@ describe('QuestionService', () => {
         validationRules: { phoneFormat: true },
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject numericRange for non-numeric_scale questions', async () => {
@@ -598,9 +581,7 @@ describe('QuestionService', () => {
         validationRules: { numericRange: { min: 1, max: 10 } },
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject minLength/maxLength for non-text questions', async () => {
@@ -612,9 +593,7 @@ describe('QuestionService', () => {
         validationRules: { minLength: 5 },
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should allow phoneFormat for phone_number type', async () => {
@@ -677,9 +656,7 @@ describe('QuestionService', () => {
         hasOtherOption: true,
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject hasOtherOption for file_upload', async () => {
@@ -690,9 +667,7 @@ describe('QuestionService', () => {
         hasOtherOption: true,
       };
 
-      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -15,7 +15,9 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   if (isLoading) {
     // Di mode embed jangan pakai min-h-screen (100vh) — bikin iframe overshoot.
     return (
-      <div className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}>
+      <div
+        className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}
+      >
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
       </div>
     );
@@ -27,13 +29,14 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
 
   if (requiredRole && user?.role !== requiredRole) {
     // Allow super_admin and admin to access admin routes
-    if (requiredRole === 'admin' && (user?.role === 'super_admin' || user?.role === 'analyst' || user?.role === 'viewer')) {
+    if (
+      requiredRole === 'admin' &&
+      (user?.role === 'super_admin' || user?.role === 'analyst' || user?.role === 'viewer')
+    ) {
       return <>{children}</>;
     }
     const redirectPath =
-      user?.role === 'admin' || user?.role === 'super_admin'
-        ? '/admin/dashboard'
-        : '/surveys';
+      user?.role === 'admin' || user?.role === 'super_admin' ? '/admin/dashboard' : '/surveys';
     return <Navigate to={redirectPath} replace />;
   }
 

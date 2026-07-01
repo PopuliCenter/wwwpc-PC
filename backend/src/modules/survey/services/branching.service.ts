@@ -20,10 +20,7 @@ export class BranchingService {
   /**
    * Set branching rules for a page. Replaces all existing rules.
    */
-  async setBranchingRules(
-    pageId: string,
-    rules: BranchingRuleDto[],
-  ): Promise<BranchingRule[]> {
+  async setBranchingRules(pageId: string, rules: BranchingRuleDto[]): Promise<BranchingRule[]> {
     // Verify page exists
     const page = await this.pageRepository.findOne({
       where: { id: pageId },
@@ -47,9 +44,7 @@ export class BranchingService {
     );
 
     const saved = await this.branchingRepository.save(entities);
-    this.logger.log(
-      `Branching rules set for page ${pageId}: ${saved.length} rules`,
-    );
+    this.logger.log(`Branching rules set for page ${pageId}: ${saved.length} rules`);
     return saved;
   }
 

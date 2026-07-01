@@ -127,11 +127,7 @@ describe('RolesGuard', () => {
         sessionId: 'session-1',
       });
 
-      reflector.getAllAndOverride = () => [
-        UserRole.SUPER_ADMIN,
-        UserRole.ADMIN,
-        UserRole.ANALYST,
-      ];
+      reflector.getAllAndOverride = () => [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST];
 
       expect(guard.canActivate(context)).toBe(true);
     });

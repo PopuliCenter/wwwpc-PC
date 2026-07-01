@@ -29,9 +29,7 @@ import { AuditActionType } from '@shared/enums';
 /** Ambil IP klien dari request (hormati proxy bila ada). */
 function clientIp(req: any): string {
   return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req?.ip ||
-    'unknown'
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
   );
 }
 
@@ -60,10 +58,7 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  async googleLogin(
-    @Body() dto: GoogleLoginDto,
-    @Request() req: any,
-  ): Promise<AuthResult> {
+  async googleLogin(@Body() dto: GoogleLoginDto, @Request() req: any): Promise<AuthResult> {
     const result = await this.authService.loginWithGoogle(dto.idToken);
     await this.auditService.log({
       userId: result.user.id,
@@ -98,9 +93,7 @@ export class AuthController {
   @Post('password-reset/request')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  async requestPasswordReset(
-    @Body() dto: RequestPasswordResetDto,
-  ): Promise<void> {
+  async requestPasswordReset(@Body() dto: RequestPasswordResetDto): Promise<void> {
     await this.authService.requestPasswordReset(dto.email);
   }
 
@@ -121,10 +114,7 @@ export class AuthController {
 
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
-  async updateProfile(
-    @Request() req: any,
-    @Body() dto: UpdateProfileDto,
-  ): Promise<ProfileResult> {
+  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto): Promise<ProfileResult> {
     const result = await this.authService.updateProfile(req.user.userId, dto);
     // Catat perubahan data diri (lewati bila hanya ganti avatar agar tak berisik).
     const fields = Object.keys(dto ?? {});
@@ -143,15 +133,8 @@ export class AuthController {
   @Patch('profile/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  async changePassword(
-    @Request() req: any,
-    @Body() dto: ChangePasswordDto,
-  ): Promise<void> {
-    await this.authService.changeOwnPassword(
-      req.user.userId,
-      dto.currentPassword,
-      dto.newPassword,
-    );
+  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto): Promise<void> {
+    await this.authService.changeOwnPassword(req.user.userId, dto.currentPassword, dto.newPassword);
     await this.auditService.log({
       userId: req.user.userId,
       actionType: AuditActionType.USER_PASSWORD_RESET,
@@ -165,10 +148,7 @@ export class AuthController {
   @Patch('profile/set-password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  async setPassword(
-    @Request() req: any,
-    @Body() dto: SetPasswordDto,
-  ): Promise<void> {
+  async setPassword(@Request() req: any, @Body() dto: SetPasswordDto): Promise<void> {
     await this.authService.setPasswordWithoutOld(req.user.userId, dto.newPassword);
     await this.auditService.log({
       userId: req.user.userId,

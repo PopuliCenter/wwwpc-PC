@@ -34,11 +34,7 @@ export class UserManagerController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async updateUser(
-    @Param('id') id: string,
-    @Body() dto: UpdateUserDto,
-    @Req() req: any,
-  ) {
+  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: any) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.updateUser(id, dto, adminUserId, ipAddress);
@@ -46,11 +42,7 @@ export class UserManagerController {
 
   @Patch(':id/role')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async updateUserRole(
-    @Param('id') id: string,
-    @Body() dto: UpdateRoleDto,
-    @Req() req: any,
-  ) {
+  async updateUserRole(@Param('id') id: string, @Body() dto: UpdateRoleDto, @Req() req: any) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.updateUserRole(id, dto.role, adminUserId, ipAddress);

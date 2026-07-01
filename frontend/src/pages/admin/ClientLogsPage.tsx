@@ -1,13 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Bug,
-  Smartphone,
-  Monitor,
-  Trash2,
-  ChevronDown,
-  Search,
-  RefreshCw,
-} from 'lucide-react';
+import { Bug, Smartphone, Monitor, Trash2, ChevronDown, Search, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { api } from '@/services/api';
 import { useConfirm } from '@/components/common/ConfirmDialog';
@@ -44,8 +36,7 @@ const LEVEL_TONE: Record<string, string> = {
 };
 
 function PlatformIcon({ platform }: { platform: string | null }) {
-  if (platform === 'android' || platform === 'ios')
-    return <Smartphone className="h-3.5 w-3.5" />;
+  if (platform === 'android' || platform === 'ios') return <Smartphone className="h-3.5 w-3.5" />;
   return <Monitor className="h-3.5 w-3.5" />;
 }
 
@@ -151,13 +142,22 @@ export function ClientLogsPage() {
   }, [fetchLogs]);
 
   const handleDelete = async (id: string) => {
-    const ok = await confirm({ title: 'Hapus log', message: 'Hapus entri log ini?', confirmText: 'Hapus', danger: true });
+    const ok = await confirm({
+      title: 'Hapus log',
+      message: 'Hapus entri log ini?',
+      confirmText: 'Hapus',
+      danger: true,
+    });
     if (!ok) return;
     try {
       await api.delete(`/admin/client-logs/${id}`);
       setLogs((prev) => prev.filter((l) => l.id !== id));
     } catch (e) {
-      showAppNotice({ title: 'Gagal menghapus', body: (e as { message?: string })?.message, tone: 'error' });
+      showAppNotice({
+        title: 'Gagal menghapus',
+        body: (e as { message?: string })?.message,
+        tone: 'error',
+      });
     }
   };
 
@@ -176,7 +176,11 @@ export function ClientLogsPage() {
       showAppNotice({ title: `${res.deleted} log dibersihkan`, tone: 'success' });
       void fetchLogs();
     } catch (e) {
-      showAppNotice({ title: 'Gagal membersihkan', body: (e as { message?: string })?.message, tone: 'error' });
+      showAppNotice({
+        title: 'Gagal membersihkan',
+        body: (e as { message?: string })?.message,
+        tone: 'error',
+      });
     }
   };
 

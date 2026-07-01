@@ -36,7 +36,9 @@ export function SurveyCreatePage() {
     category: '',
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
     const { name, value, type } = e.target;
     setForm((prev) => ({
       ...prev,
@@ -201,7 +203,10 @@ export function SurveyCreatePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="maxDurationMinutes" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="maxDurationMinutes"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Durasi Maks (menit)
             </label>
             <input
@@ -215,7 +220,10 @@ export function SurveyCreatePage() {
             />
           </div>
           <div>
-            <label htmlFor="maxRespondents" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="maxRespondents"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Maks Responden (0 = tak terbatas)
             </label>
             <input
@@ -282,7 +290,10 @@ export function SurveyCreatePage() {
             />
           </div>
           <div>
-            <label htmlFor="rewardDescription" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="rewardDescription"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Deskripsi Reward
             </label>
             <input

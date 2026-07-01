@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 
 /** Pantau status koneksi (online/offline) berbasis event browser. */
 export function useOnlineStatus(): boolean {
-  const [online, setOnline] = useState(
-    typeof navigator === 'undefined' ? true : navigator.onLine,
-  );
+  const [online, setOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
 
   useEffect(() => {
     const goOnline = () => setOnline(true);

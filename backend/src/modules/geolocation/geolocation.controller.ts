@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  UseGuards,
-  Request,
-  Query,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '@modules/auth/guards';
 import { GeolocationService } from './geolocation.service';
 import { CaptureLocationDto, ManualLocationDto } from './dto';
@@ -40,11 +32,7 @@ export class GeolocationController {
     @Request() req: any,
     @Body() dto: ManualLocationDto,
   ): Promise<CaptureLocationResult> {
-    return this.geolocationService.saveManualLocation(
-      req.user.userId,
-      dto.city,
-      dto.province,
-    );
+    return this.geolocationService.saveManualLocation(req.user.userId, dto.city, dto.province);
   }
 
   /**

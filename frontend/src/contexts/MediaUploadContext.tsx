@@ -7,11 +7,7 @@ import { api } from '@/services/api';
  *  - offline (provider surveyor): referensi lokal "local-media://<id>" yang
  *    di-resolve saat sinkronisasi.
  */
-export type UploadMediaFn = (
-  file: Blob,
-  surveyId: string,
-  filename?: string,
-) => Promise<string>;
+export type UploadMediaFn = (file: Blob, surveyId: string, filename?: string) => Promise<string>;
 
 /** Default: unggah langsung ke endpoint responden (perilaku lama). */
 const defaultUpload: UploadMediaFn = async (file, surveyId, filename = 'upload') => {

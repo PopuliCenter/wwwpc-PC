@@ -154,8 +154,8 @@ export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
  */
 export function captureGeo(): Promise<{ lat: number; lng: number } | null> {
   // getPosition() menangani native (plugin + izin lokasi) maupun web.
-  return getPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }).then(
-    (p) => (p ? { lat: p.latitude, lng: p.longitude } : null),
+  return getPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }).then((p) =>
+    p ? { lat: p.latitude, lng: p.longitude } : null,
   );
 }
 
@@ -200,9 +200,7 @@ function maybeUpper(text: string, uppercase?: boolean): string {
 function useOrderedOptions(question: Question): SurveyOption[] {
   return useMemo(
     () =>
-      question.randomizeOptions
-        ? shuffleArray(question.options ?? [])
-        : question.options ?? [],
+      question.randomizeOptions ? shuffleArray(question.options ?? []) : (question.options ?? []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [question.id, question.randomizeOptions, question.options],
   );
@@ -771,7 +769,7 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
       .then(setRegencies)
       .catch(() => setRegencies([]))
       .finally(() => setLoadingLevel(null));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionVal.province_id, lockedProvince, lockedRegency, depthIndex]);
 
   // Load districts when regency is selected
@@ -783,7 +781,7 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
       .then(setDistricts)
       .catch(() => setDistricts([]))
       .finally(() => setLoadingLevel(null));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionVal.regency_id, lockedRegency, depthIndex]);
 
   // Load villages when district is selected
@@ -795,7 +793,7 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
       .then(setVillages)
       .catch(() => setVillages([]))
       .finally(() => setLoadingLevel(null));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [regionVal.district_id, depthIndex]);
 
   const selectStyle = fieldClasses(invalid);
@@ -858,7 +856,9 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
             {loadingLevel === 'province' ? 'Memuat...' : '— Pilih Provinsi —'}
           </option>
           {provinces.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
       </div>
@@ -888,7 +888,9 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
                   : '— Pilih Kabupaten/Kota —'}
             </option>
             {regencies.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
             ))}
           </select>
         </div>
@@ -919,7 +921,9 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
                   : '— Pilih Kecamatan —'}
             </option>
             {districts.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
             ))}
           </select>
         </div>
@@ -946,7 +950,9 @@ function IndonesiaRegionQuestion({ question, value, onChange, invalid }: Rendere
                   : '— Pilih Kelurahan/Desa —'}
             </option>
             {villages.map((v) => (
-              <option key={v.id} value={v.id}>{v.name}</option>
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
             ))}
           </select>
         </div>
@@ -1060,7 +1066,9 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
         className={`w-full touch-none rounded-lg border bg-white ${invalid ? 'border-red-300' : 'border-gray-300'}`}
         style={{ height: 180 }}
       />
-      <p className="text-xs text-gray-400">Bubuhkan tanda tangan di kotak di atas (gunakan jari/mouse), lalu Simpan.</p>
+      <p className="text-xs text-gray-400">
+        Bubuhkan tanda tangan di kotak di atas (gunakan jari/mouse), lalu Simpan.
+      </p>
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -1117,7 +1125,11 @@ function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
       {value ? (
         <div className="space-y-2">
           {preview ? (
-            <img src={preview} alt="Foto" className="max-h-56 rounded-lg border border-gray-200 object-contain" />
+            <img
+              src={preview}
+              alt="Foto"
+              className="max-h-56 rounded-lg border border-gray-200 object-contain"
+            />
           ) : (
             <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-gray-800">
               <FileCheck2 className="h-5 w-5 text-emerald-600" /> Foto telah diunggah
@@ -1218,7 +1230,8 @@ function GpsQuestion({ value, onChange, invalid }: RendererProps) {
             invalid ? 'border-red-300' : 'border-gray-300'
           }`}
         >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />} Rekam Lokasi Saat Ini
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}{' '}
+          Rekam Lokasi Saat Ini
         </button>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -1377,7 +1390,8 @@ function AudioQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
             invalid ? 'border-red-300' : 'border-gray-300'
           }`}
         >
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />} Mulai Rekam
+          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}{' '}
+          Mulai Rekam
         </button>
       )}
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -1530,23 +1544,17 @@ export function SurveyFillPage() {
 
   // Upload media: online → endpoint responden; offline → simpan blob lokal,
   // kembalikan referensi local-media:// yang di-resolve saat sinkron.
-  const uploadMedia = useCallback<UploadMediaFn>(
-    async (file, sId, filename = 'upload') => {
-      if (navigator.onLine) {
-        const fd = new FormData();
-        fd.append('file', file, filename);
-        const r = await api.upload<{ key: string }>(
-          `/surveys/${sId}/responses/upload`,
-          fd,
-        );
-        return r.key;
-      }
-      const mediaId = makeLocalId();
-      await mediaPut({ id: mediaId, blob: file, filename });
-      return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
-    },
-    [],
-  );
+  const uploadMedia = useCallback<UploadMediaFn>(async (file, sId, filename = 'upload') => {
+    if (navigator.onLine) {
+      const fd = new FormData();
+      fd.append('file', file, filename);
+      const r = await api.upload<{ key: string }>(`/surveys/${sId}/responses/upload`, fd);
+      return r.key;
+    }
+    const mediaId = makeLocalId();
+    await mediaPut({ id: mediaId, blob: file, filename });
+    return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
+  }, []);
 
   useEffect(() => {
     const fetchSurvey = async () => {
@@ -1578,7 +1586,10 @@ export function SurveyFillPage() {
         // jatuh ke cache (yang akan keliru menampilkan form lagi).
         const e = err as { statusCode?: number; message?: string };
         if (e?.statusCode === 409) {
-          setError(e.message || 'Anda sudah mengisi survei ini. Satu responden hanya boleh mengisi satu kali.');
+          setError(
+            e.message ||
+              'Anda sudah mengisi survei ini. Satu responden hanya boleh mengisi satu kali.',
+          );
         } else if (e?.statusCode === 403) {
           // Gerbang (mis. data diri belum lengkap / tidak memenuhi target) —
           // tampilkan pesan, JANGAN jatuh ke cache.
@@ -1709,8 +1720,7 @@ export function SurveyFillPage() {
         const stepIdx = active.findIndex((q) => q.id === missing[0]);
         setCurrentPage(stepIdx >= 0 ? stepIdx + 1 : 1);
       } else {
-        const firstPage =
-          survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
+        const firstPage = survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
         setCurrentPage(firstPage);
       }
       setError(`Masih ada ${missing.length} pertanyaan wajib yang belum diisi.`);
@@ -1775,7 +1785,17 @@ export function SurveyFillPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [survey, answers, destinationNumber, rewardType, isActive, answersToArray, currentPage, online, sync]);
+  }, [
+    survey,
+    answers,
+    destinationNumber,
+    rewardType,
+    isActive,
+    answersToArray,
+    currentPage,
+    online,
+    sync,
+  ]);
 
   const handleTimerExpire = useCallback(() => {
     void handleSubmit();
@@ -1945,226 +1965,230 @@ export function SurveyFillPage() {
 
   return (
     <MediaUploadProvider value={uploadMedia}>
-    <div className="mx-auto max-w-3xl space-y-5">
-      {/* Konfirmasi saat akan meninggalkan survei dengan progres belum dikirim. */}
-      {blocker.state === 'blocked' && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-semibold text-gray-900">Tinggalkan pengisian survei?</h3>
-            <p className="mt-1.5 text-sm text-gray-600">
-              Jawaban Anda <span className="font-medium">tersimpan otomatis</span> dan bisa
-              dilanjutkan nanti. Anda yakin ingin keluar sekarang?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => blocker.reset?.()}
-                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
-                Lanjut isi
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void flushSave();
-                  blocker.proceed?.();
-                }}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
-              >
-                Simpan & keluar
-              </button>
+      <div className="mx-auto max-w-3xl space-y-5">
+        {/* Konfirmasi saat akan meninggalkan survei dengan progres belum dikirim. */}
+        {blocker.state === 'blocked' && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+              <h3 className="text-base font-semibold text-gray-900">
+                Tinggalkan pengisian survei?
+              </h3>
+              <p className="mt-1.5 text-sm text-gray-600">
+                Jawaban Anda <span className="font-medium">tersimpan otomatis</span> dan bisa
+                dilanjutkan nanti. Anda yakin ingin keluar sekarang?
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => blocker.reset?.()}
+                  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Lanjut isi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void flushSave();
+                    blocker.proceed?.();
+                  }}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700"
+                >
+                  Simpan & keluar
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {resumedDraft && (
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          Pengisian sebelumnya dilanjutkan — jawaban Anda tersimpan otomatis.
-        </div>
-      )}
+        {resumedDraft && (
+          <div className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            Pengisian sebelumnya dilanjutkan — jawaban Anda tersimpan otomatis.
+          </div>
+        )}
 
-      {survey.maxDuration && (
-        <CountdownTimer minutes={survey.maxDuration} onExpire={handleTimerExpire} />
-      )}
+        {survey.maxDuration && (
+          <CountdownTimer minutes={survey.maxDuration} onExpire={handleTimerExpire} />
+        )}
 
-      {(!online || sync.queuedCount > 0) && (
-        <div
-          className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
-            !online
-              ? 'bg-amber-50 text-amber-800 ring-amber-100'
-              : 'bg-primary-50 text-primary-700 ring-primary-100'
-          }`}
-        >
-          <span className="inline-flex items-center gap-2">
-            {!online ? (
-              <>
-                <WifiOff className="h-4 w-4" /> Mode offline — jawaban disimpan & dikirim saat online
-              </>
-            ) : (
-              <>
-                <CloudUpload className="h-4 w-4" /> {sync.queuedCount} jawaban menunggu sinkron
-              </>
+        {(!online || sync.queuedCount > 0) && (
+          <div
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
+              !online
+                ? 'bg-amber-50 text-amber-800 ring-amber-100'
+                : 'bg-primary-50 text-primary-700 ring-primary-100'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              {!online ? (
+                <>
+                  <WifiOff className="h-4 w-4" /> Mode offline — jawaban disimpan & dikirim saat
+                  online
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="h-4 w-4" /> {sync.queuedCount} jawaban menunggu sinkron
+                </>
+              )}
+            </span>
+            {sync.queuedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => sync.syncNow()}
+                disabled={!online || sync.syncing}
+                className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
+                {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
+              </button>
             )}
-          </span>
-          {sync.queuedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => sync.syncNow()}
-              disabled={!online || sync.syncing}
-              className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
-              {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
-            </button>
+          </div>
+        )}
+
+        {/* Header — hero ber-tema (selaras identitas app) */}
+        <div className="overflow-hidden rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-sm sm:p-6">
+          <div className="flex items-start gap-3">
+            <img
+              src="/logo-populi-center.png"
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg bg-white/15 p-1.5"
+            />
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold tracking-tight">{survey.title}</h1>
+              {survey.description && (
+                <p className="mt-1 text-sm text-primary-100">{survey.description}</p>
+              )}
+            </div>
+          </div>
+
+          {survey.rewardMode === 'manual' && survey.rewardDescription && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
+              <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+              <p className="text-sm">
+                <span className="font-medium">Reward:</span> {survey.rewardDescription}
+              </p>
+            </div>
+          )}
+          {survey.rewardMode === 'auto_point' && survey.rewardPoints && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
+              <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+              <p className="text-sm">
+                <span className="font-medium">Reward:</span> {survey.rewardPoints} poin otomatis
+                setelah selesai
+              </p>
+            </div>
           )}
         </div>
-      )}
 
-      {/* Header — hero ber-tema (selaras identitas app) */}
-      <div className="overflow-hidden rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-sm sm:p-6">
-        <div className="flex items-start gap-3">
-          <img
-            src="/logo-populi-center.png"
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-lg bg-white/15 p-1.5"
+        {/* Progress menempel di bawah header (sticky) agar selalu terlihat saat scroll */}
+        <div className="sticky top-16 z-10 rounded-xl border border-gray-200 bg-surface/95 px-4 py-2.5 shadow-sm backdrop-blur">
+          <ProgressBar
+            current={currentPage}
+            total={totalSteps}
+            unit={isWizard ? 'Pertanyaan' : 'Halaman'}
           />
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight">{survey.title}</h1>
-            {survey.description && (
-              <p className="mt-1 text-sm text-primary-100">{survey.description}</p>
-            )}
-          </div>
         </div>
 
-        {survey.rewardMode === 'manual' && survey.rewardDescription && (
-          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
-            <Gift className="mt-0.5 h-4 w-4 shrink-0" />
-            <p className="text-sm">
-              <span className="font-medium">Reward:</span> {survey.rewardDescription}
-            </p>
+        {error && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
-        {survey.rewardMode === 'auto_point' && survey.rewardPoints && (
-          <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-white/15 p-3 ring-1 ring-white/20">
-            <Gift className="mt-0.5 h-4 w-4 shrink-0" />
-            <p className="text-sm">
-              <span className="font-medium">Reward:</span> {survey.rewardPoints} poin otomatis setelah selesai
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* Progress menempel di bawah header (sticky) agar selalu terlihat saat scroll */}
-      <div className="sticky top-16 z-10 rounded-xl border border-gray-200 bg-surface/95 px-4 py-2.5 shadow-sm backdrop-blur">
-        <ProgressBar
-          current={currentPage}
-          total={totalSteps}
-          unit={isWizard ? 'Pertanyaan' : 'Halaman'}
-        />
-      </div>
-
-      {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {/* Questions for the current page */}
-      <div key={currentPage} className="animate-fade-up space-y-5">
-        {pageQuestions.map((question, idx) => {
-          const invalid = missingIds.has(question.id);
-          return (
-            <Card
-              key={question.id}
-              className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}
-            >
-              <div className="mb-4 flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
-                  {isWizard ? currentPage : idx + 1}
-                </span>
-                <div className="flex-1">
-                  <p className="text-base font-semibold leading-snug text-gray-900">
-                    {question.text}
-                    {question.required && <span className="ml-1 text-red-500">*</span>}
-                  </p>
-                  {question.description && (
-                    <p className="mt-1 text-xs text-gray-500">{question.description}</p>
-                  )}
+        {/* Questions for the current page */}
+        <div key={currentPage} className="animate-fade-up space-y-5">
+          {pageQuestions.map((question, idx) => {
+            const invalid = missingIds.has(question.id);
+            return (
+              <Card
+                key={question.id}
+                className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}
+              >
+                <div className="mb-4 flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
+                    {isWizard ? currentPage : idx + 1}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-base font-semibold leading-snug text-gray-900">
+                      {question.text}
+                      {question.required && <span className="ml-1 text-red-500">*</span>}
+                    </p>
+                    {question.description && (
+                      <p className="mt-1 text-xs text-gray-500">{question.description}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <QuestionRenderer
-                question={question}
-                value={answers[question.id] ?? null}
-                onChange={(val) => handleAnswerChange(question.id, val)}
-                surveyId={survey.id}
-                invalid={invalid}
-                uppercase={survey.uppercaseAnswers ?? false}
+                <QuestionRenderer
+                  question={question}
+                  value={answers[question.id] ?? null}
+                  onChange={(val) => handleAnswerChange(question.id, val)}
+                  surveyId={survey.id}
+                  invalid={invalid}
+                  uppercase={survey.uppercaseAnswers ?? false}
+                />
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Manual reward destination */}
+        {isLastPage && survey.rewardMode === 'manual' && (
+          <Card>
+            <h3 className="text-sm font-semibold text-gray-900">
+              Nomor Tujuan Reward <span className="text-red-500">*</span>
+            </h3>
+            <p className="mb-3 mt-0.5 text-xs text-gray-500">
+              Pilih jenis reward dan masukkan nomor tujuan untuk menerima reward.
+            </p>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-gray-600">Jenis Reward</label>
+              <select
+                value={rewardType}
+                onChange={(e) => setRewardType(e.target.value)}
+                className={fieldClasses(false)}
+              >
+                <option value="pulsa">Pulsa</option>
+                <option value="gopay">GoPay</option>
+                <option value="ovo">OVO</option>
+                <option value="dana">DANA</option>
+                <option value="shopeepay">ShopeePay</option>
+              </select>
+            </div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Nomor Tujuan</label>
+            <div className="flex items-center gap-2">
+              <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
+                +62
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={destinationNumber}
+                onChange={(e) => setDestinationNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="8xxxxxxxxxx"
+                className={`flex-1 ${fieldClasses(false)}`}
               />
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Manual reward destination */}
-      {isLastPage && survey.rewardMode === 'manual' && (
-        <Card>
-          <h3 className="text-sm font-semibold text-gray-900">
-            Nomor Tujuan Reward <span className="text-red-500">*</span>
-          </h3>
-          <p className="mb-3 mt-0.5 text-xs text-gray-500">
-            Pilih jenis reward dan masukkan nomor tujuan untuk menerima reward.
-          </p>
-          <div className="mb-3">
-            <label className="mb-1 block text-xs font-medium text-gray-600">Jenis Reward</label>
-            <select
-              value={rewardType}
-              onChange={(e) => setRewardType(e.target.value)}
-              className={fieldClasses(false)}
-            >
-              <option value="pulsa">Pulsa</option>
-              <option value="gopay">GoPay</option>
-              <option value="ovo">OVO</option>
-              <option value="dana">DANA</option>
-              <option value="shopeepay">ShopeePay</option>
-            </select>
-          </div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Nomor Tujuan</label>
-          <div className="flex items-center gap-2">
-            <span className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2.5 text-sm text-gray-600">
-              +62
-            </span>
-            <input
-              type="tel"
-              inputMode="numeric"
-              value={destinationNumber}
-              onChange={(e) => setDestinationNumber(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="8xxxxxxxxxx"
-              className={`flex-1 ${fieldClasses(false)}`}
-            />
-          </div>
-        </Card>
-      )}
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between gap-3 pb-2">
-        <Button variant="secondary" onClick={goToPrevPage} disabled={currentPage === 1}>
-          <ChevronLeft className="h-4 w-4" /> Sebelumnya
-        </Button>
-
-        {isLastPage ? (
-          <Button onClick={handleSubmit} isLoading={submitting}>
-            <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
-          </Button>
-        ) : (
-          <Button onClick={goToNextPage}>
-            Selanjutnya <ChevronRight className="h-4 w-4" />
-          </Button>
+            </div>
+          </Card>
         )}
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between gap-3 pb-2">
+          <Button variant="secondary" onClick={goToPrevPage} disabled={currentPage === 1}>
+            <ChevronLeft className="h-4 w-4" /> Sebelumnya
+          </Button>
+
+          {isLastPage ? (
+            <Button onClick={handleSubmit} isLoading={submitting}>
+              <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
+            </Button>
+          ) : (
+            <Button onClick={goToNextPage}>
+              Selanjutnya <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
     </MediaUploadProvider>
   );
 }

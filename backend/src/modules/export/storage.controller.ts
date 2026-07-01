@@ -46,11 +46,7 @@ export class StorageController {
     @Query('prefix') prefix?: string,
     @Query('token') token?: string,
   ) {
-    const result = await this.s3.listObjects(
-      this.bucketFor(bucket),
-      prefix ?? '',
-      token,
-    );
+    const result = await this.s3.listObjects(this.bucketFor(bucket), prefix ?? '', token);
     return { bucket: bucket === 'exports' ? 'exports' : 'uploads', ...result };
   }
 
@@ -62,10 +58,7 @@ export class StorageController {
     @Query('bucket') bucket?: string,
   ): Promise<void> {
     if (!key) throw new BadRequestException('Parameter "key" wajib diisi.');
-    const { buffer, contentType } = await this.s3.getObjectBuffer(
-      key,
-      this.bucketFor(bucket),
-    );
+    const { buffer, contentType } = await this.s3.getObjectBuffer(key, this.bucketFor(bucket));
     res.set('Content-Type', contentType);
     res.set('Cache-Control', 'private, max-age=60');
     res.send(buffer);

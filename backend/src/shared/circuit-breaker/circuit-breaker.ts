@@ -151,9 +151,7 @@ export class CircuitBreaker {
 
   private getFallback<T>(fallback?: T | (() => T)): T {
     if (fallback === undefined) {
-      throw new Error(
-        `Circuit breaker "${this.config.name}" is OPEN. Service unavailable.`,
-      );
+      throw new Error(`Circuit breaker "${this.config.name}" is OPEN. Service unavailable.`);
     }
     if (typeof fallback === 'function') {
       return (fallback as () => T)();

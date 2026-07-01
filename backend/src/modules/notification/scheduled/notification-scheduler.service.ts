@@ -1,12 +1,7 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, In } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
@@ -82,7 +77,9 @@ export class NotificationSchedulerService {
             3,
             this.baseUrl,
           );
-          this.logger.log(`Sent H-3 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`);
+          this.logger.log(
+            `Sent H-3 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`,
+          );
         }
       }
 
@@ -121,7 +118,9 @@ export class NotificationSchedulerService {
             1,
             this.baseUrl,
           );
-          this.logger.log(`Sent H-1 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`);
+          this.logger.log(
+            `Sent H-1 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`,
+          );
         }
       }
 
@@ -145,9 +144,7 @@ export class NotificationSchedulerService {
       throw new NotFoundException(`Survei ${surveyId} tidak ditemukan`);
     }
     if (survey.status !== SurveyStatus.ACTIVE) {
-      throw new BadRequestException(
-        'Aktifkan survei terlebih dahulu sebelum mengirim undangan.',
-      );
+      throw new BadRequestException('Aktifkan survei terlebih dahulu sebelum mengirim undangan.');
     }
 
     const respondents = await this.findRespondentsWhoHaventFilled(surveyId);
@@ -189,9 +186,7 @@ export class NotificationSchedulerService {
       throw new NotFoundException(`Survei ${surveyId} tidak ditemukan`);
     }
     if (survey.status !== SurveyStatus.ACTIVE) {
-      throw new BadRequestException(
-        'Aktifkan survei terlebih dahulu sebelum mengirim undangan.',
-      );
+      throw new BadRequestException('Aktifkan survei terlebih dahulu sebelum mengirim undangan.');
     }
 
     const qb = await this.buildTargetedQuery(surveyId, criteria);

@@ -50,16 +50,11 @@ describe('AuthController', () => {
       );
 
       expect(result).toEqual(authResult);
-      expect(authService.login).toHaveBeenCalledWith(
-        'test@example.com',
-        'ValidPass1',
-      );
+      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'ValidPass1');
     });
 
     it('should propagate UnauthorizedException from service', async () => {
-      authService.login.mockRejectedValue(
-        new UnauthorizedException('Invalid email or password'),
-      );
+      authService.login.mockRejectedValue(new UnauthorizedException('Invalid email or password'));
 
       await expect(
         controller.login(
@@ -94,9 +89,7 @@ describe('AuthController', () => {
       });
 
       expect(result).toEqual(tokenPair);
-      expect(authService.refreshToken).toHaveBeenCalledWith(
-        'old-refresh-token',
-      );
+      expect(authService.refreshToken).toHaveBeenCalledWith('old-refresh-token');
     });
 
     it('should propagate UnauthorizedException for invalid refresh token', async () => {
@@ -104,9 +97,9 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid refresh token'),
       );
 
-      await expect(
-        controller.refresh({ refreshToken: 'invalid' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.refresh({ refreshToken: 'invalid' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -116,9 +109,7 @@ describe('AuthController', () => {
 
       await controller.requestPasswordReset({ email: 'test@example.com' });
 
-      expect(authService.requestPasswordReset).toHaveBeenCalledWith(
-        'test@example.com',
-      );
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith('test@example.com');
     });
 
     it('should not throw even if email does not exist', async () => {

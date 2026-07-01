@@ -1,11 +1,4 @@
-import {
-  IsIn,
-  IsNotEmpty,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsIn, IsNotEmpty, IsObject, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /** Laporan error dari klien (frontend/aplikasi). Semua dibatasi panjangnya. */
 export class CreateClientLogDto {

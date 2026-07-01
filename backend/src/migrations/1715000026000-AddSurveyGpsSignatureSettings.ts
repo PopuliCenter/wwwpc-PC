@@ -9,9 +9,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * setelan tingkat survei (bukan pertanyaan). Tipe pertanyaan lama tetap ada
  * demi kompatibilitas data survei yang sudah dibuat.
  */
-export class AddSurveyGpsSignatureSettings1715000026000
-  implements MigrationInterface
-{
+export class AddSurveyGpsSignatureSettings1715000026000 implements MigrationInterface {
   name = 'AddSurveyGpsSignatureSettings1715000026000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -24,11 +22,7 @@ export class AddSurveyGpsSignatureSettings1715000026000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "survey" DROP COLUMN IF EXISTS "require_signature"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "survey" DROP COLUMN IF EXISTS "capture_gps"`,
-    );
+    await queryRunner.query(`ALTER TABLE "survey" DROP COLUMN IF EXISTS "require_signature"`);
+    await queryRunner.query(`ALTER TABLE "survey" DROP COLUMN IF EXISTS "capture_gps"`);
   }
 }

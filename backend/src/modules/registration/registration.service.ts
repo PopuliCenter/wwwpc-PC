@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -16,12 +10,7 @@ import { randomInt } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { User, UserStatus } from '@modules/auth/entities';
 import { UserProfile, Gender } from './entities';
-import {
-  RegistrationResult,
-  OtpResult,
-  VerificationResult,
-  OtpData,
-} from './interfaces';
+import { RegistrationResult, OtpResult, VerificationResult, OtpData } from './interfaces';
 import {
   isValidPassword,
   isValidEmail,
@@ -198,9 +187,7 @@ export class RegistrationService {
 
   async verifyOtp(email: string, code: string): Promise<VerificationResult> {
     // Get OTP data from Redis
-    const otpDataStr = await this.cacheManager.get<string>(
-      `${OTP_PREFIX}${email}`,
-    );
+    const otpDataStr = await this.cacheManager.get<string>(`${OTP_PREFIX}${email}`);
 
     if (!otpDataStr) {
       throw new BadRequestException('OTP has expired or does not exist');
@@ -265,9 +252,7 @@ export class RegistrationService {
     }
 
     // Get existing OTP data to check resend count
-    const otpDataStr = await this.cacheManager.get<string>(
-      `${OTP_PREFIX}${email}`,
-    );
+    const otpDataStr = await this.cacheManager.get<string>(`${OTP_PREFIX}${email}`);
 
     let resendCount = 0;
     if (otpDataStr) {
@@ -299,12 +284,7 @@ export class RegistrationService {
     );
 
     // Kirim ulang email OTP. OTP TIDAK di-log demi keamanan.
-    await this.notificationService.sendOtpEmail(
-      email,
-      user.fullName,
-      code,
-      OTP_TTL_SECONDS / 60,
-    );
+    await this.notificationService.sendOtpEmail(email, user.fullName, code, OTP_TTL_SECONDS / 60);
     this.logger.log(`OTP reissued for ${email} (resend #${resendCount + 1})`);
 
     return {
@@ -399,11 +379,7 @@ export class RegistrationService {
   }
 
   /** Simpan sesi + refresh token di Redis agar token lolos validasi JwtStrategy. */
-  private async storeSession(
-    user: User,
-    sessionId: string,
-    refreshToken: string,
-  ): Promise<void> {
+  private async storeSession(user: User, sessionId: string, refreshToken: string): Promise<void> {
     const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
     await this.cacheManager.set(
       `session:${sessionId}`,
@@ -439,12 +415,18 @@ export class RegistrationService {
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(accessPayload as any, {
-        expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
-      } as any),
-      this.jwtService.signAsync(refreshPayload as any, {
-        expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') ?? '7d',
-      } as any),
+      this.jwtService.signAsync(
+        accessPayload as any,
+        {
+          expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
+        } as any,
+      ),
+      this.jwtService.signAsync(
+        refreshPayload as any,
+        {
+          expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') ?? '7d',
+        } as any,
+      ),
     ]);
 
     return { accessToken, refreshToken };

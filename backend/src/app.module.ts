@@ -26,10 +26,12 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
   imports: [
     DatabaseModule,
     HealthModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     AuthModule,
     RegistrationModule,
     SurveyModule,

@@ -27,7 +27,11 @@ export function SurveyorLayout() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2">
-                <img src="/logo-populi-center.png" alt="Populi Center" className="h-9 w-9 object-contain" />
+                <img
+                  src="/logo-populi-center.png"
+                  alt="Populi Center"
+                  className="h-9 w-9 object-contain"
+                />
                 <span className="text-lg font-bold text-primary-600">Surveyor TPD</span>
               </div>
               <nav className="flex gap-4">

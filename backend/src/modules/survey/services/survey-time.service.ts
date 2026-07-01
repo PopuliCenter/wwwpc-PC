@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SurveyTimeConfig } from '../entities/survey-time-config.entity';
@@ -99,9 +95,7 @@ export class SurveyTimeService {
       .execute();
 
     if (!result.affected) {
-      throw new NotFoundException(
-        `Time configuration for survey ${surveyId} not found`,
-      );
+      throw new NotFoundException(`Time configuration for survey ${surveyId} not found`);
     }
 
     this.logger.log(`Respondent count incremented for survey ${surveyId}`);
@@ -129,10 +123,7 @@ export class SurveyTimeService {
    * Calculates remaining time in seconds based on max_duration_minutes and when the respondent started.
    * Returns null if no max duration is configured.
    */
-  getRemainingTime(
-    maxDurationMinutes: number | null,
-    startedAt: Date,
-  ): number | null {
+  getRemainingTime(maxDurationMinutes: number | null, startedAt: Date): number | null {
     if (maxDurationMinutes === null) {
       return null;
     }
@@ -170,9 +161,7 @@ export class SurveyTimeService {
     });
 
     if (!timeConfig) {
-      throw new NotFoundException(
-        `Time configuration for survey ${surveyId} not found`,
-      );
+      throw new NotFoundException(`Time configuration for survey ${surveyId} not found`);
     }
 
     return timeConfig;

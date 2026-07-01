@@ -33,8 +33,14 @@ const SIGNATURES: Signature[] = [
     ext: 'png',
     match: (b) =>
       b.length >= 8 &&
-      b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 &&
-      b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a,
+      b[0] === 0x89 &&
+      b[1] === 0x50 &&
+      b[2] === 0x4e &&
+      b[3] === 0x47 &&
+      b[4] === 0x0d &&
+      b[5] === 0x0a &&
+      b[6] === 0x1a &&
+      b[7] === 0x0a,
   },
   {
     contentType: 'image/jpeg',
@@ -67,9 +73,7 @@ const SIGNATURES: Signature[] = [
     contentType: 'audio/webm',
     ext: 'webm',
     // EBML header (1A 45 DF A3) — kontainer WebM/Matroska.
-    match: (b) =>
-      b.length >= 4 &&
-      b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3,
+    match: (b) => b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3,
   },
   {
     contentType: 'audio/ogg',
@@ -100,9 +104,7 @@ export class FileValidationService {
   private readonly maxBytes = Number(process.env.UPLOAD_MAX_BYTES ?? 5 * 1024 * 1024);
 
   /** MIME types accepted by the application. */
-  private readonly allowedContentTypes = new Set(
-    SIGNATURES.map((s) => s.contentType),
-  );
+  private readonly allowedContentTypes = new Set(SIGNATURES.map((s) => s.contentType));
 
   get maxUploadBytes(): number {
     return this.maxBytes;

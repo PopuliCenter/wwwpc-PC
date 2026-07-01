@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * dikreditkan SEKALI per survei. Hapus duplikat lama (sisakan satu), lalu pasang
  * unique index PARSIAL pada (user_id, reference_id) untuk reason survey_completion.
  */
-export class AddPointTxSurveyCompletionUnique1715000022000
-  implements MigrationInterface
-{
+export class AddPointTxSurveyCompletionUnique1715000022000 implements MigrationInterface {
   name = 'AddPointTxSurveyCompletionUnique1715000022000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -30,8 +28,6 @@ export class AddPointTxSurveyCompletionUnique1715000022000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "uq_point_tx_survey_completion"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "uq_point_tx_survey_completion"`);
   }
 }

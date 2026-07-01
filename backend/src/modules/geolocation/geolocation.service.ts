@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -46,7 +46,9 @@ export class GeolocationService {
    * encrypt coordinates, and store.
    */
   async captureLocation(userId: string, coords: Coordinates): Promise<CaptureLocationResult> {
-    this.logger.log(`Capturing location for user ${userId}: lat=${coords.latitude}, lng=${coords.longitude}`);
+    this.logger.log(
+      `Capturing location for user ${userId}: lat=${coords.latitude}, lng=${coords.longitude}`,
+    );
 
     // Reverse geocode to get city/province
     const geocoded = await this.reverseGeocode(coords);
@@ -92,7 +94,11 @@ export class GeolocationService {
   /**
    * Save manual location input (when user denies GPS permission).
    */
-  async saveManualLocation(userId: string, city: string, province: string): Promise<CaptureLocationResult> {
+  async saveManualLocation(
+    userId: string,
+    city: string,
+    province: string,
+  ): Promise<CaptureLocationResult> {
     this.logger.log(`Saving manual location for user ${userId}: ${city}, ${province}`);
 
     let geolocation = await this.geolocationRepository.findOne({
@@ -134,32 +140,29 @@ export class GeolocationService {
   async reverseGeocode(coords: Coordinates): Promise<GeocodedAddress> {
     const fallback: GeocodedAddress = { city: '', province: '' };
 
-    return this.geocodingCircuitBreaker.execute<GeocodedAddress>(
-      async () => {
-        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&zoom=10&addressdetails=1`;
+    return this.geocodingCircuitBreaker.execute<GeocodedAddress>(async () => {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}&zoom=10&addressdetails=1`;
 
-        const response = await fetch(url, {
-          headers: {
-            'User-Agent': 'SurveyOnlineSystem/1.0',
-            'Accept-Language': 'id',
-          },
-        });
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'SurveyOnlineSystem/1.0',
+          'Accept-Language': 'id',
+        },
+      });
 
-        if (!response.ok) {
-          throw new Error(`Geocoding API returned ${response.status}`);
-        }
+      if (!response.ok) {
+        throw new Error(`Geocoding API returned ${response.status}`);
+      }
 
-        const data: any = await response.json();
-        const address = data.address || {};
+      const data: any = await response.json();
+      const address = data.address || {};
 
-        return {
-          city: address.city || address.town || address.municipality || address.county || '',
-          province: address.state || address.province || '',
-          displayName: data.display_name || '',
-        };
-      },
-      fallback,
-    );
+      return {
+        city: address.city || address.town || address.municipality || address.county || '',
+        province: address.state || address.province || '',
+        displayName: data.display_name || '',
+      };
+    }, fallback);
   }
 
   /**

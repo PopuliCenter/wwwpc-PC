@@ -32,11 +32,7 @@ function loadGsi(): Promise<void> {
  * - Di WEB: pakai Google Identity Services (GIS).
  * Tidak ditampilkan bila VITE_GOOGLE_CLIENT_ID belum diset.
  */
-export function GoogleSignInButton({
-  onCredential,
-}: {
-  onCredential: (idToken: string) => void;
-}) {
+export function GoogleSignInButton({ onCredential }: { onCredential: (idToken: string) => void }) {
   if (isNativeGoogleAvailable()) {
     return <NativeGoogleButton onCredential={onCredential} />;
   }

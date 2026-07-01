@@ -34,7 +34,8 @@ function actionTone(action: string): string {
   if (action.includes('create')) return 'bg-emerald-50 text-emerald-700';
   if (action.includes('update') || action.includes('change')) return 'bg-blue-50 text-blue-700';
   if (action.includes('export')) return 'bg-indigo-50 text-indigo-700';
-  if (action.includes('redemption') || action.includes('reward')) return 'bg-amber-50 text-amber-700';
+  if (action.includes('redemption') || action.includes('reward'))
+    return 'bg-amber-50 text-amber-700';
   return 'bg-gray-100 text-gray-600';
 }
 
@@ -46,7 +47,9 @@ function formatDetails(details?: Record<string, unknown> | string | null): strin
     const entries = Object.entries(details);
     if (entries.length === 0) return '-';
     return entries
-      .map(([k, v]) => `${k}: ${v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+      .map(
+        ([k, v]) => `${k}: ${v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v)}`,
+      )
       .join(', ');
   } catch {
     return '-';
@@ -467,7 +470,10 @@ export function AuditLogPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {logs.length === 0 ? (
                   <tr>
-                    <td colSpan={isSuperAdmin ? 7 : 6} className="px-4 py-8 text-center text-gray-500">
+                    <td
+                      colSpan={isSuperAdmin ? 7 : 6}
+                      className="px-4 py-8 text-center text-gray-500"
+                    >
                       Tidak ada log ditemukan
                     </td>
                   </tr>
@@ -490,11 +496,13 @@ export function AuditLogPage() {
                       <td className="px-4 py-3 text-sm text-gray-900">
                         <div className="flex flex-col">
                           <span className="font-medium">
-                            {log.userName || log.userEmail || (log.userId ? 'Tanpa nama' : 'Sistem')}
+                            {log.userName ||
+                              log.userEmail ||
+                              (log.userId ? 'Tanpa nama' : 'Sistem')}
                           </span>
                           <span className="text-xs text-gray-400">
                             {[
-                              log.userRole ? roleLabels[log.userRole] ?? log.userRole : null,
+                              log.userRole ? (roleLabels[log.userRole] ?? log.userRole) : null,
                               // Tampilkan email bila ada nama (agar jelas akun mana);
                               // kalau hanya email yg tampil di atas, jangan diulang.
                               log.userName && log.userEmail ? log.userEmail : null,
@@ -508,7 +516,9 @@ export function AuditLogPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${actionTone(log.actionType)}`}>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${actionTone(log.actionType)}`}
+                        >
                           {log.actionType.replace(/_/g, ' ')}
                         </span>
                       </td>
@@ -516,7 +526,10 @@ export function AuditLogPage() {
                       <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
                         {log.ipAddress}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={formatDetails(log.details)}>
+                      <td
+                        className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate"
+                        title={formatDetails(log.details)}
+                      >
                         {formatDetails(log.details)}
                       </td>
                     </tr>

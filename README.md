@@ -4,14 +4,14 @@ Sistem survei online berbasis web dengan pendaftaran mandiri, notifikasi email, 
 
 ## Tech Stack
 
-| Komponen | Teknologi |
-|----------|-----------|
-| Backend | Node.js + NestJS (TypeScript) |
-| Frontend | React + Vite (TypeScript) |
-| Database | PostgreSQL |
-| Cache & Queue | Redis + BullMQ |
-| File Storage | MinIO (S3-compatible) |
-| Containerization | Docker Compose |
+| Komponen         | Teknologi                     |
+| ---------------- | ----------------------------- |
+| Backend          | Node.js + NestJS (TypeScript) |
+| Frontend         | React + Vite (TypeScript)     |
+| Database         | PostgreSQL                    |
+| Cache & Queue    | Redis + BullMQ                |
+| File Storage     | MinIO (S3-compatible)         |
+| Containerization | Docker Compose                |
 
 ---
 
@@ -42,6 +42,7 @@ docker compose up -d
 ```
 
 Ini akan menjalankan:
+
 - **PostgreSQL** (port 5432) - Database utama
 - **Redis** (port 6379) - Cache & job queue
 - **MinIO** (port 9000/9001) - Object storage untuk file export
@@ -93,25 +94,25 @@ Akses **http://localhost:5173** dan login dengan akun default.
 
 ## Akun Default
 
-| Role | Email | Password |
-|------|-------|----------|
+| Role            | Email                 | Password       |
+| --------------- | --------------------- | -------------- |
 | **Super Admin** | superadmin@survei.com | SuperAdmin123! |
-| **Admin** | admin@survei.com | Admin123! |
-| **Responden** | responden@survei.com | Responden123! |
+| **Admin**       | admin@survei.com      | Admin123!      |
+| **Responden**   | responden@survei.com  | Responden123!  |
 
 ### Hak Akses Per Role
 
-| Fitur | Super Admin | Admin | Analyst | Viewer | Responden |
-|-------|:-----------:|:-----:|:-------:|:------:|:---------:|
-| Dashboard | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Buat/Edit Survei | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Lihat Respons | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Export Data | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Audit Log | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Manajemen User | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Data Cleanup | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Isi Survei | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Reward Poin | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Fitur            | Super Admin | Admin | Analyst | Viewer | Responden |
+| ---------------- | :---------: | :---: | :-----: | :----: | :-------: |
+| Dashboard        |     ✅      |  ✅   |   ✅    |   ✅   |    ❌     |
+| Buat/Edit Survei |     ✅      |  ✅   |   ❌    |   ❌   |    ❌     |
+| Lihat Respons    |     ✅      |  ✅   |   ✅    |   ✅   |    ❌     |
+| Export Data      |     ✅      |  ✅   |   ✅    |   ❌   |    ❌     |
+| Audit Log        |     ✅      |  ✅   |   ❌    |   ❌   |    ❌     |
+| Manajemen User   |     ✅      |  ❌   |   ❌    |   ❌   |    ❌     |
+| Data Cleanup     |     ✅      |  ✅   |   ❌    |   ❌   |    ❌     |
+| Isi Survei       |     ❌      |  ❌   |   ❌    |   ❌   |    ✅     |
+| Reward Poin      |     ❌      |  ❌   |   ❌    |   ❌   |    ✅     |
 
 ---
 
@@ -250,12 +251,15 @@ JWT_REFRESH_EXPIRES_IN=7d
 ## Troubleshooting
 
 ### Port 5432 sudah digunakan
+
 Stop PostgreSQL lokal: `net stop postgresql-x64-18` (sebagai Administrator)
 
 ### Cannot POST /api/...
+
 Pastikan backend berjalan di port 3000 dan Vite proxy sudah dikonfigurasi dengan benar.
 
 ### Database connection error
+
 Pastikan Docker container PostgreSQL sudah running: `docker compose ps`
 
 ---

@@ -223,7 +223,9 @@ export function SurveyListPage() {
             key={label}
             className={`rounded-2xl border border-gray-100 bg-white p-3 text-center shadow-sm ring-1 ${ring}`}
           >
-            <span className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-full ${bg} ${text}`}>
+            <span
+              className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-full ${bg} ${text}`}
+            >
               <Icon className="h-4 w-4" />
             </span>
             <p className="text-lg font-bold leading-none text-gray-900">{value}</p>
@@ -281,7 +283,9 @@ export function SurveyListPage() {
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               Survei sudah diisi ({completed.length})
             </span>
-            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${showDone ? 'rotate-180' : ''}`} />
+            <ChevronDown
+              className={`h-4 w-4 text-gray-400 transition-transform ${showDone ? 'rotate-180' : ''}`}
+            />
           </button>
           {showDone && (
             <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">

@@ -52,16 +52,14 @@ describe('FileValidationService', () => {
   });
 
   it('rejects spoofed content: PNG mimetype but JPEG bytes', () => {
-    expect(() =>
-      service.validate(file({ mimetype: 'image/png', buffer: JPEG_MAGIC })),
-    ).toThrow(BadRequestException);
+    expect(() => service.validate(file({ mimetype: 'image/png', buffer: JPEG_MAGIC }))).toThrow(
+      BadRequestException,
+    );
   });
 
   it('rejects an allowed mimetype whose bytes match nothing known', () => {
     expect(() =>
-      service.validate(
-        file({ mimetype: 'image/png', buffer: Buffer.from('not a real image') }),
-      ),
+      service.validate(file({ mimetype: 'image/png', buffer: Buffer.from('not a real image') })),
     ).toThrow(BadRequestException);
   });
 

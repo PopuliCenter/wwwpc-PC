@@ -15,8 +15,6 @@ export class AddUserProfileDistrict1715000028000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user_profile" DROP COLUMN IF EXISTS "district"`,
-    );
+    await queryRunner.query(`ALTER TABLE "user_profile" DROP COLUMN IF EXISTS "district"`);
   }
 }

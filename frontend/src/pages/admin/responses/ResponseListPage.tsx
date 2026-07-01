@@ -68,15 +68,13 @@ function ManualRewardPanel({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const eligibleResponses = responses.filter(
-    (r) => r.rewardMode === 'manual' && r.status === 'completed' && !r.rewardDistributed
+    (r) => r.rewardMode === 'manual' && r.status === 'completed' && !r.rewardDistributed,
   );
 
   if (eligibleResponses.length === 0) return null;
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const toggleAll = () => {
@@ -99,16 +97,28 @@ function ManualRewardPanel({
               <th className="px-4 py-3 text-left">
                 <input
                   type="checkbox"
-                  checked={selectedIds.length === eligibleResponses.length && eligibleResponses.length > 0}
+                  checked={
+                    selectedIds.length === eligibleResponses.length && eligibleResponses.length > 0
+                  }
                   onChange={toggleAll}
                   className="rounded border-gray-300"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responden</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Survei</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jenis</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No. Tujuan</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tanggal</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Responden
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Survei
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Jenis
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                No. Tujuan
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Tanggal
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -124,7 +134,9 @@ function ManualRewardPanel({
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900">{r.respondentName}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
-                <td className="px-4 py-3 text-sm text-gray-600 capitalize">{r.rewardType ?? '-'}</td>
+                <td className="px-4 py-3 text-sm text-gray-600 capitalize">
+                  {r.rewardType ?? '-'}
+                </td>
                 <td className="px-4 py-3 text-sm text-gray-600">{r.destinationNumber ?? '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">
                   {format(new Date(r.submittedAt), 'dd/MM/yyyy HH:mm')}
@@ -237,7 +249,11 @@ export function ResponseListPage() {
 
   const handleExport = async (fmt: 'csv' | 'excel' | 'pdf' | 'json') => {
     if (!filters.surveyId) {
-      showAppNotice({ title: 'Pilih survei dulu', body: 'Pilih survei di filter untuk mengekspor data.', tone: 'warning' });
+      showAppNotice({
+        title: 'Pilih survei dulu',
+        body: 'Pilih survei di filter untuk mengekspor data.',
+        tone: 'warning',
+      });
       return;
     }
     try {
@@ -249,7 +265,11 @@ export function ResponseListPage() {
       const job = await api.post<{ id: string }>(`/export/${fmt}?${params.toString()}`);
       await pollAndDownloadExport(job.id);
     } catch (e) {
-      showAppNotice({ title: `Gagal export ${fmt.toUpperCase()}`, body: (e as { message?: string })?.message, tone: 'error' });
+      showAppNotice({
+        title: `Gagal export ${fmt.toUpperCase()}`,
+        body: (e as { message?: string })?.message,
+        tone: 'error',
+      });
     }
   };
 
@@ -376,21 +396,19 @@ export function ResponseListPage() {
         </summary>
         <div className="mt-3 space-y-2 text-amber-900">
           <p>
-            <span className="font-semibold">Arsip (disarankan):</span> data jawaban
-            tetap tersimpan, hanya disembunyikan dari daftar aktif. Bisa dilihat lagi
-            lewat tombol <span className="font-medium">“Tampilkan arsip”</span>, dan
-            responden tetap bisa mengisi survei ini lagi. Pakai untuk salah isi,
-            pengisian tertahan, atau data mencurigakan.
+            <span className="font-semibold">Arsip (disarankan):</span> data jawaban tetap tersimpan,
+            hanya disembunyikan dari daftar aktif. Bisa dilihat lagi lewat tombol{' '}
+            <span className="font-medium">“Tampilkan arsip”</span>, dan responden tetap bisa mengisi
+            survei ini lagi. Pakai untuk salah isi, pengisian tertahan, atau data mencurigakan.
           </p>
           <p>
-            <span className="font-semibold">Hapus (permanen):</span> jawaban hilang dan
-            tidak bisa dikembalikan. Pakai hanya untuk data uji coba/testing atau
-            permintaan penghapusan data pribadi. Responden juga bisa mengisi ulang
-            setelahnya.
+            <span className="font-semibold">Hapus (permanen):</span> jawaban hilang dan tidak bisa
+            dikembalikan. Pakai hanya untuk data uji coba/testing atau permintaan penghapusan data
+            pribadi. Responden juga bisa mengisi ulang setelahnya.
           </p>
           <p className="text-amber-800">
-            Keduanya membebaskan responden untuk mengisi ulang dan mengembalikan kuota
-            (jika respons sudah selesai). Setiap tindakan dicatat di log audit.
+            Keduanya membebaskan responden untuk mengisi ulang dan mengembalikan kuota (jika respons
+            sudah selesai). Setiap tindakan dicatat di log audit.
             <span className="font-medium"> Ragu? Pilih Arsip.</span>
           </p>
         </div>
@@ -588,8 +606,12 @@ export function ResponseListPage() {
                   >
                     Perangkat{sortIndicator('deviceType')}
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reward</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aksi</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Reward
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -618,7 +640,9 @@ export function ResponseListPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusColors[r.status]}`}>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusColors[r.status]}`}
+                      >
                         {statusLabels[r.status]}
                       </span>
                     </td>
@@ -631,7 +655,9 @@ export function ResponseListPage() {
                         r.destinationNumber ? (
                           <div>
                             <span className="capitalize">{r.rewardType ?? 'reward'}</span>
-                            <span className="block text-xs text-gray-400">{r.destinationNumber}</span>
+                            <span className="block text-xs text-gray-400">
+                              {r.destinationNumber}
+                            </span>
                             {r.rewardDistributed && (
                               <span className="text-xs text-emerald-600">sudah ditop-up</span>
                             )}

@@ -1,9 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  NotFoundException,
-  ForbiddenException,
-  ConflictException,
-} from '@nestjs/common';
+import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { SurveyFillService } from './survey-fill.service';
 import { ResponseStatus } from '@modules/response/entities/survey-response.entity';
 
@@ -109,18 +105,14 @@ describe('SurveyFillService', () => {
 
   it('throws NotFoundException when the survey does not exist', async () => {
     const { service } = makeService({ survey: null });
-    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(NotFoundException);
   });
 
   it('throws ConflictException when the respondent already completed the survey', async () => {
     const { service } = makeService({
       existingResponse: { id: 'resp-x', status: ResponseStatus.COMPLETE },
     });
-    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
-      ConflictException,
-    );
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(ConflictException);
   });
 
   it('creates a new in-progress response and aggregates fill data', async () => {
@@ -198,9 +190,7 @@ describe('SurveyFillService', () => {
     const { service } = makeService({
       access: { allowed: false, reason: 'Survey has ended' },
     });
-    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(ForbiddenException);
   });
 
   it('allows access when no time config exists (checkSurveyAccess throws NotFound)', async () => {
@@ -277,9 +267,7 @@ describe('SurveyFillService', () => {
     const q = result.questions[0];
 
     // Only the 'skip' action is mapped (jump_to is ignored)
-    expect(q.skipConditions).toEqual([
-      { questionId: 'q1', operator: 'equals', value: 'no' },
-    ]);
+    expect(q.skipConditions).toEqual([{ questionId: 'q1', operator: 'equals', value: 'no' }]);
     // A 'hide on equals' rule becomes 'show on not_equals'
     expect(q.visibilityConditions).toEqual([
       { questionId: 'q1', operator: 'not_equals', value: 'hidden' },
@@ -297,9 +285,7 @@ describe('SurveyFillService', () => {
   it('blocks filling with 403 when the respondent has no phone number', async () => {
     const { service } = makeService({ profileCompleted: true, phone: null });
 
-    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
-      /nomor telepon/i,
-    );
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(/nomor telepon/i);
   });
 
   it('assigns a random experiment arm, hides it from rendered questions, and persists it', async () => {

@@ -37,9 +37,7 @@ describe('databaseConfig', () => {
     expect(config.ssl).toBe(false);
     expect(config.autoLoadEntities).toBe(true);
     expect((config.extra as Record<string, unknown>).max).toBe(10);
-    expect(
-      (config.extra as Record<string, unknown>).connectionTimeoutMillis,
-    ).toBe(30000);
+    expect((config.extra as Record<string, unknown>).connectionTimeoutMillis).toBe(30000);
   });
 
   it('should read values from environment variables', () => {
@@ -65,9 +63,7 @@ describe('databaseConfig', () => {
     expect(config.logging).toBe(true);
     expect(config.ssl).toEqual({ rejectUnauthorized: false });
     expect((config.extra as Record<string, unknown>).max).toBe(20);
-    expect(
-      (config.extra as Record<string, unknown>).connectionTimeoutMillis,
-    ).toBe(60000);
+    expect((config.extra as Record<string, unknown>).connectionTimeoutMillis).toBe(60000);
   });
 
   it('should configure migrations correctly', () => {

@@ -50,6 +50,7 @@ sudo apt-get update && sudo apt-get install -y certbot   # jika belum ada
 ## Langkah 2 — Terapkan app lama versi Opsi B
 
 File `docker-compose.yml` & `nginx.conf` versi baru sudah berisi:
+
 - nginx gabung jaringan `web` + mount `/etc/letsencrypt` & `/var/www/certbot`
 - server block port 80 untuk `survei.populicenter.org` (jalur ACME + redirect)
 - server block port 443 survei **masih dikomentari** (cert belum ada)

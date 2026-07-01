@@ -114,9 +114,7 @@ export function NotificationBell() {
             {loading ? (
               <p className="px-4 py-6 text-center text-sm text-gray-400">Memuat…</p>
             ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-400">
-                Belum ada notifikasi.
-              </p>
+              <p className="px-4 py-8 text-center text-sm text-gray-400">Belum ada notifikasi.</p>
             ) : (
               items.map((it) => {
                 const Icon = it.type === 'announcement' ? Megaphone : FileText;

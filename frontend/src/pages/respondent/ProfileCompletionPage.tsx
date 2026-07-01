@@ -95,8 +95,8 @@ export function ProfileCompletionPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Lengkapi Data Diri</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Sebelum mengambil survei, mohon lengkapi data diri Anda. Data ini dipakai
-          untuk pembobotan hasil dan tidak dapat diubah setelah disimpan.
+          Sebelum mengambil survei, mohon lengkapi data diri Anda. Data ini dipakai untuk pembobotan
+          hasil dan tidak dapat diubah setelah disimpan.
         </p>
       </div>
 
@@ -106,7 +106,10 @@ export function ProfileCompletionPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+      >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <Input
@@ -123,8 +126,15 @@ export function ProfileCompletionPage() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Kelamin</label>
-            <select value={gender} onChange={(e) => setGender(e.target.value)} required className={selectCls}>
-              <option value="" disabled>Pilih…</option>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              required
+              className={selectCls}
+            >
+              <option value="" disabled>
+                Pilih…
+              </option>
               <option value="male">Laki-laki</option>
               <option value="female">Perempuan</option>
             </select>
@@ -137,21 +147,43 @@ export function ProfileCompletionPage() {
             required
           />
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Pendidikan Terakhir</label>
-            <select value={education} onChange={(e) => setEducation(e.target.value)} required className={selectCls}>
-              <option value="" disabled>Pilih…</option>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Pendidikan Terakhir
+            </label>
+            <select
+              value={education}
+              onChange={(e) => setEducation(e.target.value)}
+              required
+              className={selectCls}
+            >
+              <option value="" disabled>
+                Pilih…
+              </option>
               {['SD', 'SMP', 'SMA/SMK', 'D1/D2/D3', 'D4/S1', 'S2', 'S3', 'Lainnya'].map((v) => (
-                <option key={v} value={v}>{v}</option>
+                <option key={v} value={v}>
+                  {v}
+                </option>
               ))}
             </select>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700">Agama</label>
-            <select value={religion} onChange={(e) => setReligion(e.target.value)} required className={selectCls}>
-              <option value="" disabled>Pilih…</option>
-              {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'].map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
+            <select
+              value={religion}
+              onChange={(e) => setReligion(e.target.value)}
+              required
+              className={selectCls}
+            >
+              <option value="" disabled>
+                Pilih…
+              </option>
+              {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'].map(
+                (v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ),
+              )}
             </select>
           </div>
         </div>

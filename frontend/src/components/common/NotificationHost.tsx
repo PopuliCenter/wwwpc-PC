@@ -3,7 +3,10 @@ import { Bell, CheckCircle2, AlertTriangle, XCircle, X } from 'lucide-react';
 import { router } from '@/router';
 import { useNotificationStore, type AppNotice } from '@/stores/notification.store';
 
-const toneStyles: Record<NonNullable<AppNotice['tone']>, { ring: string; icon: typeof Bell; iconCls: string }> = {
+const toneStyles: Record<
+  NonNullable<AppNotice['tone']>,
+  { ring: string; icon: typeof Bell; iconCls: string }
+> = {
   info: { ring: 'border-indigo-200', icon: Bell, iconCls: 'text-indigo-600' },
   success: { ring: 'border-emerald-200', icon: CheckCircle2, iconCls: 'text-emerald-600' },
   warning: { ring: 'border-amber-200', icon: AlertTriangle, iconCls: 'text-amber-600' },
@@ -42,7 +45,9 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
         >
           <p className="text-sm font-semibold text-gray-900">{notice.title}</p>
           {notice.body && <p className="mt-0.5 text-sm text-gray-600">{notice.body}</p>}
-          {clickable && <p className="mt-1 text-xs font-medium text-indigo-600">Ketuk untuk membuka →</p>}
+          {clickable && (
+            <p className="mt-1 text-xs font-medium text-indigo-600">Ketuk untuk membuka →</p>
+          )}
         </button>
         <button
           type="button"

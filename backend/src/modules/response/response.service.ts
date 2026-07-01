@@ -10,7 +10,10 @@ import { DataSource, EntityManager, In, IsNull, Repository, SelectQueryBuilder }
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SurveyResponse, ResponseStatus } from './entities/survey-response.entity';
 import { Answer } from './entities/answer.entity';
-import { ManualRewardDistribution, ManualRewardStatus } from './entities/manual-reward-distribution.entity';
+import {
+  ManualRewardDistribution,
+  ManualRewardStatus,
+} from './entities/manual-reward-distribution.entity';
 import { SubmitResponseDto } from './dto/submit-response.dto';
 import { SaveProgressDto } from './dto/save-progress.dto';
 import { ResponseFilterDto } from './dto/response-filter.dto';
@@ -19,10 +22,7 @@ import { SurveyTimeService } from '@modules/survey/services/survey-time.service'
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { checkEligibility } from '@modules/survey/utils/eligibility';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
-import {
-  createPaginatedResponse,
-  calculateSkipTake,
-} from '@shared/helpers/pagination.helper';
+import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
 import { PaginatedResponse } from '@shared/interfaces';
 
 /**
@@ -99,10 +99,7 @@ export class ResponseService {
     }
   }
 
-  private async assertEligible(
-    surveyId: string,
-    respondentId: string,
-  ): Promise<void> {
+  private async assertEligible(surveyId: string, respondentId: string): Promise<void> {
     const surveyRows = await this.responseRepository.manager.query(
       'SELECT allowed_genders, allowed_provinces FROM survey WHERE id = $1 LIMIT 1',
       [surveyId],
@@ -482,9 +479,7 @@ export class ResponseService {
       rewardType: r.rewardType,
       destinationNumber: r.destinationNumber,
       rewardDistributed: r.rewardDistributed,
-      duplicateFlag: r.destinationNumber
-        ? duplicateNumbers.has(r.destinationNumber)
-        : false,
+      duplicateFlag: r.destinationNumber ? duplicateNumbers.has(r.destinationNumber) : false,
       archived: !!r.archivedAt,
     }));
   }
@@ -614,7 +609,12 @@ export class ResponseService {
       return m ? `${m.code} — ${m.label}` : v;
     };
 
-    if (type === 'indonesia_region' && value && typeof value === 'object' && !Array.isArray(value)) {
+    if (
+      type === 'indonesia_region' &&
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
+    ) {
       const levels: Array<{ label: string; idKey: string; nameKey: string }> = [
         { label: 'Provinsi', idKey: 'province_id', nameKey: 'province_name' },
         { label: 'Kabupaten/Kota', idKey: 'regency_id', nameKey: 'regency_name' },
@@ -770,9 +770,7 @@ export class ResponseService {
       where: { surveyId },
       relations: ['respondent'],
     });
-    const existingByRespondent = new Map(
-      existing.map((d) => [d.respondentId, d]),
-    );
+    const existingByRespondent = new Map(existing.map((d) => [d.respondentId, d]));
 
     // Determine which respondents still need a distribution row
     const missing = respondentIds.filter((id) => !existingByRespondent.has(id));
@@ -1019,10 +1017,7 @@ export class ResponseService {
     await manager.query(query, params);
   }
 
-  private applyFilters(
-    qb: SelectQueryBuilder<SurveyResponse>,
-    filters: ResponseFilterDto,
-  ): void {
+  private applyFilters(qb: SelectQueryBuilder<SurveyResponse>, filters: ResponseFilterDto): void {
     // Date range filter
     if (filters.dateRange) {
       qb.andWhere('response.started_at >= :startDate', {
@@ -1035,10 +1030,9 @@ export class ResponseService {
 
     // Region filter (matches respondent's profile city or province)
     if (filters.region) {
-      qb.andWhere(
-        '(profile.city ILIKE :region OR profile.province ILIKE :region)',
-        { region: `%${filters.region}%` },
-      );
+      qb.andWhere('(profile.city ILIKE :region OR profile.province ILIKE :region)', {
+        region: `%${filters.region}%`,
+      });
     }
 
     // Profile attributes filter

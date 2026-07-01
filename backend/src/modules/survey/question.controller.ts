@@ -45,10 +45,7 @@ export class QuestionController {
   }
 
   @Put('questions/:id')
-  async updateQuestion(
-    @Param('id') id: string,
-    @Body() dto: UpdateQuestionDto,
-  ): Promise<Question> {
+  async updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto): Promise<Question> {
     return this.questionService.updateQuestion(id, dto);
   }
 
@@ -67,9 +64,7 @@ export class QuestionController {
   }
 
   @Get('surveys/:surveyId/questions')
-  async getQuestionsBySurvey(
-    @Param('surveyId') surveyId: string,
-  ): Promise<Question[]> {
+  async getQuestionsBySurvey(@Param('surveyId') surveyId: string): Promise<Question[]> {
     return this.questionService.getQuestionsBySurvey(surveyId);
   }
 }

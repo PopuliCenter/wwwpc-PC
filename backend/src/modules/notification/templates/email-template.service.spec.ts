@@ -11,7 +11,9 @@ describe('EmailTemplateService', () => {
 
   describe('renderTemplate', () => {
     it('should throw error for unknown template', () => {
-      expect(() => service.renderTemplate('unknown' as EmailTemplate, {})).toThrow('Unknown email template');
+      expect(() => service.renderTemplate('unknown' as EmailTemplate, {})).toThrow(
+        'Unknown email template',
+      );
     });
   });
 

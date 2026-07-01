@@ -5,9 +5,7 @@ export class AddPhotoQuestionType1715000013000 implements MigrationInterface {
   name = 'AddPhotoQuestionType1715000013000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'photo'`,
-    );
+    await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'photo'`);
   }
 
   public async down(): Promise<void> {

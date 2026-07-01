@@ -102,11 +102,7 @@ describe('DashboardService', () => {
         totalResponses: 250,
       });
       // Overview metrics use a 60 s TTL (high traffic, cheap to recompute).
-      expect(cacheManager.set).toHaveBeenCalledWith(
-        'dashboard:overview',
-        result,
-        60000,
-      );
+      expect(cacheManager.set).toHaveBeenCalledWith('dashboard:overview', result, 60000);
     });
 
     it('should return cached data if available', async () => {
@@ -327,9 +323,7 @@ describe('DashboardService', () => {
     });
 
     it('should return cached heatmap data if available', async () => {
-      const cachedData = [
-        { latitude: -7.25, longitude: 112.75, count: 20, city: 'Surabaya' },
-      ];
+      const cachedData = [{ latitude: -7.25, longitude: 112.75, count: 20, city: 'Surabaya' }];
       cacheManager.get.mockResolvedValue(cachedData);
 
       const result = await service.getHeatmapData();

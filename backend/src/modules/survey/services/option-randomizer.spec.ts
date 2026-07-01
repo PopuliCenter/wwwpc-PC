@@ -28,10 +28,7 @@ describe('OptionRandomizerService', () => {
       findOne: vi.fn(),
     };
 
-    service = new OptionRandomizerService(
-      mockQuestionRepository,
-      mockSurveyRepository,
-    );
+    service = new OptionRandomizerService(mockQuestionRepository, mockSurveyRepository);
   });
 
   describe('shuffleOptions', () => {
@@ -89,10 +86,7 @@ describe('OptionRandomizerService', () => {
     });
 
     it('should preserve all option properties', () => {
-      const options = [
-        createMockOption('1', 'Option A', 0),
-        createMockOption('2', 'Option B', 1),
-      ];
+      const options = [createMockOption('1', 'Option A', 0), createMockOption('2', 'Option B', 1)];
 
       const result = service.shuffleOptions(options);
 
@@ -110,9 +104,9 @@ describe('OptionRandomizerService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       mockSurveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getRandomizedQuestions('non-existent-id'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getRandomizedQuestions('non-existent-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return questions without shuffling if randomizeOptions is false', async () => {
@@ -121,10 +115,7 @@ describe('OptionRandomizerService', () => {
         {
           id: 'q1',
           surveyId: 'survey-1',
-          options: [
-            createMockOption('1', 'A', 0),
-            createMockOption('2', 'B', 1),
-          ],
+          options: [createMockOption('1', 'A', 0), createMockOption('2', 'B', 1)],
         },
       ] as Question[];
 
@@ -146,9 +137,7 @@ describe('OptionRandomizerService', () => {
         createMockOption('3', 'C', 2),
         createMockOption('4', 'D', 3),
       ];
-      const questions = [
-        { id: 'q1', surveyId: 'survey-1', options },
-      ] as Question[];
+      const questions = [{ id: 'q1', surveyId: 'survey-1', options }] as Question[];
 
       mockSurveyRepository.findOne.mockResolvedValue(survey);
       mockQuestionRepository.find.mockResolvedValue(questions);
@@ -163,10 +152,7 @@ describe('OptionRandomizerService', () => {
 
     it('should preserve all options across multiple questions when randomized', async () => {
       const survey = { id: 'survey-1', randomizeOptions: true } as Survey;
-      const q1Options = [
-        createMockOption('1', 'A', 0),
-        createMockOption('2', 'B', 1),
-      ];
+      const q1Options = [createMockOption('1', 'A', 0), createMockOption('2', 'B', 1)];
       const q2Options = [
         createMockOption('3', 'X', 0),
         createMockOption('4', 'Y', 1),

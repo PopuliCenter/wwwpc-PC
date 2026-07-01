@@ -132,7 +132,7 @@ export function StoragePage() {
         if (prefix) q.set('prefix', prefix);
         if (token) q.set('token', token);
         const res = await api.get<ListResponse>(`/admin/storage/objects?${q.toString()}`);
-        setObjects((prev) => (append ? [...prev, ...(res.objects ?? [])] : res.objects ?? []));
+        setObjects((prev) => (append ? [...prev, ...(res.objects ?? [])] : (res.objects ?? [])));
         setNextToken(res.nextToken);
         if (!append) setSelected(new Set());
       } catch (e) {
@@ -222,8 +222,10 @@ export function StoragePage() {
         case 'size':
           return b.size - a.size;
         case 'kind':
-          return kindOf(a.key).localeCompare(kindOf(b.key)) ||
-            displayName(a.key).localeCompare(displayName(b.key), 'id');
+          return (
+            kindOf(a.key).localeCompare(kindOf(b.key)) ||
+            displayName(a.key).localeCompare(displayName(b.key), 'id')
+          );
         case 'recent':
         default:
           return (b.lastModified ?? '').localeCompare(a.lastModified ?? '');
@@ -294,22 +296,26 @@ export function StoragePage() {
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-        ⚠️ Menghapus berkas bersifat <strong>permanen</strong> dan bisa memutus rujukan pada
-        respons survei. Gunakan untuk pembersihan/koreksi yang disengaja.
+        ⚠️ Menghapus berkas bersifat <strong>permanen</strong> dan bisa memutus rujukan pada respons
+        survei. Gunakan untuk pembersihan/koreksi yang disengaja.
       </div>
 
       {/* Bucket + cari */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {([
-            { k: 'uploads', label: 'Unggahan responden' },
-            { k: 'exports', label: 'File export' },
-          ] as const).map(({ k, label }) => (
+          {(
+            [
+              { k: 'uploads', label: 'Unggahan responden' },
+              { k: 'exports', label: 'File export' },
+            ] as const
+          ).map(({ k, label }) => (
             <button
               key={k}
               onClick={() => setBucket(k)}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                bucket === k ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                bucket === k
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900'
               }`}
             >
               {label}
@@ -361,7 +367,9 @@ export function StoragePage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
       )}
 
       {/* Daftar */}
@@ -409,61 +417,67 @@ export function StoragePage() {
           </div>
 
           <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          {visibleObjects.map((o) => {
-            const Icon = KIND_ICON[kindOf(o.key)];
-            const busy = busyKey === o.key;
-            const checked = selected.has(o.key);
-            return (
-              <li
-                key={o.key}
-                className={`flex items-center gap-3 px-4 py-3 ${checked ? 'bg-primary-50/50' : ''}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleOne(o.key)}
-                  title={checked ? 'Batal pilih' : 'Pilih'}
-                  className="shrink-0 text-gray-400 hover:text-primary-600"
+            {visibleObjects.map((o) => {
+              const Icon = KIND_ICON[kindOf(o.key)];
+              const busy = busyKey === o.key;
+              const checked = selected.has(o.key);
+              return (
+                <li
+                  key={o.key}
+                  className={`flex items-center gap-3 px-4 py-3 ${checked ? 'bg-primary-50/50' : ''}`}
                 >
-                  {checked ? (
-                    <CheckSquare className="h-4 w-4 text-primary-600" />
-                  ) : (
-                    <Square className="h-4 w-4" />
-                  )}
-                </button>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-inset ring-gray-100">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-gray-900">{displayName(o.key)}</p>
-                  <p className="truncate text-xs text-gray-400">{o.key}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {fmtSize(o.size)}
-                    {o.lastModified
-                      ? ` · ${new Date(o.lastModified).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
-                      : ''}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleView(o.key)}
-                  title="Lihat / unduh"
-                  className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:opacity-50"
-                >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleDelete(o.key)}
-                  title="Hapus"
-                  className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            );
-          })}
+                  <button
+                    type="button"
+                    onClick={() => toggleOne(o.key)}
+                    title={checked ? 'Batal pilih' : 'Pilih'}
+                    className="shrink-0 text-gray-400 hover:text-primary-600"
+                  >
+                    {checked ? (
+                      <CheckSquare className="h-4 w-4 text-primary-600" />
+                    ) : (
+                      <Square className="h-4 w-4" />
+                    )}
+                  </button>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-inset ring-gray-100">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900">
+                      {displayName(o.key)}
+                    </p>
+                    <p className="truncate text-xs text-gray-400">{o.key}</p>
+                    <p className="text-[11px] text-gray-400">
+                      {fmtSize(o.size)}
+                      {o.lastModified
+                        ? ` · ${new Date(o.lastModified).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
+                        : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleView(o.key)}
+                    title="Lihat / unduh"
+                    className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleDelete(o.key)}
+                    title="Hapus"
+                    className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -502,7 +516,10 @@ export function StoragePage() {
                 >
                   <Download className="h-4 w-4" />
                 </a>
-                <button onClick={closePreview} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100">
+                <button
+                  onClick={closePreview}
+                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -515,7 +532,11 @@ export function StoragePage() {
             )}
             {preview.kind === 'audio' && <audio src={preview.url} controls className="w-80" />}
             {preview.kind === 'pdf' && (
-              <iframe src={preview.url} title={preview.name} className="h-[78vh] w-[80vw] max-w-2xl rounded-lg" />
+              <iframe
+                src={preview.url}
+                title={preview.name}
+                className="h-[78vh] w-[80vw] max-w-2xl rounded-lg"
+              />
             )}
           </div>
         </div>

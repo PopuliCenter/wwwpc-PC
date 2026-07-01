@@ -14,9 +14,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * (answered_at terbesar; tiebreak ctid), hapus sisanya — agar pembuatan
  * unique index tidak gagal.
  */
-export class AddAnswerResponseQuestionUnique1715000032000
-  implements MigrationInterface
-{
+export class AddAnswerResponseQuestionUnique1715000032000 implements MigrationInterface {
   name = 'AddAnswerResponseQuestionUnique1715000032000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -39,8 +37,6 @@ export class AddAnswerResponseQuestionUnique1715000032000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "uq_answer_response_question"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "uq_answer_response_question"`);
   }
 }

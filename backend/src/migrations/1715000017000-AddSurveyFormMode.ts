@@ -21,9 +21,7 @@ export class AddSurveyFormMode1715000017000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "survey" DROP COLUMN IF EXISTS "form_mode"`,
-    );
+    await queryRunner.query(`ALTER TABLE "survey" DROP COLUMN IF EXISTS "form_mode"`);
     await queryRunner.query(`DROP TYPE IF EXISTS "survey_form_mode_enum"`);
   }
 }

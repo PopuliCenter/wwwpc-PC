@@ -9,9 +9,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Catatan: ALTER TYPE ... ADD VALUE didukung di dalam transaksi sejak PG 12
  * (kita pakai PG 16). IF NOT EXISTS membuatnya idempoten.
  */
-export class AddResponseSubmitAuditEnum1715000035000
-  implements MigrationInterface
-{
+export class AddResponseSubmitAuditEnum1715000035000 implements MigrationInterface {
   name = 'AddResponseSubmitAuditEnum1715000035000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

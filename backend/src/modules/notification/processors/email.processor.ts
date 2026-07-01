@@ -6,11 +6,7 @@ import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { EmailTemplateService } from '../templates';
 import { EmailJobData, BulkEmailJobData, NotificationResult } from '../interfaces';
-import {
-  NOTIFICATION_QUEUE,
-  EMAIL_JOB,
-  BULK_EMAIL_JOB,
-} from '../constants';
+import { NOTIFICATION_QUEUE, EMAIL_JOB, BULK_EMAIL_JOB } from '../constants';
 import { CircuitBreaker } from '@shared/circuit-breaker';
 
 @Processor(NOTIFICATION_QUEUE)
@@ -34,13 +30,15 @@ export class EmailProcessor {
   @Process(EMAIL_JOB)
   async handleSendEmail(job: Job<EmailJobData>): Promise<NotificationResult> {
     const { payload } = job.data;
-    this.logger.log(`Processing email job ${job.id} to ${payload.to} (template: ${payload.template})`);
+    this.logger.log(
+      `Processing email job ${job.id} to ${payload.to} (template: ${payload.template})`,
+    );
 
     try {
       const rendered = this.templateService.renderTemplate(payload.template, payload.context);
 
-      await this.emailCircuitBreaker.execute(
-        () => this.sendEmail({
+      await this.emailCircuitBreaker.execute(() =>
+        this.sendEmail({
           to: payload.to,
           subject: rendered.subject,
           html: rendered.html,
@@ -59,7 +57,9 @@ export class EmailProcessor {
   @Process(BULK_EMAIL_JOB)
   async handleBulkEmail(job: Job<BulkEmailJobData>): Promise<NotificationResult[]> {
     const { payloads, batchId } = job.data;
-    this.logger.log(`Processing bulk email job ${job.id} (batch: ${batchId}, count: ${payloads.length})`);
+    this.logger.log(
+      `Processing bulk email job ${job.id} (batch: ${batchId}, count: ${payloads.length})`,
+    );
 
     const results: NotificationResult[] = [];
 
@@ -67,8 +67,8 @@ export class EmailProcessor {
       try {
         const rendered = this.templateService.renderTemplate(payload.template, payload.context);
 
-        await this.emailCircuitBreaker.execute(
-          () => this.sendEmail({
+        await this.emailCircuitBreaker.execute(() =>
+          this.sendEmail({
             to: payload.to,
             subject: rendered.subject,
             html: rendered.html,
@@ -78,23 +78,24 @@ export class EmailProcessor {
 
         results.push({ success: true, messageId: `msg-${batchId}-${results.length}` });
       } catch (error: any) {
-        this.logger.error(`Failed to send email to ${payload.to} in batch ${batchId}: ${error.message}`);
+        this.logger.error(
+          `Failed to send email to ${payload.to} in batch ${batchId}: ${error.message}`,
+        );
         results.push({ success: false, error: error.message });
       }
     }
 
     const successCount = results.filter((r) => r.success).length;
-    this.logger.log(`Bulk email batch ${batchId} completed: ${successCount}/${payloads.length} sent`);
+    this.logger.log(
+      `Bulk email batch ${batchId} completed: ${successCount}/${payloads.length} sent`,
+    );
 
     return results;
   }
 
   /** Pengirim default; override via MAIL_FROM. */
   private get from(): string {
-    return (
-      this.configService.get<string>('MAIL_FROM') ||
-      'Populi Center <info@populicenter.org>'
-    );
+    return this.configService.get<string>('MAIL_FROM') || 'Populi Center <info@populicenter.org>';
   }
 
   /**

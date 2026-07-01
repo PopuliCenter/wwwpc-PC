@@ -35,10 +35,16 @@ describe('SurveyController', () => {
     surveyService = {
       createSurvey: vi.fn().mockResolvedValue(mockSurvey),
       updateSurvey: vi.fn().mockResolvedValue(mockSurvey),
-      duplicateSurvey: vi.fn().mockResolvedValue({ ...mockSurvey, id: 'survey-uuid-2', title: 'Test Survey (Copy)' }),
+      duplicateSurvey: vi
+        .fn()
+        .mockResolvedValue({ ...mockSurvey, id: 'survey-uuid-2', title: 'Test Survey (Copy)' }),
       deactivateSurvey: vi.fn().mockResolvedValue({ ...mockSurvey, status: SurveyStatus.INACTIVE }),
       deleteSurvey: vi.fn().mockResolvedValue(undefined),
-      archiveSurvey: vi.fn().mockResolvedValue({ ...mockSurvey, status: SurveyStatus.ARCHIVED, archivedAt: new Date() }),
+      archiveSurvey: vi.fn().mockResolvedValue({
+        ...mockSurvey,
+        status: SurveyStatus.ARCHIVED,
+        archivedAt: new Date(),
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({

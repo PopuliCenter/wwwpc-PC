@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { PreconditionFailedException, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  PreconditionFailedException,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DataCleanupService } from './data-cleanup.service';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
@@ -16,7 +21,6 @@ import { SurveyStatus, UserRole } from '@shared/enums';
 
 describe('DataCleanupService', () => {
   let service: DataCleanupService;
-  let responseRepository: any;
   let surveyRepository: any;
   let userRepository: any;
   let userProfileRepository: any;
@@ -54,9 +58,7 @@ describe('DataCleanupService', () => {
               pendingStore.set(entity.id, entity);
               return Promise.resolve(entity);
             }),
-            findOne: vi.fn(({ where }) =>
-              Promise.resolve(pendingStore.get(where.id) ?? null),
-            ),
+            findOne: vi.fn(({ where }) => Promise.resolve(pendingStore.get(where.id) ?? null)),
             delete: vi.fn((criteria) => {
               if (typeof criteria === 'string') pendingStore.delete(criteria);
               return Promise.resolve({ affected: 1 });
@@ -101,7 +103,9 @@ describe('DataCleanupService', () => {
           useValue: {
             findOne: vi.fn(),
             create: vi.fn().mockReturnValue({}),
-            save: vi.fn().mockImplementation((entity) => Promise.resolve({ id: 'config-1', ...entity })),
+            save: vi
+              .fn()
+              .mockImplementation((entity) => Promise.resolve({ id: 'config-1', ...entity })),
           },
         },
         {
@@ -113,16 +117,13 @@ describe('DataCleanupService', () => {
         {
           provide: S3StorageService,
           useValue: {
-            uploadBuffer: vi
-              .fn()
-              .mockResolvedValue('backups/deletion-test.json'),
+            uploadBuffer: vi.fn().mockResolvedValue('backups/deletion-test.json'),
           },
         },
       ],
     }).compile();
 
     service = module.get<DataCleanupService>(DataCleanupService);
-    responseRepository = module.get(getRepositoryToken(SurveyResponse));
     surveyRepository = module.get(getRepositoryToken(Survey));
     userRepository = module.get(getRepositoryToken(User));
     userProfileRepository = module.get(getRepositoryToken(UserProfile));
@@ -146,17 +147,17 @@ describe('DataCleanupService', () => {
         { id: 'r2', exportedAt: null },
       ]);
 
-      await expect(
-        service.requestDeletion(request, adminUserId, ipAddress),
-      ).rejects.toThrow(PreconditionFailedException);
+      await expect(service.requestDeletion(request, adminUserId, ipAddress)).rejects.toThrow(
+        PreconditionFailedException,
+      );
     });
 
     it('should throw NotFoundException if no responses match criteria', async () => {
       mockQueryBuilder.getMany.mockResolvedValueOnce([]);
 
-      await expect(
-        service.requestDeletion(request, adminUserId, ipAddress),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.requestDeletion(request, adminUserId, ipAddress)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return confirmation token when all responses are exported', async () => {
@@ -187,9 +188,7 @@ describe('DataCleanupService', () => {
 
     it('should throw BadRequestException for invalid token', async () => {
       // First create a pending deletion
-      mockQueryBuilder.getMany.mockResolvedValueOnce([
-        { id: 'r1', exportedAt: new Date() },
-      ]);
+      mockQueryBuilder.getMany.mockResolvedValueOnce([{ id: 'r1', exportedAt: new Date() }]);
 
       const request = {
         surveyId: 'survey-1',
@@ -205,9 +204,7 @@ describe('DataCleanupService', () => {
     });
 
     it('should execute deletion with valid token', async () => {
-      mockQueryBuilder.getMany.mockResolvedValueOnce([
-        { id: 'r1', exportedAt: new Date() },
-      ]);
+      mockQueryBuilder.getMany.mockResolvedValueOnce([{ id: 'r1', exportedAt: new Date() }]);
       mockQueryBuilder.execute.mockResolvedValueOnce({ affected: 1 });
 
       const request = {
@@ -237,9 +234,9 @@ describe('DataCleanupService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(
-        service.archiveSurvey('non-existent', adminUserId, ipAddress),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.archiveSurvey('non-existent', adminUserId, ipAddress)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should archive survey and set archivedAt timestamp', async () => {
@@ -299,9 +296,7 @@ describe('DataCleanupService', () => {
         phone: '1234567890',
       };
 
-      userRepository.findOne
-        .mockResolvedValueOnce(superAdmin)
-        .mockResolvedValueOnce(respondent);
+      userRepository.findOne.mockResolvedValueOnce(superAdmin).mockResolvedValueOnce(respondent);
       userRepository.save.mockResolvedValueOnce(respondent);
 
       await service.deletePersonalData(respondentId, 'super-admin', adminUserId, ipAddress);

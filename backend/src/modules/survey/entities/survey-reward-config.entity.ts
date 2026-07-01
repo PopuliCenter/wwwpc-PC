@@ -1,10 +1,4 @@
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
 import { Survey, RewardMode } from './survey.entity';
 
 @Entity('survey_reward_config')
@@ -33,6 +27,12 @@ export class SurveyRewardConfig {
   @Column({ type: 'varchar', length: 255, nullable: true, name: 'manual_reward_type' })
   manualRewardType: string | null;
 
-  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true, name: 'manual_reward_nominal' })
+  @Column({
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    name: 'manual_reward_nominal',
+  })
   manualRewardNominal: number | null;
 }

@@ -27,7 +27,10 @@ interface FeedItem {
 type Category = 'semua' | 'survei' | 'poin' | 'reward' | 'pengumuman';
 
 // Meta tampilan per tipe notifikasi: ikon, warna, dan kategori penyaring.
-const TYPE_META: Record<string, { icon: LucideIcon; color: string; category: Exclude<Category, 'semua'> }> = {
+const TYPE_META: Record<
+  string,
+  { icon: LucideIcon; color: string; category: Exclude<Category, 'semua'> }
+> = {
   survey_new: { icon: FileText, color: 'text-indigo-600', category: 'survei' },
   survey_done: { icon: CheckCircle2, color: 'text-emerald-600', category: 'survei' },
   point_earned: { icon: Coins, color: 'text-amber-500', category: 'poin' },
@@ -53,7 +56,11 @@ function timeAgo(iso: string): string {
   if (h < 24) return `${h} jam lalu`;
   const days = Math.floor(h / 24);
   if (days < 7) return `${days} hari lalu`;
-  return new Date(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 export function NotificationsPage() {
@@ -84,9 +91,7 @@ export function NotificationsPage() {
 
   const filtered = useMemo(
     () =>
-      filter === 'semua'
-        ? items
-        : items.filter((it) => TYPE_META[it.type]?.category === filter),
+      filter === 'semua' ? items : items.filter((it) => TYPE_META[it.type]?.category === filter),
     [items, filter],
   );
 

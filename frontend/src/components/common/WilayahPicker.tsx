@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  getProvinces,
-  getRegencies,
-  getDistricts,
-  type WilayahItem,
-} from '@/utils/wilayah';
+import { getProvinces, getRegencies, getDistricts, type WilayahItem } from '@/utils/wilayah';
 
 interface WilayahValue {
   province: string;

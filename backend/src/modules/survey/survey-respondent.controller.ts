@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Request,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Get, Param, Request, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { OptionRandomizerService } from './services/option-randomizer';
 import { SurveyTimeService } from './services/survey-time.service';
 import { SurveyFillService, SurveyFillData } from './services/survey-fill.service';
@@ -42,17 +34,13 @@ export class SurveyRespondentController {
 
   @Get(':surveyId/access-check')
   @HttpCode(HttpStatus.OK)
-  async checkAccess(
-    @Param('surveyId') surveyId: string,
-  ): Promise<SurveyAccessResultDto> {
+  async checkAccess(@Param('surveyId') surveyId: string): Promise<SurveyAccessResultDto> {
     return this.surveyTimeService.checkSurveyAccess(surveyId);
   }
 
   @Get(':surveyId/questions/randomized')
   @HttpCode(HttpStatus.OK)
-  async getRandomizedQuestions(
-    @Param('surveyId') surveyId: string,
-  ): Promise<Question[]> {
+  async getRandomizedQuestions(@Param('surveyId') surveyId: string): Promise<Question[]> {
     return this.optionRandomizerService.getRandomizedQuestions(surveyId);
   }
 }

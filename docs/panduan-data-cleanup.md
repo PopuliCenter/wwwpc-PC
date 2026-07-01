@@ -11,15 +11,15 @@ responden mengisi ulang, serta jejak audit. Ditujukan untuk admin (bahasa awam).
 Di halaman **Manajemen Respons** setiap baris respons punya tiga tombol:
 **Detail**, **Arsip**, dan **Hapus**.
 
-| | **Arsip** (disarankan) | **Hapus** (permanen) |
-|---|---|---|
-| Data jawaban | **Tetap tersimpan** | **Hilang permanen** (tidak bisa dikembalikan) |
-| Muncul di daftar aktif | Tidak (tersembunyi) | Tidak |
-| Bisa dilihat lagi | Ya — lewat tombol **"Tampilkan arsip"** | Tidak pernah |
-| Responden bisa isi ulang survei | **Ya** | **Ya** |
-| Kuota responden | Dikembalikan (jika respons sudah selesai) | Dikembalikan (jika respons sudah selesai) |
-| Tercatat di audit | Ya | Ya |
-| Masuk hasil export | Tidak | Tidak |
+|                                 | **Arsip** (disarankan)                    | **Hapus** (permanen)                          |
+| ------------------------------- | ----------------------------------------- | --------------------------------------------- |
+| Data jawaban                    | **Tetap tersimpan**                       | **Hilang permanen** (tidak bisa dikembalikan) |
+| Muncul di daftar aktif          | Tidak (tersembunyi)                       | Tidak                                         |
+| Bisa dilihat lagi               | Ya — lewat tombol **"Tampilkan arsip"**   | Tidak pernah                                  |
+| Responden bisa isi ulang survei | **Ya**                                    | **Ya**                                        |
+| Kuota responden                 | Dikembalikan (jika respons sudah selesai) | Dikembalikan (jika respons sudah selesai)     |
+| Tercatat di audit               | Ya                                        | Ya                                            |
+| Masuk hasil export              | Tidak                                     | Tidak                                         |
 
 > **Aturan utama: utamakan ARSIP, bukan Hapus.**
 > Arsip memberi efek yang sama (responden bisa mengisi ulang, kuota kembali)
@@ -31,6 +31,7 @@ Di halaman **Manajemen Respons** setiap baris respons punya tiga tombol:
 ## 2. Aturan: kapan pakai yang mana
 
 **Pakai ARSIP bila:**
+
 - Responden salah isi dan minta mengisi ulang.
 - Pengisian tertahan / waktu habis sehingga responden terkunci, padahal ia
   belum benar-benar menyelesaikan survei.
@@ -39,6 +40,7 @@ Di halaman **Manajemen Respons** setiap baris respons punya tiga tombol:
 - Ragu. Kalau ragu, **selalu Arsip** — bisa dibatalkan dengan meninjau arsip.
 
 **Pakai HAPUS bila:**
+
 - Data hasil **uji coba/testing** sebelum survei live.
 - Respons duplikat/sampah yang dipastikan tidak akan dipakai dan tidak perlu
   jejak datanya.
@@ -53,6 +55,7 @@ Di halaman **Manajemen Respons** setiap baris respons punya tiga tombol:
 ## 3. Tutorial langkah demi langkah
 
 ### A. Mengarsipkan satu respons
+
 1. Buka menu **Manajemen Respons**.
 2. Di kotak **Survei** (paling atas), **pilih survei** — daftar respons baru
    muncul setelah survei dipilih. (Sengaja kosong di awal agar tidak menampilkan
@@ -64,12 +67,14 @@ Di halaman **Manajemen Respons** setiap baris respons punya tiga tombol:
    **"Tampilkan arsip"**; respons terarsip diberi label **Terarsip**.
 
 ### B. Menghapus satu respons (permanen)
+
 1. Langkah 1–3 sama seperti di atas.
 2. Klik **Hapus** (tombol merah) pada baris itu.
 3. Baca konfirmasi baik-baik → klik **OK**.
 4. Data jawaban terhapus permanen dan responden kini bisa mengisi survei ini lagi.
 
 ### C. Membuat responden bisa mengisi ulang
+
 Baik **Arsip** maupun **Hapus** akan **membebaskan** responden untuk mengisi
 survei yang sama lagi. Tidak perlu langkah tambahan — cukup arsipkan/hapus respons
 lamanya, lalu minta responden membuka survei dan mengisi kembali.
@@ -103,11 +108,13 @@ Jika tombol **Hapus/Arsip** tidak ada atau klik tidak berefek:
 1. **Pastikan versi aplikasi di server sudah ter-update.** Fitur Arsip/Hapus
    ditambahkan pada pembaruan terbaru. Jika server belum di-_rebuild_, tombolnya
    tidak muncul atau tidak berfungsi. Di VPS jalankan:
+
    ```bash
    cd /var/www/online-survei
    git pull                     # pastikan commit terbaru tertarik
    docker compose up -d --build backend frontend
    ```
+
    > Reboot VPS **tidak** cukup — image harus di-_build_ ulang dengan perintah di atas.
 
 2. **Refresh browser** (sekali) setelah update agar tampilan lama tergantikan.

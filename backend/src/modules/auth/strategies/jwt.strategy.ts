@@ -26,9 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Check if session still exists in Redis
-    const sessionData = await this.cacheManager.get<string>(
-      `session:${payload.sessionId}`,
-    );
+    const sessionData = await this.cacheManager.get<string>(`session:${payload.sessionId}`);
     if (!sessionData) {
       throw new UnauthorizedException('Session expired or invalidated');
     }

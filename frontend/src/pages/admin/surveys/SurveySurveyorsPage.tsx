@@ -67,10 +67,7 @@ export function SurveySurveyorsPage() {
   }, [id]);
 
   useEffect(() => {
-    Promise.all([
-      api.get<{ title: string }>(`/surveys/${id}`).catch(() => ({ title: '' })),
-      load(),
-    ])
+    Promise.all([api.get<{ title: string }>(`/surveys/${id}`).catch(() => ({ title: '' })), load()])
       .then(([survey]) => setSurveyTitle(survey.title ?? ''))
       .catch(() => setError('Gagal memuat data surveyor.'))
       .finally(() => setLoading(false));
@@ -149,7 +146,10 @@ export function SurveySurveyorsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       {dialog}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/admin/surveys')} className="text-gray-600 hover:text-gray-900">
+        <button
+          onClick={() => navigate('/admin/surveys')}
+          className="text-gray-600 hover:text-gray-900"
+        >
           ← Kembali
         </button>
         <div>
@@ -193,7 +193,9 @@ export function SurveySurveyorsPage() {
               </select>
             </div>
             <div className="w-32">
-              <label className="mb-1 block text-xs font-medium text-gray-600">Kuota (opsional)</label>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Kuota (opsional)
+              </label>
               <input
                 type="number"
                 min={1}

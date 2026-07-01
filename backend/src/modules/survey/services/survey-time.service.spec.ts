@@ -37,9 +37,7 @@ describe('SurveyTimeService', () => {
     it('should throw NotFoundException if time config does not exist', async () => {
       mockTimeConfigRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.checkSurveyAccess('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.checkSurveyAccess('non-existent')).rejects.toThrow(NotFoundException);
     });
 
     it('should deny access if current time is before start_datetime', async () => {
@@ -176,9 +174,9 @@ describe('SurveyTimeService', () => {
       const qb = makeQueryBuilder(0);
       mockTimeConfigRepository.createQueryBuilder.mockReturnValue(qb);
 
-      await expect(
-        service.incrementRespondentCount('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.incrementRespondentCount('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

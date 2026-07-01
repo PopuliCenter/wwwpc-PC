@@ -6,9 +6,9 @@ import { readFileSync } from 'fs';
 
 // Versi web diambil dari package.json saat build (disuntik sbg __APP_VERSION__).
 // Di native, versi dibaca dari versionName aplikasi via @capacitor/app.
-const pkg = JSON.parse(
-  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'),
-) as { version: string };
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')) as {
+  version: string;
+};
 
 export default defineConfig({
   define: {

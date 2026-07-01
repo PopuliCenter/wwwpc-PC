@@ -42,7 +42,9 @@ export class NotificationService {
     survey: { title: string; description?: string; endDatetime: string; id: string },
     baseUrl: string,
   ): Promise<void> {
-    this.logger.log(`Sending survey invitation for "${survey.title}" to ${respondents.length} respondents`);
+    this.logger.log(
+      `Sending survey invitation for "${survey.title}" to ${respondents.length} respondents`,
+    );
 
     const payloads: EmailPayload[] = respondents.map((respondent) => ({
       to: respondent.email,
@@ -74,7 +76,9 @@ export class NotificationService {
       );
     }
 
-    this.logger.log(`Queued ${payloads.length} invitation emails in ${Math.ceil(payloads.length / BATCH_SIZE)} batches`);
+    this.logger.log(
+      `Queued ${payloads.length} invitation emails in ${Math.ceil(payloads.length / BATCH_SIZE)} batches`,
+    );
   }
 
   /**
@@ -122,8 +126,11 @@ export class NotificationService {
     daysBeforeDeadline: number,
     baseUrl: string,
   ): Promise<void> {
-    const template = daysBeforeDeadline === 3 ? EmailTemplate.REMINDER_H3 : EmailTemplate.REMINDER_H1;
-    this.logger.log(`Sending H-${daysBeforeDeadline} reminder for "${survey.title}" to ${respondents.length} respondents`);
+    const template =
+      daysBeforeDeadline === 3 ? EmailTemplate.REMINDER_H3 : EmailTemplate.REMINDER_H1;
+    this.logger.log(
+      `Sending H-${daysBeforeDeadline} reminder for "${survey.title}" to ${respondents.length} respondents`,
+    );
 
     const payloads: EmailPayload[] = respondents.map((respondent) => ({
       to: respondent.email,
@@ -189,7 +196,9 @@ export class NotificationService {
     currentBalance: number,
     baseUrl: string,
   ): Promise<void> {
-    this.logger.log(`Sending points threshold notification to ${respondent.email} (balance: ${currentBalance})`);
+    this.logger.log(
+      `Sending points threshold notification to ${respondent.email} (balance: ${currentBalance})`,
+    );
 
     const payload: EmailPayload = {
       to: respondent.email,
@@ -300,12 +309,16 @@ export class NotificationService {
     };
 
     // OTP emails should be sent with higher priority
-    await this.notificationQueue.add(EMAIL_JOB, { payload }, {
-      attempts: EMAIL_RETRY_ATTEMPTS,
-      backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
-      priority: 1, // Higher priority
-      removeOnComplete: true,
-    });
+    await this.notificationQueue.add(
+      EMAIL_JOB,
+      { payload },
+      {
+        attempts: EMAIL_RETRY_ATTEMPTS,
+        backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
+        priority: 1, // Higher priority
+        removeOnComplete: true,
+      },
+    );
   }
 
   /**
@@ -332,12 +345,16 @@ export class NotificationService {
     };
 
     // Password reset emails should be sent with higher priority
-    await this.notificationQueue.add(EMAIL_JOB, { payload }, {
-      attempts: EMAIL_RETRY_ATTEMPTS,
-      backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
-      priority: 1,
-      removeOnComplete: true,
-    });
+    await this.notificationQueue.add(
+      EMAIL_JOB,
+      { payload },
+      {
+        attempts: EMAIL_RETRY_ATTEMPTS,
+        backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
+        priority: 1,
+        removeOnComplete: true,
+      },
+    );
   }
 
   /**

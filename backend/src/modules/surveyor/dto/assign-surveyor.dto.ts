@@ -1,11 +1,4 @@
-import {
-  IsArray,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Min,
-} from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 /** Tugaskan seorang surveyor (TPD) ke sebuah survei. */
 export class AssignSurveyorDto {

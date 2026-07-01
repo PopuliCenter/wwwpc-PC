@@ -18,11 +18,7 @@ export class AddSurveyTargeting1715000029000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "survey" DROP COLUMN IF EXISTS "allowed_provinces"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "survey" DROP COLUMN IF EXISTS "allowed_genders"`,
-    );
+    await queryRunner.query(`ALTER TABLE "survey" DROP COLUMN IF EXISTS "allowed_provinces"`);
+    await queryRunner.query(`ALTER TABLE "survey" DROP COLUMN IF EXISTS "allowed_genders"`);
   }
 }

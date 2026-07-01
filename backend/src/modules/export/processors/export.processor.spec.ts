@@ -9,7 +9,6 @@ import { UserProfile } from '@modules/registration/entities/user-profile.entity'
 import { Question } from '@modules/survey/entities/question.entity';
 import { ExportFormat, ExportStatus } from '../interfaces';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Mock fs: hanya override tulis-file; sisanya pakai fs asli agar pdfkit tetap
 // bisa membaca berkas font (readFileSync) saat membuat PDF di test.
@@ -43,7 +42,13 @@ describe('ExportProcessor', () => {
       submittedAt: new Date('2024-01-15T10:30:00Z'),
       exportedAt: null,
       answers: [
-        { id: 'a-1', responseId: 'resp-1', questionId: 'q-1', value: 'Answer 1', answeredAt: new Date() } as any,
+        {
+          id: 'a-1',
+          responseId: 'resp-1',
+          questionId: 'q-1',
+          value: 'Answer 1',
+          answeredAt: new Date(),
+        } as any,
       ],
       respondent: { id: 'user-1', fullName: 'John Doe', phone: '08123456789' } as any,
     },
@@ -57,7 +62,13 @@ describe('ExportProcessor', () => {
       submittedAt: new Date('2024-01-16T09:45:00Z'),
       exportedAt: null,
       answers: [
-        { id: 'a-2', responseId: 'resp-2', questionId: 'q-1', value: 'Answer 2', answeredAt: new Date() } as any,
+        {
+          id: 'a-2',
+          responseId: 'resp-2',
+          questionId: 'q-1',
+          value: 'Answer 2',
+          answeredAt: new Date(),
+        } as any,
       ],
       respondent: { id: 'user-2', fullName: 'Jane Smith', phone: '08198765432' } as any,
     },
@@ -150,12 +161,17 @@ describe('ExportProcessor', () => {
 
       expect(result.success).toBe(true);
       expect(result.filePath).toContain('export-job-1.csv');
-      expect(mockExportJobRepository.update).toHaveBeenCalledWith('job-1', { status: ExportStatus.PROCESSING });
-      expect(mockExportJobRepository.update).toHaveBeenCalledWith('job-1', expect.objectContaining({
-        status: ExportStatus.COMPLETED,
-        filePath: expect.any(String),
-        completedAt: expect.any(Date),
-      }));
+      expect(mockExportJobRepository.update).toHaveBeenCalledWith('job-1', {
+        status: ExportStatus.PROCESSING,
+      });
+      expect(mockExportJobRepository.update).toHaveBeenCalledWith(
+        'job-1',
+        expect.objectContaining({
+          status: ExportStatus.COMPLETED,
+          filePath: expect.any(String),
+          completedAt: expect.any(Date),
+        }),
+      );
       expect(fs.writeFileSync).toHaveBeenCalled();
     });
 
@@ -212,7 +228,13 @@ describe('ExportProcessor', () => {
         enabled: true,
         validationRules: {
           matrixRows: ['Pelayanan', 'Ekonomi'],
-          matrixColumns: ['Sangat Tidak Setuju', 'Tidak Setuju', 'Netral', 'Setuju', 'Sangat Setuju'],
+          matrixColumns: [
+            'Sangat Tidak Setuju',
+            'Tidak Setuju',
+            'Netral',
+            'Setuju',
+            'Sangat Setuju',
+          ],
         },
         options: [],
       };
@@ -427,9 +449,12 @@ describe('ExportProcessor', () => {
 
       await expect(processor.handleCsvExport(job)).rejects.toThrow('Database connection failed');
 
-      expect(mockExportJobRepository.update).toHaveBeenCalledWith('job-err', expect.objectContaining({
-        status: ExportStatus.FAILED,
-      }));
+      expect(mockExportJobRepository.update).toHaveBeenCalledWith(
+        'job-err',
+        expect.objectContaining({
+          status: ExportStatus.FAILED,
+        }),
+      );
     });
   });
 });

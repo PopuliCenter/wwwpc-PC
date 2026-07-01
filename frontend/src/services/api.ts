@@ -2,8 +2,7 @@
 // URL absolut karena '/api' akan menunjuk ke dalam app, bukan server — set
 // VITE_API_BASE_URL=https://survei.risetcenter.com/api saat build native.
 const BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
-  '/api';
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/api';
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
@@ -189,8 +188,7 @@ export const api = {
   post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'POST', body }),
 
-  upload: <T>(endpoint: string, formData: FormData) =>
-    uploadRequest<T>(endpoint, formData),
+  upload: <T>(endpoint: string, formData: FormData) => uploadRequest<T>(endpoint, formData),
 
   put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'PUT', body }),

@@ -35,10 +35,7 @@ export function RespondentLayout() {
   // Gerbang data diri: responden yang profilnya BELUM lengkap diarahkan ke
   // halaman "Lengkapi Data Diri" sebelum bisa membuka tab lain. Blokir hanya
   // bila eksplisit false (user lama tanpa flag = anggap lengkap).
-  if (
-    user?.profileCompleted === false &&
-    location.pathname !== '/complete-profile'
-  ) {
+  if (user?.profileCompleted === false && location.pathname !== '/complete-profile') {
     return <Navigate to="/complete-profile" replace />;
   }
 

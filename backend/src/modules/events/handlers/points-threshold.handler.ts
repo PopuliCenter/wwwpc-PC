@@ -7,9 +7,7 @@ import { NotificationService } from '@modules/notification/notification.service'
 export class PointsThresholdHandler {
   private readonly logger = new Logger(PointsThresholdHandler.name);
 
-  constructor(
-    private readonly notificationService: NotificationService,
-  ) {}
+  constructor(private readonly notificationService: NotificationService) {}
 
   /**
    * Send notification email when user's balance reaches the redemption threshold.

@@ -73,7 +73,16 @@ interface CompletionRate {
 }
 
 // Brand-anchored chart palette (indigo primary + orange accent + cool tones)
-const COLORS = ['#4f46e5', '#f97316', '#0ea5e9', '#10b981', '#a855f7', '#f59e0b', '#64748b', '#ec4899'];
+const COLORS = [
+  '#4f46e5',
+  '#f97316',
+  '#0ea5e9',
+  '#10b981',
+  '#a855f7',
+  '#f59e0b',
+  '#64748b',
+  '#ec4899',
+];
 const CHART_PRIMARY = '#4f46e5';
 
 // Aksen warna per-kartu (kelas literal agar terbaca Tailwind JIT).
@@ -86,10 +95,25 @@ const CARD_ACCENTS: Record<string, string> = {
 
 function OverviewCards({ data, loading }: { data: OverviewData | null; loading: boolean }) {
   const cards: { label: string; value: number; icon: LucideIcon; accent: string }[] = [
-    { label: 'Registrasi 24 Jam', value: data?.registrationsLast24h ?? 0, icon: FileText, accent: 'indigo' },
+    {
+      label: 'Registrasi 24 Jam',
+      value: data?.registrationsLast24h ?? 0,
+      icon: FileText,
+      accent: 'indigo',
+    },
     { label: 'Total Responden', value: data?.totalRespondents ?? 0, icon: Users, accent: 'sky' },
-    { label: 'Survei Aktif', value: data?.activeSurveys ?? 0, icon: ClipboardList, accent: 'orange' },
-    { label: 'Total Respons', value: data?.totalResponses ?? 0, icon: BarChart3, accent: 'emerald' },
+    {
+      label: 'Survei Aktif',
+      value: data?.activeSurveys ?? 0,
+      icon: ClipboardList,
+      accent: 'orange',
+    },
+    {
+      label: 'Total Respons',
+      value: data?.totalResponses ?? 0,
+      icon: BarChart3,
+      accent: 'emerald',
+    },
   ];
 
   if (loading) {
@@ -141,7 +165,7 @@ function RegistrationBarChart() {
         const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
         const endDate = format(new Date(), 'yyyy-MM-dd');
         const result = await api.get<any>(
-          `/dashboard/registration-chart?startDate=${startDate}&endDate=${endDate}`
+          `/dashboard/registration-chart?startDate=${startDate}&endDate=${endDate}`,
         );
         // Backend returns { labels: [...], datasets: [{ data: [...] }] }
         // Convert to array format for Recharts
@@ -193,13 +217,24 @@ function RegistrationBarChart() {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 12, fill: '#64748b' }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
             <Tooltip
               cursor={{ fill: 'rgba(79,70,229,0.06)' }}
               contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }}
             />
-            <Bar dataKey="count" fill={CHART_PRIMARY} name="Registrasi" radius={[4, 4, 0, 0]} maxBarSize={44} />
+            <Bar
+              dataKey="count"
+              fill={CHART_PRIMARY}
+              name="Registrasi"
+              radius={[4, 4, 0, 0]}
+              maxBarSize={44}
+            />
           </BarChart>
         </ResponsiveContainer>
       )}
@@ -217,7 +252,7 @@ function CumulativeTrendChart() {
         const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
         const endDate = format(new Date(), 'yyyy-MM-dd');
         const result = await api.get<any>(
-          `/dashboard/cumulative-trend?startDate=${startDate}&endDate=${endDate}`
+          `/dashboard/cumulative-trend?startDate=${startDate}&endDate=${endDate}`,
         );
         // Backend returns { labels: [...], datasets: [{ data: [...] }] }
         if (result && result.labels && result.datasets) {
@@ -249,9 +284,16 @@ function CumulativeTrendChart() {
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 12, fill: '#64748b' }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }}
+            />
             <Line
               type="monotone"
               dataKey="total"
@@ -315,14 +357,18 @@ function DistributionCharts() {
                 outerRadius={80}
                 dataKey="value"
                 nameKey="label"
-                label={(props: any) => `${props.label ?? props.name ?? ''} ${((props.percent ?? 0) * 100).toFixed(0)}%`}
+                label={(props: any) =>
+                  `${props.label ?? props.name ?? ''} ${((props.percent ?? 0) * 100).toFixed(0)}%`
+                }
                 labelLine={false}
               >
                 {(Array.isArray(chart.data) ? chart.data : []).map((_: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 12 }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -354,7 +400,9 @@ function HeatmapSection() {
     return (
       <Card>
         <CardHeader title="Peta Distribusi Responden" />
-        <div className="flex h-80 items-center justify-center text-sm text-gray-500">Memuat peta...</div>
+        <div className="flex h-80 items-center justify-center text-sm text-gray-500">
+          Memuat peta...
+        </div>
       </Card>
     );
   }
@@ -383,9 +431,7 @@ function HeatmapPopupBody({ point }: { point: HeatmapPoint }) {
   return (
     <div style={{ maxWidth: 230, maxHeight: 220, overflowY: 'auto', fontSize: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{point.count} responden</div>
-      {list.length === 0 && point.city && (
-        <div style={{ color: '#6b7280' }}>{point.city}</div>
-      )}
+      {list.length === 0 && point.city && <div style={{ color: '#6b7280' }}>{point.city}</div>}
       {list.slice(0, 10).map((r, i) => (
         <div key={i} style={{ borderTop: '1px solid #eee', paddingTop: 4, marginTop: 4 }}>
           <div style={{ fontWeight: 500 }}>{r.name}</div>
@@ -403,9 +449,7 @@ function HeatmapPopupBody({ point }: { point: HeatmapPoint }) {
         </div>
       ))}
       {list.length > 10 && (
-        <div style={{ color: '#9ca3af', marginTop: 4 }}>
-          +{list.length - 10} responden lainnya…
-        </div>
+        <div style={{ color: '#9ca3af', marginTop: 4 }}>+{list.length - 10} responden lainnya…</div>
       )}
     </div>
   );
@@ -429,22 +473,20 @@ function LeafletMap({ points }: { points: HeatmapPoint[] }) {
           CircleMarker: reactLeaflet.CircleMarker,
           Popup: reactLeaflet.Popup,
         });
-      }
+      },
     );
   }, []);
 
   if (!MapComponents) {
-    return <div className="h-full flex items-center justify-center text-gray-500">Memuat peta...</div>;
+    return (
+      <div className="h-full flex items-center justify-center text-gray-500">Memuat peta...</div>
+    );
   }
 
   const { MapContainer, TileLayer, CircleMarker, Popup } = MapComponents;
 
   return (
-    <MapContainer
-      center={[-2.5, 118]}
-      zoom={5}
-      style={{ height: '100%', width: '100%' }}
-    >
+    <MapContainer center={[-2.5, 118]} zoom={5} style={{ height: '100%', width: '100%' }}>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -497,10 +539,18 @@ function CompletionRatesTable() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr className="border-y border-gray-200 bg-gray-50/60">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Survei</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Total Respons</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Selesai</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Rate</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Survei
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Total Respons
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Selesai
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Rate
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -514,19 +564,23 @@ function CompletionRatesTable() {
                 data.map((item) => {
                   const rate = Number(item.completionRate ?? 0);
                   return (
-                  <tr key={item.surveyId} className="transition-colors hover:bg-gray-50/60">
-                    <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{item.surveyTitle}</td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600">{item.totalResponses}</td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600">{item.completedResponses}</td>
-                    <td className="px-6 py-3.5 text-sm">
-                      <Badge
-                        tone={rate >= 75 ? 'success' : rate >= 50 ? 'warning' : 'danger'}
-                        dot
-                      >
-                        {rate.toFixed(1)}%
-                      </Badge>
-                    </td>
-                  </tr>
+                    <tr key={item.surveyId} className="transition-colors hover:bg-gray-50/60">
+                      <td className="px-6 py-3.5 text-sm font-medium text-gray-900">
+                        {item.surveyTitle}
+                      </td>
+                      <td className="px-6 py-3.5 text-sm text-gray-600">{item.totalResponses}</td>
+                      <td className="px-6 py-3.5 text-sm text-gray-600">
+                        {item.completedResponses}
+                      </td>
+                      <td className="px-6 py-3.5 text-sm">
+                        <Badge
+                          tone={rate >= 75 ? 'success' : rate >= 50 ? 'warning' : 'danger'}
+                          dot
+                        >
+                          {rate.toFixed(1)}%
+                        </Badge>
+                      </td>
+                    </tr>
                   );
                 })
               )}

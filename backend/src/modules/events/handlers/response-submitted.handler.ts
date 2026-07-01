@@ -43,10 +43,7 @@ export class ResponseSubmittedHandler {
         `Points credited for response: respondentId=${payload.respondentId}, surveyId=${payload.surveyId}, basePoints=${basePoints}`,
       );
     } catch (error: any) {
-      this.logger.error(
-        `Failed to credit points for response: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to credit points for response: ${error.message}`, error.stack);
     }
   }
 
@@ -58,8 +55,7 @@ export class ResponseSubmittedHandler {
     try {
       // Sertakan poin yang didapat agar email jadi catatan reward (konsisten
       // dengan poin yang ditampilkan di halaman "Terima kasih").
-      const pointsEarned =
-        payload.rewardPoints ?? DEFAULT_SURVEY_COMPLETION_POINTS;
+      const pointsEarned = payload.rewardPoints ?? DEFAULT_SURVEY_COMPLETION_POINTS;
 
       await this.notificationService.sendSubmissionConfirmation(
         { email: payload.respondentEmail, fullName: payload.respondentName },
@@ -67,14 +63,9 @@ export class ResponseSubmittedHandler {
         payload.submittedAt,
         pointsEarned,
       );
-      this.logger.log(
-        `Submission confirmation sent: respondentId=${payload.respondentId}`,
-      );
+      this.logger.log(`Submission confirmation sent: respondentId=${payload.respondentId}`);
     } catch (error: any) {
-      this.logger.error(
-        `Failed to send submission confirmation: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to send submission confirmation: ${error.message}`, error.stack);
     }
   }
 
@@ -98,10 +89,7 @@ export class ResponseSubmittedHandler {
         timestamp: new Date(),
       });
     } catch (error: any) {
-      this.logger.error(
-        `Failed to log audit event for submission: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to log audit event for submission: ${error.message}`, error.stack);
     }
   }
 }

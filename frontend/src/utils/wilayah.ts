@@ -17,10 +17,25 @@ export interface WilayahItem {
   name: string;
 }
 
-interface ProvinceRow { id: string; name: string }
-interface RegencyRow { id: string; province_id: string; name: string }
-interface DistrictRow { id: string; regency_id: string; name: string }
-interface VillageRow { id: string; district_id: string; name: string }
+interface ProvinceRow {
+  id: string;
+  name: string;
+}
+interface RegencyRow {
+  id: string;
+  province_id: string;
+  name: string;
+}
+interface DistrictRow {
+  id: string;
+  regency_id: string;
+  name: string;
+}
+interface VillageRow {
+  id: string;
+  district_id: string;
+  name: string;
+}
 
 const BASE_PATH = '/wilayah';
 
@@ -44,21 +59,15 @@ export async function getProvinces(): Promise<WilayahItem[]> {
 
 export async function getRegencies(provinceId: string): Promise<WilayahItem[]> {
   const rows = await loadFile<RegencyRow[]>('regencies.json');
-  return rows
-    .filter((r) => r.province_id === provinceId)
-    .map((r) => ({ id: r.id, name: r.name }));
+  return rows.filter((r) => r.province_id === provinceId).map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function getDistricts(regencyId: string): Promise<WilayahItem[]> {
   const rows = await loadFile<DistrictRow[]>('districts.json');
-  return rows
-    .filter((r) => r.regency_id === regencyId)
-    .map((r) => ({ id: r.id, name: r.name }));
+  return rows.filter((r) => r.regency_id === regencyId).map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function getVillages(districtId: string): Promise<WilayahItem[]> {
   const rows = await loadFile<VillageRow[]>('villages.json');
-  return rows
-    .filter((r) => r.district_id === districtId)
-    .map((r) => ({ id: r.id, name: r.name }));
+  return rows.filter((r) => r.district_id === districtId).map((r) => ({ id: r.id, name: r.name }));
 }

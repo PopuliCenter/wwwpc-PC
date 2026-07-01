@@ -8,11 +8,7 @@ import { AuthModule } from '@modules/auth';
 import { NotificationModule } from '@modules/notification';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User, UserProfile]),
-    AuthModule,
-    NotificationModule,
-  ],
+  imports: [TypeOrmModule.forFeature([User, UserProfile]), AuthModule, NotificationModule],
   controllers: [RegistrationController],
   providers: [RegistrationService],
   exports: [RegistrationService],

@@ -80,7 +80,9 @@ describe('ResponseSubmittedHandler', () => {
     });
 
     it('should not throw when notification service fails', async () => {
-      mockNotificationService.sendSubmissionConfirmation.mockRejectedValue(new Error('Queue error'));
+      mockNotificationService.sendSubmissionConfirmation.mockRejectedValue(
+        new Error('Queue error'),
+      );
 
       await expect(handler.handleNotification(payload)).resolves.not.toThrow();
     });

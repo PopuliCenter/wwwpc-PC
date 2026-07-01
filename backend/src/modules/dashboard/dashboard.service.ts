@@ -77,36 +77,30 @@ export class DashboardService {
    * Cached for 60 s — updated frequently but cheap to re-compute.
    */
   async getOverviewMetrics(): Promise<OverviewMetrics> {
-    return this.cached<OverviewMetrics>(
-      KEY_OVERVIEW,
-      TTL_OVERVIEW,
-      async () => {
-        const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return this.cached<OverviewMetrics>(KEY_OVERVIEW, TTL_OVERVIEW, async () => {
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-        const [registrationsLast24h, totalRespondents, activeSurveys, totalResponses] =
-          await Promise.all([
-            this.userRepository
-              .createQueryBuilder('user')
-              .where('user.role = :role', { role: UserRole.RESPONDENT })
-              .andWhere('user.created_at >= :since', { since: twentyFourHoursAgo })
-              .getCount(),
-            this.userRepository
-              .createQueryBuilder('user')
-              .where('user.role = :role', { role: UserRole.RESPONDENT })
-              .getCount(),
-            this.surveyRepository
-              .createQueryBuilder('survey')
-              .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
-              .getCount(),
-            this.responseRepository
-              .createQueryBuilder('response')
-              .getCount(),
-          ]);
+      const [registrationsLast24h, totalRespondents, activeSurveys, totalResponses] =
+        await Promise.all([
+          this.userRepository
+            .createQueryBuilder('user')
+            .where('user.role = :role', { role: UserRole.RESPONDENT })
+            .andWhere('user.created_at >= :since', { since: twentyFourHoursAgo })
+            .getCount(),
+          this.userRepository
+            .createQueryBuilder('user')
+            .where('user.role = :role', { role: UserRole.RESPONDENT })
+            .getCount(),
+          this.surveyRepository
+            .createQueryBuilder('survey')
+            .where('survey.status = :status', { status: SurveyStatus.ACTIVE })
+            .getCount(),
+          this.responseRepository.createQueryBuilder('response').getCount(),
+        ]);
 
-        return { registrationsLast24h, totalRespondents, activeSurveys, totalResponses };
-      },
-    );
+      return { registrationsLast24h, totalRespondents, activeSurveys, totalResponses };
+    });
   }
 
   /**
@@ -114,27 +108,23 @@ export class DashboardService {
    * Cached for 5 min per unique date range.
    */
   async getRegistrationChart(period: DateRange): Promise<ChartData> {
-    return this.cached<ChartData>(
-      keyChart('registration', period),
-      TTL_CHART,
-      async () => {
-        const results = await this.userRepository
-          .createQueryBuilder('user')
-          .select("TO_CHAR(user.created_at, 'YYYY-MM-DD')", 'date')
-          .addSelect('COUNT(*)', 'count')
-          .where('user.role = :role', { role: UserRole.RESPONDENT })
-          .andWhere('user.created_at >= :start', { start: period.startDate })
-          .andWhere('user.created_at <= :end', { end: period.endDate })
-          .groupBy("TO_CHAR(user.created_at, 'YYYY-MM-DD')")
-          .orderBy('date', 'ASC')
-          .getRawMany();
+    return this.cached<ChartData>(keyChart('registration', period), TTL_CHART, async () => {
+      const results = await this.userRepository
+        .createQueryBuilder('user')
+        .select("TO_CHAR(user.created_at, 'YYYY-MM-DD')", 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('user.role = :role', { role: UserRole.RESPONDENT })
+        .andWhere('user.created_at >= :start', { start: period.startDate })
+        .andWhere('user.created_at <= :end', { end: period.endDate })
+        .groupBy("TO_CHAR(user.created_at, 'YYYY-MM-DD')")
+        .orderBy('date', 'ASC')
+        .getRawMany();
 
-        return {
-          labels: results.map((r) => r.date),
-          datasets: [{ label: 'Registrasi Harian', data: results.map((r) => parseInt(r.count, 10)) }],
-        };
-      },
-    );
+      return {
+        labels: results.map((r) => r.date),
+        datasets: [{ label: 'Registrasi Harian', data: results.map((r) => parseInt(r.count, 10)) }],
+      };
+    });
   }
 
   /**
@@ -142,33 +132,29 @@ export class DashboardService {
    * Cached for 5 min per unique date range.
    */
   async getCumulativeTrendChart(period: DateRange): Promise<ChartData> {
-    return this.cached<ChartData>(
-      keyChart('cumulative', period),
-      TTL_CHART,
-      async () => {
-        const results = await this.userRepository
-          .createQueryBuilder('user')
-          .select("TO_CHAR(user.created_at, 'YYYY-MM-DD')", 'date')
-          .addSelect('COUNT(*)', 'count')
-          .where('user.role = :role', { role: UserRole.RESPONDENT })
-          .andWhere('user.created_at >= :start', { start: period.startDate })
-          .andWhere('user.created_at <= :end', { end: period.endDate })
-          .groupBy("TO_CHAR(user.created_at, 'YYYY-MM-DD')")
-          .orderBy('date', 'ASC')
-          .getRawMany();
+    return this.cached<ChartData>(keyChart('cumulative', period), TTL_CHART, async () => {
+      const results = await this.userRepository
+        .createQueryBuilder('user')
+        .select("TO_CHAR(user.created_at, 'YYYY-MM-DD')", 'date')
+        .addSelect('COUNT(*)', 'count')
+        .where('user.role = :role', { role: UserRole.RESPONDENT })
+        .andWhere('user.created_at >= :start', { start: period.startDate })
+        .andWhere('user.created_at <= :end', { end: period.endDate })
+        .groupBy("TO_CHAR(user.created_at, 'YYYY-MM-DD')")
+        .orderBy('date', 'ASC')
+        .getRawMany();
 
-        let cumulative = 0;
-        const cumulativeData = results.map((r) => {
-          cumulative += parseInt(r.count, 10);
-          return cumulative;
-        });
+      let cumulative = 0;
+      const cumulativeData = results.map((r) => {
+        cumulative += parseInt(r.count, 10);
+        return cumulative;
+      });
 
-        return {
-          labels: results.map((r) => r.date),
-          datasets: [{ label: 'Tren Kumulatif Registrasi', data: cumulativeData }],
-        };
-      },
-    );
+      return {
+        labels: results.map((r) => r.date),
+        datasets: [{ label: 'Tren Kumulatif Registrasi', data: cumulativeData }],
+      };
+    });
   }
 
   /**
@@ -176,54 +162,50 @@ export class DashboardService {
    * Cached for 10 min — expensive aggregation, low volatility.
    */
   async getDistributionCharts(): Promise<DistributionData> {
-    return this.cached<DistributionData>(
-      KEY_DISTRIBUTION,
-      TTL_DISTRIBUTION,
-      async () => {
-        const [byRegion, byAge, byOccupation] = await Promise.all([
-          this.profileRepository
-            .createQueryBuilder('profile')
-            .select('profile.province', 'label')
-            .addSelect('COUNT(*)', 'value')
-            .where('profile.province IS NOT NULL')
-            .groupBy('profile.province')
-            .orderBy('value', 'DESC')
-            .getRawMany(),
-          this.profileRepository
-            .createQueryBuilder('profile')
-            .select(
-              "CASE " +
+    return this.cached<DistributionData>(KEY_DISTRIBUTION, TTL_DISTRIBUTION, async () => {
+      const [byRegion, byAge, byOccupation] = await Promise.all([
+        this.profileRepository
+          .createQueryBuilder('profile')
+          .select('profile.province', 'label')
+          .addSelect('COUNT(*)', 'value')
+          .where('profile.province IS NOT NULL')
+          .groupBy('profile.province')
+          .orderBy('value', 'DESC')
+          .getRawMany(),
+        this.profileRepository
+          .createQueryBuilder('profile')
+          .select(
+            'CASE ' +
               "WHEN profile.age < 18 THEN '<18' " +
               "WHEN profile.age BETWEEN 18 AND 24 THEN '18-24' " +
               "WHEN profile.age BETWEEN 25 AND 34 THEN '25-34' " +
               "WHEN profile.age BETWEEN 35 AND 44 THEN '35-44' " +
               "WHEN profile.age BETWEEN 45 AND 54 THEN '45-54' " +
               "ELSE '55+' END",
-              'label',
-            )
-            .addSelect('COUNT(*)', 'value')
-            .where('profile.age IS NOT NULL')
-            .groupBy('label')
-            .orderBy('label', 'ASC')
-            .getRawMany(),
-          this.profileRepository
-            .createQueryBuilder('profile')
-            .select('profile.occupation', 'label')
-            .addSelect('COUNT(*)', 'value')
-            .where('profile.occupation IS NOT NULL')
-            .groupBy('profile.occupation')
-            .orderBy('value', 'DESC')
-            .limit(10)
-            .getRawMany(),
-        ]);
+            'label',
+          )
+          .addSelect('COUNT(*)', 'value')
+          .where('profile.age IS NOT NULL')
+          .groupBy('label')
+          .orderBy('label', 'ASC')
+          .getRawMany(),
+        this.profileRepository
+          .createQueryBuilder('profile')
+          .select('profile.occupation', 'label')
+          .addSelect('COUNT(*)', 'value')
+          .where('profile.occupation IS NOT NULL')
+          .groupBy('profile.occupation')
+          .orderBy('value', 'DESC')
+          .limit(10)
+          .getRawMany(),
+      ]);
 
-        return {
-          byRegion:     byRegion.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
-          byAge:        byAge.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
-          byOccupation: byOccupation.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
-        };
-      },
-    );
+      return {
+        byRegion: byRegion.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
+        byAge: byAge.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
+        byOccupation: byOccupation.map((r) => ({ label: r.label, value: parseInt(r.value, 10) })),
+      };
+    });
   }
 
   /**
@@ -231,41 +213,37 @@ export class DashboardService {
    * Cached for 5 min.
    */
   async getSurveyCompletionRates(): Promise<SurveyCompletionRate[]> {
-    return this.cached<SurveyCompletionRate[]>(
-      KEY_COMPLETION,
-      TTL_COMPLETION,
-      async () => {
-        const results = await this.responseRepository
-          .createQueryBuilder('response')
-          .select('response.survey_id', 'surveyId')
-          .addSelect('survey.title', 'surveyTitle')
-          .addSelect('COUNT(*)', 'totalResponses')
-          .addSelect(
-            `SUM(CASE WHEN response.status = '${ResponseStatus.COMPLETE}' THEN 1 ELSE 0 END)`,
-            'completedResponses',
-          )
-          .innerJoin('response.survey', 'survey')
-          .where('survey.status IN (:...statuses)', {
-            statuses: [SurveyStatus.ACTIVE, SurveyStatus.INACTIVE],
-          })
-          .groupBy('response.survey_id')
-          .addGroupBy('survey.title')
-          .orderBy('"totalResponses"', 'DESC')
-          .getRawMany();
+    return this.cached<SurveyCompletionRate[]>(KEY_COMPLETION, TTL_COMPLETION, async () => {
+      const results = await this.responseRepository
+        .createQueryBuilder('response')
+        .select('response.survey_id', 'surveyId')
+        .addSelect('survey.title', 'surveyTitle')
+        .addSelect('COUNT(*)', 'totalResponses')
+        .addSelect(
+          `SUM(CASE WHEN response.status = '${ResponseStatus.COMPLETE}' THEN 1 ELSE 0 END)`,
+          'completedResponses',
+        )
+        .innerJoin('response.survey', 'survey')
+        .where('survey.status IN (:...statuses)', {
+          statuses: [SurveyStatus.ACTIVE, SurveyStatus.INACTIVE],
+        })
+        .groupBy('response.survey_id')
+        .addGroupBy('survey.title')
+        .orderBy('"totalResponses"', 'DESC')
+        .getRawMany();
 
-        return results.map((r) => {
-          const total     = parseInt(r.totalResponses, 10);
-          const completed = parseInt(r.completedResponses, 10);
-          return {
-            surveyId: r.surveyId,
-            surveyTitle: r.surveyTitle,
-            totalResponses: total,
-            completedResponses: completed,
-            completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-          };
-        });
-      },
-    );
+      return results.map((r) => {
+        const total = parseInt(r.totalResponses, 10);
+        const completed = parseInt(r.completedResponses, 10);
+        return {
+          surveyId: r.surveyId,
+          surveyTitle: r.surveyTitle,
+          totalResponses: total,
+          completedResponses: completed,
+          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+        };
+      });
+    });
   }
 
   /**
@@ -273,31 +251,28 @@ export class DashboardService {
    * Cached for 10 min — geographic distribution changes slowly.
    */
   async getHeatmapData(): Promise<HeatmapPoint[]> {
-    return this.cached<HeatmapPoint[]>(
-      KEY_HEATMAP,
-      TTL_HEATMAP,
-      async () => {
-        // Titik peta dikumpulkan dari DUA sumber koordinat GPS pengisian survei,
-        // lalu digabung & dikelompokkan per ~11 m (pembulatan 4 desimal) agar
-        // konsentrasi tidak wajar tampak sebagai satu titik dengan count > 1:
-        //   1) Setelan "Rekam lokasi GPS" → survey_response.start_*/end_*.
-        //   2) Pertanyaan bertipe GPS → answer.value { latitude, longitude }.
-        // Nama kota diambil dari profil responden bila ada.
-        const numericRegex = "'^-?[0-9]+(\\.[0-9]+)?$'";
-        const rows: Array<{
-          lat: string | number;
-          lng: string | number;
-          count: string | number;
+    return this.cached<HeatmapPoint[]>(KEY_HEATMAP, TTL_HEATMAP, async () => {
+      // Titik peta dikumpulkan dari DUA sumber koordinat GPS pengisian survei,
+      // lalu digabung & dikelompokkan per ~11 m (pembulatan 4 desimal) agar
+      // konsentrasi tidak wajar tampak sebagai satu titik dengan count > 1:
+      //   1) Setelan "Rekam lokasi GPS" → survey_response.start_*/end_*.
+      //   2) Pertanyaan bertipe GPS → answer.value { latitude, longitude }.
+      // Nama kota diambil dari profil responden bila ada.
+      const numericRegex = "'^-?[0-9]+(\\.[0-9]+)?$'";
+      const rows: Array<{
+        lat: string | number;
+        lng: string | number;
+        count: string | number;
+        city: string | null;
+        respondents: Array<{
+          name: string | null;
+          submittedAt: string | null;
+          province: string | null;
           city: string | null;
-          respondents: Array<{
-            name: string | null;
-            submittedAt: string | null;
-            province: string | null;
-            city: string | null;
-            district: string | null;
-          }> | null;
-        }> = await this.responseRepository.manager.query(
-          `WITH pts AS (
+          district: string | null;
+        }> | null;
+      }> = await this.responseRepository.manager.query(
+        `WITH pts AS (
              SELECT COALESCE(r.start_latitude, r.end_latitude) AS lat,
                     COALESCE(r.start_longitude, r.end_longitude) AS lng,
                     r.respondent_id AS respondent_id,
@@ -338,25 +313,24 @@ export class DashboardService {
            GROUP BY 1, 2
            ORDER BY count DESC
            LIMIT 1000`,
-        );
+      );
 
-        return rows.map((r) => ({
-          latitude: Number(r.lat),
-          longitude: Number(r.lng),
-          count: typeof r.count === 'number' ? r.count : parseInt(r.count, 10),
-          city: r.city ?? undefined,
-          respondents: Array.isArray(r.respondents)
-            ? r.respondents.map((x) => ({
-                name: x.name ?? '-',
-                submittedAt: x.submittedAt ?? null,
-                province: x.province ?? null,
-                city: x.city ?? null,
-                district: x.district ?? null,
-              }))
-            : [],
-        }));
-      },
-    );
+      return rows.map((r) => ({
+        latitude: Number(r.lat),
+        longitude: Number(r.lng),
+        count: typeof r.count === 'number' ? r.count : parseInt(r.count, 10),
+        city: r.city ?? undefined,
+        respondents: Array.isArray(r.respondents)
+          ? r.respondents.map((x) => ({
+              name: x.name ?? '-',
+              submittedAt: x.submittedAt ?? null,
+              province: x.province ?? null,
+              city: x.city ?? null,
+              district: x.district ?? null,
+            }))
+          : [],
+      }));
+    });
   }
 
   /**
@@ -393,11 +367,7 @@ export class DashboardService {
    * 1. Try to read from Redis.
    * 2. On miss, execute `compute()` and store the result with the given TTL.
    */
-  private async cached<T>(
-    key: string,
-    ttlMs: number,
-    compute: () => Promise<T>,
-  ): Promise<T> {
+  private async cached<T>(key: string, ttlMs: number, compute: () => Promise<T>): Promise<T> {
     const cached = await this.cacheManager.get<T>(key);
     if (cached !== undefined && cached !== null) {
       this.logger.debug(`Cache hit: ${key}`);

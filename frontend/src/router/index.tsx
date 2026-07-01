@@ -33,7 +33,6 @@ import { HelpPage } from '@/pages/respondent/HelpPage';
 import { NotificationsPage } from '@/pages/respondent/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
-
 export const router = createBrowserRouter([
   // Public auth routes
   {
@@ -77,21 +76,126 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/admin/dashboard" replace /> },
       { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'surveys', element: <RequireRoles roles={access.surveys}><SurveyListPage /></RequireRoles> },
-      { path: 'surveys/create', element: <RequireRoles roles={access.surveys}><SurveyCreatePage /></RequireRoles> },
-      { path: 'surveys/:id/edit', element: <RequireRoles roles={access.surveys}><SurveyEditPage /></RequireRoles> },
-      { path: 'surveys/:id/preview', element: <RequireRoles roles={access.surveys}><SurveyPreviewPage /></RequireRoles> },
-      { path: 'surveys/:id/summary', element: <RequireRoles roles={access.responses}><SurveySummaryPage /></RequireRoles> },
-      { path: 'responses', element: <RequireRoles roles={access.responses}><ResponseListPage /></RequireRoles> },
-      { path: 'responses/:id', element: <RequireRoles roles={access.responses}><ResponseDetailPage /></RequireRoles> },
-      { path: 'maps', element: <RequireRoles roles={access.maps}><MapsPage /></RequireRoles> },
-      { path: 'respondents', element: <RequireRoles roles={access.respondents}><RespondentsPage /></RequireRoles> },
-      { path: 'users', element: <RequireRoles roles={access.users}><UserManagementPage /></RequireRoles> },
-      { path: 'audit', element: <RequireRoles roles={access.audit}><AuditLogPage /></RequireRoles> },
-      { path: 'client-logs', element: <RequireRoles roles={access.audit}><ClientLogsPage /></RequireRoles> },
-      { path: 'cleanup', element: <RequireRoles roles={access.cleanup}><DataCleanupPage /></RequireRoles> },
-      { path: 'storage', element: <RequireRoles roles={access.storage}><StoragePage /></RequireRoles> },
-      { path: 'announcements', element: <RequireRoles roles={access.announcements}><AnnouncementPage /></RequireRoles> },
+      {
+        path: 'surveys',
+        element: (
+          <RequireRoles roles={access.surveys}>
+            <SurveyListPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'surveys/create',
+        element: (
+          <RequireRoles roles={access.surveys}>
+            <SurveyCreatePage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'surveys/:id/edit',
+        element: (
+          <RequireRoles roles={access.surveys}>
+            <SurveyEditPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'surveys/:id/preview',
+        element: (
+          <RequireRoles roles={access.surveys}>
+            <SurveyPreviewPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'surveys/:id/summary',
+        element: (
+          <RequireRoles roles={access.responses}>
+            <SurveySummaryPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'responses',
+        element: (
+          <RequireRoles roles={access.responses}>
+            <ResponseListPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'responses/:id',
+        element: (
+          <RequireRoles roles={access.responses}>
+            <ResponseDetailPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'maps',
+        element: (
+          <RequireRoles roles={access.maps}>
+            <MapsPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'respondents',
+        element: (
+          <RequireRoles roles={access.respondents}>
+            <RespondentsPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'users',
+        element: (
+          <RequireRoles roles={access.users}>
+            <UserManagementPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'audit',
+        element: (
+          <RequireRoles roles={access.audit}>
+            <AuditLogPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'client-logs',
+        element: (
+          <RequireRoles roles={access.audit}>
+            <ClientLogsPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'cleanup',
+        element: (
+          <RequireRoles roles={access.cleanup}>
+            <DataCleanupPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'storage',
+        element: (
+          <RequireRoles roles={access.storage}>
+            <StoragePage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'announcements',
+        element: (
+          <RequireRoles roles={access.announcements}>
+            <AnnouncementPage />
+          </RequireRoles>
+        ),
+      },
       { path: 'profile', element: <ProfilePage /> },
     ],
   },

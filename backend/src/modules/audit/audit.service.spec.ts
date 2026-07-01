@@ -113,9 +113,7 @@ describe('AuditService', () => {
     });
 
     it('should return paginated results with default pagination', async () => {
-      const mockData = [
-        { id: 'audit-1', userId: 'user-1', actionType: AuditActionType.LOGIN },
-      ];
+      const mockData = [{ id: 'audit-1', userId: 'user-1', actionType: AuditActionType.LOGIN }];
       mockQueryBuilder.getManyAndCount.mockResolvedValue([mockData, 1]);
 
       const result = await service.query({});
@@ -147,10 +145,9 @@ describe('AuditService', () => {
 
       await service.query({ userId: uuid });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.user_id = :userId',
-        { userId: uuid },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.user_id = :userId', {
+        userId: uuid,
+      });
     });
 
     it('should treat a non-UUID userId as a name/email search', async () => {
@@ -161,10 +158,9 @@ describe('AuditService', () => {
       await service.query({ userId: 'afifa' });
 
       expect(mockUserRepository.find).toHaveBeenCalled();
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.user_id IN (:...userIds)',
-        { userIds: ['u-1', 'u-2'] },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.user_id IN (:...userIds)', {
+        userIds: ['u-1', 'u-2'],
+      });
     });
 
     it('should return no rows when a name search matches no user', async () => {
@@ -181,10 +177,9 @@ describe('AuditService', () => {
 
       await service.query({ actionType: AuditActionType.SURVEY_CREATE });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.action_type = :actionType',
-        { actionType: AuditActionType.SURVEY_CREATE },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.action_type = :actionType', {
+        actionType: AuditActionType.SURVEY_CREATE,
+      });
     });
 
     it('should apply module filter', async () => {
@@ -192,10 +187,9 @@ describe('AuditService', () => {
 
       await service.query({ module: 'survey' });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.module = :module',
-        { module: 'survey' },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.module = :module', {
+        module: 'survey',
+      });
     });
 
     it('should apply ipAddress filter', async () => {
@@ -203,10 +197,9 @@ describe('AuditService', () => {
 
       await service.query({ ipAddress: '192.168.1.1' });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.ip_address = :ipAddress',
-        { ipAddress: '192.168.1.1' },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.ip_address = :ipAddress', {
+        ipAddress: '192.168.1.1',
+      });
     });
 
     it('should apply date range filter', async () => {
@@ -216,14 +209,12 @@ describe('AuditService', () => {
         dateRange: { start: '2025-01-01', end: '2025-01-31' },
       });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.created_at >= :startDate',
-        { startDate: '2025-01-01' },
-      );
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'audit.created_at <= :endDate',
-        { endDate: '2025-01-31' },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.created_at >= :startDate', {
+        startDate: '2025-01-01',
+      });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('audit.created_at <= :endDate', {
+        endDate: '2025-01-31',
+      });
     });
 
     it('should handle custom pagination', async () => {

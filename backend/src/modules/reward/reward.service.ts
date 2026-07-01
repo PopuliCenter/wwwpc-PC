@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  Logger,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, Inject } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -42,10 +36,7 @@ import {
   POINT_EXPIRATION_MONTHS,
   REDEMPTION_OTP_TTL_MINUTES,
 } from './constants';
-import {
-  createPaginatedResponse,
-  calculateSkipTake,
-} from '@shared/helpers/pagination.helper';
+import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
 import { PaginatedResponse, PaginationQuery } from '@shared/interfaces';
 import { CircuitBreaker } from '@shared/circuit-breaker';
 
@@ -161,11 +152,7 @@ export class RewardService {
    * Credit registration bonus points (500 points).
    */
   async creditRegistrationBonus(userId: string): Promise<PointTransaction> {
-    return this.creditPoints(
-      userId,
-      POINT_VALUES.REGISTRATION,
-      PointCreditReason.REGISTRATION,
-    );
+    return this.creditPoints(userId, POINT_VALUES.REGISTRATION, PointCreditReason.REGISTRATION);
   }
 
   /**
@@ -192,9 +179,7 @@ export class RewardService {
   ): Promise<PointTransaction> {
     // Only credit points for complete responses
     if (responseStatus !== 'complete') {
-      throw new BadRequestException(
-        'Points can only be credited for complete survey responses',
-      );
+      throw new BadRequestException('Points can only be credited for complete survey responses');
     }
 
     // Idempotensi: satu responden hanya boleh dikreditkan SEKALI per survei.
@@ -314,9 +299,7 @@ export class RewardService {
         currentMultiplier: 1.0,
       });
     } else {
-      const lastDate = tracker.lastCompletionDate
-        ? new Date(tracker.lastCompletionDate)
-        : null;
+      const lastDate = tracker.lastCompletionDate ? new Date(tracker.lastCompletionDate) : null;
 
       if (lastDate) {
         lastDate.setHours(0, 0, 0, 0);
@@ -572,9 +555,7 @@ export class RewardService {
           'redeem',
         )
         .catch((err) =>
-          this.logger.error(
-            `Gagal mengirim OTP penukaran ke ${user.email}: ${err?.message}`,
-          ),
+          this.logger.error(`Gagal mengirim OTP penukaran ke ${user.email}: ${err?.message}`),
         );
     }
     this.logger.log(
@@ -626,9 +607,7 @@ export class RewardService {
     if (balance.available < redemption.pointsSpent) {
       redemption.status = RedemptionStatus.FAILED;
       await this.redemptionRepository.save(redemption);
-      throw new BadRequestException(
-        'Saldo tidak mencukupi. Poin mungkin telah kadaluarsa.',
-      );
+      throw new BadRequestException('Saldo tidak mencukupi. Poin mungkin telah kadaluarsa.');
     }
 
     // Deduct points (create debit transaction)
@@ -685,7 +664,10 @@ export class RewardService {
           destinationNumber: redemption.destinationNumber ?? '',
           pointsSpent: redemption.pointsSpent,
         }),
-      { status: 'pending', message: 'Layanan reward sedang sibuk, akan diproses ulang.' } as FulfillmentOutcome,
+      {
+        status: 'pending',
+        message: 'Layanan reward sedang sibuk, akan diproses ulang.',
+      } as FulfillmentOutcome,
     );
 
     const finalStatus = await this.applyOutcome(redemption, outcome);
@@ -767,8 +749,7 @@ export class RewardService {
       if (!user?.email) return;
       const balance = await this.getBalance(redemption.userId);
       const rewardName =
-        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ??
-        redemption.rewardType;
+        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ?? redemption.rewardType;
       const payload: RewardRedeemedPayload = {
         userId: redemption.userId,
         email: user.email,
@@ -781,9 +762,7 @@ export class RewardService {
       };
       this.eventEmitter.emit(EventType.REWARD_REDEEMED, payload);
     } catch (e: any) {
-      this.logger.error(
-        `Gagal memancarkan REWARD_REDEEMED utk ${redemption.id}: ${e?.message}`,
-      );
+      this.logger.error(`Gagal memancarkan REWARD_REDEEMED utk ${redemption.id}: ${e?.message}`);
     }
   }
 
@@ -800,8 +779,7 @@ export class RewardService {
       if (!user?.email) return;
       const balance = await this.getBalance(redemption.userId);
       const rewardName =
-        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ??
-        redemption.rewardType;
+        REWARD_CATALOG.find((r) => r.id === redemption.rewardType)?.name ?? redemption.rewardType;
       const payload: RewardRedemptionFailedPayload = {
         userId: redemption.userId,
         email: user.email,
@@ -875,9 +853,7 @@ export class RewardService {
     }
 
     await this.applyOutcome(redemption, parsed.outcome);
-    this.logger.log(
-      `Callback diterapkan: redemption ${redemption.id} → '${redemption.status}'.`,
-    );
+    this.logger.log(`Callback diterapkan: redemption ${redemption.id} → '${redemption.status}'.`);
     return { received: true };
   }
 

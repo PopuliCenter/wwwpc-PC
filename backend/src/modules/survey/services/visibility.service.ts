@@ -47,9 +47,7 @@ export class VisibilityService {
     );
 
     const saved = await this.visibilityRepository.save(entities);
-    this.logger.log(
-      `Visibility rules set for question ${questionId}: ${saved.length} rules`,
-    );
+    this.logger.log(`Visibility rules set for question ${questionId}: ${saved.length} rules`);
     return saved;
   }
 

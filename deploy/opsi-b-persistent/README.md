@@ -15,11 +15,11 @@ Kalau salah satu hilang → permintaan jatuh ke `server_name _` (catch-all) →
 
 ## Isi folder
 
-| File | Fungsi |
-|---|---|
-| `survei.risetcenter.com.conf` | Server block nginx untuk subdomain survei (proxy ke `survei_frontend`). |
+| File                          | Fungsi                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------- |
+| `survei.risetcenter.com.conf` | Server block nginx untuk subdomain survei (proxy ke `survei_frontend`).       |
 | `docker-compose.override.yml` | Override app lama → network `web` + mount conf **persisten** lintas redeploy. |
-| `apply.sh` | Pemulihan **langsung** (live): connect network + pasang conf + reload. |
+| `apply.sh`                    | Pemulihan **langsung** (live): connect network + pasang conf + reload.        |
 
 ---
 

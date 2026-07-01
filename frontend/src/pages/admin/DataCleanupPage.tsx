@@ -105,7 +105,7 @@ function CleanupCandidatesSection() {
     setError(null);
     try {
       const result = await api.get<CleanupCandidate[]>(
-        '/data-cleanup/candidates?exportStatus=exported_only'
+        '/data-cleanup/candidates?exportStatus=exported_only',
       );
       setCandidates(result);
     } catch (err: unknown) {
@@ -235,9 +235,7 @@ function CleanupCandidatesSection() {
                       {c.deletableCount}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">
-                      {c.lastExportDate
-                        ? format(new Date(c.lastExportDate), 'dd/MM/yyyy')
-                        : '-'}
+                      {c.lastExportDate ? format(new Date(c.lastExportDate), 'dd/MM/yyyy') : '-'}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       <button

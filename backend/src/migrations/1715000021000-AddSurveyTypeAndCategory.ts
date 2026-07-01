@@ -4,9 +4,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Tambah kolom survey_type (nasional/daerah/lainnya) dan category (tema bebas)
  * ke tabel survey, untuk pengorganisasian survei & responden.
  */
-export class AddSurveyTypeAndCategory1715000021000
-  implements MigrationInterface
-{
+export class AddSurveyTypeAndCategory1715000021000 implements MigrationInterface {
   name = 'AddSurveyTypeAndCategory1715000021000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

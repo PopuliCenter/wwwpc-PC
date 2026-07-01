@@ -38,9 +38,7 @@ async function bootstrap() {
     helmet({
       contentSecurityPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
-      hsts: isProduction
-        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
-        : false,
+      hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
     }),
   );
   app.disable('x-powered-by');

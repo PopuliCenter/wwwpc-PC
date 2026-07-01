@@ -52,12 +52,7 @@ export class JsonLogger implements LoggerService {
 
   // ---------------------------------------------------------------------------
 
-  private write(
-    level: string,
-    message: any,
-    context?: string,
-    trace?: string,
-  ): void {
+  private write(level: string, message: any, context?: string, trace?: string): void {
     if (this.isProduction) {
       this.writeJson(level, message, context, trace);
     } else {
@@ -65,12 +60,7 @@ export class JsonLogger implements LoggerService {
     }
   }
 
-  private writeJson(
-    level: string,
-    message: any,
-    context?: string,
-    trace?: string,
-  ): void {
+  private writeJson(level: string, message: any, context?: string, trace?: string): void {
     const entry: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
       level,
@@ -87,12 +77,7 @@ export class JsonLogger implements LoggerService {
     process.stdout.write(JSON.stringify(entry) + '\n');
   }
 
-  private writePretty(
-    level: string,
-    message: any,
-    context?: string,
-    trace?: string,
-  ): void {
+  private writePretty(level: string, message: any, context?: string, trace?: string): void {
     const color = LEVEL_COLORS[level] ?? RESET;
     const ts = new Date().toISOString();
     const ctx = context ? ` [${context}]` : '';
@@ -117,10 +102,10 @@ export class JsonLogger implements LoggerService {
 // ANSI colour codes for development output
 const RESET = '\x1b[0m';
 const LEVEL_COLORS: Record<string, string> = {
-  info:    '\x1b[32m', // green
-  error:   '\x1b[31m', // red
-  warn:    '\x1b[33m', // yellow
-  debug:   '\x1b[36m', // cyan
+  info: '\x1b[32m', // green
+  error: '\x1b[31m', // red
+  warn: '\x1b[33m', // yellow
+  debug: '\x1b[36m', // cyan
   verbose: '\x1b[35m', // magenta
-  fatal:   '\x1b[91m', // bright red
+  fatal: '\x1b[91m', // bright red
 };

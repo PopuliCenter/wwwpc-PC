@@ -20,7 +20,10 @@ if (Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
     .then((regs) => regs.forEach((r) => void r.unregister()))
     .catch(() => {});
   if (typeof caches !== 'undefined') {
-    caches.keys().then((keys) => keys.forEach((k) => void caches.delete(k))).catch(() => {});
+    caches
+      .keys()
+      .then((keys) => keys.forEach((k) => void caches.delete(k)))
+      .catch(() => {});
   }
 }
 

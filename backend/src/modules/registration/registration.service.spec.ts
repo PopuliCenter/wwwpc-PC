@@ -131,23 +131,21 @@ describe('RegistrationService', () => {
     });
 
     it('should throw BadRequestException for invalid phone format', async () => {
-      await expect(
-        service.register({ ...validRegistration, phone: '12345' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.register({ ...validRegistration, phone: '12345' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for weak password', async () => {
-      await expect(
-        service.register({ ...validRegistration, password: 'weak' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.register({ ...validRegistration, password: 'weak' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw ConflictException when email already exists', async () => {
       userRepository.findOne.mockResolvedValueOnce(mockUser); // email exists
 
-      await expect(service.register(validRegistration)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.register(validRegistration)).rejects.toThrow(ConflictException);
     });
 
     it('should throw ConflictException when phone already exists', async () => {
@@ -155,9 +153,7 @@ describe('RegistrationService', () => {
         .mockResolvedValueOnce(null) // email doesn't exist
         .mockResolvedValueOnce(mockUser); // phone exists
 
-      await expect(service.register(validRegistration)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(service.register(validRegistration)).rejects.toThrow(ConflictException);
     });
 
     it('should hash the password before saving', async () => {
@@ -236,9 +232,9 @@ describe('RegistrationService', () => {
     it('should throw BadRequestException when OTP has expired', async () => {
       cacheManager.get.mockResolvedValue(null);
 
-      await expect(
-        service.verifyOtp('test@example.com', '123456'),
-      ).rejects.toThrow(new BadRequestException('OTP has expired or does not exist'));
+      await expect(service.verifyOtp('test@example.com', '123456')).rejects.toThrow(
+        new BadRequestException('OTP has expired or does not exist'),
+      );
     });
 
     it('should throw BadRequestException for invalid OTP code', async () => {
@@ -250,9 +246,9 @@ describe('RegistrationService', () => {
       });
       cacheManager.get.mockResolvedValue(otpData);
 
-      await expect(
-        service.verifyOtp('test@example.com', '999999'),
-      ).rejects.toThrow(new BadRequestException('Invalid OTP code'));
+      await expect(service.verifyOtp('test@example.com', '999999')).rejects.toThrow(
+        new BadRequestException('Invalid OTP code'),
+      );
     });
 
     it('should increment attempt count on invalid OTP', async () => {
@@ -315,9 +311,7 @@ describe('RegistrationService', () => {
     it('should throw BadRequestException when user not found', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.resendOtp('unknown@example.com')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.resendOtp('unknown@example.com')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when resend limit reached (3 times)', async () => {
@@ -388,17 +382,15 @@ describe('RegistrationService', () => {
     it('should throw BadRequestException when user not found', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.completeProfile('nonexistent-id', validProfile),
-      ).rejects.toThrow(new BadRequestException('User not found'));
+      await expect(service.completeProfile('nonexistent-id', validProfile)).rejects.toThrow(
+        new BadRequestException('User not found'),
+      );
     });
 
     it('should throw BadRequestException when email not verified', async () => {
       userRepository.findOne.mockResolvedValue(mockUser); // emailVerified = false
 
-      await expect(
-        service.completeProfile('user-id-123', validProfile),
-      ).rejects.toThrow(
+      await expect(service.completeProfile('user-id-123', validProfile)).rejects.toThrow(
         new BadRequestException('Email must be verified before completing profile'),
       );
     });

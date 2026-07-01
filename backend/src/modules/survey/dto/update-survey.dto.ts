@@ -1,11 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsBoolean,
-  IsIn,
-  IsArray,
-  ValidateNested,
-} from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TimeConfigDto, RewardConfigDto } from './create-survey.dto';
 

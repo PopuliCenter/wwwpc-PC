@@ -43,7 +43,9 @@ describe('AuthService', () => {
       findOne: vi.fn(),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
       create: vi.fn().mockImplementation((data: any) => data),
-      save: vi.fn().mockImplementation((data: any) => Promise.resolve({ id: 'new-user-id', ...data })),
+      save: vi
+        .fn()
+        .mockImplementation((data: any) => Promise.resolve({ id: 'new-user-id', ...data })),
     };
 
     jwtService = {
@@ -139,18 +141,18 @@ describe('AuthService', () => {
     it('should throw generic error when user not found (does not reveal email is wrong)', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.login('nonexistent@example.com', 'SomePass1'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid email or password'));
+      await expect(service.login('nonexistent@example.com', 'SomePass1')).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
     });
 
     it('should throw generic error when password is wrong (does not reveal password is wrong)', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
       (bcrypt.compare as any).mockResolvedValue(false);
 
-      await expect(
-        service.login('test@example.com', 'WrongPass1'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid email or password'));
+      await expect(service.login('test@example.com', 'WrongPass1')).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
     });
 
     it('should return the same error message for wrong email and wrong password', async () => {
@@ -183,18 +185,18 @@ describe('AuthService', () => {
       const inactiveUser = { ...mockUser, status: UserStatus.INACTIVE };
       userRepository.findOne.mockResolvedValue(inactiveUser);
 
-      await expect(
-        service.login('test@example.com', 'ValidPass1'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid email or password'));
+      await expect(service.login('test@example.com', 'ValidPass1')).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
     });
 
     it('should throw generic error when account is pending', async () => {
       const pendingUser = { ...mockUser, status: UserStatus.PENDING };
       userRepository.findOne.mockResolvedValue(pendingUser);
 
-      await expect(
-        service.login('test@example.com', 'ValidPass1'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid email or password'));
+      await expect(service.login('test@example.com', 'ValidPass1')).rejects.toThrow(
+        new UnauthorizedException('Invalid email or password'),
+      );
     });
   });
 
@@ -258,9 +260,7 @@ describe('AuthService', () => {
         throw new Error('invalid token');
       });
 
-      await expect(service.refreshToken('invalid-token')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refreshToken('invalid-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw when token type is not refresh', async () => {
@@ -286,9 +286,7 @@ describe('AuthService', () => {
         .mockResolvedValueOnce(JSON.stringify({ userId: 'user-id-123' })) // session exists
         .mockResolvedValueOnce('different-stored-token'); // stored token doesn't match
 
-      await expect(
-        service.refreshToken('reused-old-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshToken('reused-old-token')).rejects.toThrow(UnauthorizedException);
 
       // Should have invalidated the session
       expect(cacheManager.del).toHaveBeenCalledWith('session:session-id-789');
@@ -305,9 +303,9 @@ describe('AuthService', () => {
         status: UserStatus.INACTIVE,
       });
 
-      await expect(
-        service.refreshToken('valid-refresh-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.refreshToken('valid-refresh-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -322,9 +320,7 @@ describe('AuthService', () => {
 
     it('should return session info for valid access token with active session', async () => {
       jwtService.verify.mockReturnValue(validAccessPayload);
-      cacheManager.get.mockResolvedValue(
-        JSON.stringify({ userId: 'user-id-123' }),
-      );
+      cacheManager.get.mockResolvedValue(JSON.stringify({ userId: 'user-id-123' }));
 
       const result = await service.validateSession('valid-access-token');
 
@@ -341,9 +337,7 @@ describe('AuthService', () => {
         throw new Error('invalid');
       });
 
-      await expect(
-        service.validateSession('invalid-token'),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.validateSession('invalid-token')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw when token type is refresh (not access)', async () => {
@@ -352,18 +346,16 @@ describe('AuthService', () => {
         type: 'refresh',
       });
 
-      await expect(
-        service.validateSession('refresh-token'),
-      ).rejects.toThrow(new UnauthorizedException('Invalid token type'));
+      await expect(service.validateSession('refresh-token')).rejects.toThrow(
+        new UnauthorizedException('Invalid token type'),
+      );
     });
 
     it('should throw when session has been invalidated (logged out)', async () => {
       jwtService.verify.mockReturnValue(validAccessPayload);
       cacheManager.get.mockResolvedValue(null); // session deleted
 
-      await expect(
-        service.validateSession('valid-token-but-logged-out'),
-      ).rejects.toThrow(
+      await expect(service.validateSession('valid-token-but-logged-out')).rejects.toThrow(
         new UnauthorizedException('Session expired or invalidated'),
       );
     });
@@ -410,9 +402,7 @@ describe('AuthService', () => {
 
       await service.resetPassword('test@example.com', '123456', 'NewPass123!');
 
-      expect(cacheManager.get).toHaveBeenCalledWith(
-        'password-reset:test@example.com',
-      );
+      expect(cacheManager.get).toHaveBeenCalledWith('password-reset:test@example.com');
       expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
         passwordHash: 'new-hashed-password',
       });
@@ -425,9 +415,7 @@ describe('AuthService', () => {
 
       await service.resetPassword('test@example.com', '123456', 'NewPass123!');
 
-      expect(cacheManager.del).toHaveBeenCalledWith(
-        'password-reset:test@example.com',
-      );
+      expect(cacheManager.del).toHaveBeenCalledWith('password-reset:test@example.com');
     });
 
     it('should throw BadRequestException when OTP is missing or expired', async () => {
@@ -456,9 +444,9 @@ describe('AuthService', () => {
     });
 
     it('should throw BadRequestException when password is too short', async () => {
-      await expect(
-        service.resetPassword('test@example.com', '123456', 'Ab1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.resetPassword('test@example.com', '123456', 'Ab1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when password has no uppercase', async () => {
@@ -553,9 +541,7 @@ describe('AuthService', () => {
         name: 'X',
       });
 
-      await expect(service.loginWithGoogle('id-token')).rejects.toThrow(
-        /belum terverifikasi/i,
-      );
+      await expect(service.loginWithGoogle('id-token')).rejects.toThrow(/belum terverifikasi/i);
     });
   });
 });

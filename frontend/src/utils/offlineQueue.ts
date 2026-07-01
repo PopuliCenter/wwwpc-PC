@@ -72,9 +72,7 @@ function tx<T>(
 // ─── Queue ────────────────────────────────────────────────────────────────
 
 export function queueAdd(record: QueuedResponse): Promise<void> {
-  return tx<IDBValidKey>(QUEUE_STORE, 'readwrite', (s) => s.put(record)).then(
-    () => undefined,
-  );
+  return tx<IDBValidKey>(QUEUE_STORE, 'readwrite', (s) => s.put(record)).then(() => undefined);
 }
 
 export function queueGetAll(): Promise<QueuedResponse[]> {
@@ -82,9 +80,7 @@ export function queueGetAll(): Promise<QueuedResponse[]> {
 }
 
 export function queueDelete(localId: string): Promise<void> {
-  return tx<undefined>(QUEUE_STORE, 'readwrite', (s) => s.delete(localId)).then(
-    () => undefined,
-  );
+  return tx<undefined>(QUEUE_STORE, 'readwrite', (s) => s.delete(localId)).then(() => undefined);
 }
 
 export async function queueCount(): Promise<number> {
@@ -95,16 +91,14 @@ export async function queueCount(): Promise<number> {
 // ─── Cache (data survei untuk offline) ──────────────────────────────────────
 
 export function cachePut(key: string, value: unknown): Promise<void> {
-  return tx<IDBValidKey>(CACHE_STORE, 'readwrite', (s) =>
-    s.put({ key, value }),
-  ).then(() => undefined);
+  return tx<IDBValidKey>(CACHE_STORE, 'readwrite', (s) => s.put({ key, value })).then(
+    () => undefined,
+  );
 }
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  const row = await tx<{ key: string; value: T } | undefined>(
-    CACHE_STORE,
-    'readonly',
-    (s) => s.get(key),
+  const row = await tx<{ key: string; value: T } | undefined>(CACHE_STORE, 'readonly', (s) =>
+    s.get(key),
   );
   return row ? row.value : null;
 }
@@ -118,9 +112,7 @@ export interface StoredMedia {
 }
 
 export function mediaPut(media: StoredMedia): Promise<void> {
-  return tx<IDBValidKey>(MEDIA_STORE, 'readwrite', (s) => s.put(media)).then(
-    () => undefined,
-  );
+  return tx<IDBValidKey>(MEDIA_STORE, 'readwrite', (s) => s.put(media)).then(() => undefined);
 }
 
 export function mediaGet(id: string): Promise<StoredMedia | undefined> {
@@ -128,9 +120,7 @@ export function mediaGet(id: string): Promise<StoredMedia | undefined> {
 }
 
 export function mediaDelete(id: string): Promise<void> {
-  return tx<undefined>(MEDIA_STORE, 'readwrite', (s) => s.delete(id)).then(
-    () => undefined,
-  );
+  return tx<undefined>(MEDIA_STORE, 'readwrite', (s) => s.delete(id)).then(() => undefined);
 }
 
 /** UUID v4 (pakai crypto bila tersedia, fallback sederhana). */

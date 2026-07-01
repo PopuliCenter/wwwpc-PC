@@ -172,7 +172,12 @@ export function ForgotPasswordPage() {
                 : undefined
             }
           />
-          <Button type="submit" isLoading={isLoading} className="w-full" disabled={code.length !== 6}>
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            className="w-full"
+            disabled={code.length !== 6}
+          >
             Reset Password
           </Button>
           <button

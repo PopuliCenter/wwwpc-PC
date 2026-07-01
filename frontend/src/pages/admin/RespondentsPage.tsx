@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search, FileSpreadsheet, FileText, Loader2, Trash2, ChevronUp, ChevronDown, Upload, Download } from 'lucide-react';
+import {
+  Search,
+  FileSpreadsheet,
+  FileText,
+  Loader2,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Upload,
+  Download,
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { api } from '@/services/api';
 import { useConfirm } from '@/components/common/ConfirmDialog';
@@ -30,7 +40,11 @@ const GENDER_LABEL: Record<string, string> = {
 function fmtDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('id-ID', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -53,9 +67,13 @@ const COLUMNS: { key: keyof Respondent | 'genderLabel'; label: string }[] = [
 function toRow(r: Respondent): Record<string, string | number> {
   const row: Record<string, string | number> = {};
   for (const col of COLUMNS) {
-    if (col.key === 'genderLabel') row[col.label] = r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '';
+    if (col.key === 'genderLabel')
+      row[col.label] = r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '';
     else if (col.key === 'registeredAt') row[col.label] = fmtDate(r.registeredAt);
-    else { const v = r[col.key as keyof Respondent]; row[col.label] = v == null ? '' : (v as string | number); }
+    else {
+      const v = r[col.key as keyof Respondent];
+      row[col.label] = v == null ? '' : (v as string | number);
+    }
   }
   return row;
 }
@@ -95,14 +113,17 @@ export function RespondentsPage() {
     }
   }, []);
 
-  useEffect(() => { void fetchData(''); }, [fetchData]);
+  useEffect(() => {
+    void fetchData('');
+  }, [fetchData]);
   useEffect(() => {
     const t = setTimeout(() => void fetchData(search.trim()), 400);
     return () => clearTimeout(t);
   }, [search, fetchData]);
 
   const provinceOptions = useMemo(
-    () => Array.from(new Set(respondents.map((r) => r.province).filter(Boolean))).sort() as string[],
+    () =>
+      Array.from(new Set(respondents.map((r) => r.province).filter(Boolean))).sort() as string[],
     [respondents],
   );
 
@@ -119,7 +140,8 @@ export function RespondentsPage() {
       return (r[sortKey] ?? '') as string;
     };
     return [...rows].sort((a, b) => {
-      const va = val(a), vb = val(b);
+      const va = val(a),
+        vb = val(b);
       if (va < vb) return -1 * dir;
       if (va > vb) return 1 * dir;
       return 0;
@@ -128,7 +150,10 @@ export function RespondentsPage() {
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(key); setSortDir('asc'); }
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
   };
 
   const allDisplayedSelected = displayed.length > 0 && displayed.every((r) => selected.has(r.id));
@@ -141,7 +166,11 @@ export function RespondentsPage() {
     });
   };
   const toggleSelect = (id: string) =>
-    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
 
   const handleDelete = async (r: Respondent) => {
     const ok = await confirm({
@@ -174,7 +203,8 @@ export function RespondentsPage() {
     setInfo('');
     try {
       const res = await api.post<{ deleted: number; skipped: { id: string; reason: string }[] }>(
-        '/users/bulk-delete', { ids },
+        '/users/bulk-delete',
+        { ids },
       );
       const deletedIds = new Set(ids.filter((id) => !res.skipped.some((s) => s.id === id)));
       setRespondents((prev) => prev.filter((x) => !deletedIds.has(x.id)));
@@ -194,18 +224,32 @@ export function RespondentsPage() {
   const exportRows = () => displayed; // ikut hasil filter & sort
 
   const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(exportRows().map(toRow), { header: COLUMNS.map((c) => c.label) });
+    const ws = XLSX.utils.json_to_sheet(exportRows().map(toRow), {
+      header: COLUMNS.map((c) => c.label),
+    });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Responden');
     XLSX.writeFile(wb, `responden-${stamp()}.xlsx`);
   };
   const exportCsv = () => {
     const header = COLUMNS.map((c) => c.label);
-    const esc = (v: unknown) => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const lines = [header.join(','), ...exportRows().map((r) => { const row = toRow(r); return header.map((h) => esc(row[h])).join(','); })];
+    const esc = (v: unknown) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      header.join(','),
+      ...exportRows().map((r) => {
+        const row = toRow(r);
+        return header.map((h) => esc(row[h])).join(',');
+      }),
+    ];
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `responden-${stamp()}.csv`; a.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `responden-${stamp()}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -213,7 +257,13 @@ export function RespondentsPage() {
   // Unduh template Excel (kolom: Nama Lengkap, Email, Nomor Telepon).
   const downloadTemplate = () => {
     const ws = XLSX.utils.json_to_sheet(
-      [{ 'Nama Lengkap': 'Budi Santoso', Email: 'budi@email.com', 'Nomor Telepon': '081234567890' }],
+      [
+        {
+          'Nama Lengkap': 'Budi Santoso',
+          Email: 'budi@email.com',
+          'Nomor Telepon': '081234567890',
+        },
+      ],
       { header: ['Nama Lengkap', 'Email', 'Nomor Telepon'] },
     );
     const wb = XLSX.utils.book_new();
@@ -250,7 +300,10 @@ export function RespondentsPage() {
         const email = clean(pick(row, ['Email', 'email']));
         const phone = clean(pick(row, ['Nomor Telepon', 'Telepon', 'No HP', 'Phone', 'HP']));
         if (!name && !email && !phone) continue; // baris kosong
-        if (!email) { skipped++; continue; }
+        if (!email) {
+          skipped++;
+          continue;
+        }
         csvLines.push(`${name},${email},${phone},respondent`);
       }
 
@@ -259,10 +312,10 @@ export function RespondentsPage() {
         return;
       }
 
-      const res = await api.post<{ successCount: number; errors: { row: number; email?: string; reason: string }[] }>(
-        '/users/bulk-import',
-        { csv: csvLines.join('\n') },
-      );
+      const res = await api.post<{
+        successCount: number;
+        errors: { row: number; email?: string; reason: string }[];
+      }>('/users/bulk-import', { csv: csvLines.join('\n') });
 
       const failParts: string[] = [];
       if (res.errors?.length) failParts.push(`${res.errors.length} gagal`);
@@ -271,7 +324,10 @@ export function RespondentsPage() {
         `${res.successCount} responden diimpor` +
           (failParts.length ? ` — ${failParts.join(', ')}.` : '.') +
           (res.errors?.length
-            ? ` Contoh: ${res.errors.slice(0, 3).map((e) => `baris ${e.row}: ${e.reason}`).join('; ')}`
+            ? ` Contoh: ${res.errors
+                .slice(0, 3)
+                .map((e) => `baris ${e.row}: ${e.reason}`)
+                .join('; ')}`
             : ''),
       );
       void fetchData(search.trim());
@@ -285,11 +341,27 @@ export function RespondentsPage() {
 
   const selectedCount = displayed.filter((r) => selected.has(r.id)).length;
 
-  const SortHead = ({ k, label, className = '' }: { k: SortKey; label: string; className?: string }) => (
-    <th className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 hover:text-gray-700 ${className}`} onClick={() => toggleSort(k)}>
+  const SortHead = ({
+    k,
+    label,
+    className = '',
+  }: {
+    k: SortKey;
+    label: string;
+    className?: string;
+  }) => (
+    <th
+      className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 hover:text-gray-700 ${className}`}
+      onClick={() => toggleSort(k)}
+    >
       <span className="inline-flex items-center gap-1">
         {label}
-        {sortKey === k && (sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+        {sortKey === k &&
+          (sortDir === 'asc' ? (
+            <ChevronUp className="h-3 w-3" />
+          ) : (
+            <ChevronDown className="h-3 w-3" />
+          ))}
       </span>
     </th>
   );
@@ -300,7 +372,9 @@ export function RespondentsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Responden</h1>
-          <p className="text-sm text-gray-500">Daftar responden mandiri — filter, urutkan, dan kelola.</p>
+          <p className="text-sm text-gray-500">
+            Daftar responden mandiri — filter, urutkan, dan kelola.
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -313,21 +387,36 @@ export function RespondentsPage() {
               if (f) void handleImportFile(f);
             }}
           />
-          <button onClick={downloadTemplate}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <button
+            onClick={downloadTemplate}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
             <Download className="h-4 w-4" /> Template
           </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
-            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50">
-            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {importing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
             Impor Excel
           </button>
-          <button onClick={exportExcel} disabled={displayed.length === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50">
+          <button
+            onClick={exportExcel}
+            disabled={displayed.length === 0}
+            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
             <FileSpreadsheet className="h-4 w-4" /> Excel
           </button>
-          <button onClick={exportCsv} disabled={displayed.length === 0}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+          <button
+            onClick={exportCsv}
+            disabled={displayed.length === 0}
+            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
             <FileText className="h-4 w-4" /> CSV
           </button>
         </div>
@@ -337,44 +426,84 @@ export function RespondentsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari nama/email/telepon…"
-            className="w-64 rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama/email/telepon…"
+            className="w-64 rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          />
         </div>
-        <select value={filterProvince} onChange={(e) => setFilterProvince(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <select
+          value={filterProvince}
+          onChange={(e) => setFilterProvince(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        >
           <option value="">Semua provinsi</option>
-          {provinceOptions.map((p) => <option key={p} value={p}>{p}</option>)}
+          {provinceOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
         </select>
-        <select value={filterGender} onChange={(e) => setFilterGender(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+        <select
+          value={filterGender}
+          onChange={(e) => setFilterGender(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        >
           <option value="">Semua gender</option>
           <option value="male">Laki-laki</option>
           <option value="female">Perempuan</option>
           <option value="other">Lainnya</option>
         </select>
         {(filterProvince || filterGender) && (
-          <button onClick={() => { setFilterProvince(''); setFilterGender(''); }}
-            className="text-sm text-gray-500 hover:text-gray-700">Reset filter</button>
+          <button
+            onClick={() => {
+              setFilterProvince('');
+              setFilterGender('');
+            }}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            Reset filter
+          </button>
         )}
         {selectedCount > 0 && (
-          <button onClick={handleBulkDelete} disabled={bulkBusy}
-            className="ml-auto inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-            {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkBusy}
+            className="ml-auto inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {bulkBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
             Hapus terpilih ({selectedCount})
           </button>
         )}
       </div>
 
-      {error && <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-      {info && <div className="rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">{info}</div>}
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {info && (
+        <div className="rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">
+          {info}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-3 py-2.5">
-                <input type="checkbox" checked={allDisplayedSelected} onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                <input
+                  type="checkbox"
+                  checked={allDisplayedSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
               </th>
               <SortHead k="fullName" label="Nama" />
               <th className="px-3 py-2.5">Email</th>
@@ -394,45 +523,77 @@ export function RespondentsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading && (
-              <tr><td colSpan={15} className="px-3 py-10 text-center text-gray-400"><Loader2 className="mx-auto h-5 w-5 animate-spin" /></td></tr>
-            )}
-            {!loading && displayed.length === 0 && (
-              <tr><td colSpan={15} className="px-3 py-10 text-center text-gray-400">Tidak ada responden.</td></tr>
-            )}
-            {!loading && displayed.map((r) => (
-              <tr key={r.id} className={selected.has(r.id) ? 'bg-primary-50/40' : 'hover:bg-gray-50'}>
-                <td className="px-3 py-2">
-                  <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">{r.fullName}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.email}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.phone}</td>
-                <td className="px-3 py-2 text-gray-600">{r.age ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.occupation ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.education ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.religion ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.district ?? '—'}</td>
-                <td className="max-w-xs truncate px-3 py-2 text-gray-600" title={r.address ?? ''}>{r.address ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-500">{fmtDate(r.registeredAt)}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <button onClick={() => handleDelete(r)} title="Hapus responden"
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-800">
-                    <Trash2 className="h-3.5 w-3.5" /> Hapus
-                  </button>
+              <tr>
+                <td colSpan={15} className="px-3 py-10 text-center text-gray-400">
+                  <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                 </td>
               </tr>
-            ))}
+            )}
+            {!loading && displayed.length === 0 && (
+              <tr>
+                <td colSpan={15} className="px-3 py-10 text-center text-gray-400">
+                  Tidak ada responden.
+                </td>
+              </tr>
+            )}
+            {!loading &&
+              displayed.map((r) => (
+                <tr
+                  key={r.id}
+                  className={selected.has(r.id) ? 'bg-primary-50/40' : 'hover:bg-gray-50'}
+                >
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelect(r.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">
+                    {r.fullName}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.email}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.phone}</td>
+                  <td className="px-3 py-2 text-gray-600">{r.age ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                    {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                    {r.occupation ?? '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                    {r.education ?? '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.religion ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.district ?? '—'}</td>
+                  <td className="max-w-xs truncate px-3 py-2 text-gray-600" title={r.address ?? ''}>
+                    {r.address ?? '—'}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-gray-500">
+                    {fmtDate(r.registeredAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <button
+                      onClick={() => handleDelete(r)}
+                      title="Hapus responden"
+                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-800"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Hapus
+                    </button>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
 
       {!loading && (
         <p className="text-xs text-gray-400">
-          Menampilkan {displayed.length} dari {respondents.length} responden{selectedCount > 0 ? ` · ${selectedCount} terpilih` : ''}.
+          Menampilkan {displayed.length} dari {respondents.length} responden
+          {selectedCount > 0 ? ` · ${selectedCount} terpilih` : ''}.
         </p>
       )}
     </div>

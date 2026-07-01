@@ -20,12 +20,7 @@ import {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      PointTransaction,
-      RewardRedemption,
-      StreakTracker,
-      User,
-    ]),
+    TypeOrmModule.forFeature([PointTransaction, RewardRedemption, StreakTracker, User]),
     ScheduleModule.forRoot(),
     AuthModule,
     NotificationModule,
@@ -38,9 +33,7 @@ import {
       provide: REWARD_FULFILLMENT_PROVIDER,
       inject: [ConfigService],
       useFactory: (config: ConfigService): RewardFulfillmentProvider => {
-        const provider = (
-          config.get<string>('REWARD_PROVIDER') || 'manual'
-        ).toLowerCase();
+        const provider = (config.get<string>('REWARD_PROVIDER') || 'manual').toLowerCase();
         if (provider === 'iak') return new IakFulfillmentProvider(config);
         return new ManualFulfillmentProvider();
       },

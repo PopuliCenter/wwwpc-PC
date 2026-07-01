@@ -9,15 +9,11 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Catatan: ALTER TYPE ... ADD VALUE didukung di dalam transaksi sejak PG 12
  * (kita pakai PG 16). IF NOT EXISTS membuatnya idempoten.
  */
-export class AddRandomArmQuestionType1715000037000
-  implements MigrationInterface
-{
+export class AddRandomArmQuestionType1715000037000 implements MigrationInterface {
   name = 'AddRandomArmQuestionType1715000037000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'random_arm'`,
-    );
+    await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'random_arm'`);
   }
 
   public async down(): Promise<void> {

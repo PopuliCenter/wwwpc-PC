@@ -123,7 +123,9 @@ export function ResponseDetailPage() {
                 </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{answer.questionText}</p>
-                  <p className="text-xs text-gray-400 mb-1 capitalize">{answer.questionType.replace('_', ' ')}</p>
+                  <p className="text-xs text-gray-400 mb-1 capitalize">
+                    {answer.questionType.replace('_', ' ')}
+                  </p>
                   {answer.parts && answer.parts.length > 0 ? (
                     <div className="overflow-hidden rounded border border-gray-100">
                       {answer.parts.map((p, i) => (

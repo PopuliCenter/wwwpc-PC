@@ -30,8 +30,7 @@ export async function getPosition(opts: GeoOptions = {}): Promise<GeoCoords | nu
     try {
       const { Geolocation } = await import('@capacitor/geolocation');
       const perm = await Geolocation.requestPermissions();
-      const granted =
-        perm.location === 'granted' || perm.coarseLocation === 'granted';
+      const granted = perm.location === 'granted' || perm.coarseLocation === 'granted';
       if (!granted) return null;
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy,

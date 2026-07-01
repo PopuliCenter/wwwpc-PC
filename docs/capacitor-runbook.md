@@ -13,11 +13,11 @@ backend device-token & kirim FCM). Sisa: jalankan `cap add`, isi
 
 Ada **tiga** jenis, jangan tertukar:
 
-| Jenis | Muncul kapan | Siapa menampilkan | Di kode ini |
-|---|---|---|---|
-| **Notifikasi sistem (push)** | Aplikasi **di belakang/tertutup** | OS (status bar HP) | Dikirim server via FCM/APNs (Stage B) |
-| **Pop-up in-app** | Aplikasi **sedang dibuka** | Aplikasi sendiri | `NotificationHost` + `showAppNotice()` |
-| **Local notification** | Dijadwalkan di perangkat | OS | `@capacitor/local-notifications` (opsional) |
+| Jenis                        | Muncul kapan                      | Siapa menampilkan  | Di kode ini                                 |
+| ---------------------------- | --------------------------------- | ------------------ | ------------------------------------------- |
+| **Notifikasi sistem (push)** | Aplikasi **di belakang/tertutup** | OS (status bar HP) | Dikirim server via FCM/APNs (Stage B)       |
+| **Pop-up in-app**            | Aplikasi **sedang dibuka**        | Aplikasi sendiri   | `NotificationHost` + `showAppNotice()`      |
+| **Local notification**       | Dijadwalkan di perangkat          | OS                 | `@capacitor/local-notifications` (opsional) |
 
 **Poin penting yang sering jadi pertimbangan:** saat push tiba **ketika aplikasi
 sedang dibuka (foreground)**, OS sering TIDAK menampilkan banner. Maka push yang
@@ -30,25 +30,35 @@ Pop-up in-app (`showAppNotice`) juga bisa dipakai untuk pesan biasa (info/sukses
 error) dan **berfungsi di web maupun native** — tidak butuh izin OS.
 
 Contoh memunculkan pop-up dari mana saja:
+
 ```ts
 import { showAppNotice } from '@/stores/notification.store';
-showAppNotice({ title: 'Survei baru tersedia', body: 'Survei Kepuasan 2026', link: '/surveys/abc/fill', tone: 'info' });
+showAppNotice({
+  title: 'Survei baru tersedia',
+  body: 'Survei Kepuasan 2026',
+  link: '/surveys/abc/fill',
+  tone: 'info',
+});
 ```
 
 ---
 
 ## 2. Prasyarat (mesin developer)
+
 - Node.js (sudah).
 - **Android**: Android Studio + JDK 17.
 - **iOS**: hanya di **macOS** dengan Xcode + akun Apple Developer ($99/th).
 
 ## 2b. ⚠️ WAJIB untuk build native (2 hal — kalau tidak, aplikasi blank/gagal)
+
 Berbeda dari web, aplikasi native memanggil server dari origin lokal, jadi:
 
 1. **URL API absolut.** Saat build native, set di `frontend/.env.production`:
+
    ```bash
    VITE_API_BASE_URL=https://survei.risetcenter.com/api
    ```
+
    (Di web ini kosong → otomatis `/api` relatif. Native WAJIB absolut — tanpa ini
    semua panggilan API gagal karena `/api` menunjuk ke dalam app.)
 
@@ -61,35 +71,43 @@ Berbeda dari web, aplikasi native memanggil server dari origin lokal, jadi:
    `capacitor://localhost`.)
 
 ## 3. Tambah platform native (sekali saja)
+
 Dari folder `frontend/`:
+
 ```bash
 npm i -D @capacitor/android @capacitor/ios
 npx cap add android
 npx cap add ios          # hanya di macOS
 ```
+
 > Folder `frontend/android` & `frontend/ios` di-generate lokal (di-`.gitignore`).
 > `capacitor.config.ts` sudah ada (appId `com.populicenter.survei`, webDir `dist`).
 > Pastikan §2b sudah dikerjakan SEBELUM `npm run cap:android` (URL API di-bake saat build).
 
 ## 4. Build & jalankan
+
 ```bash
 npm run cap:android      # build web → sync → buka Android Studio
 npm run cap:ios          # (macOS) build web → sync → buka Xcode
 ```
+
 Di Android Studio/Xcode: tekan Run untuk emulator/perangkat, atau Build untuk APK/AAB.
 Setiap habis mengubah kode web: `npm run cap:sync`.
 
 ## 5. Aktifkan Push (FCM/APNs)
+
 Plugin `@capacitor/push-notifications` sudah terpasang & ter-wire di
 `src/services/notifications.ts`.
 
 **Android (FCM):**
+
 1. Buat project di **Firebase Console** → tambah app Android (package
    `com.populicenter.survei`).
 2. Unduh **`google-services.json`** → taruh di `frontend/android/app/`.
 3. (Plugin sudah menambah dependency Gradle yang diperlukan saat `cap sync`.)
 
 **iOS (APNs):**
+
 1. Di Apple Developer, aktifkan **Push Notifications** untuk App ID.
 2. Tambah app iOS di Firebase, unggah **APNs key**, taruh `GoogleService-Info.plist`
    di proyek iOS.
@@ -137,6 +155,7 @@ hapus token saat logout; fitur Pengumuman/Berita untuk push non-survei.
 ---
 
 ## 7. Hal lain
+
 - **Ikon & splash**: `@capacitor/assets` untuk generate dari satu gambar.
 - **Signing/rilis**: Android pakai keystore (`*.jks`, jangan masuk git);
   iOS pakai signing Xcode.

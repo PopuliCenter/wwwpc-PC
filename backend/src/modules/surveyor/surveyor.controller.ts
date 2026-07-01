@@ -36,19 +36,13 @@ export class SurveyorController {
   /** Upload berkas media (foto/audio/tanda tangan/berkas) oleh surveyor. */
   @Post('surveys/:surveyId/responses/upload')
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
-  )
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   async uploadFile(
     @Param('surveyId') surveyId: string,
     @Request() req: any,
     @UploadedFile() file: UploadedFileLike,
   ) {
-    return this.fileUploadService.uploadAnswerFile(
-      surveyId,
-      req.user.userId,
-      file,
-    );
+    return this.fileUploadService.uploadAnswerFile(surveyId, req.user.userId, file);
   }
 
   @Get('surveys')
@@ -57,18 +51,12 @@ export class SurveyorController {
   }
 
   @Get('surveys/:surveyId/numbers')
-  async myNumbers(
-    @Param('surveyId') surveyId: string,
-    @Request() req: any,
-  ) {
+  async myNumbers(@Param('surveyId') surveyId: string, @Request() req: any) {
     return this.surveyorService.getMyNumbers(surveyId, req.user.userId);
   }
 
   @Get('surveys/:surveyId/fill')
-  async fillData(
-    @Param('surveyId') surveyId: string,
-    @Request() req: any,
-  ) {
+  async fillData(@Param('surveyId') surveyId: string, @Request() req: any) {
     return this.surveyorService.getFillData(surveyId, req.user.userId);
   }
 

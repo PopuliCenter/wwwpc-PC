@@ -24,9 +24,7 @@ function HeatmapPopupBody({ point }: { point: HeatmapPoint }) {
   return (
     <div style={{ maxWidth: 230, maxHeight: 220, overflowY: 'auto', fontSize: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{point.count} responden</div>
-      {list.length === 0 && point.city && (
-        <div style={{ color: '#6b7280' }}>{point.city}</div>
-      )}
+      {list.length === 0 && point.city && <div style={{ color: '#6b7280' }}>{point.city}</div>}
       {list.slice(0, 10).map((r, i) => (
         <div key={i} style={{ borderTop: '1px solid #eee', paddingTop: 4, marginTop: 4 }}>
           <div style={{ fontWeight: 500 }}>{r.name}</div>
@@ -44,9 +42,7 @@ function HeatmapPopupBody({ point }: { point: HeatmapPoint }) {
         </div>
       ))}
       {list.length > 10 && (
-        <div style={{ color: '#9ca3af', marginTop: 4 }}>
-          +{list.length - 10} responden lainnya…
-        </div>
+        <div style={{ color: '#9ca3af', marginTop: 4 }}>+{list.length - 10} responden lainnya…</div>
       )}
     </div>
   );
@@ -74,7 +70,9 @@ function LeafletMap({ points }: { points: HeatmapPoint[] }) {
   }, []);
 
   if (!MapComponents) {
-    return <div className="flex h-full items-center justify-center text-gray-500">Memuat peta...</div>;
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500">Memuat peta...</div>
+    );
   }
 
   const { MapContainer, TileLayer, CircleMarker, Popup } = MapComponents;
@@ -134,7 +132,8 @@ export function MapsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Peta Sebaran Responden</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Distribusi geografis responden untuk meninjau pola pengisian survei (deteksi konsentrasi tidak wajar).
+          Distribusi geografis responden untuk meninjau pola pengisian survei (deteksi konsentrasi
+          tidak wajar).
         </p>
       </div>
 
@@ -142,9 +141,13 @@ export function MapsPage() {
         <div className="lg:col-span-2">
           <div className="h-[28rem] overflow-hidden rounded-lg border border-gray-200 bg-white">
             {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-gray-500">Memuat peta...</div>
+              <div className="flex h-full items-center justify-center text-sm text-gray-500">
+                Memuat peta...
+              </div>
             ) : error ? (
-              <div className="flex h-full items-center justify-center text-sm text-red-500">{error}</div>
+              <div className="flex h-full items-center justify-center text-sm text-red-500">
+                {error}
+              </div>
             ) : (
               <LeafletMap points={points} />
             )}
@@ -171,8 +174,12 @@ export function MapsPage() {
               <ul className="divide-y divide-gray-100">
                 {topPoints.map((p, idx) => (
                   <li key={idx} className="flex items-center justify-between py-2 text-sm">
-                    <span className="truncate text-gray-700">{p.city ?? `${p.latitude.toFixed(3)}, ${p.longitude.toFixed(3)}`}</span>
-                    <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${p.count >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span className="truncate text-gray-700">
+                      {p.city ?? `${p.latitude.toFixed(3)}, ${p.longitude.toFixed(3)}`}
+                    </span>
+                    <span
+                      className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${p.count >= 10 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}
+                    >
                       {p.count}
                     </span>
                   </li>

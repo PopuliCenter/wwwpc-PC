@@ -182,7 +182,11 @@ export function RegisterPage() {
 
   const Header = ({ title, subtitle }: { title: string; subtitle: string }) => (
     <div className="mb-6 flex flex-col items-center">
-      <img src="/logo-populi-center.png" alt="Populi Center" className="mb-2 h-14 w-14 object-contain" />
+      <img
+        src="/logo-populi-center.png"
+        alt="Populi Center"
+        className="mb-2 h-14 w-14 object-contain"
+      />
       <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
       <p className="mt-1 text-center text-sm text-gray-500">{subtitle}</p>
     </div>
@@ -199,7 +203,10 @@ export function RegisterPage() {
   if (step === 'otp') {
     return (
       <div>
-        <Header title="Verifikasi Email" subtitle="Masukkan 6 digit kode yang dikirim ke email Anda." />
+        <Header
+          title="Verifikasi Email"
+          subtitle="Masukkan 6 digit kode yang dikirim ke email Anda."
+        />
         {otpInfo && (
           <div className="mb-4 rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">
             {otpInfo}
@@ -216,17 +223,30 @@ export function RegisterPage() {
             className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-2xl font-semibold tracking-[0.5em] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             required
           />
-          <Button type="submit" isLoading={isLoading} className="w-full" disabled={otp.length !== 6}>
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            className="w-full"
+            disabled={otp.length !== 6}
+          >
             Verifikasi
           </Button>
         </form>
         <div className="mt-4 flex items-center justify-between text-sm">
-          <button type="button" onClick={handleResendOtp} className="font-medium text-primary-600 hover:text-primary-500">
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            className="font-medium text-primary-600 hover:text-primary-500"
+          >
             Kirim ulang kode
           </button>
           <button
             type="button"
-            onClick={() => { setStep('profile'); setOtp(''); setError(''); }}
+            onClick={() => {
+              setStep('profile');
+              setOtp('');
+              setError('');
+            }}
             className="text-gray-500 hover:text-gray-700"
           >
             Kembali
@@ -245,38 +265,78 @@ export function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Input label="Tanggal Lahir" type="date" max={TODAY_ISO} value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)} required />
+              <Input
+                label="Tanggal Lahir"
+                type="date"
+                max={TODAY_ISO}
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                required
+              />
               {ageFromDob(dateOfBirth) !== null && (
                 <p className="mt-1 text-xs text-gray-500">Usia: {ageFromDob(dateOfBirth)} tahun</p>
               )}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Kelamin</label>
-              <select value={gender} onChange={(e) => setGender(e.target.value)} required className={selectCls}>
-                <option value="" disabled>Pilih…</option>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                required
+                className={selectCls}
+              >
+                <option value="" disabled>
+                  Pilih…
+                </option>
                 <option value="male">Laki-laki</option>
                 <option value="female">Perempuan</option>
               </select>
             </div>
-            <Input label="Pekerjaan" value={occupation}
-              onChange={(e) => setOccupation(e.target.value)} placeholder="Contoh: Wiraswasta" required />
+            <Input
+              label="Pekerjaan"
+              value={occupation}
+              onChange={(e) => setOccupation(e.target.value)}
+              placeholder="Contoh: Wiraswasta"
+              required
+            />
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Pendidikan Terakhir</label>
-              <select value={education} onChange={(e) => setEducation(e.target.value)} required className={selectCls}>
-                <option value="" disabled>Pilih…</option>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Pendidikan Terakhir
+              </label>
+              <select
+                value={education}
+                onChange={(e) => setEducation(e.target.value)}
+                required
+                className={selectCls}
+              >
+                <option value="" disabled>
+                  Pilih…
+                </option>
                 {['SD', 'SMP', 'SMA/SMK', 'D1/D2/D3', 'D4/S1', 'S2', 'S3', 'Lainnya'].map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium text-gray-700">Agama</label>
-              <select value={religion} onChange={(e) => setReligion(e.target.value)} required className={selectCls}>
-                <option value="" disabled>Pilih…</option>
-                {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'].map((v) => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
+              <select
+                value={religion}
+                onChange={(e) => setReligion(e.target.value)}
+                required
+                className={selectCls}
+              >
+                <option value="" disabled>
+                  Pilih…
+                </option>
+                {['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'].map(
+                  (v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ),
+                )}
               </select>
             </div>
           </div>
@@ -313,7 +373,15 @@ export function RegisterPage() {
           </div>
 
           <div className="flex gap-3">
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => { setStep('account'); setError(''); }}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => {
+                setStep('account');
+                setError('');
+              }}
+            >
               Kembali
             </Button>
             <Button type="submit" isLoading={isLoading} className="flex-1">
@@ -331,12 +399,30 @@ export function RegisterPage() {
       <Header title="Buat Akun" subtitle="Langkah 1 dari 2 — buat akun Anda." />
       <ErrorBox />
       <form onSubmit={goToProfile} className="space-y-4">
-        <Input label="Nama Lengkap" value={fullName}
-          onChange={(e) => setFullName(e.target.value)} placeholder="Masukkan nama lengkap" required />
-        <Input label="Email" type="email" value={email}
-          onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" required autoComplete="email" />
-        <Input label="Nomor Telepon" type="tel" value={phone}
-          onChange={(e) => setPhone(e.target.value)} placeholder="08xxxxxxxxxx" required />
+        <Input
+          label="Nama Lengkap"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          placeholder="Masukkan nama lengkap"
+          required
+        />
+        <Input
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="nama@email.com"
+          required
+          autoComplete="email"
+        />
+        <Input
+          label="Nomor Telepon"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="08xxxxxxxxxx"
+          required
+        />
         <Input
           label="Password"
           type={showPassword ? 'text' : 'password'}
@@ -367,7 +453,11 @@ export function RegisterPage() {
           required
           minLength={8}
           autoComplete="new-password"
-          error={confirmPassword.length > 0 && confirmPassword !== password ? 'Password tidak sama' : undefined}
+          error={
+            confirmPassword.length > 0 && confirmPassword !== password
+              ? 'Password tidak sama'
+              : undefined
+          }
         />
         <Button type="submit" className="w-full">
           Lanjut

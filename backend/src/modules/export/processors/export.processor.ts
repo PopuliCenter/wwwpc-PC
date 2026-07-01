@@ -74,9 +74,7 @@ function regionName(value: any, key: string): string {
  * Dipakai untuk mengkodekan jawaban pilihan jadi angka siap-SPSS.
  */
 function optionCodeMap(question: Question): Map<string, number> {
-  const opts = [...(question.options ?? [])].sort(
-    (a, b) => a.orderIndex - b.orderIndex,
-  );
+  const opts = [...(question.options ?? [])].sort((a, b) => a.orderIndex - b.orderIndex);
   return new Map(opts.map((o, i) => [o.value, i + 1]));
 }
 
@@ -145,30 +143,46 @@ export class ExportProcessor {
 
   @Process(EXPORT_CSV_JOB)
   async handleCsvExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses, profiles, questions) => {
-      return this.generateCsv(responses, profiles, questions);
-    }, 'csv');
+    return this.processExport(
+      job,
+      async (responses, profiles, questions) => {
+        return this.generateCsv(responses, profiles, questions);
+      },
+      'csv',
+    );
   }
 
   @Process(EXPORT_EXCEL_JOB)
   async handleExcelExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses, profiles, questions) => {
-      return this.generateExcel(responses, profiles, questions);
-    }, 'xlsx');
+    return this.processExport(
+      job,
+      async (responses, profiles, questions) => {
+        return this.generateExcel(responses, profiles, questions);
+      },
+      'xlsx',
+    );
   }
 
   @Process(EXPORT_PDF_JOB)
   async handlePdfExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses) => {
-      return this.generatePdf(responses);
-    }, 'pdf');
+    return this.processExport(
+      job,
+      async (responses) => {
+        return this.generatePdf(responses);
+      },
+      'pdf',
+    );
   }
 
   @Process(EXPORT_JSON_JOB)
   async handleJsonExport(job: Job<ExportJobData>): Promise<ExportResult> {
-    return this.processExport(job, async (responses, profiles, questions) => {
-      return this.generateJson(responses, profiles, questions);
-    }, 'json');
+    return this.processExport(
+      job,
+      async (responses, profiles, questions) => {
+        return this.generateJson(responses, profiles, questions);
+      },
+      'json',
+    );
   }
 
   @Process(EXPORT_AUDIT_LOG_JOB)
@@ -280,10 +294,7 @@ export class ExportProcessor {
     return qb.getMany();
   }
 
-  private applyFilters(
-    qb: SelectQueryBuilder<SurveyResponse>,
-    filters: ResponseFilter,
-  ): void {
+  private applyFilters(qb: SelectQueryBuilder<SurveyResponse>, filters: ResponseFilter): void {
     if (filters.dateRange) {
       qb.andWhere('response.started_at >= :startDate', {
         startDate: new Date(filters.dateRange.start),
@@ -294,10 +305,9 @@ export class ExportProcessor {
     }
 
     if (filters.region) {
-      qb.andWhere(
-        '(profile.city ILIKE :region OR profile.province ILIKE :region)',
-        { region: `%${filters.region}%` },
-      );
+      qb.andWhere('(profile.city ILIKE :region OR profile.province ILIKE :region)', {
+        region: `%${filters.region}%`,
+      });
     }
 
     if (filters.profileAttributes) {
@@ -336,9 +346,7 @@ export class ExportProcessor {
   }
 
   /** Peta userId → profil demografi untuk responden pada kumpulan respons ini. */
-  private async loadProfiles(
-    responses: SurveyResponse[],
-  ): Promise<Map<string, UserProfile>> {
+  private async loadProfiles(responses: SurveyResponse[]): Promise<Map<string, UserProfile>> {
     const ids = [...new Set(responses.map((r) => r.respondentId).filter(Boolean))];
     if (ids.length === 0) return new Map();
     const profiles = await this.userProfileRepository.find({
@@ -364,13 +372,7 @@ export class ExportProcessor {
     profiles: Map<string, UserProfile>,
     questions: Question[],
   ): { headers: string[]; rows: string[][] } {
-    const metaHeaders = [
-      'response_id',
-      'status',
-      'mulai_pengisian',
-      'waktu_kirim',
-      'perangkat',
-    ];
+    const metaHeaders = ['response_id', 'status', 'mulai_pengisian', 'waktu_kirim', 'perangkat'];
 
     // Bangun kolom per pertanyaan. Jawaban dikodekan jadi ANGKA bila bisa
     // (siap analisis SPSS); makna tiap kode didokumentasikan di sheet "Kodebok".
@@ -441,9 +443,7 @@ export class ExportProcessor {
 
     const rows = responses.map((r) => {
       const p = profiles.get(r.respondentId);
-      const answerByQ = new Map(
-        (r.answers ?? []).map((a) => [a.questionId, a.value]),
-      );
+      const answerByQ = new Map((r.answers ?? []).map((a) => [a.questionId, a.value]));
       return [
         r.id,
         r.status,
@@ -592,9 +592,7 @@ export class ExportProcessor {
       doc.fontSize(11);
       doc.text(`Total respons: ${total}`);
       doc.text(`Selesai: ${complete}`);
-      doc.text(
-        `Tingkat penyelesaian: ${total > 0 ? ((complete / total) * 100).toFixed(1) : 0}%`,
-      );
+      doc.text(`Tingkat penyelesaian: ${total > 0 ? ((complete / total) * 100).toFixed(1) : 0}%`);
       doc.text(`Dibuat: ${new Date().toLocaleString('id-ID')}`);
       doc.moveDown();
 
@@ -643,10 +641,11 @@ export class ExportProcessor {
             city: p?.city ?? null,
             district: p?.district ?? null,
           },
-          answers: r.answers?.map((a) => ({
-            questionId: a.questionId,
-            value: a.value,
-          })) || [],
+          answers:
+            r.answers?.map((a) => ({
+              questionId: a.questionId,
+              value: a.value,
+            })) || [],
         };
       }),
     };
@@ -654,9 +653,17 @@ export class ExportProcessor {
     return Promise.resolve(JSON.stringify(structured, null, 2));
   }
 
-  private generateAuditLogCsv(filters: any): string {
+  private generateAuditLogCsv(_filters: any): string {
     // Placeholder - in production, query audit_log table with filters
-    const headers = ['id', 'user_id', 'action_type', 'module', 'ip_address', 'created_at', 'details'];
+    const headers = [
+      'id',
+      'user_id',
+      'action_type',
+      'module',
+      'ip_address',
+      'created_at',
+      'details',
+    ];
     return headers.join(',') + '\n';
   }
 

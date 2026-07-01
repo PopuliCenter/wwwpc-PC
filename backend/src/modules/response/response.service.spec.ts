@@ -7,7 +7,10 @@ import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { ResponseService } from './response.service';
 import { SurveyResponse, ResponseStatus } from './entities/survey-response.entity';
 import { Answer } from './entities/answer.entity';
-import { ManualRewardDistribution, ManualRewardStatus } from './entities/manual-reward-distribution.entity';
+import {
+  ManualRewardDistribution,
+  ManualRewardStatus,
+} from './entities/manual-reward-distribution.entity';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType } from '@modules/events/event-types';
@@ -15,7 +18,6 @@ import { EventType } from '@modules/events/event-types';
 describe('ResponseService', () => {
   let service: ResponseService;
   let responseRepository: any;
-  let answerRepository: any;
   let manualRewardRepository: any;
   let surveyTimeService: any;
   let dataSource: any;
@@ -103,7 +105,12 @@ describe('ResponseService', () => {
     );
     mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
     mockDataSource.query.mockResolvedValue([
-      { email: 'respondent@example.com', fullName: 'Respondent', surveyTitle: 'Survey', rewardPoints: 250 },
+      {
+        email: 'respondent@example.com',
+        fullName: 'Respondent',
+        surveyTitle: 'Survey',
+        rewardPoints: 250,
+      },
     ]);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -111,7 +118,10 @@ describe('ResponseService', () => {
         ResponseService,
         { provide: getRepositoryToken(SurveyResponse), useValue: mockResponseRepository },
         { provide: getRepositoryToken(Answer), useValue: mockAnswerRepository },
-        { provide: getRepositoryToken(ManualRewardDistribution), useValue: mockManualRewardRepository },
+        {
+          provide: getRepositoryToken(ManualRewardDistribution),
+          useValue: mockManualRewardRepository,
+        },
         { provide: SurveyTimeService, useValue: mockSurveyTimeService },
         { provide: AnswerValidationService, useValue: mockAnswerValidationService },
         { provide: DataSource, useValue: mockDataSource },
@@ -121,7 +131,6 @@ describe('ResponseService', () => {
 
     service = module.get<ResponseService>(ResponseService);
     responseRepository = mockResponseRepository;
-    answerRepository = mockAnswerRepository;
     manualRewardRepository = mockManualRewardRepository;
     surveyTimeService = mockSurveyTimeService;
     dataSource = mockDataSource;
@@ -145,9 +154,9 @@ describe('ResponseService', () => {
         status: ResponseStatus.COMPLETE,
       });
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should reject submission if survey time/cap check fails', async () => {
@@ -157,9 +166,9 @@ describe('ResponseService', () => {
         reason: 'Survey has ended',
       });
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject submission with 403 when respondent profile is not completed', async () => {
@@ -172,9 +181,9 @@ describe('ResponseService', () => {
           : Promise.resolve([]),
       );
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(/Lengkapi data diri/i);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        /Lengkapi data diri/i,
+      );
     });
 
     it('should reject submission if timer has expired for in-progress response', async () => {
@@ -190,9 +199,9 @@ describe('ResponseService', () => {
       surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: 30 });
       surveyTimeService.isTimerExpired.mockReturnValue(true);
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject implausibly fast (bot-speed) submissions', async () => {
@@ -209,9 +218,9 @@ describe('ResponseService', () => {
       surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: 30 });
       surveyTimeService.isTimerExpired.mockReturnValue(false);
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should complete an existing in-progress response', async () => {
@@ -226,7 +235,11 @@ describe('ResponseService', () => {
       };
       responseRepository.findOne
         .mockResolvedValueOnce(inProgressResponse) // check existing
-        .mockResolvedValueOnce({ ...inProgressResponse, status: ResponseStatus.COMPLETE, answers: [] }); // findResponseById
+        .mockResolvedValueOnce({
+          ...inProgressResponse,
+          status: ResponseStatus.COMPLETE,
+          answers: [],
+        }); // findResponseById
 
       surveyTimeService.checkSubmissionAllowed.mockResolvedValue({ allowed: true });
       surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: 30 });
@@ -271,9 +284,9 @@ describe('ResponseService', () => {
       // The insert inside the transaction violates the unique constraint
       manager.save.mockRejectedValueOnce({ code: '23505' });
 
-      await expect(
-        service.submitResponse(surveyId, respondentId, dto),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -291,9 +304,9 @@ describe('ResponseService', () => {
         status: ResponseStatus.COMPLETE,
       });
 
-      await expect(
-        service.saveProgress(surveyId, respondentId, dto),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.saveProgress(surveyId, respondentId, dto)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should create a new in-progress response if none exists', async () => {
@@ -302,7 +315,10 @@ describe('ResponseService', () => {
         .mockResolvedValueOnce({ id: 'resp-new', status: ResponseStatus.IN_PROGRESS, answers: [] }); // findResponseById
 
       responseRepository.create.mockImplementation((data) => ({ id: 'resp-new', ...data }));
-      responseRepository.save.mockResolvedValue({ id: 'resp-new', status: ResponseStatus.IN_PROGRESS });
+      responseRepository.save.mockResolvedValue({
+        id: 'resp-new',
+        status: ResponseStatus.IN_PROGRESS,
+      });
 
       const result = await service.saveProgress(surveyId, respondentId, dto);
 
@@ -441,10 +457,9 @@ describe('ResponseService', () => {
         pageSize: 20,
       });
 
-      expect(mockQb.andWhere).toHaveBeenCalledWith(
-        'response.device_type = :deviceType',
-        { deviceType: 'mobile' },
-      );
+      expect(mockQb.andWhere).toHaveBeenCalledWith('response.device_type = :deviceType', {
+        deviceType: 'mobile',
+      });
     });
 
     it('should apply tags filter', async () => {

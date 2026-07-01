@@ -38,10 +38,7 @@ export class SurveyorAdminController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async assign(
-    @Param('surveyId') surveyId: string,
-    @Body() dto: AssignSurveyorDto,
-  ) {
+  async assign(@Param('surveyId') surveyId: string, @Body() dto: AssignSurveyorDto) {
     return this.surveyorService.assignSurveyor(surveyId, dto);
   }
 

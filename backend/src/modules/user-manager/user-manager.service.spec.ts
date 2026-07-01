@@ -166,9 +166,9 @@ describe('UserManagerService', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.activateUser('nonexistent', 'admin-1', '127.0.0.1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.activateUser('nonexistent', 'admin-1', '127.0.0.1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -192,9 +192,9 @@ describe('UserManagerService', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.deactivateUser('nonexistent', 'admin-1', '127.0.0.1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deactivateUser('nonexistent', 'admin-1', '127.0.0.1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -258,10 +258,9 @@ describe('UserManagerService', () => {
 
       await service.listUsers({});
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'user.role != :respondentRole',
-        { respondentRole: UserRole.RESPONDENT },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('user.role != :respondentRole', {
+        respondentRole: UserRole.RESPONDENT,
+      });
     });
 
     it('should apply role filter', async () => {
@@ -269,10 +268,9 @@ describe('UserManagerService', () => {
 
       await service.listUsers({ role: UserRole.ADMIN });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'user.role = :role',
-        { role: UserRole.ADMIN },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('user.role = :role', {
+        role: UserRole.ADMIN,
+      });
     });
 
     it('should apply status filter', async () => {
@@ -280,10 +278,9 @@ describe('UserManagerService', () => {
 
       await service.listUsers({ status: UserStatus.ACTIVE });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'user.status = :status',
-        { status: UserStatus.ACTIVE },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('user.status = :status', {
+        status: UserStatus.ACTIVE,
+      });
     });
 
     it('should apply search filter', async () => {
@@ -346,9 +343,9 @@ describe('UserManagerService', () => {
     it('should throw NotFoundException if user does not exist', async () => {
       userRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.getUserActivityHistory('nonexistent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.getUserActivityHistory('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -393,8 +390,7 @@ Jane Smith,jane@example.com,+6281234567891,analyst`;
     });
 
     it('should handle duplicate emails gracefully', async () => {
-      userRepository.findOne
-        .mockResolvedValueOnce({ id: 'existing', email: 'john@example.com' }); // email exists
+      userRepository.findOne.mockResolvedValueOnce({ id: 'existing', email: 'john@example.com' }); // email exists
 
       const csv = `John Doe,john@example.com,+6281234567890,admin`;
 
@@ -420,9 +416,9 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
     });
 
     it('should throw BadRequestException for empty CSV', async () => {
-      await expect(
-        service.bulkImportUsers('', 'admin-1', '127.0.0.1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.bulkImportUsers('', 'admin-1', '127.0.0.1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should handle rows with insufficient columns', async () => {
@@ -456,35 +452,47 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
     const requesterAdmin = { userId: 'admin-1', role: UserRole.ADMIN };
 
     it('should reject deleting your own account', async () => {
-      await expect(
-        service.deleteUser('admin-1', requesterAdmin, '127.0.0.1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.deleteUser('admin-1', requesterAdmin, '127.0.0.1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should 404 when target not found', async () => {
       userRepository.findOne.mockResolvedValue(null);
-      await expect(
-        service.deleteUser('ghost', requesterAdmin, '127.0.0.1'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deleteUser('ghost', requesterAdmin, '127.0.0.1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should forbid admin from deleting a super admin', async () => {
-      userRepository.findOne.mockResolvedValue({ id: 'sa', role: UserRole.SUPER_ADMIN, email: 'sa@x.com' });
-      await expect(
-        service.deleteUser('sa', requesterAdmin, '127.0.0.1'),
-      ).rejects.toThrow(ForbiddenException);
+      userRepository.findOne.mockResolvedValue({
+        id: 'sa',
+        role: UserRole.SUPER_ADMIN,
+        email: 'sa@x.com',
+      });
+      await expect(service.deleteUser('sa', requesterAdmin, '127.0.0.1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject deleting an account that created surveys', async () => {
-      userRepository.findOne.mockResolvedValue({ id: 'u2', role: UserRole.RESPONDENT, email: 'u2@x.com' });
+      userRepository.findOne.mockResolvedValue({
+        id: 'u2',
+        role: UserRole.RESPONDENT,
+        email: 'u2@x.com',
+      });
       dataSource.query.mockResolvedValueOnce([{ '?column?': 1 }]); // owns a survey
-      await expect(
-        service.deleteUser('u2', requesterAdmin, '127.0.0.1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.deleteUser('u2', requesterAdmin, '127.0.0.1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should delete a respondent in a transaction and audit it', async () => {
-      userRepository.findOne.mockResolvedValue({ id: 'r1', role: UserRole.RESPONDENT, email: 'r1@x.com' });
+      userRepository.findOne.mockResolvedValue({
+        id: 'r1',
+        role: UserRole.RESPONDENT,
+        email: 'r1@x.com',
+      });
       dataSource.query.mockResolvedValueOnce([]); // no surveys
 
       await service.deleteUser('r1', requesterAdmin, '127.0.0.1');

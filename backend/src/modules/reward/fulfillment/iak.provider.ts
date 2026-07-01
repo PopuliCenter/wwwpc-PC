@@ -40,14 +40,30 @@ const registerPrefixes = (operator: string, prefixes: string[]) => {
   for (const p of prefixes) OPERATOR_BY_PREFIX[p] = operator;
 };
 registerPrefixes('telkomsel', [
-  '0811', '0812', '0813', '0821', '0822', '0823', '0851', '0852', '0853',
+  '0811',
+  '0812',
+  '0813',
+  '0821',
+  '0822',
+  '0823',
+  '0851',
+  '0852',
+  '0853',
 ]);
 registerPrefixes('indosat', ['0814', '0815', '0816', '0855', '0856', '0857', '0858']);
 registerPrefixes('xl', ['0817', '0818', '0819', '0859', '0877', '0878']);
 registerPrefixes('axis', ['0831', '0832', '0833', '0838']);
 registerPrefixes('tri', ['0895', '0896', '0897', '0898', '0899']);
 registerPrefixes('smartfren', [
-  '0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889',
+  '0881',
+  '0882',
+  '0883',
+  '0884',
+  '0885',
+  '0886',
+  '0887',
+  '0888',
+  '0889',
 ]);
 
 export class IakFulfillmentProvider implements RewardFulfillmentProvider {
@@ -63,9 +79,10 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
 
   constructor(config: ConfigService) {
     // Sandbox: https://prepaid.iak.dev  |  Produksi: https://prepaid.iak.id
-    this.baseUrl = (
-      config.get<string>('IAK_BASE_URL') || 'https://prepaid.iak.dev'
-    ).replace(/\/+$/, '');
+    this.baseUrl = (config.get<string>('IAK_BASE_URL') || 'https://prepaid.iak.dev').replace(
+      /\/+$/,
+      '',
+    );
     this.username = config.get<string>('IAK_USERNAME') || '';
     this.apiKey = config.get<string>('IAK_API_KEY') || '';
     this.testProductCode = config.get<string>('IAK_TEST_PRODUCT_CODE') || undefined;
@@ -111,9 +128,7 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
   }
 
   private sign(refId: string): string {
-    return createHash('md5')
-      .update(`${this.username}${this.apiKey}${refId}`)
-      .digest('hex');
+    return createHash('md5').update(`${this.username}${this.apiKey}${refId}`).digest('hex');
   }
 
   async fulfill(req: FulfillmentRequest): Promise<FulfillmentOutcome> {
@@ -181,8 +196,7 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
 
     const isSuccess = status === 1 || rc === '00';
     // Gagal pasti bila status=2 ATAU rc bernilai selain sukses('00')/proses('39').
-    const isFailed =
-      status === 2 || (rc !== '' && rc !== '00' && rc !== '39');
+    const isFailed = status === 2 || (rc !== '' && rc !== '00' && rc !== '39');
 
     if (isSuccess) {
       return { status: 'completed', providerTrxId: trxId, sn, message };
@@ -238,9 +252,7 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
       const expected = this.sign(String(refId));
       const got = typeof d.sign === 'string' ? d.sign.toLowerCase() : '';
       if (got !== expected) {
-        this.logger.warn(
-          `Callback IAK ref_id=${refId} ditolak: signature tidak cocok.`,
-        );
+        this.logger.warn(`Callback IAK ref_id=${refId} ditolak: signature tidak cocok.`);
         return null;
       }
     }

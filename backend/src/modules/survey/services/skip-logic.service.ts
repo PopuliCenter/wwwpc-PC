@@ -20,10 +20,7 @@ export class SkipLogicService {
   /**
    * Set skip logic rules for a question. Replaces all existing rules.
    */
-  async setSkipLogicRules(
-    questionId: string,
-    rules: SkipLogicRuleDto[],
-  ): Promise<SkipLogicRule[]> {
+  async setSkipLogicRules(questionId: string, rules: SkipLogicRuleDto[]): Promise<SkipLogicRule[]> {
     // Verify question exists
     const question = await this.questionRepository.findOne({
       where: { id: questionId },
@@ -48,9 +45,7 @@ export class SkipLogicService {
     );
 
     const saved = await this.skipLogicRepository.save(entities);
-    this.logger.log(
-      `Skip logic rules set for question ${questionId}: ${saved.length} rules`,
-    );
+    this.logger.log(`Skip logic rules set for question ${questionId}: ${saved.length} rules`);
     return saved;
   }
 

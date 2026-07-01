@@ -95,9 +95,7 @@ function FaqItem({ faq, defaultOpen }: { faq: Faq; defaultOpen?: boolean }) {
           className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      {open && (
-        <p className="px-4 pb-4 pl-16 text-sm leading-relaxed text-gray-600">{faq.a}</p>
-      )}
+      {open && <p className="px-4 pb-4 pl-16 text-sm leading-relaxed text-gray-600">{faq.a}</p>}
     </div>
   );
 }
@@ -115,10 +113,9 @@ export function HelpPage() {
     setAiAnswer(null);
     setAiUnavailable(false);
     try {
-      const res = await api.post<{ answer: string | null; configured: boolean }>(
-        '/assistant/ask',
-        { question: q },
-      );
+      const res = await api.post<{ answer: string | null; configured: boolean }>('/assistant/ask', {
+        question: q,
+      });
       if (!res.configured || !res.answer) setAiUnavailable(true);
       else setAiAnswer(res.answer);
     } catch {
@@ -321,7 +318,9 @@ export function HelpPage() {
             </span>
             <span className="flex-1">
               <span className="block font-semibold text-gray-800">Situs Web</span>
-              <span className="text-xs text-gray-500">{SUPPORT.website.replace(/^https?:\/\//, '')}</span>
+              <span className="text-xs text-gray-500">
+                {SUPPORT.website.replace(/^https?:\/\//, '')}
+              </span>
             </span>
           </a>
         </div>

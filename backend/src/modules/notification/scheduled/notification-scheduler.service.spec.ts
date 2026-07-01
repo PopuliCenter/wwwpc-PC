@@ -62,7 +62,10 @@ describe('NotificationSchedulerService', () => {
       providers: [
         NotificationSchedulerService,
         { provide: NotificationService, useValue: notificationService },
-        { provide: ConfigService, useValue: { get: vi.fn().mockReturnValue('http://localhost:3000') } },
+        {
+          provide: ConfigService,
+          useValue: { get: vi.fn().mockReturnValue('http://localhost:3000') },
+        },
         { provide: getRepositoryToken(Survey), useValue: surveyRepository },
         { provide: getRepositoryToken(SurveyResponse), useValue: responseRepository },
         { provide: getRepositoryToken(User), useValue: userRepository },
@@ -113,11 +116,13 @@ describe('NotificationSchedulerService', () => {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + 3);
 
-      surveyRepository.find.mockResolvedValue([{
-        id: 'survey-1',
-        title: 'Test Survey',
-        endDatetime: targetDate,
-      }]);
+      surveyRepository.find.mockResolvedValue([
+        {
+          id: 'survey-1',
+          title: 'Test Survey',
+          endDatetime: targetDate,
+        },
+      ]);
       responseRepository.find.mockResolvedValue([]);
       mockQueryBuilder.getMany.mockResolvedValue([]);
 
@@ -171,14 +176,14 @@ describe('NotificationSchedulerService', () => {
       const targetDate = new Date();
       targetDate.setDate(targetDate.getDate() + 1);
 
-      surveyRepository.find.mockResolvedValue([{
-        id: 'survey-1',
-        title: 'Survey',
-        endDatetime: targetDate,
-      }]);
-      responseRepository.find.mockResolvedValue([
-        { respondentId: 'user-already-responded' },
+      surveyRepository.find.mockResolvedValue([
+        {
+          id: 'survey-1',
+          title: 'Survey',
+          endDatetime: targetDate,
+        },
       ]);
+      responseRepository.find.mockResolvedValue([{ respondentId: 'user-already-responded' }]);
       mockQueryBuilder.getMany.mockResolvedValue([
         { email: 'new-user@test.com', fullName: 'New User' },
       ]);
@@ -186,10 +191,9 @@ describe('NotificationSchedulerService', () => {
       await service.sendH1Reminders();
 
       // Verify the query builder was called with NOT IN clause for responded users
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'user.id NOT IN (:...respondedIds)',
-        { respondedIds: ['user-already-responded'] },
-      );
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('user.id NOT IN (:...respondedIds)', {
+        respondedIds: ['user-already-responded'],
+      });
     });
 
     it('should handle errors gracefully without crashing', async () => {
@@ -337,9 +341,7 @@ describe('NotificationSchedulerService', () => {
         status: SurveyStatus.INACTIVE,
       });
 
-      await expect(
-        service.sendTargetedInvitations('survey-1', {}),
-      ).rejects.toThrow();
+      await expect(service.sendTargetedInvitations('survey-1', {})).rejects.toThrow();
     });
 
     it('sendTargetedInvitations returns 0 when nobody matches', async () => {

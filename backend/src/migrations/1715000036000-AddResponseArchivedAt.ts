@@ -28,8 +28,6 @@ export class AddResponseArchivedAt1715000036000 implements MigrationInterface {
         ON "survey_response" ("survey_id", "respondent_id")
         WHERE "surveyor_id" IS NULL
     `);
-    await queryRunner.query(
-      `ALTER TABLE "survey_response" DROP COLUMN IF EXISTS "archived_at"`,
-    );
+    await queryRunner.query(`ALTER TABLE "survey_response" DROP COLUMN IF EXISTS "archived_at"`);
   }
 }

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, MapPin, Send, WifiOff, RefreshCw, CloudUpload } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  MapPin,
+  Send,
+  WifiOff,
+  RefreshCw,
+  CloudUpload,
+} from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
@@ -61,23 +69,17 @@ export function SurveyorCollectPage() {
 
   // Upload media: online → endpoint surveyor; offline → simpan blob lokal,
   // kembalikan referensi local-media:// yang di-resolve saat sinkron.
-  const uploadMedia = useCallback<UploadMediaFn>(
-    async (file, sId, filename = 'upload') => {
-      if (navigator.onLine) {
-        const fd = new FormData();
-        fd.append('file', file, filename);
-        const r = await api.upload<{ key: string }>(
-          `/surveyor/surveys/${sId}/responses/upload`,
-          fd,
-        );
-        return r.key;
-      }
-      const mediaId = makeLocalId();
-      await mediaPut({ id: mediaId, blob: file, filename });
-      return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
-    },
-    [],
-  );
+  const uploadMedia = useCallback<UploadMediaFn>(async (file, sId, filename = 'upload') => {
+    if (navigator.onLine) {
+      const fd = new FormData();
+      fd.append('file', file, filename);
+      const r = await api.upload<{ key: string }>(`/surveyor/surveys/${sId}/responses/upload`, fd);
+      return r.key;
+    }
+    const mediaId = makeLocalId();
+    await mediaPut({ id: mediaId, blob: file, filename });
+    return `${LOCAL_MEDIA_PREFIX}${mediaId}`;
+  }, []);
 
   const loadNumbers = useCallback(async () => {
     const list = await api.get<NumberItem[]>(`/surveyor/surveys/${id}/numbers`);
@@ -279,145 +281,151 @@ export function SurveyorCollectPage() {
 
   return (
     <MediaUploadProvider value={uploadMedia}>
-    <div className="mx-auto max-w-3xl space-y-5">
-      <Card>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">{data.title}</h1>
-            <p className="text-sm text-gray-600">
-              Terkumpul sesi ini: <span className="font-semibold">{collectedCount}</span>
-            </p>
+      <div className="mx-auto max-w-3xl space-y-5">
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">{data.title}</h1>
+              <p className="text-sm text-gray-600">
+                Terkumpul sesi ini: <span className="font-semibold">{collectedCount}</span>
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => navigate('/surveyor/surveys')}>
+              Selesai
+            </Button>
           </div>
-          <Button variant="secondary" onClick={() => navigate('/surveyor/surveys')}>
-            Selesai
+
+          <div className="mt-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Nomor Kuesioner <span className="text-red-500">*</span>
+            </label>
+            {availableNumbers.length > 0 ? (
+              <select
+                value={selectedNumber}
+                onChange={(e) => setSelectedNumber(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {availableNumbers.map((n) => (
+                  <option key={n.number} value={n.number}>
+                    {n.number}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 ring-1 ring-amber-100">
+                Semua nomor kuesioner Anda sudah terpakai. Hubungi admin untuk alokasi tambahan.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Status offline & antrian sinkron */}
+        {(!online || sync.queuedCount > 0) && (
+          <div
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
+              !online
+                ? 'bg-amber-50 text-amber-800 ring-amber-100'
+                : 'bg-primary-50 text-primary-700 ring-primary-100'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              {!online ? (
+                <>
+                  <WifiOff className="h-4 w-4" /> Mode offline — respons disimpan & dikirim saat
+                  online
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="h-4 w-4" /> {sync.queuedCount} respons menunggu sinkron
+                </>
+              )}
+            </span>
+            {sync.queuedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => sync.syncNow()}
+                disabled={!online || sync.syncing}
+                className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
+                {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {!online &&
+          data.questions.some((q) =>
+            ['photo', 'audio', 'signature', 'file_upload'].includes(q.type),
+          ) && (
+            <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 ring-1 ring-gray-100">
+              Media (foto, audio, tanda tangan, berkas) disimpan di perangkat dan akan diunggah
+              otomatis saat sinkron.
+            </div>
+          )}
+
+        {sync.lastResult && (
+          <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-700 ring-1 ring-emerald-100">
+            {sync.lastResult}
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {activeQuestions.map((question, idx) => {
+          const invalid = missingIds.has(question.id);
+          return (
+            <Card key={question.id} className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}>
+              <div className="mb-4 flex items-start gap-3">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
+                  {idx + 1}
+                </span>
+                <div className="flex-1">
+                  <p className="text-base font-semibold leading-snug text-gray-900">
+                    {question.text}
+                    {question.required && <span className="ml-1 text-red-500">*</span>}
+                  </p>
+                  {question.description && (
+                    <p className="mt-1 text-xs text-gray-500">{question.description}</p>
+                  )}
+                </div>
+              </div>
+              <QuestionRenderer
+                question={question}
+                value={answers[question.id] ?? null}
+                onChange={(val) => handleAnswerChange(question.id, val)}
+                surveyId={data.id}
+                invalid={invalid}
+              />
+            </Card>
+          );
+        })}
+
+        <div className="flex items-center justify-between gap-3 pb-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+            <MapPin className="h-3.5 w-3.5" /> Lokasi direkam otomatis
+          </span>
+          <Button
+            onClick={handleSubmit}
+            isLoading={submitting}
+            disabled={availableNumbers.length === 0}
+          >
+            <Send className="h-4 w-4" />{' '}
+            {submitting ? 'Menyimpan...' : 'Simpan & Kuesioner Berikutnya'}
           </Button>
         </div>
 
-        <div className="mt-4">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Nomor Kuesioner <span className="text-red-500">*</span>
-          </label>
-          {availableNumbers.length > 0 ? (
-            <select
-              value={selectedNumber}
-              onChange={(e) => setSelectedNumber(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {availableNumbers.map((n) => (
-                <option key={n.number} value={n.number}>
-                  {n.number}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700 ring-1 ring-amber-100">
-              Semua nomor kuesioner Anda sudah terpakai. Hubungi admin untuk alokasi tambahan.
-            </p>
-          )}
-        </div>
-      </Card>
-
-      {/* Status offline & antrian sinkron */}
-      {(!online || sync.queuedCount > 0) && (
-        <div
-          className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ring-1 ${
-            !online
-              ? 'bg-amber-50 text-amber-800 ring-amber-100'
-              : 'bg-primary-50 text-primary-700 ring-primary-100'
-          }`}
-        >
-          <span className="inline-flex items-center gap-2">
-            {!online ? (
-              <>
-                <WifiOff className="h-4 w-4" /> Mode offline — respons disimpan & dikirim saat online
-              </>
-            ) : (
-              <>
-                <CloudUpload className="h-4 w-4" /> {sync.queuedCount} respons menunggu sinkron
-              </>
-            )}
-          </span>
-          {sync.queuedCount > 0 && (
-            <button
-              type="button"
-              onClick={() => sync.syncNow()}
-              disabled={!online || sync.syncing}
-              className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1 font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${sync.syncing ? 'animate-spin' : ''}`} />
-              {sync.syncing ? 'Menyinkron...' : 'Sinkron sekarang'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {!online && data.questions.some((q) => ['photo', 'audio', 'signature', 'file_upload'].includes(q.type)) && (
-        <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500 ring-1 ring-gray-100">
-          Media (foto, audio, tanda tangan, berkas) disimpan di perangkat dan akan diunggah otomatis saat sinkron.
-        </div>
-      )}
-
-      {sync.lastResult && (
-        <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-700 ring-1 ring-emerald-100">
-          {sync.lastResult}
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
-
-      {activeQuestions.map((question, idx) => {
-        const invalid = missingIds.has(question.id);
-        return (
-          <Card key={question.id} className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}>
-            <div className="mb-4 flex items-start gap-3">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
-                {idx + 1}
-              </span>
-              <div className="flex-1">
-                <p className="text-base font-semibold leading-snug text-gray-900">
-                  {question.text}
-                  {question.required && <span className="ml-1 text-red-500">*</span>}
-                </p>
-                {question.description && (
-                  <p className="mt-1 text-xs text-gray-500">{question.description}</p>
-                )}
-              </div>
-            </div>
-            <QuestionRenderer
-              question={question}
-              value={answers[question.id] ?? null}
-              onChange={(val) => handleAnswerChange(question.id, val)}
-              surveyId={data.id}
-              invalid={invalid}
-            />
-          </Card>
-        );
-      })}
-
-      <div className="flex items-center justify-between gap-3 pb-2">
-        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-          <MapPin className="h-3.5 w-3.5" /> Lokasi direkam otomatis
-        </span>
-        <Button
-          onClick={handleSubmit}
-          isLoading={submitting}
-          disabled={availableNumbers.length === 0}
-        >
-          <Send className="h-4 w-4" /> {submitting ? 'Menyimpan...' : 'Simpan & Kuesioner Berikutnya'}
-        </Button>
+        {collectedCount > 0 && !submitting && (
+          <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
+            <CheckCircle2 className="h-4 w-4" /> {collectedCount} kuesioner berhasil disimpan
+          </div>
+        )}
       </div>
-
-      {collectedCount > 0 && !submitting && (
-        <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
-          <CheckCircle2 className="h-4 w-4" /> {collectedCount} kuesioner berhasil disimpan
-        </div>
-      )}
-    </div>
     </MediaUploadProvider>
   );
 }

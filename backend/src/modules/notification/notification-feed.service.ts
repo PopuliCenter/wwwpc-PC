@@ -71,11 +71,7 @@ export class NotificationFeedService {
    * Notifikasi untuk SATU user: tulis ke feed (lonceng) + opsional push ke
    * perangkatnya. Best-effort — push yang gagal tidak menggagalkan pemanggil.
    */
-  async notifyUser(
-    userId: string,
-    item: FeedItemInput,
-    push = false,
-  ): Promise<void> {
+  async notifyUser(userId: string, item: FeedItemInput, push = false): Promise<void> {
     await this.createForUsers([userId], item);
     if (push) {
       await this.deviceTokenService
@@ -114,9 +110,10 @@ export class NotificationFeedService {
 
   /** Tandai sudah dibaca. Tanpa `ids` → tandai semua milik user. */
   async markRead(userId: string, ids?: string[]): Promise<void> {
-    const where = ids && ids.length > 0
-      ? { userId, id: In(ids), readAt: IsNull() }
-      : { userId, readAt: IsNull() };
+    const where =
+      ids && ids.length > 0
+        ? { userId, id: In(ids), readAt: IsNull() }
+        : { userId, readAt: IsNull() };
     await this.feedRepository.update(where, { readAt: new Date() });
   }
 
@@ -157,11 +154,8 @@ export class NotificationFeedService {
 
     let emailed = 0;
     if (dto.sendEmail) {
-      const baseUrl =
-        this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
-      const actionUrl = dto.link
-        ? `${baseUrl.replace(/\/+$/, '')}${dto.link}`
-        : undefined;
+      const baseUrl = this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+      const actionUrl = dto.link ? `${baseUrl.replace(/\/+$/, '')}${dto.link}` : undefined;
       await this.notificationService
         .sendAnnouncementEmail(
           respondents.map((r) => ({ email: r.email, fullName: r.fullName })),
@@ -173,9 +167,7 @@ export class NotificationFeedService {
         .catch((e) => this.logger.warn(`Gagal email pengumuman: ${e.message}`));
     }
 
-    this.logger.log(
-      `Pengumuman disiarkan → ${ids.length} feed, ${pushed} push, ${emailed} email`,
-    );
+    this.logger.log(`Pengumuman disiarkan → ${ids.length} feed, ${pushed} push, ${emailed} email`);
     return { recipients: ids.length, pushed, emailed };
   }
 }

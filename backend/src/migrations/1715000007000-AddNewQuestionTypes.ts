@@ -15,12 +15,16 @@ export class AddNewQuestionTypes1715000007000 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'date'`);
-    await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'rating_scale'`);
+    await queryRunner.query(
+      `ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'rating_scale'`,
+    );
     await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'unique_id'`);
-    await queryRunner.query(`ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'indonesia_region'`);
+    await queryRunner.query(
+      `ALTER TYPE "question_type_enum" ADD VALUE IF NOT EXISTS 'indonesia_region'`,
+    );
   }
 
-  public async down(queryRunner: QueryRunner): Promise<void> {
+  public async down(_queryRunner: QueryRunner): Promise<void> {
     // PostgreSQL tidak mendukung DROP VALUE dari enum secara langsung.
     // Downgrade memerlukan rekonstruksi enum dan tabel — jarang diperlukan.
     // Sebagai pengganti, tandai nilai sebagai tidak aktif dengan komentar.

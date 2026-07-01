@@ -1,10 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import {
-  EventType,
-  RewardRedeemedPayload,
-  RewardRedemptionFailedPayload,
-} from '../event-types';
+import { EventType, RewardRedeemedPayload, RewardRedemptionFailedPayload } from '../event-types';
 import { NotificationService } from '@modules/notification/notification.service';
 import { AuditService } from '@modules/audit/audit.service';
 import { AuditActionType } from '@shared/enums';
@@ -38,10 +34,7 @@ export class RewardRedeemedHandler {
         `Redemption confirmation sent: userId=${payload.userId}, redemptionId=${payload.redemptionId}`,
       );
     } catch (error: any) {
-      this.logger.error(
-        `Failed to send redemption confirmation: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to send redemption confirmation: ${error.message}`, error.stack);
     }
   }
 
@@ -49,9 +42,7 @@ export class RewardRedeemedHandler {
    * Send refund notification email when a redemption fails.
    */
   @OnEvent(EventType.REWARD_REDEMPTION_FAILED, { async: true })
-  async handleFailureNotification(
-    payload: RewardRedemptionFailedPayload,
-  ): Promise<void> {
+  async handleFailureNotification(payload: RewardRedemptionFailedPayload): Promise<void> {
     try {
       await this.notificationService.sendRedemptionFailed(
         { email: payload.email, fullName: payload.fullName },
@@ -68,10 +59,7 @@ export class RewardRedeemedHandler {
         `Redemption failure notice sent: userId=${payload.userId}, redemptionId=${payload.redemptionId}`,
       );
     } catch (error: any) {
-      this.logger.error(
-        `Failed to send redemption failure notice: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to send redemption failure notice: ${error.message}`, error.stack);
     }
   }
 
@@ -96,10 +84,7 @@ export class RewardRedeemedHandler {
         timestamp: new Date(),
       });
     } catch (error: any) {
-      this.logger.error(
-        `Failed to log audit event for redemption: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to log audit event for redemption: ${error.message}`, error.stack);
     }
   }
 }

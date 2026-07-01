@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Copy, PlayCircle, PauseCircle, Archive, Trash2, ClipboardList, BarChart3, Send, Users } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  Copy,
+  PlayCircle,
+  PauseCircle,
+  Archive,
+  Trash2,
+  ClipboardList,
+  BarChart3,
+  Send,
+  Users,
+} from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
@@ -51,7 +63,9 @@ export function SurveyListPage() {
   const { confirm, dialog } = useConfirm();
   const navigate = useNavigate();
 
-  const categories = [...new Set(surveys.map((s) => s.category).filter(Boolean) as string[])].sort();
+  const categories = [
+    ...new Set(surveys.map((s) => s.category).filter(Boolean) as string[]),
+  ].sort();
   const filtered = surveys.filter(
     (s) =>
       (!typeFilter || (s.surveyType ?? 'lainnya') === typeFilter) &&
@@ -157,19 +171,59 @@ export function SurveyListPage() {
   };
 
   const actions = (s: Survey) => [
-    { icon: Pencil, label: 'Edit', cls: 'hover:text-primary-700', onClick: () => navigate(`/admin/surveys/${s.id}/edit`) },
-    { icon: BarChart3, label: 'Ringkasan', cls: 'hover:text-indigo-700', onClick: () => navigate(`/admin/surveys/${s.id}/summary`) },
-    { icon: Copy, label: 'Duplikasi', cls: 'hover:text-emerald-700', onClick: () => handleDuplicate(s.id) },
+    {
+      icon: Pencil,
+      label: 'Edit',
+      cls: 'hover:text-primary-700',
+      onClick: () => navigate(`/admin/surveys/${s.id}/edit`),
+    },
+    {
+      icon: BarChart3,
+      label: 'Ringkasan',
+      cls: 'hover:text-indigo-700',
+      onClick: () => navigate(`/admin/surveys/${s.id}/summary`),
+    },
+    {
+      icon: Copy,
+      label: 'Duplikasi',
+      cls: 'hover:text-emerald-700',
+      onClick: () => handleDuplicate(s.id),
+    },
     s.status === 'active'
-      ? { icon: PauseCircle, label: 'Nonaktifkan', cls: 'hover:text-amber-700', onClick: () => handleDeactivate(s.id) }
-      : { icon: PlayCircle, label: 'Aktifkan', cls: 'hover:text-emerald-700', onClick: () => handleActivate(s.id) },
+      ? {
+          icon: PauseCircle,
+          label: 'Nonaktifkan',
+          cls: 'hover:text-amber-700',
+          onClick: () => handleDeactivate(s.id),
+        }
+      : {
+          icon: PlayCircle,
+          label: 'Aktifkan',
+          cls: 'hover:text-emerald-700',
+          onClick: () => handleActivate(s.id),
+        },
     ...(s.status === 'active'
       ? [
-          { icon: Send, label: 'Kirim Undangan', cls: 'hover:text-blue-700', onClick: () => handleSendInvitations(s) },
-          { icon: Users, label: 'Undang Bertarget', cls: 'hover:text-indigo-700', onClick: () => setTargetSurvey({ id: s.id, title: s.title }) },
+          {
+            icon: Send,
+            label: 'Kirim Undangan',
+            cls: 'hover:text-blue-700',
+            onClick: () => handleSendInvitations(s),
+          },
+          {
+            icon: Users,
+            label: 'Undang Bertarget',
+            cls: 'hover:text-indigo-700',
+            onClick: () => setTargetSurvey({ id: s.id, title: s.title }),
+          },
         ]
       : []),
-    { icon: Archive, label: 'Arsipkan', cls: 'hover:text-gray-900', onClick: () => handleArchive(s.id) },
+    {
+      icon: Archive,
+      label: 'Arsipkan',
+      cls: 'hover:text-gray-900',
+      onClick: () => handleArchive(s.id),
+    },
     { icon: Trash2, label: 'Hapus', cls: 'hover:text-red-700', onClick: () => handleDelete(s.id) },
   ];
 
@@ -233,7 +287,8 @@ export function SurveyListPage() {
               <ClipboardList className="h-6 w-6" />
             </span>
             <p className="text-sm text-gray-500">
-              Belum ada survei. Klik <span className="font-medium text-gray-700">Buat Survei Baru</span> untuk memulai.
+              Belum ada survei. Klik{' '}
+              <span className="font-medium text-gray-700">Buat Survei Baru</span> untuk memulai.
             </p>
           </div>
         ) : (
@@ -241,55 +296,73 @@ export function SurveyListPage() {
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/60">
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Judul</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Tipe / Kategori</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Reward</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Dibuat</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Aksi</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Judul
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Tipe / Kategori
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Reward
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Dibuat
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((survey) => {
                   const t = surveyTypeBadge[survey.surveyType ?? 'lainnya'];
                   return (
-                  <tr key={survey.id} className="transition-colors hover:bg-gray-50/60">
-                    <td className="px-6 py-3.5 text-sm font-medium text-gray-900">{survey.title}</td>
-                    <td className="px-6 py-3.5">
-                      <div className="flex flex-col gap-1">
-                        <span className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.cls}`}>
-                          {t.label}
-                        </span>
-                        {survey.category && (
-                          <span className="text-xs text-gray-500">{survey.category}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <Badge tone={statusTone[survey.status]} dot>
-                        {statusLabels[survey.status]}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-3.5 text-sm capitalize text-gray-600">{survey.rewardMode}</td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600">
-                      {format(new Date(survey.createdAt), 'dd/MM/yyyy')}
-                    </td>
-                    <td className="px-6 py-3.5">
-                      <div className="flex items-center justify-end gap-1">
-                        {actions(survey).map(({ icon: Icon, label, cls, onClick }) => (
-                          <button
-                            key={label}
-                            onClick={onClick}
-                            title={label}
-                            aria-label={label}
-                            className={`rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 ${cls}`}
+                    <tr key={survey.id} className="transition-colors hover:bg-gray-50/60">
+                      <td className="px-6 py-3.5 text-sm font-medium text-gray-900">
+                        {survey.title}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.cls}`}
                           >
-                            <Icon className="h-4 w-4" />
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
+                            {t.label}
+                          </span>
+                          {survey.category && (
+                            <span className="text-xs text-gray-500">{survey.category}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <Badge tone={statusTone[survey.status]} dot>
+                          {statusLabels[survey.status]}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-3.5 text-sm capitalize text-gray-600">
+                        {survey.rewardMode}
+                      </td>
+                      <td className="px-6 py-3.5 text-sm text-gray-600">
+                        {format(new Date(survey.createdAt), 'dd/MM/yyyy')}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center justify-end gap-1">
+                          {actions(survey).map(({ icon: Icon, label, cls, onClick }) => (
+                            <button
+                              key={label}
+                              onClick={onClick}
+                              title={label}
+                              aria-label={label}
+                              className={`rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 ${cls}`}
+                            >
+                              <Icon className="h-4 w-4" />
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
                   );
                 })}
               </tbody>

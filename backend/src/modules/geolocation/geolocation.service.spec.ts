@@ -4,7 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { GeolocationService } from './geolocation.service';
 import { Geolocation } from './entities/geolocation.entity';
-import { encrypt, decrypt } from './utils';
+import { encrypt } from './utils';
 
 // Mock global fetch for reverse geocoding
 const mockFetch = vi.fn();
@@ -39,10 +39,11 @@ describe('GeolocationService', () => {
     it('should encrypt coordinates and save with geocoded city/province', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({
-          address: { city: 'Jakarta Selatan', state: 'DKI Jakarta' },
-          display_name: 'Jakarta Selatan, DKI Jakarta, Indonesia',
-        }),
+        json: () =>
+          Promise.resolve({
+            address: { city: 'Jakarta Selatan', state: 'DKI Jakarta' },
+            display_name: 'Jakarta Selatan, DKI Jakarta, Indonesia',
+          }),
       });
       repository.findOne.mockResolvedValue(null);
 
@@ -69,9 +70,10 @@ describe('GeolocationService', () => {
     it('should update existing geolocation record', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({
-          address: { city: 'Bandung', state: 'Jawa Barat' },
-        }),
+        json: () =>
+          Promise.resolve({
+            address: { city: 'Bandung', state: 'Jawa Barat' },
+          }),
       });
       const existingGeo = {
         id: 'geo-existing',
@@ -143,7 +145,7 @@ describe('GeolocationService', () => {
         province: 'Old',
       });
 
-      const result = await service.saveManualLocation('user-1', 'Medan', 'Sumatera Utara');
+      await service.saveManualLocation('user-1', 'Medan', 'Sumatera Utara');
 
       expect(repository.save).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -160,10 +162,11 @@ describe('GeolocationService', () => {
     it('should return city and province from Nominatim API', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({
-          address: { city: 'Yogyakarta', state: 'DI Yogyakarta' },
-          display_name: 'Yogyakarta, DI Yogyakarta, Indonesia',
-        }),
+        json: () =>
+          Promise.resolve({
+            address: { city: 'Yogyakarta', state: 'DI Yogyakarta' },
+            display_name: 'Yogyakarta, DI Yogyakarta, Indonesia',
+          }),
       });
 
       const result = await service.reverseGeocode({ latitude: -7.7956, longitude: 110.3695 });
@@ -175,12 +178,13 @@ describe('GeolocationService', () => {
     it('should fallback to town/municipality if city not available', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({
-          address: { town: 'Kuta', state: 'Bali' },
-        }),
+        json: () =>
+          Promise.resolve({
+            address: { town: 'Kuta', state: 'Bali' },
+          }),
       });
 
-      const result = await service.reverseGeocode({ latitude: -8.7220, longitude: 115.1689 });
+      const result = await service.reverseGeocode({ latitude: -8.722, longitude: 115.1689 });
 
       expect(result.city).toBe('Kuta');
       expect(result.province).toBe('Bali');
@@ -271,7 +275,9 @@ describe('GeolocationService', () => {
 
       await service.getHeatmapData({ city: 'Jakarta' });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('geo.city = :city', { city: 'Jakarta' });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('geo.city = :city', {
+        city: 'Jakarta',
+      });
     });
 
     it('should apply province filter', async () => {
@@ -289,7 +295,9 @@ describe('GeolocationService', () => {
 
       await service.getHeatmapData({ province: 'Jawa Barat' });
 
-      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('geo.province = :province', { province: 'Jawa Barat' });
+      expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith('geo.province = :province', {
+        province: 'Jawa Barat',
+      });
     });
   });
 

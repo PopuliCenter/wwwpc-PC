@@ -9,6 +9,7 @@ SEKALI** tepat sebelum membuka untuk responden nyata.
 > akan terkumpul normal.
 
 Tabel yang direset:
+
 - `point_transaction` — buku besar poin (saldo dihitung dari sini → jadi 0 untuk semua).
 - `reward_redemption` — riwayat penukaran (uji).
 - `streak_tracker` — hitung streak bonus (mulai dari nol lagi).
@@ -17,6 +18,7 @@ Tidak ada kolom saldo ter‑cache di tabel user, jadi mengosongkan `point_transa
 sudah menolkan semua saldo.
 
 ## Langkah (di VPS)
+
 ```bash
 cd /var/www/online-survei
 
@@ -35,6 +37,7 @@ docker compose exec -T postgres psql -U postgres -d survei_online \
 ```
 
 ## Varian
+
 - **Hanya nolkan saldo, simpan riwayat penukaran:**
   ```bash
   docker compose exec -T postgres psql -U postgres -d survei_online \
@@ -47,6 +50,7 @@ docker compose exec -T postgres psql -U postgres -d survei_online \
   ```
 
 ## Catatan
+
 - Nama service Postgres di compose = `postgres`, user `postgres`, db `survei_online`.
 - Akun & profil responden TIDAK terhapus — hanya saldo/penukaran/streak.
 - Jalankan **setelah** deploy versi nilai tukar baru (commit `9a1ac73`) agar konsisten.

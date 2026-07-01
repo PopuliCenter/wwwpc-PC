@@ -4,12 +4,9 @@ import { useAuthStore } from '@/stores/auth.store';
 
 // Sama dgn api.ts: web '/api' (proxy nginx), native pakai URL absolut.
 const BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') ||
-  '/api';
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '/api';
 
-const deviceType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-  ? 'mobile'
-  : 'desktop';
+const deviceType = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
 
 // Versi app di-resolve sekali (native: versionName; web: package.json).
 let appVersion = '';
@@ -36,10 +33,7 @@ export interface ReportInput {
 export function reportClientError(input: ReportInput): void {
   try {
     if (sentCount >= MAX_PER_SESSION) return;
-    const key = `${input.level ?? 'error'}:${input.message}:${input.source ?? ''}`.slice(
-      0,
-      300,
-    );
+    const key = `${input.level ?? 'error'}:${input.message}:${input.source ?? ''}`.slice(0, 300);
     if (seen.has(key)) return;
     seen.add(key);
     sentCount += 1;
@@ -49,10 +43,10 @@ export function reportClientError(input: ReportInput): void {
       level: input.level ?? 'error',
       message: String(input.message).slice(0, 2000),
       stack: input.stack?.slice(0, 8000),
-      source: (
-        input.source ??
-        (typeof location !== 'undefined' ? location.pathname : '')
-      ).slice(0, 500),
+      source: (input.source ?? (typeof location !== 'undefined' ? location.pathname : '')).slice(
+        0,
+        500,
+      ),
       platform: Capacitor.getPlatform(),
       deviceType,
       appVersion,

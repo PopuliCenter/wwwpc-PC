@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { RewardService } from './reward.service';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
@@ -43,10 +34,7 @@ export class RewardController {
    * Get transaction history for the current user.
    */
   @Get('transactions')
-  async getTransactionHistory(
-    @Request() req: any,
-    @Query() query: TransactionHistoryQueryDto,
-  ) {
+  async getTransactionHistory(@Request() req: any, @Query() query: TransactionHistoryQueryDto) {
     return this.rewardService.getTransactionHistory(req.user.userId, query);
   }
 
@@ -62,10 +50,7 @@ export class RewardController {
    * Initiate a reward redemption.
    */
   @Post('redeem')
-  async initiateRedemption(
-    @Request() req: any,
-    @Body() dto: InitiateRedemptionDto,
-  ) {
+  async initiateRedemption(@Request() req: any, @Body() dto: InitiateRedemptionDto) {
     return this.rewardService.initiateRedemption(
       req.user.userId,
       dto.rewardId,
@@ -82,21 +67,14 @@ export class RewardController {
     @Param('redemptionId') redemptionId: string,
     @Body() dto: ConfirmRedemptionDto,
   ) {
-    return this.rewardService.confirmRedemption(
-      req.user.userId,
-      redemptionId,
-      dto.otpCode,
-    );
+    return this.rewardService.confirmRedemption(req.user.userId, redemptionId, dto.otpCode);
   }
 
   /**
    * Get redemption history for the current user.
    */
   @Get('redemptions')
-  async getRedemptionHistory(
-    @Request() req: any,
-    @Query() query: TransactionHistoryQueryDto,
-  ) {
+  async getRedemptionHistory(@Request() req: any, @Query() query: TransactionHistoryQueryDto) {
     return this.rewardService.getRedemptionHistory(req.user.userId, query);
   }
 
@@ -107,10 +85,7 @@ export class RewardController {
    */
   @Post('admin/credit')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async manualCredit(
-    @Request() req: any,
-    @Body() dto: ManualCreditPointsDto,
-  ) {
+  async manualCredit(@Request() req: any, @Body() dto: ManualCreditPointsDto) {
     return this.rewardService.manualCreditPoints(
       req.user.userId,
       dto.respondentId,
@@ -134,15 +109,7 @@ export class RewardController {
    */
   @Post('admin/redemptions/:id/finalize')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async finalizeRedemption(
-    @Param('id') id: string,
-    @Body() dto: FinalizeRedemptionDto,
-  ) {
-    return this.rewardService.adminFinalizeRedemption(
-      id,
-      dto.success,
-      dto.note,
-      dto.sn,
-    );
+  async finalizeRedemption(@Param('id') id: string, @Body() dto: FinalizeRedemptionDto) {
+    return this.rewardService.adminFinalizeRedemption(id, dto.success, dto.note, dto.sn);
   }
 }

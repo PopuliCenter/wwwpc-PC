@@ -9,6 +9,7 @@ Panduan langkah-demi-langkah memindahkan fulfillment reward dari **sandbox** ke
 ---
 
 ## 0. Prasyarat
+
 - [ ] Akun **produksi** IAK aktif (bukan akun development).
 - [ ] **Username produksi** + **API key produksi** sudah didapat dari dashboard IAK.
       (Key development lama JANGAN dipakai di produksi — sudah perlu dirotasi.)
@@ -16,20 +17,22 @@ Panduan langkah-demi-langkah memindahkan fulfillment reward dari **sandbox** ke
 - [ ] Daftar harga produksi (pricelist) untuk verifikasi **kode produk**.
 
 ## 1. Whitelist IP server di IAK (WAJIB)
+
 - [ ] Ambil IP publik VPS:
-      ```bash
-      curl -s https://api.ipify.org; echo
-      ```
+      `bash
+    curl -s https://api.ipify.org; echo
+    `
 - [ ] Daftarkan IP itu ke **whitelist H2H** di dashboard IAK.
       Tanpa whitelist, request produksi ditolak.
 
 ## 2. Daftarkan URL callback di IAK
+
 - [ ] Set callback / report URL di dashboard IAK ke:
-      ```
-      https://survei.risetcenter.com/api/rewards/callback/iak
-      ```
+      `     https://survei.risetcenter.com/api/rewards/callback/iak
+    `
 
 ## 3. Update `backend/.env` di VPS
+
 File `backend/.env` dibuat manual di server (tidak ada di git). Set:
 
 ```bash
@@ -49,6 +52,7 @@ IAK_VERIFY_CALLBACK_SIGN=true
 - [ ] `IAK_VERIFY_CALLBACK_SIGN=true`
 
 ## 4. Verifikasi kode produk (`IAK_PRODUCT_MAP`)
+
 Sistem punya peta default 50 kode produk (mis. `htelkomsel10000`, `dana25`).
 Cocokkan dengan pricelist produksi Anda. Bila ada kode yang berbeda, override
 lewat env (JSON satu baris). Contoh:
@@ -58,6 +62,7 @@ IAK_PRODUCT_MAP={"telkomsel:pulsa-10000":"HTELKOMSEL10","ewallet-dana-25000":"DA
 ```
 
 Format kunci:
+
 - Pulsa / paket data (operator-spesifik): `"<operator>:<rewardId>"`
   (operator: `telkomsel|indosat|xl|axis|tri|smartfren`). Fallback ke `"<rewardId>"`
   bila operator tak ada di map.
@@ -67,6 +72,7 @@ Format kunci:
 - [ ] `IAK_PRODUCT_MAP` di-set bila ada perbedaan
 
 ## 5. Terapkan perubahan
+
 Perubahan `.env` tidak perlu rebuild image — cukup recreate container agar
 membaca env baru:
 
@@ -78,18 +84,20 @@ docker compose up -d backend
 - [ ] Container backend ter-recreate tanpa error (`docker compose ps`)
 
 ## 6. Uji 1 transaksi kecil (end-to-end)
+
 - [ ] Lakukan **satu penukaran nominal terkecil** (mis. pulsa 5rb–10rb) dari akun
       responden uji.
 - [ ] Status penukaran menjadi **sukses**.
 - [ ] Callback IAK masuk:
-      ```bash
-      docker compose logs --tail=100 backend | grep -i iak
-      ```
+      `bash
+    docker compose logs --tail=100 backend | grep -i iak
+    `
 - [ ] Poin responden terpotong; **saldo deposit IAK** berkurang sesuai.
 
 ---
 
 ## Catatan
+
 - **Signature & idempoten** otomatis: `sign = md5(username + api_key + ref_id)`.
   Begitu kredensial produksi diisi, top-up & callback ikut diverifikasi dengan
   kredensial baru. `ref_id` ringkas → idempoten (aman dari pemrosesan ganda).
@@ -100,7 +108,7 @@ docker compose up -d backend
 - **Rollback ke sandbox**: ganti `IAK_BASE_URL` + kredensial dev, lalu
   `docker compose up -d backend` lagi.
 - **Status prepaid IAK** (konfirmasi dengan dokumen akun): `0=proses, 1=sukses,
-  2=gagal`. Kasus tak pasti → diperlakukan `pending` (tidak memicu refund keliru;
+2=gagal`. Kasus tak pasti → diperlakukan `pending` (tidak memicu refund keliru;
   diselesaikan via callback/cek-status).
 
 Referensi kode: `backend/src/modules/reward/fulfillment/iak.provider.ts`,

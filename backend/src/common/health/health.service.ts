@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ServiceUnavailableException,
-  Inject,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, Inject, Logger } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -42,10 +37,7 @@ export class HealthService {
   }
 
   async check(): Promise<HealthStatus> {
-    const [database, cache] = await Promise.all([
-      this.checkDatabase(),
-      this.checkCache(),
-    ]);
+    const [database, cache] = await Promise.all([this.checkDatabase(), this.checkCache()]);
 
     const allUp = database.status === 'up' && cache.status === 'up';
 

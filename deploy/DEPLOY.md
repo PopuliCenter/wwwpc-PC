@@ -11,13 +11,13 @@ menangani port 80/443 + SSL untuk SEMUA app.
 
 ## Kondisi awal VPS
 
-| Container | Port | Peran |
-|-----------|------|-------|
-| `survey-populicenter-nginx-1` | `80:80`, `443:443` | Pintu masuk app lama (akan didemosi) |
-| `survey-populicenter-backend` | `3000:3000` | API app lama |
-| `survey-populicenter-postgres` | internal | DB app lama |
-| `survey-populicenter-redis-1` | internal | Redis app lama |
-| `survey-populicenter-worker` | internal | Worker app lama |
+| Container                      | Port               | Peran                                |
+| ------------------------------ | ------------------ | ------------------------------------ |
+| `survey-populicenter-nginx-1`  | `80:80`, `443:443` | Pintu masuk app lama (akan didemosi) |
+| `survey-populicenter-backend`  | `3000:3000`        | API app lama                         |
+| `survey-populicenter-postgres` | internal           | DB app lama                          |
+| `survey-populicenter-redis-1`  | internal           | Redis app lama                       |
+| `survey-populicenter-worker`   | internal           | Worker app lama                      |
 
 Masalah: port 80/443 dipegang `survey-populicenter-nginx-1`. NPM butuh port itu.
 Solusi: nginx app lama diturunkan jadi backend internal (expose 80 saja), NPM
@@ -176,11 +176,11 @@ cd /var/www/online-survei && docker compose down
 
 ## Catatan resource (KVM 2, 8 GB RAM)
 
-| Stack | RAM perkiraan |
-|-------|---------------|
-| survey-populicenter (5 container) | ~240 MB |
-| survei (6 container) | ~1 GB |
-| Nginx Proxy Manager | ~50 MB |
-| **Total** | **~1.3 GB / 7.75 GB** → sisa ~6.5 GB |
+| Stack                             | RAM perkiraan                        |
+| --------------------------------- | ------------------------------------ |
+| survey-populicenter (5 container) | ~240 MB                              |
+| survei (6 container)              | ~1 GB                                |
+| Nginx Proxy Manager               | ~50 MB                               |
+| **Total**                         | **~1.3 GB / 7.75 GB** → sisa ~6.5 GB |
 
 Masih sangat lega untuk menambah app ke-3 s/d ke-5.

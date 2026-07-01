@@ -41,9 +41,7 @@ export class PushService {
 
     const raw = this.config.get<string>('FIREBASE_SERVICE_ACCOUNT');
     if (!raw) {
-      this.logger.warn(
-        'FIREBASE_SERVICE_ACCOUNT belum diset — push notifikasi dinonaktifkan.',
-      );
+      this.logger.warn('FIREBASE_SERVICE_ACCOUNT belum diset — push notifikasi dinonaktifkan.');
       return null;
     }
 
@@ -51,9 +49,7 @@ export class PushService {
       const creds = JSON.parse(raw);
       // Pakai app bernama khusus; pakai ulang bila sudah ada (mis. hot-reload).
       const existing = getApps().find((a) => a.name === PushService.APP_NAME);
-      this.app =
-        existing ??
-        initializeApp({ credential: cert(creds) }, PushService.APP_NAME);
+      this.app = existing ?? initializeApp({ credential: cert(creds) }, PushService.APP_NAME);
       this.logger.log('Firebase Admin siap — push notifikasi aktif.');
     } catch (e: any) {
       this.logger.error(`Gagal inisialisasi Firebase Admin: ${e.message}`);

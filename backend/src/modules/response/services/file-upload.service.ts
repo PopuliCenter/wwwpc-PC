@@ -40,9 +40,7 @@ export class FileUploadService {
     await this.s3.uploadBuffer(file!.buffer, key, contentType, this.s3.uploadsBucket);
     const url = await this.s3.getPresignedDownloadUrl(key, this.s3.uploadsBucket);
 
-    this.logger.log(
-      `Respondent ${respondentId} uploaded file for survey ${surveyId}: ${key}`,
-    );
+    this.logger.log(`Respondent ${respondentId} uploaded file for survey ${surveyId}: ${key}`);
 
     return { key, url, originalName: file!.originalname };
   }

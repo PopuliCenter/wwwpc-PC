@@ -71,7 +71,14 @@ describe('AnswerValidationService', () => {
 
   it('rejects an answer for a question not in the survey', async () => {
     const { service } = makeService([
-      { id: 'q1', type: QuestionType.SHORT_TEXT, questionText: 'A', required: false, options: [], validationRules: null },
+      {
+        id: 'q1',
+        type: QuestionType.SHORT_TEXT,
+        questionText: 'A',
+        required: false,
+        options: [],
+        validationRules: null,
+      },
     ]);
 
     await expect(
@@ -81,23 +88,35 @@ describe('AnswerValidationService', () => {
 
   it('enforces required for visible questions', async () => {
     const { service } = makeService([
-      { id: 'q1', type: QuestionType.SHORT_TEXT, questionText: 'Wajib', required: true, options: [], validationRules: null },
+      {
+        id: 'q1',
+        type: QuestionType.SHORT_TEXT,
+        questionText: 'Wajib',
+        required: true,
+        options: [],
+        validationRules: null,
+      },
     ]);
 
-    await expect(
-      service.validate(SURVEY_ID, [], submitOpts),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.validate(SURVEY_ID, [], submitOpts)).rejects.toThrow(BadRequestException);
   });
 
   it('skips required enforcement for questions hidden by visibility rules', async () => {
     const { service } = makeService(
-      [{ id: 'q1', type: QuestionType.SHORT_TEXT, questionText: 'Tersembunyi', required: true, options: [], validationRules: null }],
+      [
+        {
+          id: 'q1',
+          type: QuestionType.SHORT_TEXT,
+          questionText: 'Tersembunyi',
+          required: true,
+          options: [],
+          validationRules: null,
+        },
+      ],
       { q1: false },
     );
 
-    await expect(
-      service.validate(SURVEY_ID, [], submitOpts),
-    ).resolves.toBeUndefined();
+    await expect(service.validate(SURVEY_ID, [], submitOpts)).resolves.toBeUndefined();
   });
 
   it('enforces maxCheckbox on multiple choice', async () => {
@@ -140,11 +159,22 @@ describe('AnswerValidationService', () => {
 
   it('rejects a file_upload value that is not owned by the respondent', async () => {
     const { service } = makeService([
-      { id: 'q1', type: QuestionType.FILE_UPLOAD, questionText: 'Berkas', required: false, options: [], validationRules: null },
+      {
+        id: 'q1',
+        type: QuestionType.FILE_UPLOAD,
+        questionText: 'Berkas',
+        required: false,
+        options: [],
+        validationRules: null,
+      },
     ]);
 
     await expect(
-      service.validate(SURVEY_ID, [{ questionId: 'q1', value: 'survey-uploads/other-survey/other-user/x.png' }], submitOpts),
+      service.validate(
+        SURVEY_ID,
+        [{ questionId: 'q1', value: 'survey-uploads/other-survey/other-user/x.png' }],
+        submitOpts,
+      ),
     ).rejects.toThrow(BadRequestException);
 
     await expect(
@@ -158,7 +188,14 @@ describe('AnswerValidationService', () => {
 
   it('does not enforce required or types in lenient (auto-save) mode', async () => {
     const { service } = makeService([
-      { id: 'q1', type: QuestionType.SHORT_TEXT, questionText: 'Wajib', required: true, options: [], validationRules: { maxLength: 2 } },
+      {
+        id: 'q1',
+        type: QuestionType.SHORT_TEXT,
+        questionText: 'Wajib',
+        required: true,
+        options: [],
+        validationRules: { maxLength: 2 },
+      },
     ]);
 
     await expect(
@@ -187,9 +224,7 @@ describe('AnswerValidationService', () => {
       ['q1'], // q1 dilewati oleh skip-logic
     );
 
-    await expect(
-      service.validate(SURVEY_ID, [], submitOpts),
-    ).resolves.toBeUndefined();
+    await expect(service.validate(SURVEY_ID, [], submitOpts)).resolves.toBeUndefined();
   });
 
   it('still enforces required on a non-skipped, visible question', async () => {
@@ -205,8 +240,6 @@ describe('AnswerValidationService', () => {
       },
     ]);
 
-    await expect(
-      service.validate(SURVEY_ID, [], submitOpts),
-    ).rejects.toThrow(BadRequestException);
+    await expect(service.validate(SURVEY_ID, [], submitOpts)).rejects.toThrow(BadRequestException);
   });
 });

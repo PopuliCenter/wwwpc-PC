@@ -68,7 +68,12 @@ export class AnswerValidationService {
       answerMap[answer.questionId] = answer.value;
 
       if (options.enforceTypes && !this.isEmpty(answer.value)) {
-        const err = this.validateValueForType(question, answer.value, surveyId, options.respondentId);
+        const err = this.validateValueForType(
+          question,
+          answer.value,
+          surveyId,
+          options.respondentId,
+        );
         if (err) {
           errors.push(`"${this.short(question.questionText)}": ${err}`);
         }
@@ -225,7 +230,8 @@ export class AnswerValidationService {
 
       case QuestionType.RATING_SCALE: {
         const num = typeof value === 'number' ? value : Number(value);
-        if (!Number.isInteger(num) || Number.isNaN(num)) return 'rating harus berupa bilangan bulat';
+        if (!Number.isInteger(num) || Number.isNaN(num))
+          return 'rating harus berupa bilangan bulat';
         const ratingMax = Number(rules.ratingMax ?? 5);
         if (num < 1 || num > ratingMax) return `rating harus antara 1 dan ${ratingMax}`;
         return null;

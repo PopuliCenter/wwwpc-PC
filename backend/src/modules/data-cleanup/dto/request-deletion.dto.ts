@@ -1,4 +1,11 @@
-import { IsOptional, IsString, IsDateString, IsEnum, ValidateNested, IsBoolean } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsDateString,
+  IsEnum,
+  ValidateNested,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class DateRangeDto {

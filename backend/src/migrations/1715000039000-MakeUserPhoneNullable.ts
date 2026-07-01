@@ -14,8 +14,6 @@ export class MakeUserPhoneNullable1715000039000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Tidak mengembalikan NOT NULL otomatis (bisa gagal bila sudah ada baris NULL).
-    await queryRunner.query(
-      `ALTER TABLE "users" ALTER COLUMN "phone" SET NOT NULL`,
-    );
+    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "phone" SET NOT NULL`);
   }
 }

@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bull';
 import { NotificationService } from './notification.service';
-import { NOTIFICATION_QUEUE, EMAIL_JOB, BULK_EMAIL_JOB, EMAIL_RETRY_ATTEMPTS, EMAIL_RETRY_DELAY, POINTS_THRESHOLD } from './constants';
+import {
+  NOTIFICATION_QUEUE,
+  EMAIL_JOB,
+  BULK_EMAIL_JOB,
+  EMAIL_RETRY_ATTEMPTS,
+  EMAIL_RETRY_DELAY,
+  POINTS_THRESHOLD,
+} from './constants';
 import { EmailTemplate } from './interfaces';
 
 describe('NotificationService', () => {
@@ -255,7 +262,13 @@ describe('NotificationService', () => {
 
   describe('sendPasswordResetEmail', () => {
     it('should queue password reset email with high priority', async () => {
-      await service.sendPasswordResetEmail('user@test.com', 'User', 'reset-token-123', 'https://app.test', 1);
+      await service.sendPasswordResetEmail(
+        'user@test.com',
+        'User',
+        'reset-token-123',
+        'https://app.test',
+        1,
+      );
 
       expect(mockQueue.add).toHaveBeenCalledWith(
         EMAIL_JOB,

@@ -179,10 +179,7 @@ export function ProfilePage() {
   }, [profile?.role, view]);
 
   const openStoreRating = () => {
-    window.open(
-      'https://play.google.com/store/apps/details?id=com.populicenter.survei',
-      '_blank',
-    );
+    window.open('https://play.google.com/store/apps/details?id=com.populicenter.survei', '_blank');
   };
 
   useEffect(() => {
@@ -223,7 +220,12 @@ export function ProfilePage() {
       setProfile(updated);
       // Sinkronkan ke store agar sidebar/header ikut terbarui
       if (user) {
-        setUser({ ...user, fullName: updated.fullName, email: updated.email, phone: updated.phone });
+        setUser({
+          ...user,
+          fullName: updated.fullName,
+          email: updated.email,
+          phone: updated.phone,
+        });
       }
       setProfileMsg({ ok: true, text: 'Data diri berhasil diperbarui.' });
     } catch (e) {
@@ -337,9 +339,14 @@ export function ProfilePage() {
 
   // Avatar generated (DiceBear) seed dari nama — tanpa upload file.
   const avatarSeed = encodeURIComponent(profile?.fullName || profile?.email || 'populi');
-  const generatedAvatars = ['avataaars', 'bottts', 'fun-emoji', 'thumbs', 'identicon', 'adventurer'].map(
-    (style) => `https://api.dicebear.com/9.x/${style}/svg?seed=${avatarSeed}`,
-  );
+  const generatedAvatars = [
+    'avataaars',
+    'bottts',
+    'fun-emoji',
+    'thumbs',
+    'identicon',
+    'adventurer',
+  ].map((style) => `https://api.dicebear.com/9.x/${style}/svg?seed=${avatarSeed}`);
 
   // Baris read-only untuk data demografi (pembobot) — tak bisa diubah responden.
   const ReadonlyField = ({ label, value }: { label: string; value: string }) => (
@@ -423,35 +430,35 @@ export function ProfilePage() {
       )}
 
       {showHeader && (
-      <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="relative shrink-0">
-          <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
-          <button
-            type="button"
-            onClick={() => setAvatarPickerOpen((v) => !v)}
-            aria-label="Ubah foto profil"
-            className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-primary-600 p-1.5 text-white shadow-sm transition-colors hover:bg-primary-700"
-          >
-            <Camera className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-xl font-bold text-gray-900">
-            {profile?.fullName || 'Profil Saya'}
-          </h1>
-          <p className="truncate text-sm text-gray-500">{profile?.email}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
-              {profile ? roleLabels[profile.role] : ''}
-            </span>
-            {profile?.emailVerified && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                <BadgeCheck className="h-3 w-3" /> Email terverifikasi
+        <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="relative shrink-0">
+            <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
+            <button
+              type="button"
+              onClick={() => setAvatarPickerOpen((v) => !v)}
+              aria-label="Ubah foto profil"
+              className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-primary-600 p-1.5 text-white shadow-sm transition-colors hover:bg-primary-700"
+            >
+              <Camera className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xl font-bold text-gray-900">
+              {profile?.fullName || 'Profil Saya'}
+            </h1>
+            <p className="truncate text-sm text-gray-500">{profile?.email}</p>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex items-center rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700">
+                {profile ? roleLabels[profile.role] : ''}
               </span>
-            )}
+              {profile?.emailVerified && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                  <BadgeCheck className="h-3 w-3" /> Email terverifikasi
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       )}
 
       {/* Menu Settings responden */}
@@ -517,7 +524,9 @@ export function ProfilePage() {
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-50 text-primary-600">
                     <Icon className="h-5 w-5" />
                   </span>
-                  <span className="text-[11px] font-medium leading-tight text-gray-600">{label}</span>
+                  <span className="text-[11px] font-medium leading-tight text-gray-600">
+                    {label}
+                  </span>
                 </button>
               ))}
             </div>
@@ -538,9 +547,21 @@ export function ProfilePage() {
               Info Lainnya
             </p>
             <div className="divide-y divide-gray-100">
-              <MenuRow icon={HelpCircle} label="Pertanyaan Umum &amp; Bantuan" onClick={() => navigate('/help')} />
-              <MenuRow icon={ShieldCheck} label="Kebijakan Privasi" onClick={() => setView('privacy')} />
-              <MenuRow icon={FileText} label="Syarat &amp; Ketentuan" onClick={() => setView('terms')} />
+              <MenuRow
+                icon={HelpCircle}
+                label="Pertanyaan Umum &amp; Bantuan"
+                onClick={() => navigate('/help')}
+              />
+              <MenuRow
+                icon={ShieldCheck}
+                label="Kebijakan Privasi"
+                onClick={() => setView('privacy')}
+              />
+              <MenuRow
+                icon={FileText}
+                label="Syarat &amp; Ketentuan"
+                onClick={() => setView('terms')}
+              />
               <MenuRow icon={Star} label="Beri Review &amp; Rating" onClick={openStoreRating} />
             </div>
           </div>
@@ -581,7 +602,9 @@ export function ProfilePage() {
                 disabled={avatarSaving}
                 onClick={() => applyAvatar(url)}
                 className={`rounded-full ring-2 transition disabled:opacity-50 ${
-                  profile?.avatarUrl === url ? 'ring-primary-500' : 'ring-transparent hover:ring-gray-200'
+                  profile?.avatarUrl === url
+                    ? 'ring-primary-500'
+                    : 'ring-transparent hover:ring-gray-200'
                 }`}
               >
                 <img
@@ -624,185 +647,264 @@ export function ProfilePage() {
       )}
 
       {showDataDiri && (
-      <>
-      {/* Data diri */}
-      <form onSubmit={handleSaveProfile} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
-          <User className="h-4 w-4 text-primary-600" /> Data Diri
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="fullName" className={labelClass}>Nama Lengkap</label>
-            <input id="fullName" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} required />
-          </div>
-          <div>
-            <label htmlFor="phone" className={labelClass}>Nomor Telepon</label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className={inputClass}
-              placeholder={phoneNeeded ? '08xxxxxxxxxx' : undefined}
-              required
-              disabled={phoneLocked}
-            />
-            {phoneNeeded && (
-              <p className="mt-1 text-xs text-amber-600">
-                Wajib diisi untuk bisa mengikuti survei.
-              </p>
-            )}
-          </div>
-          <div>
-            <label htmlFor="email" className={labelClass}>Email</label>
-            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} required disabled={isRespondent} />
-          </div>
-          {isRespondent && (
-            <p className="text-xs text-gray-400">
-              {phoneNeeded
-                ? 'Email terkait login dikunci. Nomor telepon dipakai untuk pengiriman reward — setelah diisi, perubahannya butuh verifikasi admin.'
-                : 'Nomor telepon & email terkait pengiriman reward dan login, jadi perubahannya butuh verifikasi — hubungi admin untuk koreksi.'}
-            </p>
-          )}
-        </div>
-        <div className="mt-5 flex items-center gap-3">
-          <button type="submit" disabled={savingProfile} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50">
-            {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </button>
-          {profileMsg && (
-            <span className={`text-sm ${profileMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{profileMsg.text}</span>
-          )}
-        </div>
-      </form>
-
-      {/* Data demografi (pembobot) — read-only untuk responden */}
-      {demo && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-gray-900">
-            <BarChart3 className="h-4 w-4 text-primary-600" /> Data Demografi (Pembobot)
-          </h2>
-          <p className="mb-4 text-xs text-gray-500">
-            Data ini dikunci untuk menjaga kualitas analisis dan mencegah penyalahgunaan
-            targeting. Untuk koreksi, hubungi admin.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ReadonlyField label="Tanggal Lahir" value={fmtDate(demo.dateOfBirth)} />
-            <ReadonlyField label="Usia" value={demo.age != null ? `${demo.age} tahun` : '-'} />
-            <ReadonlyField
-              label="Jenis Kelamin"
-              value={demo.gender ? GENDER_LABELS[demo.gender] ?? demo.gender : '-'}
-            />
-            <ReadonlyField label="Pendidikan" value={demo.education ?? '-'} />
-            <ReadonlyField label="Pekerjaan" value={demo.occupation ?? '-'} />
-            <ReadonlyField label="Agama" value={demo.religion ?? '-'} />
-            <ReadonlyField label="Provinsi" value={demo.province ?? '-'} />
-            <ReadonlyField label="Kabupaten/Kota" value={demo.city ?? '-'} />
-            <ReadonlyField label="Kecamatan" value={demo.district ?? '-'} />
-          </div>
-          <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            Domisili terkini Anda akan ditanyakan langsung di survei bila diperlukan, sehingga
-            wilayah di atas tetap menjadi acuan data registrasi.
-          </p>
-        </div>
-      )}
-      </>
-      )}
-
-      {/* Password — "Ganti" bila sudah punya, "Buat" bila akun Google (belum punya) */}
-      {showPassword && (() => {
-        const hasPassword = profile?.passwordSet !== false;
-        return (
+        <>
+          {/* Data diri */}
           <form
-            onSubmit={hasPassword ? handleChangePassword : handleSetPassword}
+            onSubmit={handleSaveProfile}
             className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
           >
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Lock className="h-4 w-4 text-primary-600" />
-              {hasPassword ? 'Ganti Password' : 'Buat Password'}
+              <User className="h-4 w-4 text-primary-600" /> Data Diri
             </h2>
-            {!hasPassword && (
-              <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                Akun Anda dibuat lewat Google (belum punya password). Buat password agar bisa juga
-                login dengan email &amp; password — login Google tetap berfungsi.
-              </p>
-            )}
             <div className="space-y-4">
-              {hasPassword && (
-                <div>
-                  <label htmlFor="currentPassword" className={labelClass}>Password Lama</label>
-                  <div className="relative">
-                    <input id="currentPassword" type={showCurrentPw ? 'text' : 'password'} value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="current-password" />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPw((v) => !v)}
-                      aria-label={showCurrentPw ? 'Sembunyikan password' : 'Tampilkan password'}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
+              <div>
+                <label htmlFor="fullName" className={labelClass}>
+                  Nama Lengkap
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={inputClass}
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="phone" className={labelClass}>
+                  Nomor Telepon
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className={inputClass}
+                  placeholder={phoneNeeded ? '08xxxxxxxxxx' : undefined}
+                  required
+                  disabled={phoneLocked}
+                />
+                {phoneNeeded && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    Wajib diisi untuk bisa mengikuti survei.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="email" className={labelClass}>
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={inputClass}
+                  required
+                  disabled={isRespondent}
+                />
+              </div>
+              {isRespondent && (
+                <p className="text-xs text-gray-400">
+                  {phoneNeeded
+                    ? 'Email terkait login dikunci. Nomor telepon dipakai untuk pengiriman reward — setelah diisi, perubahannya butuh verifikasi admin.'
+                    : 'Nomor telepon & email terkait pengiriman reward dan login, jadi perubahannya butuh verifikasi — hubungi admin untuk koreksi.'}
+                </p>
               )}
-              <div>
-                <label htmlFor="newPassword" className={labelClass}>Password Baru</label>
-                <div className="relative">
-                  <input id="newPassword" type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPw((v) => !v)}
-                    aria-label={showNewPw ? 'Sembunyikan password' : 'Tampilkan password'}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-gray-400">Min. 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
-              </div>
-              <div>
-                <label htmlFor="confirmPassword" className={labelClass}>Konfirmasi Password Baru</label>
-                <div className="relative">
-                  <input id="confirmPassword" type={showConfirmPw ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className={`${inputClass} pr-10`} required autoComplete="new-password" />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPw((v) => !v)}
-                    aria-label={showConfirmPw ? 'Sembunyikan password' : 'Tampilkan password'}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
             </div>
             <div className="mt-5 flex items-center gap-3">
-              <button type="submit" disabled={savingPassword} className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50">
-                {savingPassword ? 'Menyimpan...' : hasPassword ? 'Ganti Password' : 'Buat Password'}
+              <button
+                type="submit"
+                disabled={savingProfile}
+                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+              >
+                {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
-              {passwordMsg && (
-                <span className={`text-sm ${passwordMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{passwordMsg.text}</span>
+              {profileMsg && (
+                <span className={`text-sm ${profileMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+                  {profileMsg.text}
+                </span>
               )}
             </div>
           </form>
-        );
-      })()}
+
+          {/* Data demografi (pembobot) — read-only untuk responden */}
+          {demo && (
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-gray-900">
+                <BarChart3 className="h-4 w-4 text-primary-600" /> Data Demografi (Pembobot)
+              </h2>
+              <p className="mb-4 text-xs text-gray-500">
+                Data ini dikunci untuk menjaga kualitas analisis dan mencegah penyalahgunaan
+                targeting. Untuk koreksi, hubungi admin.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ReadonlyField label="Tanggal Lahir" value={fmtDate(demo.dateOfBirth)} />
+                <ReadonlyField label="Usia" value={demo.age != null ? `${demo.age} tahun` : '-'} />
+                <ReadonlyField
+                  label="Jenis Kelamin"
+                  value={demo.gender ? (GENDER_LABELS[demo.gender] ?? demo.gender) : '-'}
+                />
+                <ReadonlyField label="Pendidikan" value={demo.education ?? '-'} />
+                <ReadonlyField label="Pekerjaan" value={demo.occupation ?? '-'} />
+                <ReadonlyField label="Agama" value={demo.religion ?? '-'} />
+                <ReadonlyField label="Provinsi" value={demo.province ?? '-'} />
+                <ReadonlyField label="Kabupaten/Kota" value={demo.city ?? '-'} />
+                <ReadonlyField label="Kecamatan" value={demo.district ?? '-'} />
+              </div>
+              <p className="mt-4 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                Domisili terkini Anda akan ditanyakan langsung di survei bila diperlukan, sehingga
+                wilayah di atas tetap menjadi acuan data registrasi.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Password — "Ganti" bila sudah punya, "Buat" bila akun Google (belum punya) */}
+      {showPassword &&
+        (() => {
+          const hasPassword = profile?.passwordSet !== false;
+          return (
+            <form
+              onSubmit={hasPassword ? handleChangePassword : handleSetPassword}
+              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+            >
+              <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
+                <Lock className="h-4 w-4 text-primary-600" />
+                {hasPassword ? 'Ganti Password' : 'Buat Password'}
+              </h2>
+              {!hasPassword && (
+                <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  Akun Anda dibuat lewat Google (belum punya password). Buat password agar bisa juga
+                  login dengan email &amp; password — login Google tetap berfungsi.
+                </p>
+              )}
+              <div className="space-y-4">
+                {hasPassword && (
+                  <div>
+                    <label htmlFor="currentPassword" className={labelClass}>
+                      Password Lama
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="currentPassword"
+                        type={showCurrentPw ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className={`${inputClass} pr-10`}
+                        required
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPw((v) => !v)}
+                        aria-label={showCurrentPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showCurrentPw ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label htmlFor="newPassword" className={labelClass}>
+                    Password Baru
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="newPassword"
+                      type={showNewPw ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className={`${inputClass} pr-10`}
+                      required
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPw((v) => !v)}
+                      aria-label={showNewPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Min. 8 karakter, mengandung huruf besar, huruf kecil, angka, dan simbol.
+                  </p>
+                </div>
+                <div>
+                  <label htmlFor="confirmPassword" className={labelClass}>
+                    Konfirmasi Password Baru
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPw ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className={`${inputClass} pr-10`}
+                      required
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPw((v) => !v)}
+                      aria-label={showConfirmPw ? 'Sembunyikan password' : 'Tampilkan password'}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {savingPassword
+                    ? 'Menyimpan...'
+                    : hasPassword
+                      ? 'Ganti Password'
+                      : 'Buat Password'}
+                </button>
+                {passwordMsg && (
+                  <span
+                    className={`text-sm ${passwordMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}
+                  >
+                    {passwordMsg.text}
+                  </span>
+                )}
+              </div>
+            </form>
+          );
+        })()}
 
       {/* Kebijakan Privasi (sub-layar responden) */}
       {isRespondent && view === 'privacy' && (
         <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900">Kebijakan Privasi</h2>
           <p>
-            Kami mengumpulkan data akun (nama, email, telepon), data profil/demografi,
-            jawaban survei (termasuk foto/audio/berkas bila diminta), serta lokasi GPS
-            hanya saat survei yang mengaktifkannya. Data dipakai untuk menjalankan layanan
-            survei &amp; program poin, mengirim notifikasi, dan memproses penukaran reward.
+            Kami mengumpulkan data akun (nama, email, telepon), data profil/demografi, jawaban
+            survei (termasuk foto/audio/berkas bila diminta), serta lokasi GPS hanya saat survei
+            yang mengaktifkannya. Data dipakai untuk menjalankan layanan survei &amp; program poin,
+            mengirim notifikasi, dan memproses penukaran reward.
           </p>
           <p>
             Kami tidak menjual data Anda. Data dibagikan terbatas hanya ke penyedia layanan
-            seperlunya (notifikasi, login Google, pemrosesan pulsa/e-wallet, pengiriman
-            email). Transmisi data dienkripsi via HTTPS.
+            seperlunya (notifikasi, login Google, pemrosesan pulsa/e-wallet, pengiriman email).
+            Transmisi data dienkripsi via HTTPS.
           </p>
           <p>
-            Anda dapat memperbarui data di menu Profil dan menghapus akun kapan saja
-            (Profil → Hapus Akun). Pertanyaan: <strong>info@populicenter.org</strong>.
+            Anda dapat memperbarui data di menu Profil dan menghapus akun kapan saja (Profil → Hapus
+            Akun). Pertanyaan: <strong>info@populicenter.org</strong>.
           </p>
           <p className="text-xs text-gray-400">
             Versi lengkap tersedia di situs resmi Populi Center.
@@ -815,17 +917,17 @@ export function ProfilePage() {
         <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
           <h2 className="text-base font-semibold text-gray-900">Syarat &amp; Ketentuan</h2>
           <p>
-            Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan
-            data yang benar. Satu orang hanya boleh memiliki satu akun.
+            Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan data yang
+            benar. Satu orang hanya boleh memiliki satu akun.
           </p>
           <p>
-            Poin diberikan atas survei yang diselesaikan sesuai ketentuan tiap survei, dan
-            dapat ditukar menjadi pulsa/e-wallet. Poin tidak dapat diuangkan secara tunai,
-            dapat kedaluwarsa, dan akan hangus bila akun dihapus.
+            Poin diberikan atas survei yang diselesaikan sesuai ketentuan tiap survei, dan dapat
+            ditukar menjadi pulsa/e-wallet. Poin tidak dapat diuangkan secara tunai, dapat
+            kedaluwarsa, dan akan hangus bila akun dihapus.
           </p>
           <p>
-            Kecurangan (jawaban asal, akun ganda, manipulasi) dapat mengakibatkan poin
-            dibatalkan dan akun dinonaktifkan. Kami dapat memperbarui ketentuan ini sewaktu-waktu.
+            Kecurangan (jawaban asal, akun ganda, manipulasi) dapat mengakibatkan poin dibatalkan
+            dan akun dinonaktifkan. Kami dapat memperbarui ketentuan ini sewaktu-waktu.
           </p>
           <p>
             Kontak: <strong>info@populicenter.org</strong> · WhatsApp 0812-9206-8362.

@@ -25,9 +25,7 @@ import { TargetCriteriaDto } from './dto/target-criteria.dto';
 /** Ambil IP klien dari request (hormati proxy bila ada). */
 function clientIp(req: any): string {
   return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req?.ip ||
-    'unknown'
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
   );
 }
 
@@ -67,8 +65,7 @@ export class SurveyController {
   @Roles(UserRole.RESPONDENT, UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async getAvailableSurveys(@Request() req: any) {
     // Filter kelayakan hanya untuk responden; admin/analis melihat semua.
-    const respondentId =
-      req.user?.role === UserRole.RESPONDENT ? req.user.userId : undefined;
+    const respondentId = req.user?.role === UserRole.RESPONDENT ? req.user.userId : undefined;
     return this.surveyService.getAvailableSurveys(respondentId);
   }
 
@@ -86,10 +83,7 @@ export class SurveyController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createSurvey(
-    @Request() req: any,
-    @Body() dto: CreateSurveyDto,
-  ): Promise<Survey> {
+  async createSurvey(@Request() req: any, @Body() dto: CreateSurveyDto): Promise<Survey> {
     const survey = await this.surveyService.createSurvey(req.user.userId, dto);
     await this.audit(req, AuditActionType.SURVEY_CREATE, survey);
     return survey;
@@ -108,10 +102,7 @@ export class SurveyController {
 
   @Post(':id/duplicate')
   @HttpCode(HttpStatus.CREATED)
-  async duplicateSurvey(
-    @Request() req: any,
-    @Param('id') id: string,
-  ): Promise<Survey> {
+  async duplicateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
     const survey = await this.surveyService.duplicateSurvey(id, req.user.userId);
     await this.audit(req, AuditActionType.SURVEY_CREATE, survey, {
       duplicatedFrom: id,
@@ -137,11 +128,16 @@ export class SurveyController {
     @Param('id') id: string,
   ): Promise<{ recipients: number; pushed: number }> {
     const result = await this.notificationScheduler.sendInvitationsForSurvey(id);
-    await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
-      kind: 'survey_invitation',
-      recipients: result.recipients,
-      pushed: result.pushed,
-    });
+    await this.audit(
+      req,
+      AuditActionType.NOTIFICATION_SENT,
+      { id },
+      {
+        kind: 'survey_invitation',
+        recipients: result.recipients,
+        pushed: result.pushed,
+      },
+    );
     return result;
   }
 
@@ -170,11 +166,16 @@ export class SurveyController {
     @Body() criteria: TargetCriteriaDto,
   ): Promise<{ recipients: number; pushed: number }> {
     const result = await this.notificationScheduler.sendTargetedInvitations(id, criteria);
-    await this.audit(req, AuditActionType.NOTIFICATION_SENT, { id }, {
-      kind: 'survey_invitation_targeted',
-      recipients: result.recipients,
-      pushed: result.pushed,
-    });
+    await this.audit(
+      req,
+      AuditActionType.NOTIFICATION_SENT,
+      { id },
+      {
+        kind: 'survey_invitation_targeted',
+        recipients: result.recipients,
+        pushed: result.pushed,
+      },
+    );
     return result;
   }
 

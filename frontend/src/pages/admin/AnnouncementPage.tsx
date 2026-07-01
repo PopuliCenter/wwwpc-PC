@@ -35,13 +35,16 @@ export function AnnouncementPage() {
     if (!ok) return;
     setSubmitting(true);
     try {
-      const res = await api.post<{ recipients: number; pushed: number; emailed: number }>('/announcements', {
-        title: title.trim(),
-        body: body.trim(),
-        link: link.trim() || undefined,
-        sendPush,
-        sendEmail,
-      });
+      const res = await api.post<{ recipients: number; pushed: number; emailed: number }>(
+        '/announcements',
+        {
+          title: title.trim(),
+          body: body.trim(),
+          link: link.trim() || undefined,
+          sendPush,
+          sendEmail,
+        },
+      );
       const extras = [
         res.pushed > 0 ? `push ${res.pushed}` : null,
         res.emailed > 0 ? `email ${res.emailed}` : null,
@@ -69,8 +72,8 @@ export function AnnouncementPage() {
           <Megaphone className="h-6 w-6 text-primary-600" /> Pengumuman
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Kirim berita/info ke semua responden. Muncul di lonceng aplikasi mereka,
-          dan opsional sebagai push notifikasi.
+          Kirim berita/info ke semua responden. Muncul di lonceng aplikasi mereka, dan opsional
+          sebagai push notifikasi.
         </p>
       </div>
 
@@ -85,7 +88,10 @@ export function AnnouncementPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+      >
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">Judul</label>
           <input

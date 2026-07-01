@@ -15,12 +15,7 @@ export const Permissions = {
   DATA_CLEANUP: [UserRole.SUPER_ADMIN, UserRole.ADMIN],
 
   /** Read-only dashboard access - Req 5.10 */
-  DASHBOARD_READ: [
-    UserRole.SUPER_ADMIN,
-    UserRole.ADMIN,
-    UserRole.ANALYST,
-    UserRole.VIEWER,
-  ],
+  DASHBOARD_READ: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST, UserRole.VIEWER],
 
   /** User management operations (create, role change, activate/deactivate) */
   USER_MANAGEMENT: [UserRole.SUPER_ADMIN],

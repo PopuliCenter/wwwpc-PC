@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, BadRequestException, Inject, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+  Inject,
+  Logger,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,12 +19,7 @@ import { User, UserStatus } from './entities';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
 import { NotificationService } from '@modules/notification';
-import {
-  AuthResult,
-  TokenPair,
-  SessionInfo,
-  JwtPayload,
-} from './interfaces';
+import { AuthResult, TokenPair, SessionInfo, JwtPayload } from './interfaces';
 
 export interface ProfileResult {
   id: string;
@@ -59,8 +60,7 @@ const BCRYPT_SALT_ROUNDS = 10;
 const LOGIN_ATTEMPTS_PREFIX = 'login-attempts:';
 const MAX_FAILED_ATTEMPTS = Number(process.env.LOGIN_MAX_FAILED_ATTEMPTS ?? 5);
 const LOCKOUT_TTL_SECONDS = Number(process.env.LOGIN_LOCKOUT_SECONDS ?? 900); // 15 min
-const LOCKOUT_ERROR =
-  'Terlalu banyak percobaan login yang gagal. Silakan coba lagi nanti.';
+const LOCKOUT_ERROR = 'Terlalu banyak percobaan login yang gagal. Silakan coba lagi nanti.';
 
 // A short list of obviously weak passwords that must be rejected outright.
 const COMMON_PASSWORDS = new Set([
@@ -296,9 +296,7 @@ export class AuthService {
     }
 
     // Check if session still exists in Redis
-    const sessionData = await this.cacheManager.get<string>(
-      this.getSessionKey(payload.sessionId),
-    );
+    const sessionData = await this.cacheManager.get<string>(this.getSessionKey(payload.sessionId));
     if (!sessionData) {
       throw new UnauthorizedException('Session expired');
     }
@@ -351,9 +349,7 @@ export class AuthService {
     }
 
     // Check if session still exists in Redis (not logged out)
-    const sessionData = await this.cacheManager.get<string>(
-      this.getSessionKey(payload.sessionId),
-    );
+    const sessionData = await this.cacheManager.get<string>(this.getSessionKey(payload.sessionId));
     if (!sessionData) {
       throw new UnauthorizedException('Session expired or invalidated');
     }
@@ -394,11 +390,7 @@ export class AuthService {
     this.logger.log(`Password reset OTP issued for ${email}`);
   }
 
-  async resetPassword(
-    email: string,
-    code: string,
-    newPassword: string,
-  ): Promise<void> {
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
     // Validate password format
     if (!this.isValidPassword(newPassword)) {
       throw new BadRequestException(
@@ -407,9 +399,7 @@ export class AuthService {
     }
 
     // Cocokkan OTP dari Redis.
-    const storedCode = await this.cacheManager.get<string>(
-      `${PASSWORD_RESET_PREFIX}${email}`,
-    );
+    const storedCode = await this.cacheManager.get<string>(`${PASSWORD_RESET_PREFIX}${email}`);
     if (!storedCode || storedCode !== code) {
       throw new BadRequestException('Kode OTP salah atau sudah kedaluwarsa');
     }
@@ -477,9 +467,7 @@ export class AuthService {
       // Google), tapi tidak boleh MENGUBAH yang sudah ada (perubahan butuh
       // verifikasi via admin). Admin/peran lain bebas mengubah.
       if (user.role === UserRole.RESPONDENT && user.phone) {
-        throw new BadRequestException(
-          'Nomor telepon sudah terisi. Perubahan harus lewat admin.',
-        );
+        throw new BadRequestException('Nomor telepon sudah terisi. Perubahan harus lewat admin.');
       }
       const existing = await this.userRepository.findOne({ where: { phone: dto.phone } });
       if (existing && existing.id !== userId) {
@@ -548,9 +536,7 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
     if (user.passwordSet) {
-      throw new BadRequestException(
-        'Akun sudah memiliki password. Gunakan Ganti Password.',
-      );
+      throw new BadRequestException('Akun sudah memiliki password. Gunakan Ganti Password.');
     }
     if (!this.isValidPassword(newPassword)) {
       throw new BadRequestException(
@@ -603,9 +589,7 @@ export class AuthService {
    * reveal whether the account actually exists.
    */
   private async assertNotLockedOut(email: string): Promise<void> {
-    const attempts = await this.cacheManager.get<number>(
-      this.getLoginAttemptsKey(email),
-    );
+    const attempts = await this.cacheManager.get<number>(this.getLoginAttemptsKey(email));
     if (attempts !== undefined && attempts !== null && attempts >= MAX_FAILED_ATTEMPTS) {
       throw new UnauthorizedException(LOCKOUT_ERROR);
     }
@@ -621,9 +605,7 @@ export class AuthService {
     const next = current + 1;
     await this.cacheManager.set(key, next, LOCKOUT_TTL_SECONDS * 1000);
     if (next >= MAX_FAILED_ATTEMPTS) {
-      this.logger.warn(
-        `Account locked due to ${next} failed login attempts: ${email}`,
-      );
+      this.logger.warn(`Account locked due to ${next} failed login attempts: ${email}`);
     }
   }
 
@@ -631,10 +613,7 @@ export class AuthService {
     await this.cacheManager.del(this.getLoginAttemptsKey(email));
   }
 
-  private async generateTokenPair(
-    user: User,
-    sessionId: string,
-  ): Promise<TokenPair> {
+  private async generateTokenPair(user: User, sessionId: string): Promise<TokenPair> {
     const accessPayload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -652,12 +631,18 @@ export class AuthService {
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(accessPayload as any, {
-        expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
-      } as any),
-      this.jwtService.signAsync(refreshPayload as any, {
-        expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') ?? '7d',
-      } as any),
+      this.jwtService.signAsync(
+        accessPayload as any,
+        {
+          expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
+        } as any,
+      ),
+      this.jwtService.signAsync(
+        refreshPayload as any,
+        {
+          expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') ?? '7d',
+        } as any,
+      ),
     ]);
 
     return { accessToken, refreshToken };

@@ -45,7 +45,9 @@ describe('RewardRedeemedHandler', () => {
     });
 
     it('should not throw when notification service fails', async () => {
-      mockNotificationService.sendRedemptionConfirmation.mockRejectedValue(new Error('Queue error'));
+      mockNotificationService.sendRedemptionConfirmation.mockRejectedValue(
+        new Error('Queue error'),
+      );
 
       await expect(handler.handleNotification(payload)).resolves.not.toThrow();
     });

@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  HttpStatus,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { RegistrationService } from './registration.service';
 import { RegisterDto, VerifyOtpDto, ResendOtpDto, CompleteProfileDto } from './dto';
@@ -52,10 +44,7 @@ export class RegistrationController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto): Promise<VerificationResult> {
-    return this.registrationService.verifyOtp(
-      verifyOtpDto.email,
-      verifyOtpDto.code,
-    );
+    return this.registrationService.verifyOtp(verifyOtpDto.email, verifyOtpDto.code);
   }
 
   /**

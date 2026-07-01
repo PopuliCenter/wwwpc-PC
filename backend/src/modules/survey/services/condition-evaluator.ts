@@ -6,12 +6,7 @@
  * greater_than, less_than.
  */
 
-export type ConditionOperator =
-  | 'equals'
-  | 'not_equals'
-  | 'contains'
-  | 'greater_than'
-  | 'less_than';
+export type ConditionOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
 
 /**
  * Evaluates a condition given an operator, expected value, and actual answer value.
@@ -50,10 +45,7 @@ export function evaluateCondition(
  * Equals: exact match for strings/numbers, or checks if array contains the value
  * for multiple choice answers.
  */
-function evaluateEquals(
-  conditionValue: string,
-  actualValue: string | number | string[],
-): boolean {
+function evaluateEquals(conditionValue: string, actualValue: string | number | string[]): boolean {
   if (Array.isArray(actualValue)) {
     // For multiple choice: check if the condition value is one of the selected options
     return actualValue.includes(conditionValue);
@@ -93,8 +85,7 @@ function evaluateGreaterThan(
     return false;
   }
 
-  const numActual =
-    typeof actualValue === 'number' ? actualValue : Number(actualValue);
+  const numActual = typeof actualValue === 'number' ? actualValue : Number(actualValue);
   const numCondition = Number(conditionValue);
 
   if (isNaN(numActual) || isNaN(numCondition)) {
@@ -115,8 +106,7 @@ function evaluateLessThan(
     return false;
   }
 
-  const numActual =
-    typeof actualValue === 'number' ? actualValue : Number(actualValue);
+  const numActual = typeof actualValue === 'number' ? actualValue : Number(actualValue);
   const numCondition = Number(conditionValue);
 
   if (isNaN(numActual) || isNaN(numCondition)) {

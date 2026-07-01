@@ -13,11 +13,7 @@ import { NotificationFeedService } from '@modules/notification/notification-feed
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REWARD_FULFILLMENT_PROVIDER } from './fulfillment';
 import { PointCreditReason } from '@shared/enums';
-import {
-  POINT_VALUES,
-  MINIMUM_REDEMPTION_THRESHOLD,
-  POINT_EXPIRATION_MONTHS,
-} from './constants';
+import { POINT_VALUES, POINT_EXPIRATION_MONTHS } from './constants';
 
 describe('RewardService', () => {
   let service: RewardService;
@@ -109,12 +105,7 @@ describe('RewardService', () => {
 
   describe('creditPoints', () => {
     it('should credit points with correct expiration date', async () => {
-      const result = await service.creditPoints(
-        'user-1',
-        1000,
-        PointCreditReason.SURVEY_COMPLETION,
-        'survey-1',
-      );
+      await service.creditPoints('user-1', 1000, PointCreditReason.SURVEY_COMPLETION, 'survey-1');
 
       expect(pointTransactionRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -213,16 +204,9 @@ describe('RewardService', () => {
         reason: PointCreditReason.SURVEY_COMPLETION,
         referenceId: 'survey-1',
       };
-      vi.mocked(pointTransactionRepo.findOne).mockResolvedValue(
-        existingTx as PointTransaction,
-      );
+      vi.mocked(pointTransactionRepo.findOne).mockResolvedValue(existingTx as PointTransaction);
 
-      const result = await service.creditSurveyCompletion(
-        'user-1',
-        'survey-1',
-        5000,
-        'complete',
-      );
+      const result = await service.creditSurveyCompletion('user-1', 'survey-1', 5000, 'complete');
 
       // Mengembalikan transaksi yang ada, TANPA membuat kredit baru / menyentuh streak.
       expect(result).toBe(existingTx);
@@ -344,10 +328,7 @@ describe('RewardService', () => {
         { id: 'tx-2', amount: 1000, reason: 'survey_completion' },
       ];
 
-      vi.mocked(pointTransactionRepo.findAndCount).mockResolvedValue([
-        mockTransactions as any,
-        2,
-      ]);
+      vi.mocked(pointTransactionRepo.findAndCount).mockResolvedValue([mockTransactions as any, 2]);
 
       const result = await service.getTransactionHistory('user-1', {
         page: 1,
@@ -411,11 +392,7 @@ describe('RewardService', () => {
         .mockResolvedValueOnce({ total: '0' }) // pending
         .mockResolvedValueOnce({ total: '0' }); // expiring
 
-      const result = await service.initiateRedemption(
-        'user-1',
-        'pulsa-5000',
-        '08123456789',
-      );
+      const result = await service.initiateRedemption('user-1', 'pulsa-5000', '08123456789');
 
       expect(result.otpRequired).toBe(true);
       expect(result.status).toBe(RedemptionStatus.PENDING);
@@ -435,9 +412,9 @@ describe('RewardService', () => {
     it('should reject if redemption not found', async () => {
       vi.mocked(redemptionRepo.findOne).mockResolvedValue(null);
 
-      await expect(
-        service.confirmRedemption('user-1', 'invalid-id', '123456'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.confirmRedemption('user-1', 'invalid-id', '123456')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should reject if OTP is invalid', async () => {
@@ -450,9 +427,9 @@ describe('RewardService', () => {
         pointsSpent: 10000,
       } as RewardRedemption);
 
-      await expect(
-        service.confirmRedemption('user-1', 'redemption-1', '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.confirmRedemption('user-1', 'redemption-1', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should reject if OTP is expired', async () => {
@@ -465,9 +442,9 @@ describe('RewardService', () => {
         pointsSpent: 10000,
       } as RewardRedemption);
 
-      await expect(
-        service.confirmRedemption('user-1', 'redemption-1', '123456'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.confirmRedemption('user-1', 'redemption-1', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should deduct points and update status on valid confirmation', async () => {

@@ -7,9 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * mandiri responden (surveyor_id IS NULL). Respons hasil pengumpulan surveyor
  * (surveyor_id terisi) tidak dibatasi.
  */
-export class RelaxResponseUniquePerSurvey1715000020000
-  implements MigrationInterface
-{
+export class RelaxResponseUniquePerSurvey1715000020000 implements MigrationInterface {
   name = 'RelaxResponseUniquePerSurvey1715000020000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -24,9 +22,7 @@ export class RelaxResponseUniquePerSurvey1715000020000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "uq_one_response_per_survey"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "uq_one_response_per_survey"`);
     await queryRunner.query(`
       ALTER TABLE "survey_response"
         ADD CONSTRAINT "uq_one_response_per_survey"

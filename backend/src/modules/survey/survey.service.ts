@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Survey } from './entities/survey.entity';
@@ -215,12 +210,8 @@ export class SurveyService {
       uppercaseAnswers: dto.uppercaseAnswers ?? false,
       allowedGenders: dto.allowedGenders ?? [],
       allowedProvinces: dto.allowedProvinces ?? [],
-      startDatetime: dto.timeConfig?.startDatetime
-        ? new Date(dto.timeConfig.startDatetime)
-        : null,
-      endDatetime: dto.timeConfig?.endDatetime
-        ? new Date(dto.timeConfig.endDatetime)
-        : null,
+      startDatetime: dto.timeConfig?.startDatetime ? new Date(dto.timeConfig.startDatetime) : null,
+      endDatetime: dto.timeConfig?.endDatetime ? new Date(dto.timeConfig.endDatetime) : null,
       maxDurationMinutes: dto.timeConfig?.maxDurationMinutes ?? null,
       // 0 = tak terbatas → simpan NULL agar cap responden tidak memblokir semua.
       maxRespondents: dto.timeConfig?.maxRespondents || null,
@@ -232,12 +223,8 @@ export class SurveyService {
     // Create time config
     const timeConfig = this.timeConfigRepository.create({
       surveyId: savedSurvey.id,
-      startDatetime: dto.timeConfig?.startDatetime
-        ? new Date(dto.timeConfig.startDatetime)
-        : null,
-      endDatetime: dto.timeConfig?.endDatetime
-        ? new Date(dto.timeConfig.endDatetime)
-        : null,
+      startDatetime: dto.timeConfig?.startDatetime ? new Date(dto.timeConfig.startDatetime) : null,
+      endDatetime: dto.timeConfig?.endDatetime ? new Date(dto.timeConfig.endDatetime) : null,
       maxDurationMinutes: dto.timeConfig?.maxDurationMinutes ?? null,
       // 0 = tak terbatas → NULL (lihat catatan di atas).
       maxRespondents: dto.timeConfig?.maxRespondents || null,
@@ -272,14 +259,10 @@ export class SurveyService {
     if (dto.surveyType !== undefined) survey.surveyType = dto.surveyType;
     if (dto.category !== undefined) survey.category = dto.category?.trim() || null;
     if (dto.captureGps !== undefined) survey.captureGps = dto.captureGps;
-    if (dto.requireSignature !== undefined)
-      survey.requireSignature = dto.requireSignature;
-    if (dto.uppercaseAnswers !== undefined)
-      survey.uppercaseAnswers = dto.uppercaseAnswers;
-    if (dto.allowedGenders !== undefined)
-      survey.allowedGenders = dto.allowedGenders;
-    if (dto.allowedProvinces !== undefined)
-      survey.allowedProvinces = dto.allowedProvinces;
+    if (dto.requireSignature !== undefined) survey.requireSignature = dto.requireSignature;
+    if (dto.uppercaseAnswers !== undefined) survey.uppercaseAnswers = dto.uppercaseAnswers;
+    if (dto.allowedGenders !== undefined) survey.allowedGenders = dto.allowedGenders;
+    if (dto.allowedProvinces !== undefined) survey.allowedProvinces = dto.allowedProvinces;
 
     // Update time-related fields on survey
     if (dto.timeConfig) {

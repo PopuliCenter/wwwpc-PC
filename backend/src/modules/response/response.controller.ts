@@ -44,9 +44,7 @@ export class ResponseController {
   @Post('upload')
   @Roles(UserRole.RESPONDENT)
   @HttpCode(HttpStatus.CREATED)
-  @UseInterceptors(
-    FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }),
-  )
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   async uploadFile(
     @Param('surveyId') surveyId: string,
     @Request() req: any,
@@ -90,10 +88,7 @@ export class ResponseController {
    */
   @Get('mine')
   @Roles(UserRole.RESPONDENT)
-  async getMyResponse(
-    @Param('surveyId') surveyId: string,
-    @Request() req: any,
-  ) {
+  async getMyResponse(@Param('surveyId') surveyId: string, @Request() req: any) {
     return this.responseService.getRespondentResponse(surveyId, req.user.userId);
   }
 
@@ -103,10 +98,7 @@ export class ResponseController {
    */
   @Get()
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
-  async getResponses(
-    @Param('surveyId') surveyId: string,
-    @Query() filters: ResponseFilterDto,
-  ) {
+  async getResponses(@Param('surveyId') surveyId: string, @Query() filters: ResponseFilterDto) {
     return this.responseService.getResponses(surveyId, filters);
   }
 
@@ -131,10 +123,6 @@ export class ResponseController {
     @Request() req: any,
     @Body() dto: MarkRewardDistributedDto,
   ) {
-    return this.responseService.markRewardDistributed(
-      surveyId,
-      dto.respondentIds,
-      req.user.userId,
-    );
+    return this.responseService.markRewardDistributed(surveyId, dto.respondentIds, req.user.userId);
   }
 }

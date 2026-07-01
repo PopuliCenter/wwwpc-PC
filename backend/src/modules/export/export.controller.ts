@@ -20,9 +20,7 @@ import { AuditService } from '@modules/audit/audit.service';
 /** Ambil IP klien dari request (hormati proxy bila ada). */
 function clientIp(req: any): string {
   return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req?.ip ||
-    'unknown'
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
   );
 }
 

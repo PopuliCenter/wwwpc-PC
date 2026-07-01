@@ -3,15 +3,9 @@ import { InjectQueue } from '@nestjs/bull';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Queue } from 'bull';
-import { v4 as uuidv4 } from 'uuid';
 import { ExportJob } from './entities/export-job.entity';
 import { S3StorageService } from './s3-storage.service';
-import {
-  ExportFormat,
-  ExportStatus,
-  ResponseFilter,
-  AuditFilter,
-} from './interfaces';
+import { ExportFormat, ExportStatus, ResponseFilter, AuditFilter } from './interfaces';
 import {
   EXPORT_QUEUE,
   EXPORT_CSV_JOB,
@@ -60,13 +54,7 @@ export class ExportService {
     filters: ResponseFilter,
     requestedBy: string,
   ): Promise<ExportJob> {
-    return this.createExportJob(
-      ExportFormat.CSV,
-      EXPORT_CSV_JOB,
-      surveyId,
-      filters,
-      requestedBy,
-    );
+    return this.createExportJob(ExportFormat.CSV, EXPORT_CSV_JOB, surveyId, filters, requestedBy);
   }
 
   /**
@@ -96,13 +84,7 @@ export class ExportService {
     filters: ResponseFilter,
     requestedBy: string,
   ): Promise<ExportJob> {
-    return this.createExportJob(
-      ExportFormat.PDF,
-      EXPORT_PDF_JOB,
-      surveyId,
-      filters,
-      requestedBy,
-    );
+    return this.createExportJob(ExportFormat.PDF, EXPORT_PDF_JOB, surveyId, filters, requestedBy);
   }
 
   /**
@@ -114,23 +96,14 @@ export class ExportService {
     filters: ResponseFilter,
     requestedBy: string,
   ): Promise<ExportJob> {
-    return this.createExportJob(
-      ExportFormat.JSON,
-      EXPORT_JSON_JOB,
-      surveyId,
-      filters,
-      requestedBy,
-    );
+    return this.createExportJob(ExportFormat.JSON, EXPORT_JSON_JOB, surveyId, filters, requestedBy);
   }
 
   /**
    * Export audit log entries as CSV.
    * Runs as a background job via BullMQ.
    */
-  async exportAuditLog(
-    filters: AuditFilter,
-    requestedBy: string,
-  ): Promise<ExportJob> {
+  async exportAuditLog(filters: AuditFilter, requestedBy: string): Promise<ExportJob> {
     const exportJob = this.exportJobRepository.create({
       requestedBy,
       format: ExportFormat.CSV,
@@ -162,10 +135,7 @@ export class ExportService {
    * Extract manual reward data including name, destination number, and completion status.
    * Runs as a background job via BullMQ.
    */
-  async extractManualRewardData(
-    surveyId: string,
-    requestedBy: string,
-  ): Promise<ExportJob> {
+  async extractManualRewardData(surveyId: string, requestedBy: string): Promise<ExportJob> {
     const exportJob = this.exportJobRepository.create({
       requestedBy,
       format: ExportFormat.CSV,

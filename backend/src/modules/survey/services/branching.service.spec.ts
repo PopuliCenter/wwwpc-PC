@@ -48,9 +48,9 @@ describe('BranchingService', () => {
     it('should throw NotFoundException if page does not exist', async () => {
       pageRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.setBranchingRules('non-existent', []),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.setBranchingRules('non-existent', [])).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should delete existing rules and create new ones', async () => {
@@ -84,9 +84,9 @@ describe('BranchingService', () => {
     it('should throw NotFoundException if page does not exist', async () => {
       pageRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.evaluatePageBranching('non-existent', {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.evaluatePageBranching('non-existent', {})).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should return null when no rules exist', async () => {

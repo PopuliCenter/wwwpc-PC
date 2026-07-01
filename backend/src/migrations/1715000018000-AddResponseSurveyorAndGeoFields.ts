@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * - surveyor_id + questionnaire_number (siapa surveyor & nomor kuesioner)
  * - start/end latitude & longitude (geolokasi saat buka & submit form)
  */
-export class AddResponseSurveyorAndGeoFields1715000018000
-  implements MigrationInterface
-{
+export class AddResponseSurveyorAndGeoFields1715000018000 implements MigrationInterface {
   name = 'AddResponseSurveyorAndGeoFields1715000018000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -31,9 +29,7 @@ export class AddResponseSurveyorAndGeoFields1715000018000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_survey_response_surveyor"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_survey_response_surveyor"`);
     await queryRunner.query(
       `ALTER TABLE "survey_response" DROP CONSTRAINT IF EXISTS "fk_survey_response_surveyor"`,
     );

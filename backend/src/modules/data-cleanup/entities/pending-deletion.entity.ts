@@ -1,9 +1,4 @@
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  CreateDateColumn,
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn } from 'typeorm';
 
 /**
  * Permintaan penghapusan data yang menunggu konfirmasi (double-confirmation).

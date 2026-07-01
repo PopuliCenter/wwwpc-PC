@@ -20,9 +20,7 @@ import { CreateClientLogDto, PurgeClientLogDto } from './dto/create-client-log.d
 
 function clientIp(req: any): string {
   return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req?.ip ||
-    'unknown'
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
   );
 }
 

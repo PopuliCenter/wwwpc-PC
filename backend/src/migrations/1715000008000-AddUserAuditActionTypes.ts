@@ -10,11 +10,21 @@ export class AddUserAuditActionTypes1715000008000 implements MigrationInterface 
   name = 'AddUserAuditActionTypes1715000008000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_create'`);
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_activate'`);
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_deactivate'`);
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_password_reset'`);
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_bulk_import'`);
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_create'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_activate'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_deactivate'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_password_reset'`,
+    );
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_bulk_import'`,
+    );
   }
 
   public async down(): Promise<void> {

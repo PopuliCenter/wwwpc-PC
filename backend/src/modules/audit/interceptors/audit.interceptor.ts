@@ -38,14 +38,8 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const actionType = this.reflector.get<AuditActionType>(
-      AUDIT_ACTION_KEY,
-      context.getHandler(),
-    );
-    const module = this.reflector.get<string>(
-      AUDIT_MODULE_KEY,
-      context.getHandler(),
-    );
+    const actionType = this.reflector.get<AuditActionType>(AUDIT_ACTION_KEY, context.getHandler());
+    const module = this.reflector.get<string>(AUDIT_MODULE_KEY, context.getHandler());
 
     // If no audit metadata is set, skip logging
     if (!actionType || !module) {
@@ -59,21 +53,23 @@ export class AuditInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(() => {
         // Log after successful execution
-        this.auditService.log({
-          userId: user?.userId || 'anonymous',
-          actionType,
-          module,
-          ipAddress,
-          details: {
-            method: request.method,
-            path: request.url,
-            params: request.params,
-          },
-          timestamp: new Date(),
-        }).catch((err) => {
-          // Don't let audit logging failures affect the request
-          console.error('Audit logging failed:', err);
-        });
+        this.auditService
+          .log({
+            userId: user?.userId || 'anonymous',
+            actionType,
+            module,
+            ipAddress,
+            details: {
+              method: request.method,
+              path: request.url,
+              params: request.params,
+            },
+            timestamp: new Date(),
+          })
+          .catch((err) => {
+            // Don't let audit logging failures affect the request
+            console.error('Audit logging failed:', err);
+          });
       }),
     );
   }

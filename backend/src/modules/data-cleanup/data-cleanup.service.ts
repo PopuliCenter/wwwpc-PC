@@ -8,7 +8,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not, LessThan } from 'typeorm';
+import { Repository, LessThan } from 'typeorm';
 import { S3StorageService } from '@modules/export/s3-storage.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { v4 as uuidv4 } from 'uuid';
@@ -252,11 +252,7 @@ export class DataCleanupService {
         null,
         2,
       );
-      await this.s3.uploadBuffer(
-        Buffer.from(snapshot, 'utf-8'),
-        backupKey,
-        'application/json',
-      );
+      await this.s3.uploadBuffer(Buffer.from(snapshot, 'utf-8'), backupKey, 'application/json');
     } catch (err: any) {
       this.logger.error(`Backup gagal untuk ${requestId}: ${err.message}`);
       throw new InternalServerErrorException(
@@ -272,11 +268,7 @@ export class DataCleanupService {
   /**
    * Archive a survey by setting its status to ARCHIVED.
    */
-  async archiveSurvey(
-    surveyId: string,
-    adminUserId: string,
-    ipAddress: string,
-  ): Promise<void> {
+  async archiveSurvey(surveyId: string, adminUserId: string, ipAddress: string): Promise<void> {
     const survey = await this.surveyRepository.findOne({
       where: { id: surveyId },
     });
@@ -349,9 +341,7 @@ export class DataCleanupService {
     // "Hanya yang sudah diekspor": tampilkan survei yang punya ≥1 respons
     // terekspor (kandidat layak dibersihkan), tanpa memfilter hitungan total.
     if (filters.exportStatus === 'exported_only') {
-      queryBuilder.having(
-        'COUNT(response.id) FILTER (WHERE response.exported_at IS NOT NULL) > 0',
-      );
+      queryBuilder.having('COUNT(response.id) FILTER (WHERE response.exported_at IS NOT NULL) > 0');
     }
 
     const results = await queryBuilder.getRawMany();
@@ -382,9 +372,7 @@ export class DataCleanupService {
     });
 
     if (!superAdmin || superAdmin.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException(
-        'GDPR data deletion requires valid Super Admin approval',
-      );
+      throw new ForbiddenException('GDPR data deletion requires valid Super Admin approval');
     }
 
     const user = await this.userRepository.findOne({

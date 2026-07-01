@@ -1,11 +1,4 @@
-import {
-  IsOptional,
-  IsArray,
-  IsString,
-  IsIn,
-  IsInt,
-  Min,
-} from 'class-validator';
+import { IsOptional, IsArray, IsString, IsIn, IsInt, Min } from 'class-validator';
 
 /**
  * Kriteria penargetan undangan survei (semua opsional). Cocokkan profil

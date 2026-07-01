@@ -62,8 +62,7 @@ function mapQuestion(q: BackendQuestion, idx: number): PreviewQuestion {
   };
 }
 
-const inputCls =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-500';
+const inputCls = 'w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-500';
 
 function QuestionInput({ q }: { q: PreviewQuestion }) {
   switch (q.type) {
@@ -73,13 +72,21 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
         <div className="space-y-2">
           {q.options.map((o) => (
             <label key={o.id} className="flex items-center gap-2 text-sm text-gray-700">
-              <input type={q.type === 'single_choice' ? 'radio' : 'checkbox'} disabled name={q.id} />
+              <input
+                type={q.type === 'single_choice' ? 'radio' : 'checkbox'}
+                disabled
+                name={q.id}
+              />
               {o.label}
             </label>
           ))}
           {q.hasOtherOption && (
             <label className="flex items-center gap-2 text-sm text-gray-500">
-              <input type={q.type === 'single_choice' ? 'radio' : 'checkbox'} disabled name={q.id} />
+              <input
+                type={q.type === 'single_choice' ? 'radio' : 'checkbox'}
+                disabled
+                name={q.id}
+              />
               Lainnya…
             </label>
           )}
@@ -89,7 +96,9 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
       return (
         <select disabled className={inputCls}>
           <option>Pilih…</option>
-          {q.options.map((o) => <option key={o.id}>{o.label}</option>)}
+          {q.options.map((o) => (
+            <option key={o.id}>{o.label}</option>
+          ))}
         </select>
       );
     case 'short_text':
@@ -112,7 +121,9 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
     case 'rating_scale':
       return (
         <div className="flex gap-1 text-2xl text-gray-300">
-          {Array.from({ length: q.ratingMax }).map((_, i) => <span key={i}>★</span>)}
+          {Array.from({ length: q.ratingMax }).map((_, i) => (
+            <span key={i}>★</span>
+          ))}
         </div>
       );
     case 'date':
@@ -123,7 +134,9 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
       return (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {['Provinsi', 'Kab/Kota', 'Kecamatan'].map((l) => (
-            <select key={l} disabled className={inputCls}><option>{l}…</option></select>
+            <select key={l} disabled className={inputCls}>
+              <option>{l}…</option>
+            </select>
           ))}
         </div>
       );
@@ -135,7 +148,12 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
               <tr>
                 <th className="border bg-gray-50 px-2 py-1" />
                 {q.matrixColumns.map((c) => (
-                  <th key={c} className="border bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600">{c}</th>
+                  <th
+                    key={c}
+                    className="border bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600"
+                  >
+                    {c}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -144,7 +162,9 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
                 <tr key={r}>
                   <td className="border px-2 py-1 text-xs text-gray-700">{r}</td>
                   {q.matrixColumns.map((c) => (
-                    <td key={c} className="border px-2 py-1 text-center"><input type="radio" disabled /></td>
+                    <td key={c} className="border px-2 py-1 text-center">
+                      <input type="radio" disabled />
+                    </td>
                   ))}
                 </tr>
               ))}
@@ -158,7 +178,13 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
     case 'signature':
       return (
         <div className="rounded-md border border-dashed border-gray-300 px-3 py-4 text-center text-xs text-gray-400">
-          {q.type === 'photo' ? 'Ambil/unggah foto' : q.type === 'audio' ? 'Rekam audio' : q.type === 'signature' ? 'Tanda tangan' : 'Unggah berkas'}
+          {q.type === 'photo'
+            ? 'Ambil/unggah foto'
+            : q.type === 'audio'
+              ? 'Rekam audio'
+              : q.type === 'signature'
+                ? 'Tanda tangan'
+                : 'Unggah berkas'}
         </div>
       );
     default:
@@ -201,10 +227,15 @@ export function SurveyPreviewPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(`/admin/surveys/${id}/edit`)} className="text-gray-600 hover:text-gray-900">
+        <button
+          onClick={() => navigate(`/admin/surveys/${id}/edit`)}
+          className="text-gray-600 hover:text-gray-900"
+        >
           ← Kembali ke Editor
         </button>
-        <span className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700">Mode Preview</span>
+        <span className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-700">
+          Mode Preview
+        </span>
       </div>
 
       <div className="rounded-lg bg-white p-6 shadow">
@@ -220,7 +251,9 @@ export function SurveyPreviewPage() {
               {q.required && <span className="ml-1 text-red-500">*</span>}
             </p>
             {q.description && <p className="mb-2 mt-0.5 text-xs text-gray-500">{q.description}</p>}
-            <div className="mt-2"><QuestionInput q={q} /></div>
+            <div className="mt-2">
+              <QuestionInput q={q} />
+            </div>
           </div>
         ))}
       </div>

@@ -1,11 +1,4 @@
-import {
-  IsArray,
-  IsEnum,
-  IsNotEmpty,
-  IsString,
-  IsUUID,
-  ValidateNested,
-} from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BranchingRuleDto {

@@ -7,9 +7,7 @@ import { NotificationService } from '@modules/notification/notification.service'
 export class SurveyActivatedHandler {
   private readonly logger = new Logger(SurveyActivatedHandler.name);
 
-  constructor(
-    private readonly notificationService: NotificationService,
-  ) {}
+  constructor(private readonly notificationService: NotificationService) {}
 
   /**
    * Send invitation emails to all eligible respondents when a survey is activated.
@@ -37,10 +35,7 @@ export class SurveyActivatedHandler {
         `Invitation emails queued for survey: ${payload.surveyId}, recipients: ${payload.respondents.length}`,
       );
     } catch (error: any) {
-      this.logger.error(
-        `Failed to send survey invitations: ${error.message}`,
-        error.stack,
-      );
+      this.logger.error(`Failed to send survey invitations: ${error.message}`, error.stack);
     }
   }
 }

@@ -32,28 +32,19 @@ export class ConditionalLogicController {
 
   @Put('questions/:questionId/skip-logic')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async setSkipLogic(
-    @Param('questionId') questionId: string,
-    @Body() dto: SetSkipLogicDto,
-  ) {
+  async setSkipLogic(@Param('questionId') questionId: string, @Body() dto: SetSkipLogicDto) {
     return this.skipLogicService.setSkipLogicRules(questionId, dto.rules);
   }
 
   @Put('questions/:questionId/visibility-rules')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async setVisibilityRules(
-    @Param('questionId') questionId: string,
-    @Body() dto: SetVisibilityDto,
-  ) {
+  async setVisibilityRules(@Param('questionId') questionId: string, @Body() dto: SetVisibilityDto) {
     return this.visibilityService.setVisibilityRules(questionId, dto.rules);
   }
 
   @Put('pages/:pageId/branching-rules')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async setBranchingRules(
-    @Param('pageId') pageId: string,
-    @Body() dto: SetBranchingDto,
-  ) {
+  async setBranchingRules(@Param('pageId') pageId: string, @Body() dto: SetBranchingDto) {
     return this.branchingService.setBranchingRules(pageId, dto.rules);
   }
 
@@ -61,40 +52,22 @@ export class ConditionalLogicController {
 
   @Post('surveys/:surveyId/evaluate-skip-logic')
   @HttpCode(HttpStatus.OK)
-  async evaluateSkipLogic(
-    @Param('surveyId') surveyId: string,
-    @Body() dto: EvaluateLogicDto,
-  ) {
-    const skippedQuestionIds = await this.skipLogicService.evaluateSkipLogic(
-      surveyId,
-      dto.answers,
-    );
+  async evaluateSkipLogic(@Param('surveyId') surveyId: string, @Body() dto: EvaluateLogicDto) {
+    const skippedQuestionIds = await this.skipLogicService.evaluateSkipLogic(surveyId, dto.answers);
     return { skippedQuestionIds };
   }
 
   @Post('surveys/:surveyId/evaluate-visibility')
   @HttpCode(HttpStatus.OK)
-  async evaluateVisibility(
-    @Param('surveyId') surveyId: string,
-    @Body() dto: EvaluateLogicDto,
-  ) {
-    const visibility = await this.visibilityService.evaluateVisibility(
-      surveyId,
-      dto.answers,
-    );
+  async evaluateVisibility(@Param('surveyId') surveyId: string, @Body() dto: EvaluateLogicDto) {
+    const visibility = await this.visibilityService.evaluateVisibility(surveyId, dto.answers);
     return { visibility };
   }
 
   @Post('pages/:pageId/evaluate-branching')
   @HttpCode(HttpStatus.OK)
-  async evaluateBranching(
-    @Param('pageId') pageId: string,
-    @Body() dto: EvaluateLogicDto,
-  ) {
-    const targetPageId = await this.branchingService.evaluatePageBranching(
-      pageId,
-      dto.answers,
-    );
+  async evaluateBranching(@Param('pageId') pageId: string, @Body() dto: EvaluateLogicDto) {
+    const targetPageId = await this.branchingService.evaluatePageBranching(pageId, dto.answers);
     return { targetPageId };
   }
 }

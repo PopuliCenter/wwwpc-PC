@@ -34,7 +34,10 @@ describe('NotificationFeedService', () => {
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: DeviceTokenService, useValue: deviceTokenService },
         { provide: NotificationService, useValue: notificationService },
-        { provide: ConfigService, useValue: { get: vi.fn().mockReturnValue('https://survei.example.com') } },
+        {
+          provide: ConfigService,
+          useValue: { get: vi.fn().mockReturnValue('https://survei.example.com') },
+        },
       ],
     }).compile();
 

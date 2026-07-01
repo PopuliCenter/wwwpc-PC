@@ -181,7 +181,9 @@ function CreateUserModal({
             <select
               id="role"
               value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value as CreateUserPayload['role'] })}
+              onChange={(e) =>
+                setForm({ ...form, role: e.target.value as CreateUserPayload['role'] })
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="admin">Admin</option>
@@ -390,19 +392,37 @@ function EditUserModal({
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">{error}</div>
+            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+              {error}
+            </div>
           )}
           <div>
             <label className={labelClass}>Nama Lengkap</label>
-            <input className={inputClass} value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            <input
+              className={inputClass}
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+            />
           </div>
           <div>
             <label className={labelClass}>Email</label>
-            <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
           </div>
           <div>
             <label className={labelClass}>Nomor Telepon</label>
-            <input className={inputClass} value={phone} onChange={(e) => setPhone(e.target.value)} required />
+            <input
+              className={inputClass}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
           </div>
           <div>
             <label className={labelClass}>
@@ -510,7 +530,7 @@ export function UserManagementPage() {
   const handleResetPassword = async (userId: string) => {
     try {
       const result = await api.post<{ temporaryPassword: string }>(
-        `/users/${userId}/reset-password`
+        `/users/${userId}/reset-password`,
       );
       setActionMessage(`Password direset. Password baru: ${result.temporaryPassword}`);
     } catch {

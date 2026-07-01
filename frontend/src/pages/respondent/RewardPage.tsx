@@ -166,7 +166,8 @@ function BalanceCard({ balance, loading }: { balance: PointBalance | null; loadi
             )}
             {expiring > 0 && (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-medium text-amber-50 ring-1 ring-inset ring-amber-300/30">
-                <Clock className="h-3.5 w-3.5" /> {expiring.toLocaleString('id-ID')} kedaluwarsa &lt;30 hari
+                <Clock className="h-3.5 w-3.5" /> {expiring.toLocaleString('id-ID')} kedaluwarsa
+                &lt;30 hari
               </span>
             )}
           </div>
@@ -188,7 +189,7 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
       setLoading(true);
       try {
         const result = await api.get<PaginatedResponse<BackendTransaction>>(
-          `/rewards/transactions?page=${page}&pageSize=10`
+          `/rewards/transactions?page=${page}&pageSize=10`,
         );
         setTransactions(Array.isArray(result?.data) ? result.data : []);
         setTotalPages(result?.meta?.totalPages ?? 1);
@@ -245,7 +246,8 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
                 <span
                   className={`text-sm font-medium ${earned ? 'text-green-600' : 'text-red-600'}`}
                 >
-                  {earned ? '+' : '-'}{tx.amount.toLocaleString()}
+                  {earned ? '+' : '-'}
+                  {tx.amount.toLocaleString()}
                 </span>
               </div>
             );
@@ -317,9 +319,7 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
   }, [fetchRedemptions, refreshKey]);
 
   // Auto-refresh selama ada penukaran yang masih berjalan (diproses oleh provider).
-  const hasInFlight = redemptions.some(
-    (r) => r.status === 'pending' || r.status === 'processing',
-  );
+  const hasInFlight = redemptions.some((r) => r.status === 'pending' || r.status === 'processing');
   useEffect(() => {
     if (!hasInFlight) return;
     const t = setInterval(() => void fetchRedemptions(), 15000);
@@ -417,9 +417,7 @@ function RewardCatalog({
   }, []);
 
   const hasPulsa = rewards.some((r) => r.category === 'pulsa');
-  const presentWallets = EWALLETS.filter((w) =>
-    rewards.some((r) => walletOf(r.id) === w.key),
-  );
+  const presentWallets = EWALLETS.filter((w) => rewards.some((r) => walletOf(r.id) === w.key));
   // Tab: Semua · Pulsa · lalu satu tab per dompet (GoPay/OVO/DANA/…).
   const tabs: { key: string; label: string }[] = [
     { key: 'all', label: 'Semua' },
@@ -506,7 +504,9 @@ function RewardCatalog({
                   })()}
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{reward.description}</p>
+                    <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
+                      {reward.description}
+                    </p>
                   </div>
                 </div>
                 <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
@@ -577,10 +577,9 @@ function RedemptionModal({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<RedemptionResult>(
-        `/rewards/redeem/${redemptionId}/confirm`,
-        { otpCode: otp },
-      );
+      const result = await api.post<RedemptionResult>(`/rewards/redeem/${redemptionId}/confirm`, {
+        otpCode: otp,
+      });
       setResultStatus(result.status);
       setResultMessage(result.message || '');
       // Backend tidak mengembalikan sisa saldo → ambil ulang.
@@ -620,9 +619,7 @@ function RedemptionModal({
               <p className="text-sm text-primary-600">{reward.pointsCost.toLocaleString()} poin</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nomor Tujuan
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Tujuan</label>
               <p className="text-xs text-gray-500 mb-2">
                 {reward.category === 'e_wallet'
                   ? 'Masukkan nomor HP yang terdaftar di akun e-wallet'
@@ -674,53 +671,52 @@ function RedemptionModal({
         )}
 
         {/* Step: Hasil (status-aware: berhasil / diproses / gagal+refund) */}
-        {step === 'success' && (() => {
-          const failed = resultStatus === 'failed';
-          const completed = resultStatus === 'completed';
-          const icon = failed ? '❌' : completed ? '✅' : '⏳';
-          const title = failed
-            ? 'Penukaran Gagal'
-            : completed
-              ? 'Penukaran Berhasil!'
-              : 'Penukaran Diproses';
-          const desc = failed
-            ? `${resultMessage || 'Penukaran tidak dapat diselesaikan.'} Poin Anda telah dikembalikan.`
-            : completed
-              ? `${reward.name} telah dikirim ke nomor tujuan Anda.`
-              : `${reward.name} sedang diproses. Status akan diperbarui otomatis.`;
-          return (
-            <div className="space-y-4 text-center">
-              <div className="text-5xl">{icon}</div>
-              <h3
-                className={`text-lg font-semibold ${failed ? 'text-red-600' : 'text-gray-900'}`}
-              >
-                {title}
-              </h3>
-              <p className="text-sm text-gray-600">{desc}</p>
-              {remainingBalance !== null && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm text-gray-500">Sisa saldo</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {remainingBalance.toLocaleString()} poin
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  onSuccess();
-                  onClose();
-                }}
-                className={`w-full py-2 text-white rounded-lg font-medium ${
-                  failed
-                    ? 'bg-gray-600 hover:bg-gray-700'
-                    : 'bg-primary-600 hover:bg-primary-700'
-                }`}
-              >
-                {failed ? 'Tutup' : 'Selesai'}
-              </button>
-            </div>
-          );
-        })()}
+        {step === 'success' &&
+          (() => {
+            const failed = resultStatus === 'failed';
+            const completed = resultStatus === 'completed';
+            const icon = failed ? '❌' : completed ? '✅' : '⏳';
+            const title = failed
+              ? 'Penukaran Gagal'
+              : completed
+                ? 'Penukaran Berhasil!'
+                : 'Penukaran Diproses';
+            const desc = failed
+              ? `${resultMessage || 'Penukaran tidak dapat diselesaikan.'} Poin Anda telah dikembalikan.`
+              : completed
+                ? `${reward.name} telah dikirim ke nomor tujuan Anda.`
+                : `${reward.name} sedang diproses. Status akan diperbarui otomatis.`;
+            return (
+              <div className="space-y-4 text-center">
+                <div className="text-5xl">{icon}</div>
+                <h3
+                  className={`text-lg font-semibold ${failed ? 'text-red-600' : 'text-gray-900'}`}
+                >
+                  {title}
+                </h3>
+                <p className="text-sm text-gray-600">{desc}</p>
+                {remainingBalance !== null && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Sisa saldo</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {remainingBalance.toLocaleString()} poin
+                    </p>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    onSuccess();
+                    onClose();
+                  }}
+                  className={`w-full py-2 text-white rounded-lg font-medium ${
+                    failed ? 'bg-gray-600 hover:bg-gray-700' : 'bg-primary-600 hover:bg-primary-700'
+                  }`}
+                >
+                  {failed ? 'Tutup' : 'Selesai'}
+                </button>
+              </div>
+            );
+          })()}
       </div>
     </div>
   );
@@ -769,10 +765,7 @@ export function RewardPage() {
       <BalanceCard balance={balance} loading={balanceLoading} />
 
       {/* Katalog Reward — tepat di bawah saldo, list kesamping + filter */}
-      <RewardCatalog
-        onSelectReward={setSelectedReward}
-        currentBalance={balance?.available ?? 0}
-      />
+      <RewardCatalog onSelectReward={setSelectedReward} currentBalance={balance?.available ?? 0} />
 
       {/* Riwayat Transaksi */}
       <TransactionHistory refreshKey={refreshKey} />

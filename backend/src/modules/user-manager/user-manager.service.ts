@@ -7,18 +7,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike, DataSource, EntityManager } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
 import { CreateUserDto, ListUsersFilterDto } from './dto';
-import {
-  BulkImportResult,
-  BulkImportError,
-  PaginatedUsers,
-  ActivityEntry,
-} from './interfaces';
+import { BulkImportResult, BulkImportError, PaginatedUsers, ActivityEntry } from './interfaces';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -126,11 +121,7 @@ export class UserManagerService {
   /**
    * Activate a user account.
    */
-  async activateUser(
-    userId: string,
-    adminUserId: string,
-    ipAddress: string,
-  ): Promise<void> {
+  async activateUser(userId: string, adminUserId: string, ipAddress: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
@@ -151,11 +142,7 @@ export class UserManagerService {
   /**
    * Deactivate a user account.
    */
-  async deactivateUser(
-    userId: string,
-    adminUserId: string,
-    ipAddress: string,
-  ): Promise<void> {
+  async deactivateUser(userId: string, adminUserId: string, ipAddress: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException(`User with id ${userId} not found`);
@@ -283,10 +270,9 @@ export class UserManagerService {
     }
 
     if (filters.search) {
-      queryBuilder.andWhere(
-        '(user.full_name ILIKE :search OR user.email ILIKE :search)',
-        { search: `%${filters.search}%` },
-      );
+      queryBuilder.andWhere('(user.full_name ILIKE :search OR user.email ILIKE :search)', {
+        search: `%${filters.search}%`,
+      });
     }
 
     const [data, total] = await queryBuilder.getManyAndCount();
@@ -385,13 +371,8 @@ export class UserManagerService {
       throw new NotFoundException('Pengguna tidak ditemukan.');
     }
 
-    if (
-      requester.role !== UserRole.SUPER_ADMIN &&
-      target.role === UserRole.SUPER_ADMIN
-    ) {
-      throw new ForbiddenException(
-        'Hanya Super Admin yang dapat menghapus akun Super Admin.',
-      );
+    if (requester.role !== UserRole.SUPER_ADMIN && target.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Hanya Super Admin yang dapat menghapus akun Super Admin.');
     }
 
     const ownsSurvey = await this.dataSource.query(
@@ -404,9 +385,7 @@ export class UserManagerService {
       );
     }
 
-    await this.dataSource.transaction((manager) =>
-      this.purgeUserData(manager, targetUserId),
-    );
+    await this.dataSource.transaction((manager) => this.purgeUserData(manager, targetUserId));
 
     await this.auditService.log({
       userId: requester.userId,
@@ -427,19 +406,13 @@ export class UserManagerService {
    * transaksi. Aman apa pun konfigurasi ON DELETE di DB. audit_log SENGAJA tidak
    * dihapus (tanpa FK) agar jejak audit utuh.
    */
-  private async purgeUserData(
-    manager: EntityManager,
-    userId: string,
-  ): Promise<void> {
+  private async purgeUserData(manager: EntityManager, userId: string): Promise<void> {
     const id = [userId];
     await manager.query('DELETE FROM point_transaction WHERE user_id = $1', id);
     await manager.query('DELETE FROM reward_redemption WHERE user_id = $1', id);
     await manager.query('DELETE FROM streak_tracker WHERE user_id = $1', id);
     await manager.query('DELETE FROM geolocation WHERE user_id = $1', id);
-    await manager.query(
-      'DELETE FROM manual_reward_distribution WHERE respondent_id = $1',
-      id,
-    );
+    await manager.query('DELETE FROM manual_reward_distribution WHERE respondent_id = $1', id);
     await manager.query('DELETE FROM export_job WHERE requested_by = $1', id);
     // Jawaban tertaut → hapus dulu sebelum survey_response (jaga-jaga bila FK
     // tidak CASCADE di DB).
@@ -448,10 +421,7 @@ export class UserManagerService {
       id,
     );
     await manager.query('DELETE FROM survey_response WHERE respondent_id = $1', id);
-    await manager.query(
-      'UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1',
-      id,
-    );
+    await manager.query('UPDATE survey_response SET surveyor_id = NULL WHERE surveyor_id = $1', id);
     await manager.query('DELETE FROM surveyor_quota WHERE surveyor_id = $1', id);
     await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
     // Tabel user bernama "users".
@@ -480,9 +450,7 @@ export class UserManagerService {
       );
     }
 
-    await this.dataSource.transaction((manager) =>
-      this.purgeUserData(manager, userId),
-    );
+    await this.dataSource.transaction((manager) => this.purgeUserData(manager, userId));
 
     await this.auditService.log({
       userId,
@@ -526,10 +494,7 @@ export class UserManagerService {
       throw new NotFoundException(`User with id ${userId} not found`);
     }
 
-    const result = await this.auditService.query(
-      { userId },
-      { page: 1, limit: 100 },
-    );
+    const result = await this.auditService.query({ userId }, { page: 1, limit: 100 });
 
     return result.data.map((entry: any) => ({
       id: entry.id,
@@ -562,7 +527,8 @@ export class UserManagerService {
     // Check if first line is a header (must start with typical header keywords)
     const firstLineCols = lines[0].split(',').map((col) => col.trim().toLowerCase());
     const headerKeywords = ['name', 'fullname', 'full_name', 'email', 'phone', 'role'];
-    const hasHeader = firstLineCols.length >= 4 &&
+    const hasHeader =
+      firstLineCols.length >= 4 &&
       firstLineCols.filter((col) => headerKeywords.includes(col)).length >= 3;
 
     const dataLines = hasHeader ? lines.slice(1) : lines;

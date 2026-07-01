@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * dikirim ke gateway (mis. IAK) & dipakai mencocokkan callback. Dipisah dari
  * id (UUID) karena banyak gateway PPOB membatasi panjang ref_id.
  */
-export class AddRedemptionProviderRefId1715000031000
-  implements MigrationInterface
-{
+export class AddRedemptionProviderRefId1715000031000 implements MigrationInterface {
   name = 'AddRedemptionProviderRefId1715000031000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -20,9 +18,7 @@ export class AddRedemptionProviderRefId1715000031000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "idx_reward_redemption_provider_ref_id"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_reward_redemption_provider_ref_id"`);
     await queryRunner.query(
       `ALTER TABLE "reward_redemption" DROP COLUMN IF EXISTS "provider_ref_id"`,
     );

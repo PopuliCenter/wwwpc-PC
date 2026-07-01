@@ -21,12 +21,13 @@ import { AuditModule } from '@modules/audit';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow<string>('auth.jwtSecret'),
-        signOptions: {
-          expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
-        },
-      } as any),
+      useFactory: (configService: ConfigService) =>
+        ({
+          secret: configService.getOrThrow<string>('auth.jwtSecret'),
+          signOptions: {
+            expiresIn: configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
+          },
+        }) as any,
     }),
     TypeOrmModule.forFeature([User, UserProfile]),
   ],

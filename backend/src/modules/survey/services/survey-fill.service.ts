@@ -12,10 +12,7 @@ import { SurveyPage } from '../entities/survey-page.entity';
 import { Question } from '../entities/question.entity';
 import { SkipLogicRule } from '../entities/skip-logic-rule.entity';
 import { VisibilityRule } from '../entities/visibility-rule.entity';
-import {
-  SurveyResponse,
-  ResponseStatus,
-} from '@modules/response/entities/survey-response.entity';
+import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
 import { Answer } from '@modules/response/entities/answer.entity';
 import { QuestionType } from '@shared/enums';
 import { SurveyTimeService } from './survey-time.service';
@@ -164,11 +161,7 @@ export class SurveyFillService {
       await this.assertEligible(survey, respondentId);
     }
 
-    const responseId = await this.getOrCreateInProgressResponse(
-      surveyId,
-      respondentId,
-      existing,
-    );
+    const responseId = await this.getOrCreateInProgressResponse(surveyId, respondentId, existing);
 
     // Undi (atau muat) penugasan arm eksperimen untuk respons ini. Dilakukan
     // sebelum merakit data agar nilai arm bisa dikirim ke frontend sebagai
@@ -199,9 +192,7 @@ export class SurveyFillService {
     const existing = await this.answerRepository.find({
       where: { responseId, questionId: In(armQuestions.map((q) => q.id)) },
     });
-    const existingByQuestion = new Map(
-      existing.map((a) => [a.questionId, a.value]),
-    );
+    const existingByQuestion = new Map(existing.map((a) => [a.questionId, a.value]));
 
     const assignments: Record<string, string> = {};
     const toInsert: Answer[] = [];
@@ -217,9 +208,7 @@ export class SurveyFillService {
       const picked = options[Math.floor(Math.random() * options.length)];
       const value = picked.value || picked.label;
       assignments[q.id] = value;
-      toInsert.push(
-        this.answerRepository.create({ responseId, questionId: q.id, value }),
-      );
+      toInsert.push(this.answerRepository.create({ responseId, questionId: q.id, value }));
     }
 
     if (toInsert.length > 0) {
@@ -240,9 +229,7 @@ export class SurveyFillService {
    * Data pengisian untuk surveyor (TPD): pertanyaan + konfigurasi survei, TANPA
    * membuat baris respons (surveyor mengisi banyak kuesioner, dikirim sekali jadi).
    */
-  async getSurveyorFillData(
-    surveyId: string,
-  ): Promise<Omit<SurveyFillData, 'responseId'>> {
+  async getSurveyorFillData(surveyId: string): Promise<Omit<SurveyFillData, 'responseId'>> {
     const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
@@ -251,9 +238,7 @@ export class SurveyFillService {
   }
 
   /** Rakit pertanyaan + konfigurasi survei (dipakai responden & surveyor). */
-  private async assembleFillData(
-    survey: Survey,
-  ): Promise<Omit<SurveyFillData, 'responseId'>> {
+  private async assembleFillData(survey: Survey): Promise<Omit<SurveyFillData, 'responseId'>> {
     const surveyId = survey.id;
     const [pages, questions] = await Promise.all([
       this.pageRepository.find({ where: { surveyId }, order: { pageNumber: 'ASC' } }),
@@ -398,10 +383,7 @@ export class SurveyFillService {
       return created.id;
     } catch (error: any) {
       // Race: another request created the response between our check and insert.
-      if (
-        error.code === '23505' ||
-        error.message?.includes('uq_one_response_per_survey')
-      ) {
+      if (error.code === '23505' || error.message?.includes('uq_one_response_per_survey')) {
         const raced = await this.responseRepository.findOne({
           where: { surveyId, respondentId },
         });
@@ -495,9 +477,7 @@ export class SurveyFillService {
    * can faithfully represent only for equals/not_equals; other 'hide' operators
    * are left to the authoritative server-side check (AnswerValidationService).
    */
-  private groupVisibilityConditions(
-    rules: VisibilityRule[],
-  ): Map<string, FillCondition[]> {
+  private groupVisibilityConditions(rules: VisibilityRule[]): Map<string, FillCondition[]> {
     const map = new Map<string, FillCondition[]>();
     for (const rule of rules) {
       const operator = rule.conditionOperator as FillCondition['operator'];
@@ -506,9 +486,17 @@ export class SurveyFillService {
       if (rule.visibilityAction === 'show') {
         condition = { questionId: rule.sourceQuestionId, operator, value: rule.conditionValue };
       } else if (operator === 'equals') {
-        condition = { questionId: rule.sourceQuestionId, operator: 'not_equals', value: rule.conditionValue };
+        condition = {
+          questionId: rule.sourceQuestionId,
+          operator: 'not_equals',
+          value: rule.conditionValue,
+        };
       } else if (operator === 'not_equals') {
-        condition = { questionId: rule.sourceQuestionId, operator: 'equals', value: rule.conditionValue };
+        condition = {
+          questionId: rule.sourceQuestionId,
+          operator: 'equals',
+          value: rule.conditionValue,
+        };
       } else {
         this.logger.debug(
           `Skipping client mapping of 'hide' rule with operator '${operator}' for question ${rule.questionId}`,
@@ -525,10 +513,7 @@ export class SurveyFillService {
   }
 
   private computeTotalPages(pages: SurveyPage[], questions: FillQuestion[]): number {
-    const pageNumbers = [
-      ...pages.map((p) => p.pageNumber),
-      ...questions.map((q) => q.page),
-    ];
+    const pageNumbers = [...pages.map((p) => p.pageNumber), ...questions.map((q) => q.page)];
     return pageNumbers.length > 0 ? Math.max(...pageNumbers) : 1;
   }
 

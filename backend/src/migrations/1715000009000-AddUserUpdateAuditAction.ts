@@ -8,7 +8,9 @@ export class AddUserUpdateAuditAction1715000009000 implements MigrationInterface
   name = 'AddUserUpdateAuditAction1715000009000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_update'`);
+    await queryRunner.query(
+      `ALTER TYPE "audit_action_type_enum" ADD VALUE IF NOT EXISTS 'user_update'`,
+    );
   }
 
   public async down(): Promise<void> {

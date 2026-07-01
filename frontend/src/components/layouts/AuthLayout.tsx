@@ -4,9 +4,21 @@ import { useAuthStore } from '@/stores/auth.store';
 import { isEmbedMode } from '@/utils/embed';
 
 const highlights = [
-  { icon: Gift, title: 'Reward tiap survei', desc: 'Kumpulkan poin di setiap survei dan tukar jadi pulsa atau saldo e-wallet.' },
-  { icon: ShieldCheck, title: 'Privasi terjaga', desc: 'Identitas dan lokasi Anda dienkripsi, dipakai hanya untuk riset — tidak dijual.' },
-  { icon: Clock, title: 'Cepat & mudah', desc: 'Isi kapan saja langsung dari ponsel, hanya butuh beberapa menit.' },
+  {
+    icon: Gift,
+    title: 'Reward tiap survei',
+    desc: 'Kumpulkan poin di setiap survei dan tukar jadi pulsa atau saldo e-wallet.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Privasi terjaga',
+    desc: 'Identitas dan lokasi Anda dienkripsi, dipakai hanya untuk riset — tidak dijual.',
+  },
+  {
+    icon: Clock,
+    title: 'Cepat & mudah',
+    desc: 'Isi kapan saja langsung dari ponsel, hanya butuh beberapa menit.',
+  },
 ];
 
 export function AuthLayout() {
@@ -15,7 +27,9 @@ export function AuthLayout() {
   if (isLoading) {
     // Di mode embed hindari min-h-screen (100vh) agar iframe tidak overshoot.
     return (
-      <div className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}>
+      <div
+        className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}
+      >
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600" />
       </div>
     );
@@ -67,8 +81,8 @@ export function AuthLayout() {
             Isi survei, suara Anda dihargai.
           </h1>
           <p className="mt-3 max-w-sm text-sm text-white/70">
-            Bagikan pendapat Anda dalam beberapa menit dan kumpulkan reward —
-            data serta privasi Anda tetap terlindungi.
+            Bagikan pendapat Anda dalam beberapa menit dan kumpulkan reward — data serta privasi
+            Anda tetap terlindungi.
           </p>
 
           <ul className="mt-10 space-y-5">

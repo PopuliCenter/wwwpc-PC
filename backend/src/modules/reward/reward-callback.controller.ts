@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  HttpCode,
-  Req,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, Req, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RewardService } from './reward.service';
 
@@ -40,9 +33,7 @@ export class RewardCallbackController {
   async iak(@Body() payload: unknown, @Req() req: any) {
     if (this.allowedIps.length > 0) {
       const ip =
-        (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-        req?.ip ||
-        '';
+        (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || '';
       if (!this.allowedIps.includes(ip)) {
         throw new ForbiddenException('IP tidak diizinkan.');
       }

@@ -25,17 +25,13 @@ export class DashboardController {
   }
 
   @Get('registration-chart')
-  async getRegistrationChart(
-    @Query() query: DashboardPeriodDto,
-  ): Promise<ChartData> {
+  async getRegistrationChart(@Query() query: DashboardPeriodDto): Promise<ChartData> {
     const period = this.buildDateRange(query);
     return this.dashboardService.getRegistrationChart(period);
   }
 
   @Get('cumulative-trend')
-  async getCumulativeTrendChart(
-    @Query() query: DashboardPeriodDto,
-  ): Promise<ChartData> {
+  async getCumulativeTrendChart(@Query() query: DashboardPeriodDto): Promise<ChartData> {
     const period = this.buildDateRange(query);
     return this.dashboardService.getCumulativeTrendChart(period);
   }

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Question } from './entities/question.entity';
@@ -78,9 +73,7 @@ export class QuestionService {
       where: { id: dto.pageId, surveyId },
     });
     if (!page) {
-      throw new NotFoundException(
-        `Page with id ${dto.pageId} not found in survey ${surveyId}`,
-      );
+      throw new NotFoundException(`Page with id ${dto.pageId} not found in survey ${surveyId}`);
     }
 
     // Validate has_other_option only for choice-based questions
@@ -134,9 +127,7 @@ export class QuestionService {
       await this.optionRepository.save(options);
     }
 
-    this.logger.log(
-      `Question created: ${savedQuestion.id} for survey ${surveyId}`,
-    );
+    this.logger.log(`Question created: ${savedQuestion.id} for survey ${surveyId}`);
 
     return this.findById(savedQuestion.id);
   }
@@ -234,7 +225,7 @@ export class QuestionService {
         const action = r.action === 'jump_to' ? 'jump_to' : 'skip';
         const target =
           action === 'jump_to' && r.targetQuestionId
-            ? idMap.get(r.targetQuestionId) ?? null
+            ? (idMap.get(r.targetQuestionId) ?? null)
             : null;
         skipRows.push(
           this.skipLogicRepository.create({
@@ -282,10 +273,7 @@ export class QuestionService {
     return { skip, visibility };
   }
 
-  async updateQuestion(
-    questionId: string,
-    dto: UpdateQuestionDto,
-  ): Promise<Question> {
+  async updateQuestion(questionId: string, dto: UpdateQuestionDto): Promise<Question> {
     const question = await this.findById(questionId);
 
     // Update basic fields
@@ -307,10 +295,7 @@ export class QuestionService {
     if (dto.order !== undefined) question.orderIndex = dto.order;
     if (dto.validationRules !== undefined) {
       if (dto.validationRules) {
-        this.validateRulesForType(
-          dto.type ?? question.type,
-          dto.validationRules,
-        );
+        this.validateRulesForType(dto.type ?? question.type, dto.validationRules);
       }
       question.validationRules = dto.validationRules ?? null;
     }
@@ -366,10 +351,7 @@ export class QuestionService {
     this.logger.log(`Question deleted: ${questionId}`);
   }
 
-  async reorderQuestions(
-    surveyId: string,
-    dto: ReorderQuestionsDto,
-  ): Promise<void> {
+  async reorderQuestions(surveyId: string, dto: ReorderQuestionsDto): Promise<void> {
     // Verify survey exists
     const survey = await this.surveyRepository.findOne({
       where: { id: surveyId },
@@ -386,9 +368,7 @@ export class QuestionService {
 
     for (const qId of dto.questionIds) {
       if (!existingIds.has(qId)) {
-        throw new BadRequestException(
-          `Question ${qId} does not belong to survey ${surveyId}`,
-        );
+        throw new BadRequestException(`Question ${qId} does not belong to survey ${surveyId}`);
       }
     }
 
@@ -453,9 +433,7 @@ export class QuestionService {
     });
 
     if (!question) {
-      throw new NotFoundException(
-        `Question with id ${questionId} not found`,
-      );
+      throw new NotFoundException(`Question with id ${questionId} not found`);
     }
 
     return question;
@@ -487,17 +465,12 @@ export class QuestionService {
 
     if (typesRequiringOptions.includes(type)) {
       if (!options || options.length === 0) {
-        throw new BadRequestException(
-          `Question type "${type}" requires at least one option`,
-        );
+        throw new BadRequestException(`Question type "${type}" requires at least one option`);
       }
     }
   }
 
-  private validateRulesForType(
-    type: QuestionType,
-    rules: Record<string, any>,
-  ): void {
+  private validateRulesForType(type: QuestionType, rules: Record<string, any>): void {
     // maxCheckbox only valid for multiple_choice
     if (rules.maxCheckbox !== undefined && type !== QuestionType.MULTIPLE_CHOICE) {
       throw new BadRequestException(

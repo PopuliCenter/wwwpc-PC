@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -52,12 +47,9 @@ export class S3StorageService implements OnModuleInit {
     // Dua bucket terpisah: export vs unggahan responden. Bila var baru tidak
     // diisi, fallback ke `S3_BUCKET` lama (default 'survey-exports') agar tidak
     // breaking pada deployment yang belum dikonfigurasi ulang.
-    const legacyBucket =
-      this.configService.get<string>('S3_BUCKET') ?? 'survey-exports';
-    this.exportsBucket =
-      this.configService.get<string>('S3_BUCKET_EXPORTS') ?? legacyBucket;
-    this.uploadsBucket =
-      this.configService.get<string>('S3_BUCKET_UPLOADS') ?? legacyBucket;
+    const legacyBucket = this.configService.get<string>('S3_BUCKET') ?? 'survey-exports';
+    this.exportsBucket = this.configService.get<string>('S3_BUCKET_EXPORTS') ?? legacyBucket;
+    this.uploadsBucket = this.configService.get<string>('S3_BUCKET_UPLOADS') ?? legacyBucket;
     this.bucket = this.exportsBucket;
     this.presignedUrlExpiresIn = parseInt(
       this.configService.get<string>('S3_PRESIGNED_URL_EXPIRES_IN') ?? '900',
@@ -65,8 +57,7 @@ export class S3StorageService implements OnModuleInit {
     );
 
     const sse = this.configService.get<string>('S3_SERVER_SIDE_ENCRYPTION');
-    this.serverSideEncryption =
-      sse === 'AES256' || sse === 'aws:kms' ? sse : undefined;
+    this.serverSideEncryption = sse === 'AES256' || sse === 'aws:kms' ? sse : undefined;
 
     this.s3Client = new S3Client({
       region,
@@ -78,10 +69,7 @@ export class S3StorageService implements OnModuleInit {
             tls: useSSL,
           }
         : {}),
-      credentials:
-        accessKeyId && secretAccessKey
-          ? { accessKeyId, secretAccessKey }
-          : undefined,
+      credentials: accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined,
     });
   }
 
@@ -115,17 +103,13 @@ export class S3StorageService implements OnModuleInit {
           Key: s3Key,
           Body: fileBuffer,
           ContentType: contentType,
-          ...(this.serverSideEncryption
-            ? { ServerSideEncryption: this.serverSideEncryption }
-            : {}),
+          ...(this.serverSideEncryption ? { ServerSideEncryption: this.serverSideEncryption } : {}),
           // No ACL → bucket/object remains private (server-side default)
         }),
       );
       this.logger.log(`Uploaded ${s3Key} to bucket '${bucket}'`);
     } catch (err: any) {
-      throw new InternalServerErrorException(
-        `S3 upload failed for key '${s3Key}': ${err.message}`,
-      );
+      throw new InternalServerErrorException(`S3 upload failed for key '${s3Key}': ${err.message}`);
     }
 
     // Clean up local temp file after successful upload
@@ -134,7 +118,9 @@ export class S3StorageService implements OnModuleInit {
       this.logger.debug(`Deleted local temp file: ${localFilePath}`);
     } catch (cleanupErr: any) {
       // Non-fatal — log only
-      this.logger.warn(`Could not delete local temp file '${localFilePath}': ${cleanupErr.message}`);
+      this.logger.warn(
+        `Could not delete local temp file '${localFilePath}': ${cleanupErr.message}`,
+      );
     }
 
     return s3Key;
@@ -157,9 +143,7 @@ export class S3StorageService implements OnModuleInit {
           Key: s3Key,
           Body: buffer,
           ContentType: contentType,
-          ...(this.serverSideEncryption
-            ? { ServerSideEncryption: this.serverSideEncryption }
-            : {}),
+          ...(this.serverSideEncryption ? { ServerSideEncryption: this.serverSideEncryption } : {}),
           // No ACL → object remains private (served via pre-signed URLs only)
         }),
       );
@@ -212,18 +196,14 @@ export class S3StorageService implements OnModuleInit {
     bucket: string = this.exportsBucket,
   ): Promise<{ buffer: Buffer; contentType: string }> {
     try {
-      const res = await this.s3Client.send(
-        new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
-      );
+      const res = await this.s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: s3Key }));
       const bytes = await (res.Body as any).transformToByteArray();
       return {
         buffer: Buffer.from(bytes),
         contentType: res.ContentType ?? 'application/octet-stream',
       };
     } catch (err: any) {
-      throw new InternalServerErrorException(
-        `Failed to read S3 object '${s3Key}': ${err.message}`,
-      );
+      throw new InternalServerErrorException(`Failed to read S3 object '${s3Key}': ${err.message}`);
     }
   }
 
@@ -264,20 +244,13 @@ export class S3StorageService implements OnModuleInit {
    * (mis. panel admin) tahu penghapusan benar-benar gagal alih-alih
    * "pura-pura sukses" lalu berkas muncul lagi saat daftar dimuat ulang.
    */
-  async deleteObject(
-    s3Key: string,
-    bucket: string = this.exportsBucket,
-  ): Promise<void> {
+  async deleteObject(s3Key: string, bucket: string = this.exportsBucket): Promise<void> {
     try {
-      await this.s3Client.send(
-        new DeleteObjectCommand({ Bucket: bucket, Key: s3Key }),
-      );
+      await this.s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: s3Key }));
       this.logger.log(`Deleted S3 object: ${s3Key} (bucket '${bucket}')`);
     } catch (err: any) {
       this.logger.warn(`Failed to delete S3 object '${s3Key}': ${err.message}`);
-      throw new InternalServerErrorException(
-        `Gagal menghapus berkas '${s3Key}': ${err.message}`,
-      );
+      throw new InternalServerErrorException(`Gagal menghapus berkas '${s3Key}': ${err.message}`);
     }
   }
 
@@ -312,9 +285,7 @@ export class S3StorageService implements OnModuleInit {
       try {
         await this.ensureBucketExists(bucket);
       } catch (err: any) {
-        this.logger.warn(
-          `Lewati pemastian bucket '${bucket}' saat startup: ${err.message}`,
-        );
+        this.logger.warn(`Lewati pemastian bucket '${bucket}' saat startup: ${err.message}`);
       }
     }
   }

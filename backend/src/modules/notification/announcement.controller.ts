@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Req,
-  UseGuards,
-  HttpCode,
-  HttpStatus,
-} from '@nestjs/common';
+import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole, AuditActionType } from '@shared/enums';
@@ -17,9 +9,7 @@ import { SendAnnouncementDto } from './dto/send-announcement.dto';
 /** Ambil IP klien (hormati proxy). */
 function clientIp(req: any): string {
   return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-    req?.ip ||
-    'unknown'
+    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
   );
 }
 

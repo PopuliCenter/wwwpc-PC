@@ -20,9 +20,7 @@ export class AddClientSubmissionId1715000025000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX IF EXISTS "uq_survey_response_client_submission"`,
-    );
+    await queryRunner.query(`DROP INDEX IF EXISTS "uq_survey_response_client_submission"`);
     await queryRunner.query(
       `ALTER TABLE "survey_response" DROP COLUMN IF EXISTS "client_submission_id"`,
     );

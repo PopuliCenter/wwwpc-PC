@@ -14,7 +14,10 @@ import {
 
 @Injectable()
 export class EmailTemplateService {
-  renderTemplate(template: EmailTemplate, context: Record<string, any>): { subject: string; html: string; text: string } {
+  renderTemplate(
+    template: EmailTemplate,
+    context: Record<string, any>,
+  ): { subject: string; html: string; text: string } {
     switch (template) {
       case EmailTemplate.SURVEY_INVITATION:
         return this.renderSurveyInvitation(context as SurveyInvitationContext);

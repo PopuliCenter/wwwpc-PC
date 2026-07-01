@@ -3,7 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, Users, CheckCircle2, Clock } from 'lucide-react';
 import { api } from '@/services/api';
 
-interface Bucket { label: string; count: number }
+interface Bucket {
+  label: string;
+  count: number;
+}
 interface SummaryRespondent {
   fullName: string;
   gender: string | null;
@@ -23,9 +26,21 @@ interface Summary {
   respondents: SummaryRespondent[];
 }
 
-const GENDER_LABEL: Record<string, string> = { male: 'Laki-laki', female: 'Perempuan', other: 'Lainnya' };
+const GENDER_LABEL: Record<string, string> = {
+  male: 'Laki-laki',
+  female: 'Perempuan',
+  other: 'Lainnya',
+};
 const fmtDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+  iso
+    ? new Date(iso).toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
 
 function BarList({ items, labelMap }: { items: Bucket[]; labelMap?: Record<string, string> }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -38,9 +53,14 @@ function BarList({ items, labelMap }: { items: Bucket[]; labelMap?: Record<strin
             {labelMap?.[it.label] ?? it.label}
           </span>
           <div className="h-4 flex-1 overflow-hidden rounded bg-gray-100">
-            <div className="h-full rounded bg-primary-500" style={{ width: `${(it.count / max) * 100}%` }} />
+            <div
+              className="h-full rounded bg-primary-500"
+              style={{ width: `${(it.count / max) * 100}%` }}
+            />
           </div>
-          <span className="w-8 shrink-0 text-right text-xs font-medium text-gray-700">{it.count}</span>
+          <span className="w-8 shrink-0 text-right text-xs font-medium text-gray-700">
+            {it.count}
+          </span>
         </div>
       ))}
     </div>
@@ -56,24 +76,43 @@ export function SurveySummaryPage() {
 
   useEffect(() => {
     let active = true;
-    api.get<Summary>(`/surveys/${id}/summary`)
+    api
+      .get<Summary>(`/surveys/${id}/summary`)
       .then((d) => active && setData(d))
       .catch(() => active && setError('Gagal memuat ringkasan survei.'))
       .finally(() => active && setLoading(false));
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [id]);
 
-  if (loading) return <div className="p-10 text-center text-gray-400"><Loader2 className="mx-auto h-6 w-6 animate-spin" /></div>;
-  if (error || !data) return <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error || 'Tidak ada data.'}</div>;
+  if (loading)
+    return (
+      <div className="p-10 text-center text-gray-400">
+        <Loader2 className="mx-auto h-6 w-6 animate-spin" />
+      </div>
+    );
+  if (error || !data)
+    return (
+      <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        {error || 'Tidak ada data.'}
+      </div>
+    );
 
-  const quotaPct = data.maxRespondents && data.maxRespondents > 0
-    ? Math.min(100, Math.round((data.totalResponses / data.maxRespondents) * 100))
-    : null;
+  const quotaPct =
+    data.maxRespondents && data.maxRespondents > 0
+      ? Math.min(100, Math.round((data.totalResponses / data.maxRespondents) * 100))
+      : null;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/admin/surveys')} className="text-sm text-gray-600 hover:text-gray-900">← Kembali</button>
+        <button
+          onClick={() => navigate('/admin/surveys')}
+          className="text-sm text-gray-600 hover:text-gray-900"
+        >
+          ← Kembali
+        </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Ringkasan: {data.title}</h1>
           <p className="text-sm text-gray-500">Status: {data.status}</p>
@@ -83,20 +122,32 @@ export function SurveySummaryPage() {
       {/* Kartu metrik */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Respons selesai</div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Respons selesai
+          </div>
           <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalResponses}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500"><Clock className="h-4 w-4 text-amber-500" /> Sedang mengisi</div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Clock className="h-4 w-4 text-amber-500" /> Sedang mengisi
+          </div>
           <p className="mt-1 text-2xl font-bold text-gray-900">{data.inProgress}</p>
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm text-gray-500"><Users className="h-4 w-4 text-primary-600" /> Kuota</div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Users className="h-4 w-4 text-primary-600" /> Kuota
+          </div>
           {data.maxRespondents && data.maxRespondents > 0 ? (
             <>
-              <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalResponses}<span className="text-base font-normal text-gray-400">/{data.maxRespondents}</span></p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">
+                {data.totalResponses}
+                <span className="text-base font-normal text-gray-400">/{data.maxRespondents}</span>
+              </p>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full rounded-full bg-primary-600" style={{ width: `${quotaPct}%` }} />
+                <div
+                  className="h-full rounded-full bg-primary-600"
+                  style={{ width: `${quotaPct}%` }}
+                />
               </div>
             </>
           ) : (
@@ -131,15 +182,25 @@ export function SurveySummaryPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {data.respondents.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-gray-400">Belum ada respons.</td></tr>
+              <tr>
+                <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
+                  Belum ada respons.
+                </td>
+              </tr>
             )}
             {data.respondents.map((r, i) => (
               <tr key={i} className="hover:bg-gray-50">
-                <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">{r.fullName}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}</td>
+                <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">
+                  {r.fullName}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                  {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
+                </td>
                 <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
                 <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-500">{fmtDate(r.submittedAt)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-gray-500">
+                  {fmtDate(r.submittedAt)}
+                </td>
               </tr>
             ))}
           </tbody>

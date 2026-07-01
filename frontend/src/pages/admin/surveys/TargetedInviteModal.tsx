@@ -44,7 +44,9 @@ export function TargetedInviteModal({
   const [done, setDone] = useState<string | null>(null);
 
   useEffect(() => {
-    void getProvinces().then(setProvincesList).catch(() => setProvincesList([]));
+    void getProvinces()
+      .then(setProvincesList)
+      .catch(() => setProvincesList([]));
   }, []);
 
   const toggle = (list: string[], set: (v: string[]) => void, value: string) => {
@@ -125,15 +127,19 @@ export function TargetedInviteModal({
           <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900">
             <Users className="h-5 w-5 text-primary-600" /> Undang Bertarget
           </h3>
-          <button onClick={onClose} className="rounded p-1 text-gray-400 hover:bg-gray-100" aria-label="Tutup">
+          <button
+            onClick={onClose}
+            className="rounded p-1 text-gray-400 hover:bg-gray-100"
+            aria-label="Tutup"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
           <p className="text-xs text-gray-500">
-            Survei: <span className="font-medium text-gray-700">{surveyTitle}</span>.
-            Kosongkan filter = tanpa batasan kriteria itu.
+            Survei: <span className="font-medium text-gray-700">{surveyTitle}</span>. Kosongkan
+            filter = tanpa batasan kriteria itu.
           </p>
 
           {/* Gender */}
@@ -165,7 +171,10 @@ export function TargetedInviteModal({
                 type="number"
                 min={0}
                 value={ageMin}
-                onChange={(e) => { setAgeMin(e.target.value); setMatching(null); }}
+                onChange={(e) => {
+                  setAgeMin(e.target.value);
+                  setMatching(null);
+                }}
                 placeholder="Min"
                 className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
               />
@@ -174,7 +183,10 @@ export function TargetedInviteModal({
                 type="number"
                 min={0}
                 value={ageMax}
-                onChange={(e) => { setAgeMax(e.target.value); setMatching(null); }}
+                onChange={(e) => {
+                  setAgeMax(e.target.value);
+                  setMatching(null);
+                }}
                 placeholder="Maks"
                 className="w-24 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
               />
@@ -206,7 +218,10 @@ export function TargetedInviteModal({
           {/* Provinsi */}
           <div>
             <p className="mb-1.5 text-sm font-medium text-gray-700">
-              Provinsi {provinces.length > 0 && <span className="text-gray-400">({provinces.length} dipilih)</span>}
+              Provinsi{' '}
+              {provinces.length > 0 && (
+                <span className="text-gray-400">({provinces.length} dipilih)</span>
+              )}
             </p>
             <div className="max-h-40 overflow-y-auto rounded-md border border-gray-200 p-2">
               {provincesList.length === 0 ? (
@@ -259,8 +274,8 @@ export function TargetedInviteModal({
               className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
             />
             <p className="mt-1 text-xs text-gray-400">
-              Mengambil N acak dari TIAP provinsi yang cocok (sampel lebih merata).
-              Bila diisi, menimpa "ambil acak total".
+              Mengambil N acak dari TIAP provinsi yang cocok (sampel lebih merata). Bila diisi,
+              menimpa "ambil acak total".
             </p>
           </div>
 
@@ -272,8 +287,14 @@ export function TargetedInviteModal({
                 : ''}
             </div>
           )}
-          {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
-          {done && <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{done}</div>}
+          {error && (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+          )}
+          {done && (
+            <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+              {done}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3">

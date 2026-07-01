@@ -86,11 +86,7 @@ async function ensureAndroidChannel(): Promise<void> {
  * Saat foreground, OS tidak menampilkan banner FCM sendiri, jadi kita jadwalkan
  * local notification agar responden tetap melihatnya di luar pop-up in-app.
  */
-async function showSystemNotification(
-  title: string,
-  body?: string,
-  link?: string,
-): Promise<void> {
+async function showSystemNotification(title: string, body?: string, link?: string): Promise<void> {
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications');
     const perm = await LocalNotifications.checkPermissions();
@@ -168,12 +164,9 @@ export async function initNativeNotifications(): Promise<void> {
     });
 
     // Notifikasi SISTEM (local, dari foreground) diketuk → buka rute.
-    void LocalNotifications.addListener(
-      'localNotificationActionPerformed',
-      (action) => {
-        navigateToLink(action.notification.extra?.link as string | undefined);
-      },
-    );
+    void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
+      navigateToLink(action.notification.extra?.link as string | undefined);
+    });
 
     await PushNotifications.register();
   } catch {

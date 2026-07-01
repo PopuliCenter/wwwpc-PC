@@ -219,9 +219,9 @@ describe('SurveyService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.updateSurvey('non-existent', { title: 'X' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.updateSurvey('non-existent', { title: 'X' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -241,9 +241,9 @@ describe('SurveyService', () => {
     it('should throw NotFoundException if original survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.duplicateSurvey('non-existent', mockUserId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.duplicateSurvey('non-existent', mockUserId)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('copies the original questions into the duplicate', async () => {
@@ -299,17 +299,13 @@ describe('SurveyService', () => {
         Promise.resolve({ ...createMockSurvey(), status: SurveyStatus.ARCHIVED }),
       );
 
-      await expect(
-        service.deactivateSurvey('survey-uuid-1'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.deactivateSurvey('survey-uuid-1')).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.deactivateSurvey('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deactivateSurvey('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -323,16 +319,12 @@ describe('SurveyService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.deleteSurvey('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.deleteSurvey('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('archiveSurvey', () => {
     it('should set survey status to ARCHIVED and set archivedAt', async () => {
-      const beforeArchive = new Date();
-
       const result = await service.archiveSurvey('survey-uuid-1');
 
       expect(surveyRepository.save).toHaveBeenCalledWith(
@@ -347,9 +339,7 @@ describe('SurveyService', () => {
     it('should throw NotFoundException if survey does not exist', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.archiveSurvey('non-existent'),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.archiveSurvey('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -368,9 +358,7 @@ describe('SurveyService', () => {
     it('should throw NotFoundException if not found', async () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findById('non-existent')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findById('non-existent')).rejects.toThrow(NotFoundException);
     });
   });
 });

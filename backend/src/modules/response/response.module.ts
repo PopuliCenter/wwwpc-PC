@@ -24,11 +24,7 @@ import { AuditModule } from '@modules/audit';
     ExportModule, // provides S3StorageService for respondent file uploads
     AuditModule, // audit log saat admin menghapus respons
   ],
-  controllers: [
-    ResponseController,
-    ResponsesAdminController,
-    RewardDistributionController,
-  ],
+  controllers: [ResponseController, ResponsesAdminController, RewardDistributionController],
   providers: [ResponseService, FileValidationService, FileUploadService],
   exports: [ResponseService, FileUploadService],
 })

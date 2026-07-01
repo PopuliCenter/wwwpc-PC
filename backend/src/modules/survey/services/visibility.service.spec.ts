@@ -52,9 +52,9 @@ describe('VisibilityService', () => {
     it('should throw NotFoundException if question does not exist', async () => {
       questionRepository.findOne.mockResolvedValue(null);
 
-      await expect(
-        service.setVisibilityRules('non-existent', []),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.setVisibilityRules('non-existent', [])).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should delete existing rules and create new ones', async () => {

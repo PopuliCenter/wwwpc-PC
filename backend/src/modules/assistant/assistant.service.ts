@@ -38,8 +38,7 @@ export class AssistantService {
   /** True bila Cloudflare AI dikonfigurasi. */
   isConfigured(): boolean {
     return Boolean(
-      this.config.get<string>('CF_ACCOUNT_ID') &&
-        this.config.get<string>('CF_AI_API_TOKEN'),
+      this.config.get<string>('CF_ACCOUNT_ID') && this.config.get<string>('CF_AI_API_TOKEN'),
     );
   }
 
@@ -50,8 +49,7 @@ export class AssistantService {
   async ask(question: string): Promise<string | null> {
     const accountId = this.config.get<string>('CF_ACCOUNT_ID');
     const token = this.config.get<string>('CF_AI_API_TOKEN');
-    const model =
-      this.config.get<string>('CF_AI_MODEL') ?? '@cf/meta/llama-3.1-8b-instruct';
+    const model = this.config.get<string>('CF_AI_MODEL') ?? '@cf/meta/llama-3.1-8b-instruct';
     if (!accountId || !token) return null;
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`;

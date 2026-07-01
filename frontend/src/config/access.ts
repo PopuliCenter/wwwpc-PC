@@ -20,9 +20,6 @@ export const access: Record<string, UserRole[]> = {
   profile: ['super_admin', 'admin', 'analyst', 'viewer'],
 };
 
-export function hasRole(
-  role: UserRole | undefined,
-  allowed: readonly UserRole[],
-): boolean {
+export function hasRole(role: UserRole | undefined, allowed: readonly UserRole[]): boolean {
   return !!role && allowed.includes(role);
 }
