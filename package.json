@@ -33,10 +33,6 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "dependencies": {
-    "@nestjs/event-emitter": "^3.1.0",
-    "@nestjs/throttler": "^6.5.0"
-  },
   "overrides": {
     "typeorm": "0.3.30"
   }
