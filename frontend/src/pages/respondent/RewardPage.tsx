@@ -14,11 +14,7 @@ interface PointBalance {
 
 type TransactionType = 'credit' | 'debit';
 type PointReason =
-  | 'registration'
-  | 'profile_completion'
-  | 'survey_completion'
-  | 'streak_bonus'
-  | 'manual_credit';
+  'registration' | 'profile_completion' | 'survey_completion' | 'streak_bonus' | 'manual_credit';
 
 interface BackendTransaction {
   id: string;

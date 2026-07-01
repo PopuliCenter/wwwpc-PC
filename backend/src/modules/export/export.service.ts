@@ -242,8 +242,7 @@ export class ExportService {
     const datePart = new Date(job.completedAt ?? Date.now()).toISOString().slice(0, 10);
 
     const surveyId = (job.filtersApplied as Record<string, any> | undefined)?.surveyId as
-      | string
-      | undefined;
+      string | undefined;
 
     let base = 'export';
     if (surveyId) {
