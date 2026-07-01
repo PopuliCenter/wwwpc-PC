@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint (backend + frontend)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  backend:
+    name: Backend (typecheck, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      # Semua test backend pakai repository mock (tidak butuh Postgres/Redis/MinIO nyata).
+      - name: Typecheck
+        run: npx tsc --noEmit -p backend/tsconfig.json
+      - name: Test
+        run: npm run test --workspace=backend
+      - name: Build
+        run: npm run build --workspace=backend
+
+  frontend:
+    name: Frontend (typecheck, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Test
+        run: npm run test --workspace=frontend
+      # `build` = `tsc -b && vite build` — typecheck & build sekaligus, gagal bila ada error tipe.
+      - name: Typecheck + Build
+        run: npm run build --workspace=frontend
