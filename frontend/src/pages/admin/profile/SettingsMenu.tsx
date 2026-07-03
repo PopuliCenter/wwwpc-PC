@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const ACTIVITIES: { icon: LucideIcon; label: string; to: string }[] = [
-  { icon: Coins, label: 'Riwayat Poin', to: '/reward' },
+  { icon: Coins, label: 'Riwayat Poin', to: '/rewards' },
   { icon: ClipboardList, label: 'Survei Saya', to: '/surveys' },
   { icon: HelpCircle, label: 'Bantuan', to: '/help' },
 ];
