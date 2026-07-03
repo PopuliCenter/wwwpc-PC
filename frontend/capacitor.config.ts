@@ -22,6 +22,18 @@ const config: CapacitorConfig = {
       // Saat aplikasi DI DEPAN (foreground), tampilkan juga banner sistem.
       presentationOptions: ['badge', 'sound', 'alert'],
     },
+    // @capgo/capacitor-social-login: app HANYA memakai login Google. Nonaktifkan
+    // Facebook agar SDK-nya tidak ikut membundel izin iklan AD_ID / ACCESS_ADSERVICES_*
+    // (Facebook SDK yg menariknya) — izin itu memicu kewajiban deklarasi "advertising
+    // ID" di Play Console yg tidak sesuai (app survei ini tanpa iklan/tracking).
+    // apple & twitter dibiarkan aktif (apple menjaga androidx.browser utk Custom Tabs;
+    // twitter tanpa SDK jadi tak menambah izin). Hook cap sync menulis ulang
+    // gradle.properties plugin dari config ini.
+    SocialLogin: {
+      providers: {
+        facebook: false,
+      },
+    },
   },
 };
 
