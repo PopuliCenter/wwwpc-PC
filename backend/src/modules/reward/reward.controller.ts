@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { RewardService } from './reward.service';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
@@ -49,6 +50,7 @@ export class RewardController {
   /**
    * Initiate a reward redemption.
    */
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('redeem')
   async initiateRedemption(@Request() req: any, @Body() dto: InitiateRedemptionDto) {
     return this.rewardService.initiateRedemption(
@@ -61,6 +63,7 @@ export class RewardController {
   /**
    * Confirm a redemption with OTP.
    */
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('redeem/:redemptionId/confirm')
   async confirmRedemption(
     @Request() req: any,
@@ -73,6 +76,7 @@ export class RewardController {
   /**
    * Kirim ulang OTP utk redemption yang masih menunggu konfirmasi.
    */
+  @Throttle({ default: { ttl: 60000, limit: 3 } })
   @Post('redeem/:redemptionId/resend-otp')
   async resendRedemptionOtp(@Request() req: any, @Param('redemptionId') redemptionId: string) {
     return this.rewardService.resendRedemptionOtp(req.user.userId, redemptionId);

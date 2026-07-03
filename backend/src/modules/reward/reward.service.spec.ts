@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { RewardService } from './reward.service';
 import { PointTransaction, TransactionType } from './entities/point-transaction.entity';
@@ -20,6 +20,7 @@ describe('RewardService', () => {
   let pointTransactionRepo: Repository<PointTransaction>;
   let redemptionRepo: Repository<RewardRedemption>;
   let streakTrackerRepo: Repository<StreakTracker>;
+  let dataSourceMock: { transaction: ReturnType<typeof vi.fn> };
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
@@ -32,28 +33,48 @@ describe('RewardService', () => {
   };
 
   beforeEach(async () => {
+    // Repo mock diangkat ke variabel agar bisa dipakai ulang oleh manager transaksi.
+    const ptRepoMock = {
+      create: vi.fn((data) => ({ id: 'tx-1', ...data })),
+      save: vi.fn((entity) => Promise.resolve({ id: 'tx-1', ...entity })),
+      findOne: vi.fn().mockResolvedValue(null),
+      findAndCount: vi.fn(),
+      createQueryBuilder: vi.fn(() => mockQueryBuilder),
+    };
+    const rrRepoMock = {
+      create: vi.fn((data) => ({ id: 'redemption-1', ...data })),
+      save: vi.fn((entity) => Promise.resolve({ id: 'redemption-1', ...entity })),
+      findOne: vi.fn(),
+      findAndCount: vi.fn(),
+      createQueryBuilder: vi.fn(() => mockQueryBuilder),
+    };
+    // dataSource.transaction(cb) → panggil cb dgn manager yang mengembalikan repo
+    // mock yang SAMA (getRepository per-entity), agar assertion tetap berlaku.
+    const managerMock = {
+      getRepository: vi.fn((entity: unknown) => {
+        if (entity === RewardRedemption) return rrRepoMock;
+        if (entity === PointTransaction) return ptRepoMock;
+        return undefined;
+      }),
+    };
+    dataSourceMock = {
+      transaction: vi.fn((cb: (m: typeof managerMock) => unknown) => cb(managerMock)),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RewardService,
         {
           provide: getRepositoryToken(PointTransaction),
-          useValue: {
-            create: vi.fn((data) => ({ id: 'tx-1', ...data })),
-            save: vi.fn((entity) => Promise.resolve({ id: 'tx-1', ...entity })),
-            findOne: vi.fn().mockResolvedValue(null),
-            findAndCount: vi.fn(),
-            createQueryBuilder: vi.fn(() => mockQueryBuilder),
-          },
+          useValue: ptRepoMock,
         },
         {
           provide: getRepositoryToken(RewardRedemption),
-          useValue: {
-            create: vi.fn((data) => ({ id: 'redemption-1', ...data })),
-            save: vi.fn((entity) => Promise.resolve({ id: 'redemption-1', ...entity })),
-            findOne: vi.fn(),
-            findAndCount: vi.fn(),
-            createQueryBuilder: vi.fn(() => mockQueryBuilder),
-          },
+          useValue: rrRepoMock,
+        },
+        {
+          provide: DataSource,
+          useValue: dataSourceMock,
         },
         {
           provide: getRepositoryToken(StreakTracker),
@@ -509,6 +530,58 @@ describe('RewardService', () => {
           transactionType: TransactionType.DEBIT,
           referenceId: 'redemption-1',
         }),
+      );
+    });
+
+    it('debit + klaim status berjalan dalam transaksi DB (anti double-spend)', async () => {
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue({
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: '123456',
+        otpExpiresAt: new Date(Date.now() + 600000),
+        pointsSpent: 500,
+        rewardType: 'pulsa-5000',
+        destinationNumber: '08123456789',
+      } as RewardRedemption);
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: '5000' })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: '500' })
+        .mockResolvedValueOnce({ total: '0' });
+
+      await service.confirmRedemption('user-1', 'redemption-1', '123456');
+
+      // Lock + debit + update status HARUS di dalam satu transaksi.
+      expect(dataSourceMock.transaction).toHaveBeenCalledTimes(1);
+      // findOne dipanggil dengan pessimistic write lock.
+      expect(redemptionRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
+      );
+    });
+
+    it('OTP salah menaikkan percobaan; setelah batas maks → penukaran FAILED', async () => {
+      // otpAttempts sudah 4; percobaan salah ke-5 (MAX_REDEMPTION_OTP_ATTEMPTS=5) → FAILED.
+      const redemption = {
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: '654321',
+        otpExpiresAt: new Date(Date.now() + 600000),
+        pointsSpent: 500,
+        otpAttempts: 4,
+      } as RewardRedemption;
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue(redemption);
+
+      await expect(service.confirmRedemption('user-1', 'redemption-1', '000000')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      // Poin TIDAK terpotong saat OTP gagal.
+      expect(pointTransactionRepo.create).not.toHaveBeenCalled();
+      // Redemption ditandai FAILED setelah melewati batas percobaan.
+      expect(redemptionRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ status: RedemptionStatus.FAILED, otpAttempts: 5 }),
       );
     });
   });

@@ -49,6 +49,10 @@ export class RewardRedemption {
   @Column({ type: 'timestamp', nullable: true, name: 'otp_expires_at' })
   otpExpiresAt: Date | null;
 
+  /** Jumlah percobaan OTP yang salah (anti brute-force per-redemption). */
+  @Column({ type: 'int', default: 0, name: 'otp_attempts' })
+  otpAttempts: number;
+
   // ── Integrasi provider fulfillment (mis. IAK) ─────────────────────────────
   /** Nama provider yang memproses ('manual' | 'iak'). */
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'provider' })

@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, Logger, Inject } from '@nestjs/common';
-import { randomInt } from 'crypto';
+import { randomInt, timingSafeEqual } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PointTransaction, TransactionType } from './entities/point-transaction.entity';
 import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption.entity';
@@ -35,6 +35,7 @@ import {
   STREAK_MULTIPLIERS,
   POINT_EXPIRATION_MONTHS,
   REDEMPTION_OTP_TTL_MINUTES,
+  MAX_REDEMPTION_OTP_ATTEMPTS,
 } from './constants';
 import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
 import { PaginatedResponse, PaginationQuery } from '@shared/interfaces';
@@ -59,6 +60,7 @@ export class RewardService {
     private readonly eventEmitter: EventEmitter2,
     @Inject(REWARD_FULFILLMENT_PROVIDER)
     private readonly fulfillmentProvider: RewardFulfillmentProvider,
+    private readonly dataSource: DataSource,
   ) {
     this.fulfillmentCircuitBreaker = new CircuitBreaker({
       name: 'reward-fulfillment',
@@ -362,12 +364,25 @@ export class RewardService {
    * Calculates total, available, pending (in redemption), and expiring within 30 days.
    */
   async getBalance(userId: string): Promise<PointBalance> {
+    return this.computeBalance(userId);
+  }
+
+  /**
+   * Hitung saldo poin. Bila `manager` diberikan, gunakan repository transaksi
+   * tsb agar pembacaan konsisten di dalam transaksi confirmRedemption (lock).
+   */
+  private async computeBalance(userId: string, manager?: EntityManager): Promise<PointBalance> {
+    const ptRepo = manager
+      ? manager.getRepository(PointTransaction)
+      : this.pointTransactionRepository;
+    const rrRepo = manager ? manager.getRepository(RewardRedemption) : this.redemptionRepository;
+
     const now = new Date();
     const thirtyDaysFromNow = new Date(now);
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
     // Total credits (non-expired)
-    const totalCreditsResult = await this.pointTransactionRepository
+    const totalCreditsResult = await ptRepo
       .createQueryBuilder('pt')
       .select('COALESCE(SUM(pt.amount), 0)', 'total')
       .where('pt.user_id = :userId', { userId })
@@ -378,7 +393,7 @@ export class RewardService {
     const totalCredits = parseInt(totalCreditsResult?.total || '0', 10);
 
     // Total debits
-    const totalDebitsResult = await this.pointTransactionRepository
+    const totalDebitsResult = await ptRepo
       .createQueryBuilder('pt')
       .select('COALESCE(SUM(pt.amount), 0)', 'total')
       .where('pt.user_id = :userId', { userId })
@@ -392,7 +407,7 @@ export class RewardService {
     // dipotong sebagai DEBIT (lihat confirm) dan status → PROCESSING. Jadi jangan
     // hitung PROCESSING di sini, kalau tidak poin terhitung DUA KALI (debit +
     // pending) → saldo berkurang dobel.
-    const pendingResult = await this.redemptionRepository
+    const pendingResult = await rrRepo
       .createQueryBuilder('rr')
       .select('COALESCE(SUM(rr.points_spent), 0)', 'total')
       .where('rr.user_id = :userId', { userId })
@@ -402,7 +417,7 @@ export class RewardService {
     const pending = parseInt(pendingResult?.total || '0', 10);
 
     // Points expiring within 30 days
-    const expiringResult = await this.pointTransactionRepository
+    const expiringResult = await ptRepo
       .createQueryBuilder('pt')
       .select('COALESCE(SUM(pt.amount), 0)', 'total')
       .where('pt.user_id = :userId', { userId })
@@ -633,65 +648,95 @@ export class RewardService {
     redemptionId: string,
     otpCode: string,
   ): Promise<RedemptionResult> {
-    const redemption = await this.redemptionRepository.findOne({
-      where: { id: redemptionId, userId },
+    // ── Fase A: klaim penukaran secara ATOMIK ────────────────────────────────
+    // Lock baris redemption (SELECT ... FOR UPDATE) di dalam transaksi, lalu
+    // validasi OTP, cek saldo, debit poin, & pindahkan status PENDING→PROCESSING
+    // dalam satu unit. Ini mencegah DOUBLE-SPEND: dua request confirm konkuren atas
+    // redemption yang sama diserialisasi oleh lock — yang kedua melihat status sudah
+    // bukan PENDING lalu berhenti. Panggilan provider (jaringan) dilakukan di LUAR
+    // transaksi (Fase B) agar lock tidak ditahan selama I/O.
+    const claim = await this.dataSource.transaction(async (manager) => {
+      const rrRepo = manager.getRepository(RewardRedemption);
+      const redemption = await rrRepo.findOne({
+        where: { id: redemptionId, userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!redemption) {
+        throw new NotFoundException('Redemption request not found');
+      }
+      if (redemption.status !== RedemptionStatus.PENDING) {
+        throw new BadRequestException('Redemption is no longer in pending status');
+      }
+      if (redemption.otpExpiresAt && new Date() > redemption.otpExpiresAt) {
+        throw new BadRequestException('Kode OTP telah kadaluarsa');
+      }
+
+      // OTP timing-safe + hitung percobaan salah (anti brute-force per-redemption).
+      // Tidak throw di dalam cabang gagal ini agar increment/lock ter-COMMIT (throw
+      // akan me-rollback); error dilempar setelah transaksi berdasarkan sentinel.
+      if (!this.otpMatches(otpCode, redemption.otpCode)) {
+        redemption.otpAttempts = (redemption.otpAttempts ?? 0) + 1;
+        const locked = redemption.otpAttempts >= MAX_REDEMPTION_OTP_ATTEMPTS;
+        if (locked) {
+          redemption.status = RedemptionStatus.FAILED;
+          redemption.otpCode = null;
+        }
+        await rrRepo.save(redemption);
+        return { failure: locked ? ('otp_locked' as const) : ('otp_invalid' as const) };
+      }
+
+      // Re-check saldo di dalam transaksi (redemption ini masih PENDING → poinnya
+      // sendiri terhitung sbg pending; tambahkan kembali agar tak dobel).
+      const balance = await this.computeBalance(userId, manager);
+      const otherPending = balance.pending - redemption.pointsSpent;
+      const availableForThis = balance.total - Math.max(0, otherPending);
+      if (availableForThis < redemption.pointsSpent) {
+        redemption.status = RedemptionStatus.FAILED;
+        redemption.otpCode = null;
+        await rrRepo.save(redemption);
+        return { failure: 'insufficient' as const };
+      }
+
+      // Debit poin + klaim status → PROCESSING (atomik dalam transaksi).
+      const debit = manager.getRepository(PointTransaction).create({
+        userId,
+        amount: redemption.pointsSpent,
+        transactionType: TransactionType.DEBIT,
+        reason: PointCreditReason.MANUAL_CREDIT, // reason DEBIT generik
+        referenceId: redemption.id,
+        earnedAt: new Date(),
+        expiresAt: null,
+        expired: false,
+      });
+      await manager.getRepository(PointTransaction).save(debit);
+
+      redemption.status = RedemptionStatus.PROCESSING;
+      redemption.processedAt = new Date();
+      redemption.otpCode = null; // Clear OTP after use
+      redemption.provider = this.fulfillmentProvider.name;
+      // Ref id ringkas utk provider (dipakai mencocokkan callback). Dibuat sekali.
+      redemption.providerRefId = redemption.providerRefId ?? this.generateRefId();
+      await rrRepo.save(redemption);
+
+      return { redemption };
     });
 
-    if (!redemption) {
-      throw new NotFoundException('Redemption request not found');
-    }
-
-    if (redemption.status !== RedemptionStatus.PENDING) {
-      throw new BadRequestException('Redemption is no longer in pending status');
-    }
-
-    // Validate OTP
-    if (!redemption.otpCode || redemption.otpCode !== otpCode) {
+    if ('failure' in claim) {
+      if (claim.failure === 'otp_locked') {
+        throw new BadRequestException(
+          'Terlalu banyak percobaan OTP. Penukaran dibatalkan — silakan mulai penukaran baru.',
+        );
+      }
+      if (claim.failure === 'insufficient') {
+        throw new BadRequestException('Saldo tidak mencukupi. Poin mungkin telah kadaluarsa.');
+      }
       throw new BadRequestException('Kode OTP tidak valid');
     }
 
-    // Check OTP expiration
-    if (redemption.otpExpiresAt && new Date() > redemption.otpExpiresAt) {
-      throw new BadRequestException('Kode OTP telah kadaluarsa');
-    }
+    const redemption = claim.redemption;
 
-    // Re-check balance (jaga-jaga poin kadaluarsa antara inisiasi & konfirmasi).
-    // PENTING: redemption ini masih berstatus PENDING saat getBalance() dipanggil,
-    // sehingga poinnya sendiri sudah ikut dipotong sebagai `pending` di `available`.
-    // Tambahkan kembali agar tidak terhitung ganda — kalau tidak, penukaran senilai
-    // seluruh saldo SELALU gagal ("available" jadi 0 padahal poin masih ada).
-    const balance = await this.getBalance(userId);
-    const otherPending = balance.pending - redemption.pointsSpent;
-    const availableForThis = balance.total - Math.max(0, otherPending);
-    if (availableForThis < redemption.pointsSpent) {
-      redemption.status = RedemptionStatus.FAILED;
-      await this.redemptionRepository.save(redemption);
-      throw new BadRequestException('Saldo tidak mencukupi. Poin mungkin telah kadaluarsa.');
-    }
-
-    // Deduct points (create debit transaction)
-    const debitTransaction = this.pointTransactionRepository.create({
-      userId,
-      amount: redemption.pointsSpent,
-      transactionType: TransactionType.DEBIT,
-      reason: PointCreditReason.MANUAL_CREDIT, // Using as generic debit reason
-      referenceId: redemption.id,
-      earnedAt: new Date(),
-      expiresAt: null,
-      expired: false,
-    });
-    await this.pointTransactionRepository.save(debitTransaction);
-
-    // Update redemption status → PROCESSING (poin sudah terpotong di atas).
-    redemption.status = RedemptionStatus.PROCESSING;
-    redemption.processedAt = new Date();
-    redemption.otpCode = null; // Clear OTP after use
-    redemption.provider = this.fulfillmentProvider.name;
-    // Ref id ringkas utk provider (dipakai mencocokkan callback). Dibuat sekali.
-    redemption.providerRefId = redemption.providerRefId ?? this.generateRefId();
-    await this.redemptionRepository.save(redemption);
-
-    // Notifikasi "poin keluar" (penukaran diproses).
+    // Notifikasi "poin keluar" (penukaran diproses). Best-effort, di luar transaksi.
     void this.feedService
       .notifyUser(
         userId,
@@ -711,8 +756,9 @@ export class RewardService {
       `[AUDIT] Reward redemption: userId=${userId}, rewardType=${redemption.rewardType}, points=${redemption.pointsSpent}, destination=${redemption.destinationNumber}, provider=${this.fulfillmentProvider.name}`,
     );
 
-    // Kirim ke provider fulfillment (mis. IAK). Dilindungi circuit breaker:
-    // bila layanan tumbang, kembalikan 'pending' (tetap PROCESSING, bukan refund).
+    // ── Fase B: kirim ke provider di LUAR transaksi (jangan tahan lock saat I/O) ──
+    // Dilindungi circuit breaker: bila layanan tumbang, kembalikan 'pending'
+    // (tetap PROCESSING, bukan refund).
     const outcome = await this.fulfillmentCircuitBreaker.execute(
       () =>
         this.fulfillmentProvider.fulfill({
@@ -739,6 +785,15 @@ export class RewardService {
           : 'Penukaran dikonfirmasi. Reward sedang diproses.';
 
     return { redemptionId: redemption.id, status: finalStatus, message };
+  }
+
+  /** Bandingkan OTP secara timing-safe (cegah timing attack). */
+  private otpMatches(provided: string, expected: string | null): boolean {
+    if (!expected) return false;
+    const a = Buffer.from(provided ?? '', 'utf8');
+    const b = Buffer.from(expected, 'utf8');
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
   }
 
   /** Tentukan kategori dari id katalog (mis. 'pulsa-10000' → 'pulsa'). */

@@ -76,3 +76,6 @@ export const POINT_EXPIRATION_MONTHS = 12;
 
 /** OTP validity period in minutes */
 export const REDEMPTION_OTP_TTL_MINUTES = 15;
+
+/** Maks. percobaan OTP salah sebelum penukaran dibatalkan (anti brute-force). */
+export const MAX_REDEMPTION_OTP_ATTEMPTS = 5;
