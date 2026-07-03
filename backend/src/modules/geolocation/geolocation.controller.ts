@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Get, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '@modules/auth/guards';
 import { GeolocationService } from './geolocation.service';
@@ -15,7 +16,7 @@ export class GeolocationController {
    */
   @Post('capture')
   async captureLocation(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: CaptureLocationDto,
   ): Promise<CaptureLocationResult> {
     return this.geolocationService.captureLocation(req.user.userId, {
@@ -29,7 +30,7 @@ export class GeolocationController {
    */
   @Post('manual')
   async saveManualLocation(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: ManualLocationDto,
   ): Promise<CaptureLocationResult> {
     return this.geolocationService.saveManualLocation(req.user.userId, dto.city, dto.province);
@@ -40,7 +41,7 @@ export class GeolocationController {
    * Never returns raw GPS coordinates.
    */
   @Get('me')
-  async getMyLocation(@Request() req: any): Promise<LocationData | null> {
+  async getMyLocation(@Request() req: AuthenticatedRequest): Promise<LocationData | null> {
     return this.geolocationService.getRespondentLocation(req.user.userId);
   }
 

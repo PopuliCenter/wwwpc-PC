@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Body, HttpCode, Req, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RewardService } from './reward.service';
@@ -30,7 +31,7 @@ export class RewardCallbackController {
 
   @Post('iak')
   @HttpCode(200)
-  async iak(@Body() payload: unknown, @Req() req: any) {
+  async iak(@Body() payload: unknown, @Req() req: AuthenticatedRequest) {
     if (this.allowedIps.length > 0) {
       const ip =
         (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || '';

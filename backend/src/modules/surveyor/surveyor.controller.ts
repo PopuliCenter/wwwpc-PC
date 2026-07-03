@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Get,
@@ -39,24 +40,24 @@ export class SurveyorController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   async uploadFile(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @UploadedFile() file: UploadedFileLike,
   ) {
     return this.fileUploadService.uploadAnswerFile(surveyId, req.user.userId, file);
   }
 
   @Get('surveys')
-  async mySurveys(@Request() req: any) {
+  async mySurveys(@Request() req: AuthenticatedRequest) {
     return this.surveyorService.getMySurveys(req.user.userId);
   }
 
   @Get('surveys/:surveyId/numbers')
-  async myNumbers(@Param('surveyId') surveyId: string, @Request() req: any) {
+  async myNumbers(@Param('surveyId') surveyId: string, @Request() req: AuthenticatedRequest) {
     return this.surveyorService.getMyNumbers(surveyId, req.user.userId);
   }
 
   @Get('surveys/:surveyId/fill')
-  async fillData(@Param('surveyId') surveyId: string, @Request() req: any) {
+  async fillData(@Param('surveyId') surveyId: string, @Request() req: AuthenticatedRequest) {
     return this.surveyorService.getFillData(surveyId, req.user.userId);
   }
 
@@ -65,7 +66,7 @@ export class SurveyorController {
   async submit(
     @Param('surveyId') surveyId: string,
     @Body() dto: SubmitSurveyorResponseDto,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.surveyorService.submitResponse(surveyId, req.user.userId, dto);
   }

@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Get, Post, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@modules/auth/guards';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
@@ -44,7 +45,10 @@ export class AuditController {
    */
   @Post('delete')
   @Roles(UserRole.SUPER_ADMIN)
-  async deleteSelected(@Body() dto: DeleteAuditDto, @Req() req: any): Promise<{ deleted: number }> {
+  async deleteSelected(
+    @Body() dto: DeleteAuditDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ deleted: number }> {
     const deleted = await this.auditService.deleteByIds(dto.ids);
     await this.auditService.log({
       userId: req.user.userId,
@@ -59,7 +63,10 @@ export class AuditController {
   /** Purge manual log lebih lama dari N hari. HANYA super_admin. */
   @Post('purge')
   @Roles(UserRole.SUPER_ADMIN)
-  async purge(@Body() dto: PurgeAuditDto, @Req() req: any): Promise<{ deleted: number }> {
+  async purge(
+    @Body() dto: PurgeAuditDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ deleted: number }> {
     const deleted = await this.auditService.purgeOlderThanDays(dto.olderThanDays);
     await this.auditService.log({
       userId: req.user.userId,

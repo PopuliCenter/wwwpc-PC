@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Get,
@@ -68,7 +69,7 @@ export class StorageController {
   @Delete('object')
   async deleteObject(
     @Query('key') key: string,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('bucket') bucket?: string,
   ): Promise<{ ok: true }> {
     if (!key) throw new BadRequestException('Parameter "key" wajib diisi.');
@@ -91,7 +92,7 @@ export class StorageController {
   @Delete('objects')
   async deleteObjects(
     @Body() dto: DeleteObjectsDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ): Promise<{ ok: true; deleted: string[]; failed: string[] }> {
     const resolvedBucket = dto.bucket === 'exports' ? 'exports' : 'uploads';
     const target = this.bucketFor(dto.bucket);

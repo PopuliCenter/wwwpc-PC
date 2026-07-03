@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Get,
@@ -33,7 +34,7 @@ export class NotificationController {
   @Post('device-token')
   @HttpCode(HttpStatus.OK)
   async registerDeviceToken(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: RegisterDeviceTokenDto,
   ): Promise<{ ok: true }> {
     await this.deviceTokenService.register(req.user.userId, dto.token, dto.platform);
@@ -42,21 +43,24 @@ export class NotificationController {
 
   /** Daftar notifikasi (lonceng) milik user. */
   @Get('feed')
-  async getFeed(@Req() req: any, @Query('limit') limit?: string) {
+  async getFeed(@Req() req: AuthenticatedRequest, @Query('limit') limit?: string) {
     const n = limit ? parseInt(limit, 10) : 30;
     return this.feedService.getFeed(req.user.userId, Number.isFinite(n) ? n : 30);
   }
 
   /** Jumlah notifikasi belum dibaca (untuk badge lonceng). */
   @Get('feed/unread-count')
-  async unreadCount(@Req() req: any): Promise<{ count: number }> {
+  async unreadCount(@Req() req: AuthenticatedRequest): Promise<{ count: number }> {
     return { count: await this.feedService.unreadCount(req.user.userId) };
   }
 
   /** Tandai notifikasi sudah dibaca (ids kosong = semua). */
   @Post('feed/read')
   @HttpCode(HttpStatus.OK)
-  async markRead(@Req() req: any, @Body() dto: MarkReadDto): Promise<{ ok: true }> {
+  async markRead(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: MarkReadDto,
+  ): Promise<{ ok: true }> {
     await this.feedService.markRead(req.user.userId, dto.ids);
     return { ok: true };
   }
@@ -64,7 +68,7 @@ export class NotificationController {
   /** Hapus SEMUA notifikasi milik user. (Sebelum '/feed/:id' agar tidak bentrok.) */
   @Delete('feed')
   @HttpCode(HttpStatus.OK)
-  async clearAll(@Req() req: any): Promise<{ ok: true }> {
+  async clearAll(@Req() req: AuthenticatedRequest): Promise<{ ok: true }> {
     await this.feedService.clearAll(req.user.userId);
     return { ok: true };
   }
@@ -72,7 +76,10 @@ export class NotificationController {
   /** Hapus satu notifikasi milik user. */
   @Delete('feed/:id')
   @HttpCode(HttpStatus.OK)
-  async deleteOne(@Req() req: any, @Param('id') id: string): Promise<{ ok: true }> {
+  async deleteOne(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<{ ok: true }> {
     await this.feedService.deleteOne(req.user.userId, id);
     return { ok: true };
   }

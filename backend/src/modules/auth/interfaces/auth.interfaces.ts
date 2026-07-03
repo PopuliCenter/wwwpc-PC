@@ -1,4 +1,5 @@
 import { UserRole } from '@shared/enums';
+import type { Request } from 'express';
 
 export interface TokenPair {
   accessToken: string;
@@ -29,6 +30,15 @@ export interface SessionInfo {
   email: string;
   role: UserRole;
   sessionId: string;
+}
+
+/**
+ * Express Request setelah JwtAuthGuard mengisi `user` (SessionInfo dari token).
+ * Dipakai di controller sbagai ganti `@Request() req: any` agar `req.user`
+ * type-safe (mis. req.user.userId).
+ */
+export interface AuthenticatedRequest extends Request {
+  user: SessionInfo;
 }
 
 export interface JwtPayload {

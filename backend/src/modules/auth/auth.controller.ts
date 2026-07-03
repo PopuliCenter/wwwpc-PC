@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -43,7 +44,10 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  async login(@Body() loginDto: LoginDto, @Request() req: any): Promise<AuthResult> {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<AuthResult> {
     const result = await this.authService.login(loginDto.email, loginDto.password);
     await this.auditService.log({
       userId: result.user.id,
@@ -58,7 +62,10 @@ export class AuthController {
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
-  async googleLogin(@Body() dto: GoogleLoginDto, @Request() req: any): Promise<AuthResult> {
+  async googleLogin(
+    @Body() dto: GoogleLoginDto,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<AuthResult> {
     const result = await this.authService.loginWithGoogle(dto.idToken);
     await this.auditService.log({
       userId: result.user.id,
@@ -73,7 +80,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  async logout(@Request() req: any): Promise<void> {
+  async logout(@Request() req: AuthenticatedRequest): Promise<void> {
     await this.authService.logout(req.user.sessionId);
     await this.auditService.log({
       userId: req.user.userId,
@@ -108,13 +115,16 @@ export class AuthController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Request() req: any): Promise<ProfileResult> {
+  async getProfile(@Request() req: AuthenticatedRequest): Promise<ProfileResult> {
     return this.authService.getProfile(req.user.userId);
   }
 
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
-  async updateProfile(@Request() req: any, @Body() dto: UpdateProfileDto): Promise<ProfileResult> {
+  async updateProfile(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: UpdateProfileDto,
+  ): Promise<ProfileResult> {
     const result = await this.authService.updateProfile(req.user.userId, dto);
     // Catat perubahan data diri (lewati bila hanya ganti avatar agar tak berisik).
     const fields = Object.keys(dto ?? {});
@@ -133,7 +143,10 @@ export class AuthController {
   @Patch('profile/password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  async changePassword(@Request() req: any, @Body() dto: ChangePasswordDto): Promise<void> {
+  async changePassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<void> {
     await this.authService.changeOwnPassword(req.user.userId, dto.currentPassword, dto.newPassword);
     await this.auditService.log({
       userId: req.user.userId,
@@ -148,7 +161,10 @@ export class AuthController {
   @Patch('profile/set-password')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(JwtAuthGuard)
-  async setPassword(@Request() req: any, @Body() dto: SetPasswordDto): Promise<void> {
+  async setPassword(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: SetPasswordDto,
+  ): Promise<void> {
     await this.authService.setPasswordWithoutOld(req.user.userId, dto.newPassword);
     await this.auditService.log({
       userId: req.user.userId,

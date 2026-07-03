@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Get, Param, Request, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { OptionRandomizerService } from './services/option-randomizer';
 import { SurveyTimeService } from './services/survey-time.service';
@@ -27,7 +28,7 @@ export class SurveyRespondentController {
   @HttpCode(HttpStatus.OK)
   async getFillData(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ): Promise<SurveyFillData> {
     return this.surveyFillService.getFillData(surveyId, req.user.userId);
   }

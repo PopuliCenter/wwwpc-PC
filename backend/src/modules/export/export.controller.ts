@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -35,7 +36,7 @@ export class ExportController {
   /** Export audit log (CSV). Dipanggil dari halaman Audit Log. */
   @Post('audit-log')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async exportAuditLog(@Body() filters: Record<string, any>, @Req() req: any) {
+  async exportAuditLog(@Body() filters: Record<string, any>, @Req() req: AuthenticatedRequest) {
     await this.auditService.log({
       userId: req.user.userId,
       actionType: AuditActionType.DATA_EXPORT,
@@ -52,7 +53,7 @@ export class ExportController {
   async exportResponses(
     @Param('format') format: string,
     @Query() query: Record<string, any>,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     const { surveyId, ...filters } = query;
     if (!surveyId) {

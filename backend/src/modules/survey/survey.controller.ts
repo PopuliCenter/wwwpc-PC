@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Get,
@@ -41,7 +42,7 @@ export class SurveyController {
 
   /** Catat aksi survei ke audit log (best-effort di AuditService). */
   private audit(
-    req: any,
+    req: AuthenticatedRequest,
     actionType: AuditActionType,
     survey: { id: string; title?: string },
     extra?: Record<string, any>,
@@ -63,7 +64,7 @@ export class SurveyController {
   /** Daftar survei aktif untuk responden. Harus DI ATAS @Get(':id'). */
   @Get('available')
   @Roles(UserRole.RESPONDENT, UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async getAvailableSurveys(@Request() req: any) {
+  async getAvailableSurveys(@Request() req: AuthenticatedRequest) {
     // Filter kelayakan hanya untuk responden; admin/analis melihat semua.
     const respondentId = req.user?.role === UserRole.RESPONDENT ? req.user.userId : undefined;
     return this.surveyService.getAvailableSurveys(respondentId);
@@ -83,7 +84,10 @@ export class SurveyController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async createSurvey(@Request() req: any, @Body() dto: CreateSurveyDto): Promise<Survey> {
+  async createSurvey(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CreateSurveyDto,
+  ): Promise<Survey> {
     const survey = await this.surveyService.createSurvey(req.user.userId, dto);
     await this.audit(req, AuditActionType.SURVEY_CREATE, survey);
     return survey;
@@ -91,7 +95,7 @@ export class SurveyController {
 
   @Put(':id')
   async updateSurvey(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateSurveyDto,
   ): Promise<Survey> {
@@ -102,7 +106,10 @@ export class SurveyController {
 
   @Post(':id/duplicate')
   @HttpCode(HttpStatus.CREATED)
-  async duplicateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+  async duplicateSurvey(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<Survey> {
     const survey = await this.surveyService.duplicateSurvey(id, req.user.userId);
     await this.audit(req, AuditActionType.SURVEY_CREATE, survey, {
       duplicatedFrom: id,
@@ -111,7 +118,10 @@ export class SurveyController {
   }
 
   @Put(':id/activate')
-  async activateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+  async activateSurvey(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<Survey> {
     const survey = await this.surveyService.activateSurvey(id);
     await this.audit(req, AuditActionType.SURVEY_UPDATE, survey, { action: 'activate' });
     return survey;
@@ -124,7 +134,7 @@ export class SurveyController {
   @Post(':id/invitations')
   @HttpCode(HttpStatus.OK)
   async sendInvitations(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
   ): Promise<{ recipients: number; pushed: number }> {
     const result = await this.notificationScheduler.sendInvitationsForSurvey(id);
@@ -161,7 +171,7 @@ export class SurveyController {
   @Post(':id/target-invite')
   @HttpCode(HttpStatus.OK)
   async targetInvite(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() criteria: TargetCriteriaDto,
   ): Promise<{ recipients: number; pushed: number }> {
@@ -180,7 +190,10 @@ export class SurveyController {
   }
 
   @Put(':id/deactivate')
-  async deactivateSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+  async deactivateSurvey(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<Survey> {
     const survey = await this.surveyService.deactivateSurvey(id);
     await this.audit(req, AuditActionType.SURVEY_UPDATE, survey, { action: 'deactivate' });
     return survey;
@@ -188,13 +201,16 @@ export class SurveyController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteSurvey(@Request() req: any, @Param('id') id: string): Promise<void> {
+  async deleteSurvey(@Request() req: AuthenticatedRequest, @Param('id') id: string): Promise<void> {
     await this.surveyService.deleteSurvey(id);
     await this.audit(req, AuditActionType.SURVEY_DELETE, { id });
   }
 
   @Put(':id/archive')
-  async archiveSurvey(@Request() req: any, @Param('id') id: string): Promise<Survey> {
+  async archiveSurvey(
+    @Request() req: AuthenticatedRequest,
+    @Param('id') id: string,
+  ): Promise<Survey> {
     const survey = await this.surveyService.archiveSurvey(id);
     await this.audit(req, AuditActionType.SURVEY_ARCHIVE, survey);
     return survey;

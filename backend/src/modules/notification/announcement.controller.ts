@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Body, Req, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
@@ -29,7 +30,7 @@ export class AnnouncementController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async send(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: SendAnnouncementDto,
   ): Promise<{ recipients: number; pushed: number; emailed: number }> {
     const result = await this.feedService.broadcastAnnouncement({

@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { RewardService } from './reward.service';
@@ -19,7 +20,7 @@ export class RewardController {
    * Get current user's point balance.
    */
   @Get('balance')
-  async getBalance(@Request() req: any) {
+  async getBalance(@Request() req: AuthenticatedRequest) {
     return this.rewardService.getBalance(req.user.userId);
   }
 
@@ -27,7 +28,7 @@ export class RewardController {
    * Get current user's streak info.
    */
   @Get('streak')
-  async getStreak(@Request() req: any) {
+  async getStreak(@Request() req: AuthenticatedRequest) {
     return this.rewardService.getStreakInfo(req.user.userId);
   }
 
@@ -35,7 +36,10 @@ export class RewardController {
    * Get transaction history for the current user.
    */
   @Get('transactions')
-  async getTransactionHistory(@Request() req: any, @Query() query: TransactionHistoryQueryDto) {
+  async getTransactionHistory(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: TransactionHistoryQueryDto,
+  ) {
     return this.rewardService.getTransactionHistory(req.user.userId, query);
   }
 
@@ -52,7 +56,10 @@ export class RewardController {
    */
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('redeem')
-  async initiateRedemption(@Request() req: any, @Body() dto: InitiateRedemptionDto) {
+  async initiateRedemption(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: InitiateRedemptionDto,
+  ) {
     return this.rewardService.initiateRedemption(
       req.user.userId,
       dto.rewardId,
@@ -66,7 +73,7 @@ export class RewardController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('redeem/:redemptionId/confirm')
   async confirmRedemption(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('redemptionId') redemptionId: string,
     @Body() dto: ConfirmRedemptionDto,
   ) {
@@ -78,7 +85,10 @@ export class RewardController {
    */
   @Throttle({ default: { ttl: 60000, limit: 3 } })
   @Post('redeem/:redemptionId/resend-otp')
-  async resendRedemptionOtp(@Request() req: any, @Param('redemptionId') redemptionId: string) {
+  async resendRedemptionOtp(
+    @Request() req: AuthenticatedRequest,
+    @Param('redemptionId') redemptionId: string,
+  ) {
     return this.rewardService.resendRedemptionOtp(req.user.userId, redemptionId);
   }
 
@@ -86,7 +96,10 @@ export class RewardController {
    * Get redemption history for the current user.
    */
   @Get('redemptions')
-  async getRedemptionHistory(@Request() req: any, @Query() query: TransactionHistoryQueryDto) {
+  async getRedemptionHistory(
+    @Request() req: AuthenticatedRequest,
+    @Query() query: TransactionHistoryQueryDto,
+  ) {
     return this.rewardService.getRedemptionHistory(req.user.userId, query);
   }
 
@@ -97,7 +110,7 @@ export class RewardController {
    */
   @Post('admin/credit')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async manualCredit(@Request() req: any, @Body() dto: ManualCreditPointsDto) {
+  async manualCredit(@Request() req: AuthenticatedRequest, @Body() dto: ManualCreditPointsDto) {
     return this.rewardService.manualCreditPoints(
       req.user.userId,
       dto.respondentId,

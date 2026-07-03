@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { JsonLogger } from './common/logging/json-logger';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   // Use structured JSON logger from the start so bootstrap errors are also captured
@@ -88,6 +89,12 @@ async function bootstrap() {
       },
     }),
   );
+
+  // ---------------------------------------------------------------------------
+  // Global exception filter — normalisasi bentuk error & scrub detail 5xx di
+  // produksi (cegah kebocoran pesan internal seperti error DB ke klien).
+  // ---------------------------------------------------------------------------
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // ---------------------------------------------------------------------------
   // Global route prefix — all API routes are under /api

@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { RegistrationService } from './registration.service';
@@ -63,7 +64,7 @@ export class RegistrationController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async completeProfile(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() completeProfileDto: CompleteProfileDto,
   ): Promise<{ message: string }> {
     await this.registrationService.completeProfile(req.user.userId, {

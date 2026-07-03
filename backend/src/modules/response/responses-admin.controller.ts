@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Get,
@@ -60,7 +61,7 @@ export class ResponsesAdminController {
   @Patch(':id/archive')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  async archive(@Param('id') id: string, @Req() req: any) {
+  async archive(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const result = await this.responseService.archiveResponse(id);
     await this.auditService.log({
       userId: req.user.userId,
@@ -79,7 +80,7 @@ export class ResponsesAdminController {
   @Delete(':id')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id') id: string, @Req() req: any) {
+  async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const result = await this.responseService.deleteResponse(id);
     await this.auditService.log({
       userId: req.user.userId,
@@ -103,7 +104,7 @@ export class RewardDistributionController {
   @Post('mark-distributed')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  async markDistributed(@Body() dto: MarkDistributedDto, @Req() req: any) {
+  async markDistributed(@Body() dto: MarkDistributedDto, @Req() req: AuthenticatedRequest) {
     return this.responseService.markResponsesDistributed(dto.responseIds, req.user.userId);
   }
 }

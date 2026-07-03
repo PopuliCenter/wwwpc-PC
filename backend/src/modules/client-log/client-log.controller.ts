@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Body,
   Controller,
@@ -36,7 +37,7 @@ export class ClientLogController {
   @Post()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
-  async ingest(@Body() dto: CreateClientLogDto, @Req() req: any): Promise<void> {
+  async ingest(@Body() dto: CreateClientLogDto, @Req() req: AuthenticatedRequest): Promise<void> {
     await this.service.record(dto, { userId: null, ipAddress: clientIp(req) });
   }
 }

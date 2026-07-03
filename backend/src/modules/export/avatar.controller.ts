@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -40,7 +41,7 @@ export class AvatarController {
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   async upload(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<{ avatarUrl: string }> {
     if (!file) throw new BadRequestException('Berkas avatar wajib diunggah.');

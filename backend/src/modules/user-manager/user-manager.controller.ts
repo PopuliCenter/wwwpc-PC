@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -26,7 +27,7 @@ export class UserManagerController {
   constructor(private readonly userManagerService: UserManagerService) {}
 
   @Post()
-  async createUser(@Body() dto: CreateUserDto, @Req() req: any) {
+  async createUser(@Body() dto: CreateUserDto, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     return this.userManagerService.createUser(dto, adminUserId, ipAddress);
@@ -34,7 +35,11 @@ export class UserManagerController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() req: any) {
+  async updateUser(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.updateUser(id, dto, adminUserId, ipAddress);
@@ -42,7 +47,11 @@ export class UserManagerController {
 
   @Patch(':id/role')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async updateUserRole(@Param('id') id: string, @Body() dto: UpdateRoleDto, @Req() req: any) {
+  async updateUserRole(
+    @Param('id') id: string,
+    @Body() dto: UpdateRoleDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.updateUserRole(id, dto.role, adminUserId, ipAddress);
@@ -50,7 +59,7 @@ export class UserManagerController {
 
   @Patch(':id/activate')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async activateUser(@Param('id') id: string, @Req() req: any) {
+  async activateUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.activateUser(id, adminUserId, ipAddress);
@@ -58,14 +67,14 @@ export class UserManagerController {
 
   @Patch(':id/deactivate')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deactivateUser(@Param('id') id: string, @Req() req: any) {
+  async deactivateUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.deactivateUser(id, adminUserId, ipAddress);
   }
 
   @Post(':id/reset-password')
-  async resetUserPassword(@Param('id') id: string, @Req() req: any) {
+  async resetUserPassword(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     return this.userManagerService.resetUserPassword(id, adminUserId, ipAddress);
@@ -90,7 +99,7 @@ export class UserManagerController {
   @Post('bulk-delete')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async bulkDelete(@Body('ids') ids: string[], @Req() req: any) {
+  async bulkDelete(@Body('ids') ids: string[], @Req() req: AuthenticatedRequest) {
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     return this.userManagerService.deleteUsers(
       Array.isArray(ids) ? ids : [],
@@ -113,7 +122,7 @@ export class UserManagerController {
     UserRole.SURVEYOR,
     UserRole.RESPONDENT,
   )
-  async deleteOwnAccount(@Req() req: any) {
+  async deleteOwnAccount(@Req() req: AuthenticatedRequest) {
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.deleteOwnAccount(req.user.userId, ipAddress);
   }
@@ -126,7 +135,7 @@ export class UserManagerController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async deleteUser(@Param('id') id: string, @Req() req: any) {
+  async deleteUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.userManagerService.deleteUser(
       id,
@@ -142,7 +151,7 @@ export class UserManagerController {
 
   @Post('bulk-import')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  async bulkImportUsers(@Body('csv') csv: string, @Req() req: any) {
+  async bulkImportUsers(@Body('csv') csv: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     return this.userManagerService.bulkImportUsers(csv, adminUserId, ipAddress);

@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -30,7 +31,7 @@ export class DataCleanupController {
   constructor(private readonly dataCleanupService: DataCleanupService) {}
 
   @Post('request')
-  async requestDeletion(@Body() dto: RequestDeletionDto, @Req() req: any) {
+  async requestDeletion(@Body() dto: RequestDeletionDto, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
 
@@ -51,7 +52,7 @@ export class DataCleanupController {
   async confirmDeletion(
     @Param('requestId') requestId: string,
     @Body() dto: ConfirmDeletionDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
@@ -65,7 +66,7 @@ export class DataCleanupController {
 
   @Post('archive/:surveyId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async archiveSurvey(@Param('surveyId') surveyId: string, @Req() req: any) {
+  async archiveSurvey(@Param('surveyId') surveyId: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
     await this.dataCleanupService.archiveSurvey(surveyId, adminUserId, ipAddress);
@@ -91,7 +92,7 @@ export class DataCleanupController {
   async deletePersonalData(
     @Param('respondentId') respondentId: string,
     @Body() dto: GdprDeleteDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';

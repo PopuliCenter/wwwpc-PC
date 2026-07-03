@@ -1,3 +1,4 @@
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import {
   Controller,
   Post,
@@ -47,7 +48,7 @@ export class ResponseController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
   async uploadFile(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @UploadedFile() file: UploadedFileLike,
   ) {
     return this.fileUploadService.uploadAnswerFile(surveyId, req.user.userId, file);
@@ -62,7 +63,7 @@ export class ResponseController {
   @HttpCode(HttpStatus.CREATED)
   async submitResponse(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: SubmitResponseDto,
   ) {
     return this.responseService.submitResponse(surveyId, req.user.userId, dto);
@@ -77,7 +78,7 @@ export class ResponseController {
   @HttpCode(HttpStatus.OK)
   async saveProgress(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: SaveProgressDto,
   ) {
     return this.responseService.saveProgress(surveyId, req.user.userId, dto);
@@ -88,7 +89,7 @@ export class ResponseController {
    */
   @Get('mine')
   @Roles(UserRole.RESPONDENT)
-  async getMyResponse(@Param('surveyId') surveyId: string, @Request() req: any) {
+  async getMyResponse(@Param('surveyId') surveyId: string, @Request() req: AuthenticatedRequest) {
     return this.responseService.getRespondentResponse(surveyId, req.user.userId);
   }
 
@@ -120,7 +121,7 @@ export class ResponseController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async markRewardDistributed(
     @Param('surveyId') surveyId: string,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: MarkRewardDistributedDto,
   ) {
     return this.responseService.markRewardDistributed(surveyId, dto.respondentIds, req.user.userId);
