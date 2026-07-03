@@ -479,6 +479,38 @@ describe('RewardService', () => {
         }),
       );
     });
+
+    it('regresi: penukaran senilai SELURUH saldo tidak boleh gagal (pending redemption ini sendiri jangan terhitung ganda)', async () => {
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue({
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: '123456',
+        otpExpiresAt: new Date(Date.now() + 600000),
+        pointsSpent: 500,
+        rewardType: 'pulsa-5000',
+        destinationNumber: '08123456789',
+      } as RewardRedemption);
+
+      // Saldo persis 500; redemption ini (masih PENDING) muncul sbg pending=500.
+      // Kode lama: available = 500 - 500 = 0 → 0 < 500 → FAILED (bug).
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: '500' }) // credits
+        .mockResolvedValueOnce({ total: '0' }) // debits
+        .mockResolvedValueOnce({ total: '500' }) // pending (redemption ini sendiri)
+        .mockResolvedValueOnce({ total: '0' }); // expiring
+
+      const result = await service.confirmRedemption('user-1', 'redemption-1', '123456');
+
+      expect(result.status).toBe(RedemptionStatus.PROCESSING);
+      expect(pointTransactionRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 500,
+          transactionType: TransactionType.DEBIT,
+          referenceId: 'redemption-1',
+        }),
+      );
+    });
   });
 
   describe('manualCreditPoints', () => {

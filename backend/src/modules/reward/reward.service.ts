@@ -655,9 +655,15 @@ export class RewardService {
       throw new BadRequestException('Kode OTP telah kadaluarsa');
     }
 
-    // Re-check balance (in case points expired between initiation and confirmation)
+    // Re-check balance (jaga-jaga poin kadaluarsa antara inisiasi & konfirmasi).
+    // PENTING: redemption ini masih berstatus PENDING saat getBalance() dipanggil,
+    // sehingga poinnya sendiri sudah ikut dipotong sebagai `pending` di `available`.
+    // Tambahkan kembali agar tidak terhitung ganda — kalau tidak, penukaran senilai
+    // seluruh saldo SELALU gagal ("available" jadi 0 padahal poin masih ada).
     const balance = await this.getBalance(userId);
-    if (balance.available < redemption.pointsSpent) {
+    const otherPending = balance.pending - redemption.pointsSpent;
+    const availableForThis = balance.total - Math.max(0, otherPending);
+    if (availableForThis < redemption.pointsSpent) {
       redemption.status = RedemptionStatus.FAILED;
       await this.redemptionRepository.save(redemption);
       throw new BadRequestException('Saldo tidak mencukupi. Poin mungkin telah kadaluarsa.');
