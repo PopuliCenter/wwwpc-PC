@@ -6,6 +6,11 @@ export const EMAIL_RETRY_ATTEMPTS = 3;
 export const EMAIL_RETRY_DELAY = 5000; // 5 seconds base delay
 export const EMAIL_BACKOFF_TYPE = 'exponential' as const;
 
+// Jumlah email yang boleh dikirim BERSAMAAN oleh worker (default 5). Dipasangkan
+// dgn SMTP pool maxConnections agar tidak melebihi kapasitas koneksi provider.
+// Override via env EMAIL_CONCURRENCY.
+export const EMAIL_CONCURRENCY = Number(process.env.EMAIL_CONCURRENCY ?? '5');
+
 export const POINTS_THRESHOLD = 10000;
 
 export const REMINDER_DAYS = {

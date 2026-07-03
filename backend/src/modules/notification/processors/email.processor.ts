@@ -6,7 +6,7 @@ import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { EmailTemplateService } from '../templates';
 import { EmailJobData, BulkEmailJobData, NotificationResult } from '../interfaces';
-import { NOTIFICATION_QUEUE, EMAIL_JOB, BULK_EMAIL_JOB } from '../constants';
+import { NOTIFICATION_QUEUE, EMAIL_JOB, BULK_EMAIL_JOB, EMAIL_CONCURRENCY } from '../constants';
 import { CircuitBreaker } from '@shared/circuit-breaker';
 
 @Processor(NOTIFICATION_QUEUE)
@@ -27,7 +27,7 @@ export class EmailProcessor {
     });
   }
 
-  @Process(EMAIL_JOB)
+  @Process({ name: EMAIL_JOB, concurrency: EMAIL_CONCURRENCY })
   async handleSendEmail(job: Job<EmailJobData>): Promise<NotificationResult> {
     const { payload } = job.data;
     this.logger.log(
@@ -152,6 +152,11 @@ export class EmailProcessor {
     const rejectUnauthorized =
       this.configService.get<string>('SMTP_TLS_REJECT_UNAUTHORIZED') !== 'false';
     const tlsServername = this.configService.get<string>('SMTP_TLS_SERVERNAME');
+    // maxConnections dipasangkan dgn EMAIL_CONCURRENCY (worker) — jangan lebihi
+    // batas koneksi paralel yg diizinkan provider. Override via SMTP_MAX_CONNECTIONS.
+    const maxConnections = Number(
+      this.configService.get<string>('SMTP_MAX_CONNECTIONS') ?? String(EMAIL_CONCURRENCY),
+    );
     this.smtpTransport = nodemailer.createTransport({
       host,
       port,
@@ -160,6 +165,16 @@ export class EmailProcessor {
         user: this.configService.getOrThrow<string>('SMTP_USER'),
         pass: this.configService.getOrThrow<string>('SMTP_PASS'),
       },
+      // Pool: pertahankan koneksi hangat & kirim paralel (hindari handshake TLS
+      // per-email). maxMessages membatasi email per koneksi sebelum di-recycle.
+      pool: true,
+      maxConnections,
+      maxMessages: 100,
+      // Timeout eksplisit agar koneksi bermasalah GAGAL CEPAT (≤~15d) lalu di-retry
+      // Bull — bukan menggantung worker bermenit-menit (default socket timeout panjang).
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
       tls: {
         rejectUnauthorized,
         ...(tlsServername ? { servername: tlsServername } : {}),
