@@ -71,6 +71,14 @@ export class RewardController {
   }
 
   /**
+   * Kirim ulang OTP utk redemption yang masih menunggu konfirmasi.
+   */
+  @Post('redeem/:redemptionId/resend-otp')
+  async resendRedemptionOtp(@Request() req: any, @Param('redemptionId') redemptionId: string) {
+    return this.rewardService.resendRedemptionOtp(req.user.userId, redemptionId);
+  }
+
+  /**
    * Get redemption history for the current user.
    */
   @Get('redemptions')

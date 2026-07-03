@@ -543,6 +543,15 @@ function RedemptionModal({
   const [remainingBalance, setRemainingBalance] = useState<number | null>(null);
   const [resultStatus, setResultStatus] = useState<string>('processing');
   const [resultMessage, setResultMessage] = useState<string>('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
+
+  // Hitung mundur cooldown tombol "kirim ulang" (cegah spam).
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const handleInitiate = async () => {
     if (!destinationNumber) {
@@ -558,10 +567,25 @@ function RedemptionModal({
       });
       setRedemptionId(result.redemptionId);
       setStep('otp');
+      setResendCooldown(60);
     } catch (e: any) {
       setError(e?.message || 'Gagal memulai penukaran. Silakan coba lagi.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setError(null);
+    setResendMsg(null);
+    try {
+      await api.post(`/rewards/redeem/${redemptionId}/resend-otp`, {});
+      setResendMsg('Kode OTP baru telah dikirim. Cek email Anda (termasuk folder spam).');
+      setOtp('');
+      setResendCooldown(60);
+    } catch (e: any) {
+      setError(e?.message || 'Gagal mengirim ulang kode. Silakan coba lagi.');
     }
   };
 
@@ -645,7 +669,8 @@ function RedemptionModal({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Konfirmasi OTP</h3>
             <p className="text-sm text-gray-600">
-              Masukkan kode OTP 6 digit untuk mengonfirmasi penukaran.
+              Kami mengirim kode OTP 6 digit ke email Anda. Masukkan di bawah untuk mengonfirmasi
+              penukaran. Kode bisa perlu beberapa saat — cek juga folder spam.
             </p>
             <input
               type="text"
@@ -655,6 +680,7 @@ function RedemptionModal({
               maxLength={6}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
+            {resendMsg && <p className="text-sm text-emerald-600">{resendMsg}</p>}
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               onClick={handleConfirm}
@@ -663,6 +689,18 @@ function RedemptionModal({
             >
               {loading ? 'Memverifikasi...' : 'Konfirmasi'}
             </button>
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || loading}
+                className="text-sm text-primary-600 hover:text-primary-700 disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                {resendCooldown > 0
+                  ? `Kirim ulang kode (${resendCooldown}s)`
+                  : 'Tidak menerima kode? Kirim ulang'}
+              </button>
+            </div>
           </div>
         )}
 

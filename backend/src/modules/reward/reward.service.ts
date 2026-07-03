@@ -571,6 +571,59 @@ export class RewardService {
   }
 
   /**
+   * Kirim ulang OTP utk redemption yang masih PENDING.
+   * Berguna bila email OTP pertama gagal terkirim (mis. gangguan transien) atau
+   * masuk folder spam. Regenerasi kode + reset masa berlaku, lalu kirim ulang.
+   */
+  async resendRedemptionOtp(userId: string, redemptionId: string): Promise<RedemptionResult> {
+    const redemption = await this.redemptionRepository.findOne({
+      where: { id: redemptionId, userId },
+    });
+
+    if (!redemption) {
+      throw new NotFoundException('Permintaan penukaran tidak ditemukan');
+    }
+
+    if (redemption.status !== RedemptionStatus.PENDING) {
+      throw new BadRequestException('Penukaran ini sudah tidak menunggu konfirmasi OTP');
+    }
+
+    // Regenerasi OTP + reset masa berlaku (kode lama otomatis batal).
+    const otpCode = this.generateOtpCode();
+    const otpExpiresAt = new Date();
+    otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + REDEMPTION_OTP_TTL_MINUTES);
+    redemption.otpCode = otpCode;
+    redemption.otpExpiresAt = otpExpiresAt;
+    await this.redemptionRepository.save(redemption);
+
+    // Kirim OTP via email (best-effort; OTP TIDAK di-log).
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user?.email) {
+      await this.notificationService
+        .sendOtpEmail(
+          user.email,
+          user.fullName || 'Pengguna',
+          otpCode,
+          REDEMPTION_OTP_TTL_MINUTES,
+          'redeem',
+        )
+        .catch((err) =>
+          this.logger.error(`Gagal mengirim ulang OTP penukaran ke ${user.email}: ${err?.message}`),
+        );
+    }
+    this.logger.log(
+      `[NOTIFICATION] Redemption OTP resent: userId=${userId}, redemptionId=${redemption.id}`,
+    );
+
+    return {
+      redemptionId: redemption.id,
+      status: redemption.status,
+      message: 'Kode OTP baru telah dikirim ke email Anda.',
+      otpRequired: true,
+    };
+  }
+
+  /**
    * Confirm a redemption with OTP verification.
    * Deducts points from balance after successful confirmation.
    * Triggers notification email.
