@@ -83,11 +83,6 @@ export function queueDelete(localId: string): Promise<void> {
   return tx<undefined>(QUEUE_STORE, 'readwrite', (s) => s.delete(localId)).then(() => undefined);
 }
 
-export async function queueCount(): Promise<number> {
-  const all = await queueGetAll();
-  return all.length;
-}
-
 // ─── Cache (data survei untuk offline) ──────────────────────────────────────
 
 export function cachePut(key: string, value: unknown): Promise<void> {
