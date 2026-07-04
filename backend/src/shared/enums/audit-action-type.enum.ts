@@ -15,6 +15,7 @@ export enum AuditActionType {
   DATA_CLEANUP = 'data_cleanup',
   REWARD_REDEMPTION = 'reward_redemption',
   MANUAL_REWARD_DISTRIBUTION = 'manual_reward_distribution',
+  POINT_MANUAL_CREDIT = 'point_manual_credit',
   USER_CREATE = 'user_create',
   USER_UPDATE = 'user_update',
   USER_ACTIVATE = 'user_activate',

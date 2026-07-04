@@ -11,6 +11,7 @@ import { StreakTracker } from './entities/streak-tracker.entity';
 import { User } from '@modules/auth/entities';
 import { AuthModule } from '@modules/auth';
 import { NotificationModule } from '@modules/notification';
+import { AuditModule } from '@modules/audit/audit.module';
 import {
   REWARD_FULFILLMENT_PROVIDER,
   ManualFulfillmentProvider,
@@ -24,6 +25,7 @@ import {
     ScheduleModule.forRoot(),
     AuthModule,
     NotificationModule,
+    AuditModule,
   ],
   controllers: [RewardController, RewardCallbackController],
   providers: [

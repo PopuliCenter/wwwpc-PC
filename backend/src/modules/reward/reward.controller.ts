@@ -116,6 +116,7 @@ export class RewardController {
       dto.respondentId,
       dto.amount,
       dto.reason,
+      req.ip,
     );
   }
 

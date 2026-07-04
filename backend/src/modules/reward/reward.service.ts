@@ -15,7 +15,8 @@ import {
   RewardRedeemedPayload,
   RewardRedemptionFailedPayload,
 } from '@modules/events/event-types';
-import { PointCreditReason } from '@shared/enums';
+import { PointCreditReason, AuditActionType } from '@shared/enums';
+import { AuditService } from '@modules/audit/audit.service';
 import {
   REWARD_FULFILLMENT_PROVIDER,
   RewardFulfillmentProvider,
@@ -61,6 +62,7 @@ export class RewardService {
     @Inject(REWARD_FULFILLMENT_PROVIDER)
     private readonly fulfillmentProvider: RewardFulfillmentProvider,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
   ) {
     this.fulfillmentCircuitBreaker = new CircuitBreaker({
       name: 'reward-fulfillment',
@@ -252,6 +254,7 @@ export class RewardService {
     respondentId: string,
     amount: number,
     reason: string,
+    ipAddress?: string,
   ): Promise<PointTransaction> {
     const transaction = await this.creditPoints(
       respondentId,
@@ -259,9 +262,14 @@ export class RewardService {
       PointCreditReason.MANUAL_CREDIT,
     );
 
-    this.logger.log(
-      `[AUDIT] Manual credit: adminId=${adminId}, respondentId=${respondentId}, amount=${amount}, reason=${reason}`,
-    );
+    // Aksi bernilai uang oleh admin → catat ke tabel audit (bukan sekadar log baris).
+    await this.auditService.log({
+      userId: adminId,
+      actionType: AuditActionType.POINT_MANUAL_CREDIT,
+      module: 'reward',
+      details: { respondentId, amount, reason, transactionId: transaction.id },
+      ipAddress,
+    });
 
     return transaction;
   }

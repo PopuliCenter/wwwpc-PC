@@ -5,7 +5,8 @@ export interface AuditEvent {
   actionType: AuditActionType;
   module: string;
   details?: Record<string, any>;
-  ipAddress: string;
+  // Opsional: kolom ip_address nullable; aksi non-HTTP (sistem/cron) bisa tanpa IP.
+  ipAddress?: string;
   timestamp?: Date;
 }
 

@@ -12,6 +12,7 @@ import { NotificationService } from '@modules/notification/notification.service'
 import { NotificationFeedService } from '@modules/notification/notification-feed.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { REWARD_FULFILLMENT_PROVIDER } from './fulfillment';
+import { AuditService } from '@modules/audit/audit.service';
 import { PointCreditReason } from '@shared/enums';
 import { POINT_VALUES, POINT_EXPIRATION_MONTHS } from './constants';
 
@@ -105,6 +106,10 @@ describe('RewardService', () => {
         {
           provide: EventEmitter2,
           useValue: { emit: vi.fn() },
+        },
+        {
+          provide: AuditService,
+          useValue: { log: vi.fn().mockResolvedValue(undefined) },
         },
         {
           // Provider fulfillment default utk test: kembalikan 'pending'.
