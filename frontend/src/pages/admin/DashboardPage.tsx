@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   BarChart,
   Bar,
@@ -170,43 +171,29 @@ function OverviewCards({ data, loading }: { data: OverviewData | null; loading: 
 }
 
 function RegistrationBarChart() {
-  const [data, setData] = useState<RegistrationChartItem[]>([]);
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('7d');
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
-        const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
-        const endDate = format(new Date(), 'yyyy-MM-dd');
-        const result = await api.get<ChartSeriesResponse | RegistrationChartItem[]>(
-          `/dashboard/registration-chart?startDate=${startDate}&endDate=${endDate}`,
-        );
-        // Backend returns { labels: [...], datasets: [{ data: [...] }] }
-        // Convert to array format for Recharts
-        if (Array.isArray(result)) {
-          setData(result);
-        } else if (result?.labels && result.datasets) {
-          const datasets = result.datasets;
-          setData(
-            result.labels.map((label, idx) => ({
-              date: label,
-              count: datasets[0]?.data[idx] ?? 0,
-            })),
-          );
-        } else {
-          setData([]);
-        }
-      } catch {
-        setData([]);
-      } finally {
-        setLoading(false);
+  const { data = [], isLoading: loading } = useQuery({
+    queryKey: ['dashboard', 'registration-chart', period],
+    queryFn: async (): Promise<RegistrationChartItem[]> => {
+      const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+      const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
+      const result = await api.get<ChartSeriesResponse | RegistrationChartItem[]>(
+        `/dashboard/registration-chart?startDate=${startDate}&endDate=${endDate}`,
+      );
+      // Backend bisa mengembalikan { labels, datasets:[{data}] } atau array langsung.
+      if (Array.isArray(result)) return result;
+      if (result?.labels && result.datasets) {
+        const datasets = result.datasets;
+        return result.labels.map((label, idx) => ({
+          date: label,
+          count: datasets[0]?.data[idx] ?? 0,
+        }));
       }
-    };
-    fetchData();
-  }, [period]);
+      return [];
+    },
+  });
 
   return (
     <Card>
@@ -262,39 +249,25 @@ function RegistrationBarChart() {
 }
 
 function CumulativeTrendChart() {
-  const [data, setData] = useState<CumulativeTrendItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
-        const endDate = format(new Date(), 'yyyy-MM-dd');
-        const result = await api.get<ChartSeriesResponse | CumulativeTrendItem[]>(
-          `/dashboard/cumulative-trend?startDate=${startDate}&endDate=${endDate}`,
-        );
-        // Backend returns { labels: [...], datasets: [{ data: [...] }] }
-        if (Array.isArray(result)) {
-          setData(result);
-        } else if (result?.labels && result.datasets) {
-          const datasets = result.datasets;
-          setData(
-            result.labels.map((label, idx) => ({
-              date: label,
-              total: datasets[0]?.data[idx] ?? 0,
-            })),
-          );
-        } else {
-          setData([]);
-        }
-      } catch {
-        setData([]);
-      } finally {
-        setLoading(false);
+  const { data = [], isLoading: loading } = useQuery({
+    queryKey: ['dashboard', 'cumulative-trend'],
+    queryFn: async (): Promise<CumulativeTrendItem[]> => {
+      const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+      const endDate = format(new Date(), 'yyyy-MM-dd');
+      const result = await api.get<ChartSeriesResponse | CumulativeTrendItem[]>(
+        `/dashboard/cumulative-trend?startDate=${startDate}&endDate=${endDate}`,
+      );
+      if (Array.isArray(result)) return result;
+      if (result?.labels && result.datasets) {
+        const datasets = result.datasets;
+        return result.labels.map((label, idx) => ({
+          date: label,
+          total: datasets[0]?.data[idx] ?? 0,
+        }));
       }
-    };
-    fetchData();
-  }, []);
+      return [];
+    },
+  });
 
   return (
     <Card>
@@ -332,22 +305,10 @@ function CumulativeTrendChart() {
 }
 
 function DistributionCharts() {
-  const [data, setData] = useState<DistributionData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const result = await api.get<DistributionData>('/dashboard/distribution');
-        setData(result);
-      } catch {
-        setData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const { data = null, isLoading: loading } = useQuery({
+    queryKey: ['dashboard', 'distribution'],
+    queryFn: () => api.get<DistributionData>('/dashboard/distribution'),
+  });
 
   if (loading) {
     return (
@@ -399,23 +360,18 @@ function DistributionCharts() {
 }
 
 function HeatmapSection() {
-  const [points, setPoints] = useState<HeatmapPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const result = await api.get<HeatmapPoint[]>('/dashboard/heatmap');
-        setPoints(Array.isArray(result) ? result : []);
-      } catch {
-        setError('Gagal memuat data peta');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const {
+    data: points = [],
+    isLoading: loading,
+    isError,
+  } = useQuery({
+    queryKey: ['dashboard', 'heatmap'],
+    queryFn: async (): Promise<HeatmapPoint[]> => {
+      const result = await api.get<HeatmapPoint[]>('/dashboard/heatmap');
+      return Array.isArray(result) ? result : [];
+    },
+  });
+  const error = isError ? 'Gagal memuat data peta' : null;
 
   if (loading) {
     return (
@@ -531,22 +487,13 @@ function LeafletMap({ points }: { points: HeatmapPoint[] }) {
 }
 
 function CompletionRatesTable() {
-  const [data, setData] = useState<CompletionRate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const result = await api.get<CompletionRate[]>('/dashboard/completion-rates');
-        setData(Array.isArray(result) ? result : []);
-      } catch {
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const { data = [], isLoading: loading } = useQuery({
+    queryKey: ['dashboard', 'completion-rates'],
+    queryFn: async (): Promise<CompletionRate[]> => {
+      const result = await api.get<CompletionRate[]>('/dashboard/completion-rates');
+      return Array.isArray(result) ? result : [];
+    },
+  });
 
   return (
     <Card flush>
@@ -614,22 +561,10 @@ function CompletionRatesTable() {
 }
 
 export function DashboardPage() {
-  const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchOverview = async () => {
-      try {
-        const result = await api.get<OverviewData>('/dashboard/overview');
-        setOverview(result);
-      } catch {
-        setOverview(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOverview();
-  }, []);
+  const { data: overview = null, isLoading: loading } = useQuery({
+    queryKey: ['dashboard', 'overview'],
+    queryFn: () => api.get<OverviewData>('/dashboard/overview'),
+  });
 
   return (
     <div className="space-y-6">
