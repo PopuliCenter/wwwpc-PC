@@ -18,6 +18,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { Public } from '@modules/auth/decorators';
 import { User } from '@modules/auth/entities/user.entity';
 import { S3StorageService } from './s3-storage.service';
 
@@ -85,6 +86,7 @@ export class AvatarController {
   }
 
   /** Stream foto avatar (publik — avatar bukan data sensitif, dipakai di <img>). */
+  @Public()
   @Get(':userId')
   @SkipThrottle()
   async stream(@Param('userId') userId: string, @Res() res: Response): Promise<void> {

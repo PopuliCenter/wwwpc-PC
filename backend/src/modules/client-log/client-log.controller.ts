@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
-import { Roles } from '@modules/auth/decorators';
+import { Roles, Public } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
 import { ClientLogService } from './client-log.service';
 import { CreateClientLogDto, PurgeClientLogDto } from './dto/create-client-log.dto';
@@ -30,6 +30,7 @@ function clientIp(req: any): string {
  * Di-throttle & dibatasi panjang payload via DTO. userEmail bersifat
  * laporan-klien (untuk monitoring, bukan keputusan keamanan).
  */
+@Public()
 @Controller('client-logs')
 export class ClientLogController {
   constructor(private readonly service: ClientLogService) {}

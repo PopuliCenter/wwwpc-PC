@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { RegistrationService } from './registration.service';
 import { RegisterDto, VerifyOtpDto, ResendOtpDto, CompleteProfileDto } from './dto';
 import { JwtAuthGuard } from '@modules/auth/guards';
+import { Public } from '@modules/auth/decorators';
 import { RegistrationResult, OtpResult, VerificationResult } from './interfaces';
 
 @Controller('registration')
@@ -14,6 +15,7 @@ export class RegistrationController {
    * New account registration.
    * Throttle: 5 requests/minute per IP — prevents mass account creation.
    */
+  @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
@@ -41,6 +43,7 @@ export class RegistrationController {
    * OTP verification.
    * Throttle: 5 requests/minute per IP — limits brute-force guessing (10^6 space ÷ 5/min = impractical).
    */
+  @Public()
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
@@ -53,6 +56,7 @@ export class RegistrationController {
    * Throttle: 3 requests/minute per IP — stricter than verify because resend
    * triggers email delivery and can be abused for email flooding.
    */
+  @Public()
   @Post('resend-otp')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60_000, limit: 3 } })

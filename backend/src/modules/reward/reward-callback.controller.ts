@@ -1,6 +1,7 @@
 import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Body, HttpCode, Req, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '@modules/auth/decorators';
 import { RewardService } from './reward.service';
 
 /**
@@ -15,6 +16,7 @@ import { RewardService } from './reward.service';
  *  3) Opsional: IP allowlist (env IAK_CALLBACK_IPS, dipisah koma) sbg pertahanan
  *     tambahan. Bila kosong, lapisan 1 & 2 yang berlaku.
  */
+@Public()
 @Controller('rewards/callback')
 export class RewardCallbackController {
   private readonly allowedIps: string[];

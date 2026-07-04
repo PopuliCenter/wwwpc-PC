@@ -23,6 +23,7 @@ import {
   GoogleLoginDto,
 } from './dto';
 import { JwtAuthGuard } from './guards';
+import { Public } from './decorators';
 import { AuthResult, TokenPair } from './interfaces';
 import { AuditService } from '@modules/audit/audit.service';
 import { AuditActionType } from '@shared/enums';
@@ -41,6 +42,7 @@ export class AuthController {
     private readonly auditService: AuditService,
   ) {}
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
@@ -59,6 +61,7 @@ export class AuthController {
     return result;
   }
 
+  @Public()
   @Post('google')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
@@ -90,6 +93,7 @@ export class AuthController {
     });
   }
 
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
@@ -97,6 +101,7 @@ export class AuthController {
     return this.authService.refreshToken(refreshTokenDto.refreshToken);
   }
 
+  @Public()
   @Post('password-reset/request')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60000, limit: 5 } })
@@ -104,6 +109,7 @@ export class AuthController {
     await this.authService.requestPasswordReset(dto.email);
   }
 
+  @Public()
   @Post('password-reset/confirm')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60000, limit: 5 } })

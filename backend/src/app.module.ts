@@ -3,6 +3,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { JwtAuthGuard } from './modules/auth/guards';
 import { DatabaseModule } from './config';
 import { HealthModule } from './common/health';
 import { AuthModule } from './modules/auth';
@@ -55,6 +56,12 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      // Global auth: SEMUA route wajib JWT kecuali yang ditandai @Public().
+      // Jalan setelah ThrottlerGuard (rate-limit tetap berlaku utk route publik).
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
     },
   ],
 })

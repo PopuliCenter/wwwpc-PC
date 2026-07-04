@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthService, HealthStatus } from './health.service';
+import { Public } from '@modules/auth/decorators';
 
 /**
  * Health check controller.
@@ -12,6 +13,7 @@ import { HealthService, HealthStatus } from './health.service';
  * (see main.ts) so Docker HEALTHCHECK and Kubernetes readiness probes
  * can reach it without the prefix.
  */
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
