@@ -11,15 +11,14 @@ import { showAppNotice } from '@/stores/notification.store';
  * Perilaku:
  *  - minta izin & daftar ke FCM/APNs → kirim device token ke backend;
  *  - buat CHANNEL prioritas tinggi → notifikasi muncul HEADS-UP (pop di layar HP);
- *  - push tiba saat app DI BELAKANG/tertutup → OS tampilkan notifikasi sistem;
- *  - push tiba saat app DI DEPAN → tampilkan pop-up in-app + JUGA notifikasi
- *    sistem (local notification) agar tetap terlihat di status bar;
+ *  - push tiba → OS menampilkan notifikasi sistem dari payload FCM (sekali);
+ *  - push tiba saat app DI DEPAN → TAMBAHAN pop-up in-app (showAppNotice). App
+ *    TIDAK membuat local notification lagi agar tidak muncul notif GANDA;
  *  - notifikasi diketuk → buka rute tujuan (mis. /surveys/<id>/fill).
  *
  * Aman dipanggil berkali-kali (idempoten) dan tidak melempar error ke UI.
  */
 let initialized = false;
-let localNotifId = 1;
 
 // HARUS sama dengan channelId yang dikirim backend (push.service.ts) agar
 // notifikasi memakai channel prioritas tinggi ini (heads-up + suara).
@@ -81,37 +80,6 @@ async function ensureAndroidChannel(): Promise<void> {
   }
 }
 
-/**
- * Tampilkan notifikasi SISTEM (status bar/heads-up) saat aplikasi sedang dibuka.
- * Saat foreground, OS tidak menampilkan banner FCM sendiri, jadi kita jadwalkan
- * local notification agar responden tetap melihatnya di luar pop-up in-app.
- */
-async function showSystemNotification(title: string, body?: string, link?: string): Promise<void> {
-  try {
-    const { LocalNotifications } = await import('@capacitor/local-notifications');
-    const perm = await LocalNotifications.checkPermissions();
-    if (perm.display !== 'granted') {
-      const req = await LocalNotifications.requestPermissions();
-      if (req.display !== 'granted') return;
-    }
-    await LocalNotifications.schedule({
-      notifications: [
-        {
-          id: localNotifId++,
-          title,
-          body: body ?? '',
-          channelId: CHANNEL_ID,
-          smallIcon: 'ic_stat_notification',
-          iconColor: '#F26522',
-          extra: { link },
-        },
-      ],
-    });
-  } catch {
-    /* abaikan — pop-up in-app sudah tampil sebagai fallback */
-  }
-}
-
 export async function initNativeNotifications(): Promise<void> {
   if (initialized) return;
   if (!Capacitor.isNativePlatform()) return; // web → tidak perlu push native
@@ -128,7 +96,6 @@ export async function initNativeNotifications(): Promise<void> {
 
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
-    const { LocalNotifications } = await import('@capacitor/local-notifications');
 
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive !== 'granted') {
@@ -149,23 +116,21 @@ export async function initNativeNotifications(): Promise<void> {
       /* abaikan; bisa dicoba lagi saat sesi berikutnya */
     });
 
-    // Push tiba saat aplikasi DI DEPAN → pop-up in-app + notifikasi sistem.
+    // Push tiba saat aplikasi DI DEPAN → HANYA pop-up in-app. OS sudah menampilkan
+    // notifikasi sistem dari payload FCM; TIDAK membuat local notification lagi
+    // (dulu memicu notif GANDA di status bar).
     PushNotifications.addListener('pushNotificationReceived', (notif) => {
-      const link = (notif.data?.link as string | undefined) ?? undefined;
-      const title = notif.title ?? 'Pemberitahuan';
-      const body = notif.body ?? undefined;
-      showAppNotice({ title, body, link, tone: 'info' });
-      void showSystemNotification(title, body, link);
+      showAppNotice({
+        title: notif.title ?? 'Pemberitahuan',
+        body: notif.body ?? undefined,
+        link: (notif.data?.link as string | undefined) ?? undefined,
+        tone: 'info',
+      });
     });
 
-    // Notifikasi push diketuk (app di belakang/tertutup) → buka rute.
+    // Notifikasi push diketuk (app di belakang/tertutup/depan) → buka rute.
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       navigateToLink(action.notification.data?.link as string | undefined);
-    });
-
-    // Notifikasi SISTEM (local, dari foreground) diketuk → buka rute.
-    void LocalNotifications.addListener('localNotificationActionPerformed', (action) => {
-      navigateToLink(action.notification.extra?.link as string | undefined);
     });
 
     await PushNotifications.register();
