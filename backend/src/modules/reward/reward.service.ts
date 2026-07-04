@@ -140,6 +140,10 @@ export class RewardService {
         return 'menyelesaikan survei';
       case PointCreditReason.STREAK_BONUS:
         return 'bonus streak';
+      case PointCreditReason.REDEMPTION:
+        return 'penukaran reward';
+      case PointCreditReason.REFUND:
+        return 'pengembalian poin';
       default:
         return 'kredit poin';
     }
@@ -703,7 +707,7 @@ export class RewardService {
         userId,
         amount: redemption.pointsSpent,
         transactionType: TransactionType.DEBIT,
-        reason: PointCreditReason.MANUAL_CREDIT, // reason DEBIT generik
+        reason: PointCreditReason.REDEMPTION, // DEBIT penukaran reward
         referenceId: redemption.id,
         earnedAt: new Date(),
         expiresAt: null,
@@ -922,7 +926,7 @@ export class RewardService {
     await this.creditPoints(
       redemption.userId,
       redemption.pointsSpent,
-      PointCreditReason.MANUAL_CREDIT,
+      PointCreditReason.REFUND,
       redemption.id,
     );
     redemption.refunded = true;

@@ -14,7 +14,13 @@ interface PointBalance {
 
 type TransactionType = 'credit' | 'debit';
 type PointReason =
-  'registration' | 'profile_completion' | 'survey_completion' | 'streak_bonus' | 'manual_credit';
+  | 'registration'
+  | 'profile_completion'
+  | 'survey_completion'
+  | 'streak_bonus'
+  | 'manual_credit'
+  | 'redemption'
+  | 'refund';
 
 interface BackendTransaction {
   id: string;
@@ -118,6 +124,8 @@ const REASON_LABELS: Record<PointReason, string> = {
   survey_completion: 'Penyelesaian survei',
   streak_bonus: 'Bonus streak',
   manual_credit: 'Penyesuaian poin',
+  redemption: 'Penukaran reward',
+  refund: 'Pengembalian poin',
 };
 
 function describeTransaction(tx: BackendTransaction): string {
