@@ -27,6 +27,27 @@ import { S3StorageService } from './s3-storage.service';
  * internal, tak terjangkau browser). avatar_url disimpan relatif `/avatar/<id>`
  * + cache-bust agar perubahan langsung terlihat.
  */
+/**
+ * Allowlist tipe gambar RASTER + validator magic-byte (anti-spoof). SVG SENGAJA
+ * ditolak: bisa memuat <script> → XSS tersimpan karena avatar disajikan dari
+ * origin API. Kunci = MIME; nilai = pengecek signature byte.
+ */
+const ALLOWED_AVATAR_TYPES = new Map<string, (b: Buffer) => boolean>([
+  ['image/jpeg', (b) => b.length > 2 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  [
+    'image/png',
+    (b) => b.length > 7 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
+  ],
+  [
+    'image/webp',
+    (b) =>
+      b.length > 11 &&
+      b.toString('ascii', 0, 4) === 'RIFF' &&
+      b.toString('ascii', 8, 12) === 'WEBP',
+  ],
+  ['image/gif', (b) => b.length > 3 && b.toString('ascii', 0, 3) === 'GIF'],
+]);
+
 @Controller('avatar')
 export class AvatarController {
   private static readonly KEY = (userId: string) => `avatars/${userId}`;
@@ -45,8 +66,10 @@ export class AvatarController {
     @UploadedFile() file?: Express.Multer.File,
   ): Promise<{ avatarUrl: string }> {
     if (!file) throw new BadRequestException('Berkas avatar wajib diunggah.');
-    if (!file.mimetype?.startsWith('image/')) {
-      throw new BadRequestException('Avatar harus berupa gambar.');
+    // Allowlist MIME + verifikasi magic-byte (tolak SVG & berkas yg dipalsukan).
+    const magicCheck = ALLOWED_AVATAR_TYPES.get(file.mimetype ?? '');
+    if (!magicCheck || !magicCheck(file.buffer)) {
+      throw new BadRequestException('Avatar harus berupa gambar JPG, PNG, WEBP, atau GIF.');
     }
     const userId = req.user.userId;
     await this.s3.uploadBuffer(
@@ -70,7 +93,13 @@ export class AvatarController {
         AvatarController.KEY(userId),
         this.s3.uploadsBucket,
       );
-      res.set('Content-Type', contentType);
+      // Hanya sajikan tipe raster yg di-allowlist (avatar lama bertipe SVG dari
+      // sebelum patch → paksa unduh, jangan render). nosniff cegah MIME-sniffing.
+      const safeType = ALLOWED_AVATAR_TYPES.has(contentType)
+        ? contentType
+        : 'application/octet-stream';
+      res.set('Content-Type', safeType);
+      res.set('X-Content-Type-Options', 'nosniff');
       res.set('Cache-Control', 'public, max-age=86400');
       res.send(buffer);
     } catch {

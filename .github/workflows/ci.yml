@@ -56,3 +56,21 @@ jobs:
       # `build` = `tsc -b && vite build` — typecheck & build sekaligus, gagal bila ada error tipe.
       - name: Typecheck + Build
         run: npm run build --workspace=frontend
+
+  audit:
+    name: Security audit (dependency)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      # REPORT-ONLY dulu (continue-on-error): memunculkan kerentanan produksi tanpa
+      # memblokir merge, karena masih ada high tanpa-patch (mis. xlsx di frontend →
+      # rencana migrasi ke exceljs). Hapus continue-on-error jadi gerbang wajib
+      # setelah backlog high/critical produksi bersih.
+      - name: Audit production deps (high+)
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high

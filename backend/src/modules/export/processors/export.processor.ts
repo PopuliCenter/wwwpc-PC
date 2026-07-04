@@ -32,9 +32,14 @@ import {
   EXPORTS_DIRECTORY,
 } from '../constants';
 
-/** Bungkus satu sel CSV: kutip & escape agar koma/baris-baru di teks aman. */
+/** Bungkus satu sel CSV: kutip & escape agar koma/baris-baru di teks aman.
+ *  Sekaligus netralkan CSV/formula injection: sel yg diawali =, +, -, @, TAB,
+ *  atau CR bisa dieksekusi Excel/Sheets sbg formula → beri prefix tanda kutip. */
 function csvCell(value: unknown): string {
-  const s = value == null ? '' : String(value);
+  let s = value == null ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(s)) {
+    s = `'${s}`;
+  }
   return `"${s.replace(/"/g, '""')}"`;
 }
 

@@ -23,6 +23,7 @@ import { NotificationService } from '@modules/notification';
 const OTP_PREFIX = 'otp:';
 const OTP_TTL_SECONDS = 900; // 15 minutes
 const MAX_RESEND_COUNT = 3;
+const MAX_OTP_ATTEMPTS = 5; // maks. percobaan OTP salah sebelum kode dibatalkan
 const BCRYPT_SALT_ROUNDS = 10;
 
 @Injectable()
@@ -195,10 +196,24 @@ export class RegistrationService {
 
     const otpData: OtpData = JSON.parse(otpDataStr);
 
+    // Lockout: terlalu banyak percobaan salah → batalkan OTP (harus minta kirim ulang).
+    if (otpData.attemptCount >= MAX_OTP_ATTEMPTS) {
+      await this.cacheManager.del(`${OTP_PREFIX}${email}`);
+      throw new BadRequestException(
+        'Terlalu banyak percobaan OTP. Kode dibatalkan — silakan minta kirim ulang.',
+      );
+    }
+
     // Validate OTP code
     if (otpData.code !== code) {
-      // Increment attempt count
+      // Increment attempt count; batalkan kode bila mencapai batas.
       otpData.attemptCount += 1;
+      if (otpData.attemptCount >= MAX_OTP_ATTEMPTS) {
+        await this.cacheManager.del(`${OTP_PREFIX}${email}`);
+        throw new BadRequestException(
+          'Terlalu banyak percobaan OTP. Kode dibatalkan — silakan minta kirim ulang.',
+        );
+      }
       await this.cacheManager.set(
         `${OTP_PREFIX}${email}`,
         JSON.stringify(otpData),

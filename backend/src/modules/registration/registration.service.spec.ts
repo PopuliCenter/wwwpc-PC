@@ -270,6 +270,23 @@ describe('RegistrationService', () => {
       expect(updatedData.attemptCount).toBe(1);
     });
 
+    it('membatalkan OTP setelah percobaan salah melebihi batas (lockout)', async () => {
+      // attemptCount 4; percobaan salah ke-5 (MAX_OTP_ATTEMPTS=5) → kode dibatalkan.
+      const otpData = JSON.stringify({
+        code: '123456',
+        attemptCount: 4,
+        resendCount: 0,
+        createdAt: new Date().toISOString(),
+      });
+      cacheManager.get.mockResolvedValue(otpData);
+
+      await expect(service.verifyOtp('test@example.com', '999999')).rejects.toThrow(
+        /Terlalu banyak percobaan/,
+      );
+      // OTP dihapus dari Redis (dibatalkan), bukan sekadar di-increment.
+      expect(cacheManager.del).toHaveBeenCalledWith('otp:test@example.com');
+    });
+
     it('should delete OTP from Redis after successful verification', async () => {
       const otpData = JSON.stringify({
         code: '123456',
