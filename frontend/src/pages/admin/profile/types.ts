@@ -42,9 +42,5 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   surveyor: 'Surveyor (TPD)',
 };
 
-export function errMessage(e: unknown): string {
-  const m = (e as { message?: unknown })?.message;
-  if (Array.isArray(m)) return m.join(', ');
-  if (typeof m === 'string') return m;
-  return 'Terjadi kesalahan. Coba lagi.';
-}
+// Dipindah ke util bersama; alias dipertahankan agar impor lama tetap jalan.
+export { errorMessage as errMessage } from '@/utils/errorMessage';

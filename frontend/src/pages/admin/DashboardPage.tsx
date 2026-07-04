@@ -43,9 +43,26 @@ interface DistributionItem {
 }
 
 interface DistributionData {
-  region: DistributionItem[];
-  age: DistributionItem[];
-  occupation: DistributionItem[];
+  region?: DistributionItem[];
+  age?: DistributionItem[];
+  occupation?: DistributionItem[];
+  // Backend bisa memakai penamaan by* — dukung keduanya.
+  byRegion?: DistributionItem[];
+  byAge?: DistributionItem[];
+  byOccupation?: DistributionItem[];
+}
+
+/** Bentuk respons chart deret-waktu backend: { labels, datasets:[{data}] }. */
+interface ChartSeriesResponse {
+  labels?: string[];
+  datasets?: { data: number[] }[];
+}
+
+/** Props render label Recharts Pie (subset yang dipakai). */
+interface PieLabelProps {
+  label?: string;
+  name?: string;
+  percent?: number;
 }
 
 interface HeatmapRespondent {
@@ -164,19 +181,21 @@ function RegistrationBarChart() {
         const days = period === '7d' ? 7 : period === '30d' ? 30 : 90;
         const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
         const endDate = format(new Date(), 'yyyy-MM-dd');
-        const result = await api.get<any>(
+        const result = await api.get<ChartSeriesResponse | RegistrationChartItem[]>(
           `/dashboard/registration-chart?startDate=${startDate}&endDate=${endDate}`,
         );
         // Backend returns { labels: [...], datasets: [{ data: [...] }] }
         // Convert to array format for Recharts
-        if (result && result.labels && result.datasets) {
-          const chartData = result.labels.map((label: string, idx: number) => ({
-            date: label,
-            count: result.datasets[0]?.data[idx] ?? 0,
-          }));
-          setData(chartData);
-        } else if (Array.isArray(result)) {
+        if (Array.isArray(result)) {
           setData(result);
+        } else if (result?.labels && result.datasets) {
+          const datasets = result.datasets;
+          setData(
+            result.labels.map((label, idx) => ({
+              date: label,
+              count: datasets[0]?.data[idx] ?? 0,
+            })),
+          );
         } else {
           setData([]);
         }
@@ -251,18 +270,20 @@ function CumulativeTrendChart() {
       try {
         const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
         const endDate = format(new Date(), 'yyyy-MM-dd');
-        const result = await api.get<any>(
+        const result = await api.get<ChartSeriesResponse | CumulativeTrendItem[]>(
           `/dashboard/cumulative-trend?startDate=${startDate}&endDate=${endDate}`,
         );
         // Backend returns { labels: [...], datasets: [{ data: [...] }] }
-        if (result && result.labels && result.datasets) {
-          const chartData = result.labels.map((label: string, idx: number) => ({
-            date: label,
-            total: result.datasets[0]?.data[idx] ?? 0,
-          }));
-          setData(chartData);
-        } else if (Array.isArray(result)) {
+        if (Array.isArray(result)) {
           setData(result);
+        } else if (result?.labels && result.datasets) {
+          const datasets = result.datasets;
+          setData(
+            result.labels.map((label, idx) => ({
+              date: label,
+              total: datasets[0]?.data[idx] ?? 0,
+            })),
+          );
         } else {
           setData([]);
         }
@@ -336,10 +357,10 @@ function DistributionCharts() {
     );
   }
 
-  const charts = [
-    { title: 'Distribusi Wilayah', data: (data as any)?.byRegion ?? data?.region ?? [] },
-    { title: 'Distribusi Usia', data: (data as any)?.byAge ?? data?.age ?? [] },
-    { title: 'Distribusi Pekerjaan', data: (data as any)?.byOccupation ?? data?.occupation ?? [] },
+  const charts: { title: string; data: DistributionItem[] }[] = [
+    { title: 'Distribusi Wilayah', data: data?.byRegion ?? data?.region ?? [] },
+    { title: 'Distribusi Usia', data: data?.byAge ?? data?.age ?? [] },
+    { title: 'Distribusi Pekerjaan', data: data?.byOccupation ?? data?.occupation ?? [] },
   ];
 
   return (
@@ -357,12 +378,12 @@ function DistributionCharts() {
                 outerRadius={80}
                 dataKey="value"
                 nameKey="label"
-                label={(props: any) =>
+                label={(props: PieLabelProps) =>
                   `${props.label ?? props.name ?? ''} ${((props.percent ?? 0) * 100).toFixed(0)}%`
                 }
                 labelLine={false}
               >
-                {(Array.isArray(chart.data) ? chart.data : []).map((_: any, index: number) => (
+                {chart.data.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
