@@ -10,7 +10,7 @@ import {
   Upload,
   Download,
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { api } from '@/services/api';
 import { useConfirm } from '@/components/common/ConfirmDialog';
 
@@ -79,6 +79,84 @@ function toRow(r: Respondent): Record<string, string | number> {
 }
 
 type SortKey = 'fullName' | 'age' | 'gender' | 'province' | 'city' | 'district' | 'registeredAt';
+
+/** Tulis workbook exceljs → picu unduhan file .xlsx di browser. */
+async function downloadWorkbook(wb: ExcelJS.Workbook, filename: string): Promise<void> {
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Parser CSV sederhana (dukung field berkutip & "" escape). */
+function parseCsvText(text: string): Record<string, unknown>[] {
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .filter((l) => l.trim() !== '');
+  if (lines.length === 0) return [];
+  const parseLine = (line: string): string[] => {
+    const cells: string[] = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else inQuotes = false;
+        } else cur += ch;
+      } else if (ch === '"') inQuotes = true;
+      else if (ch === ',') {
+        cells.push(cur);
+        cur = '';
+      } else cur += ch;
+    }
+    cells.push(cur);
+    return cells;
+  };
+  const headers = parseLine(lines[0]);
+  return lines.slice(1).map((line) => {
+    const vals = parseLine(line);
+    const obj: Record<string, unknown> = {};
+    headers.forEach((h, i) => {
+      obj[h] = vals[i] ?? '';
+    });
+    return obj;
+  });
+}
+
+/** Baca baris impor dari file: CSV diparse manual (aman), .xlsx via exceljs. */
+async function parseImportRows(file: File): Promise<Record<string, unknown>[]> {
+  const isCsv = /\.csv$/i.test(file.name) || file.type === 'text/csv';
+  if (isCsv) return parseCsvText(await file.text());
+
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(await file.arrayBuffer());
+  const ws = wb.worksheets[0];
+  if (!ws) return [];
+  const headerRow = ws.getRow(1);
+  const headers: string[] = [];
+  for (let c = 1; c <= headerRow.cellCount; c++) headers.push(headerRow.getCell(c).text);
+  const out: Record<string, unknown>[] = [];
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return;
+    const obj: Record<string, unknown> = {};
+    headers.forEach((h, i) => {
+      obj[h] = row.getCell(i + 1).text;
+    });
+    out.push(obj);
+  });
+  return out;
+}
 
 export function RespondentsPage() {
   const [respondents, setRespondents] = useState<Respondent[]>([]);
@@ -223,13 +301,16 @@ export function RespondentsPage() {
   const stamp = () => new Date().toISOString().slice(0, 10);
   const exportRows = () => displayed; // ikut hasil filter & sort
 
-  const exportExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(exportRows().map(toRow), {
-      header: COLUMNS.map((c) => c.label),
+  const exportExcel = async () => {
+    const headers = COLUMNS.map((c) => c.label);
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Responden');
+    ws.addRow(headers);
+    exportRows().forEach((r) => {
+      const row = toRow(r);
+      ws.addRow(headers.map((h) => row[h] ?? ''));
     });
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Responden');
-    XLSX.writeFile(wb, `responden-${stamp()}.xlsx`);
+    await downloadWorkbook(wb, `responden-${stamp()}.xlsx`);
   };
   const exportCsv = () => {
     const header = COLUMNS.map((c) => c.label);
@@ -244,7 +325,9 @@ export function RespondentsPage() {
         return header.map((h) => esc(row[h])).join(',');
       }),
     ];
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([String.fromCharCode(0xfeff) + lines.join('\r\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -255,20 +338,12 @@ export function RespondentsPage() {
 
   // ── Impor responden dari Excel/CSV ──────────────────────────────────────────
   // Unduh template Excel (kolom: Nama Lengkap, Email, Nomor Telepon).
-  const downloadTemplate = () => {
-    const ws = XLSX.utils.json_to_sheet(
-      [
-        {
-          'Nama Lengkap': 'Budi Santoso',
-          Email: 'budi@email.com',
-          'Nomor Telepon': '081234567890',
-        },
-      ],
-      { header: ['Nama Lengkap', 'Email', 'Nomor Telepon'] },
-    );
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Responden');
-    XLSX.writeFile(wb, 'template-impor-responden.xlsx');
+  const downloadTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Responden');
+    ws.addRow(['Nama Lengkap', 'Email', 'Nomor Telepon']);
+    ws.addRow(['Budi Santoso', 'budi@email.com', '081234567890']);
+    await downloadWorkbook(wb, 'template-impor-responden.xlsx');
   };
 
   // Ambil nilai kolom secara fleksibel (case-insensitive, beberapa alias).
@@ -286,10 +361,7 @@ export function RespondentsPage() {
     setInfo('');
     setImporting(true);
     try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array' });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+      const rows = await parseImportRows(file);
 
       // Bersihkan koma/baris baru (CSV backend dipisah koma per baris).
       const clean = (s: string) => s.replace(/[\n\r,]/g, ' ').trim();
