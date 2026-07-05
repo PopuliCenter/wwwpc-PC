@@ -45,7 +45,15 @@ export class NotificationSchedulerService {
     private readonly deviceTokenService: DeviceTokenService,
     private readonly feedService: NotificationFeedService,
   ) {
-    this.baseUrl = this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+    // Base URL untuk tautan di email (undangan survei, reminder). Urutan: env
+    // khusus APP_BASE_URL → APP_URL (dipakai template email lain) → default
+    // PRODUKSI. Jangan pernah jatuh ke localhost: tautan localhost yang bocor ke
+    // email responden tak bisa dibuka. Set APP_BASE_URL=http://localhost:3000 di
+    // .env lokal bila perlu menguji tautan dev.
+    this.baseUrl =
+      this.configService.get<string>('APP_BASE_URL') ??
+      this.configService.get<string>('APP_URL') ??
+      'https://survei.risetcenter.com';
   }
 
   /**

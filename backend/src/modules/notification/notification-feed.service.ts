@@ -154,7 +154,12 @@ export class NotificationFeedService {
 
     let emailed = 0;
     if (dto.sendEmail) {
-      const baseUrl = this.configService.get<string>('APP_BASE_URL') ?? 'http://localhost:3000';
+      // Jangan pernah default ke localhost (tautan bocor ke email). Urutan sama
+      // dgn scheduler: APP_BASE_URL → APP_URL → default produksi.
+      const baseUrl =
+        this.configService.get<string>('APP_BASE_URL') ??
+        this.configService.get<string>('APP_URL') ??
+        'https://survei.risetcenter.com';
       const actionUrl = dto.link ? `${baseUrl.replace(/\/+$/, '')}${dto.link}` : undefined;
       await this.notificationService
         .sendAnnouncementEmail(
