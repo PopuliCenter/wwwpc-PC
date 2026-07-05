@@ -45,12 +45,12 @@ import type {
   AnswerValue,
   Question,
   RendererProps,
-  SkipCondition,
   SurveyFillData,
   SurveyOption,
 } from '@/types/survey';
 import { fieldClasses } from './questions/shared';
 import { IndonesiaRegionQuestion } from './questions/IndonesiaRegionQuestion';
+import { isActive as isActivePure } from '@/utils/surveyBranching';
 
 // Tipe domain pengisian survei dipindah ke `@/types/survey` (dipakai bersama
 // komponen renderer). Re-export agar impor lama yang menunjuk file ini (jika ada)
@@ -1305,52 +1305,9 @@ export function SurveyFillPage() {
     };
   }, [survey, answers, answersToArray]);
 
-  const evaluateCondition = useCallback(
-    (condition: SkipCondition): boolean => {
-      const answer = answers[condition.questionId];
-      // Selaras dengan backend (condition-evaluator): jawaban kosong → kondisi
-      // tidak terpenuhi untuk SEMUA operator. Jawaban pilihan-ganda (array) dicek
-      // dengan "termasuk", bukan digabung jadi string (yang membuat equals/contains
-      // gagal pada multiple choice).
-      if (answer === null || answer === undefined) return false;
-      const cv = condition.value;
-      const isArr = Array.isArray(answer);
-      const arr = isArr ? (answer as string[]).map((v) => String(v)) : [];
-      switch (condition.operator) {
-        case 'equals':
-          return isArr ? arr.includes(cv) : String(answer) === cv;
-        case 'not_equals':
-          return isArr ? !arr.includes(cv) : String(answer) !== cv;
-        case 'contains':
-          return isArr ? arr.includes(cv) : String(answer).includes(cv);
-        case 'greater_than':
-          return !isArr && Number(answer) > Number(cv);
-        case 'less_than':
-          return !isArr && Number(answer) < Number(cv);
-        default:
-          return false;
-      }
-    },
-    [answers],
-  );
-
-  const isQuestionVisible = useCallback(
-    (question: Question): boolean =>
-      !question.visibilityConditions?.length ||
-      question.visibilityConditions.every(evaluateCondition),
-    [evaluateCondition],
-  );
-
-  const shouldSkipQuestion = useCallback(
-    (question: Question): boolean =>
-      !!question.skipConditions?.length && question.skipConditions.some(evaluateCondition),
-    [evaluateCondition],
-  );
-
-  const isActive = useCallback(
-    (q: Question) => isQuestionVisible(q) && !shouldSkipQuestion(q),
-    [isQuestionVisible, shouldSkipQuestion],
-  );
+  // Logika percabangan dipindah ke util murni (@/utils/surveyBranching) yang
+  // bisa diuji unit; wrapper di sini hanya mengikat `answers` + memoisasi.
+  const isActive = useCallback((q: Question) => isActivePure(q, answers), [answers]);
 
   const handleSubmit = useCallback(async () => {
     if (!survey) return;
