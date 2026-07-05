@@ -32,7 +32,7 @@ describe('EmailTemplateService', () => {
       expect(result.html).toContain('John');
       expect(result.html).toContain('Customer Satisfaction');
       expect(result.html).toContain('Help us improve');
-      expect(result.html).toContain('2026-06-01');
+      expect(result.html).toContain('1 Juni 2026');
       expect(result.html).toContain('https://app.test/surveys/1/fill');
       expect(result.html).toContain('5000 poin');
       expect(result.text).toContain('John');
@@ -50,6 +50,19 @@ describe('EmailTemplateService', () => {
       expect(result.subject).toContain('Survey');
       expect(result.html).toContain('John');
       expect(result.html).not.toContain('undefined');
+    });
+
+    it('shows "Tidak ada batas waktu" when deadline is empty (bukan label kosong)', () => {
+      const result = service.renderTemplate(EmailTemplate.SURVEY_INVITATION, {
+        respondentName: 'John',
+        surveyTitle: 'Survey',
+        deadline: '',
+        surveyUrl: 'https://app.test/surveys/1/fill',
+      });
+
+      expect(result.html).toContain('Tidak ada batas waktu');
+      expect(result.html).not.toContain('Batas waktu: <');
+      expect(result.text).toContain('Tidak ada batas waktu');
     });
   });
 

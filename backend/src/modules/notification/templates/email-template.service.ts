@@ -67,8 +67,36 @@ export class EmailTemplateService {
     return { subject, html, text };
   }
 
+  /**
+   * Format tanggal batas waktu untuk email. Nilai kosong/invalid → "Tidak ada
+   * batas waktu" (bukan label kosong yang terlihat rusak). Pakai getter UTC agar
+   * hasil deterministik lintas zona waktu server (nilai tersimpan berbasis
+   * tanggal). Contoh: "2026-06-01" / ISO → "1 Juni 2026".
+   */
+  private formatDeadline(raw?: string): string {
+    if (!raw) return 'Tidak ada batas waktu';
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return 'Tidak ada batas waktu';
+    const months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    return `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  }
+
   private renderSurveyInvitation(context: SurveyInvitationContext) {
     const subject = `Undangan Survei: ${context.surveyTitle}`;
+    const deadline = this.formatDeadline(context.deadline);
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Halo ${context.respondentName},</h2>
@@ -76,32 +104,33 @@ export class EmailTemplateService {
         <div style="background: #f5f5f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <h3 style="margin: 0 0 8px 0;">${context.surveyTitle}</h3>
           ${context.surveyDescription ? `<p style="margin: 0 0 8px 0;">${context.surveyDescription}</p>` : ''}
-          <p style="margin: 0; color: #666;">Deadline: ${context.deadline}</p>
+          <p style="margin: 0; color: #666;">Batas waktu: ${deadline}</p>
           ${context.rewardInfo ? `<p style="margin: 8px 0 0 0; color: #2e7d32;">🎁 ${context.rewardInfo}</p>` : ''}
         </div>
         <a href="${context.surveyUrl}" style="display: inline-block; background: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Isi Survei Sekarang</a>
         <p style="color: #666; margin-top: 24px; font-size: 12px;">Jika Anda tidak ingin menerima email ini, silakan abaikan.</p>
       </div>
     `;
-    const text = `Halo ${context.respondentName}, Anda diundang untuk mengisi survei "${context.surveyTitle}". Deadline: ${context.deadline}. Kunjungi: ${context.surveyUrl}`;
+    const text = `Halo ${context.respondentName}, Anda diundang untuk mengisi survei "${context.surveyTitle}". Batas waktu: ${deadline}. Kunjungi: ${context.surveyUrl}`;
     return { subject, html, text };
   }
 
   private renderReminder(context: ReminderContext, daysRemaining: number) {
     const subject = `Pengingat: Survei "${context.surveyTitle}" berakhir dalam ${daysRemaining} hari`;
+    const deadline = this.formatDeadline(context.deadline);
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Halo ${context.respondentName},</h2>
         <p>Ini adalah pengingat bahwa survei berikut akan berakhir dalam <strong>${daysRemaining} hari</strong>:</p>
         <div style="background: #fff3e0; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #ff9800;">
           <h3 style="margin: 0 0 8px 0;">${context.surveyTitle}</h3>
-          <p style="margin: 0; color: #666;">Deadline: ${context.deadline}</p>
+          <p style="margin: 0; color: #666;">Batas waktu: ${deadline}</p>
         </div>
         <a href="${context.surveyUrl}" style="display: inline-block; background: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Isi Survei Sekarang</a>
         <p style="color: #666; margin-top: 24px; font-size: 12px;">Jangan lewatkan kesempatan untuk mendapatkan reward!</p>
       </div>
     `;
-    const text = `Halo ${context.respondentName}, pengingat: survei "${context.surveyTitle}" berakhir dalam ${daysRemaining} hari (${context.deadline}). Kunjungi: ${context.surveyUrl}`;
+    const text = `Halo ${context.respondentName}, pengingat: survei "${context.surveyTitle}" berakhir dalam ${daysRemaining} hari (${deadline}). Kunjungi: ${context.surveyUrl}`;
     return { subject, html, text };
   }
 
