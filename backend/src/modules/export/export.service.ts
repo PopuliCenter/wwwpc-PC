@@ -1,4 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { UserRole } from '@shared/enums';
+
+/** Identitas pemanggil untuk otorisasi akses job export (M7). */
+export interface ExportRequester {
+  id: string;
+  role: UserRole;
+}
 import { InjectQueue } from '@nestjs/bull';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -166,7 +173,22 @@ export class ExportService {
   /**
    * Get the current status of an export job.
    */
-  async getExportStatus(jobId: string): Promise<ExportJob> {
+  /**
+   * Cegah pengguna mengakses job export milik orang lain (M7). Analyst hanya
+   * boleh job miliknya; ADMIN/SUPER_ADMIN boleh semua (koordinasi). Tanpa cek,
+   * siapa pun yang menebak jobId (UUID) bisa mengunduh data sensitif (nama,
+   * telepon, nomor tujuan reward) survei yang bukan haknya.
+   */
+  private assertJobAccess(job: ExportJob, requester?: ExportRequester): void {
+    if (!requester) return; // pemanggil internal tanpa konteks user
+    const privileged =
+      requester.role === UserRole.SUPER_ADMIN || requester.role === UserRole.ADMIN;
+    if (job.requestedBy && job.requestedBy !== requester.id && !privileged) {
+      throw new ForbiddenException('Anda tidak berhak mengakses export ini.');
+    }
+  }
+
+  async getExportStatus(jobId: string, requester?: ExportRequester): Promise<ExportJob> {
     const job = await this.exportJobRepository.findOne({
       where: { id: jobId },
     });
@@ -175,6 +197,7 @@ export class ExportService {
       throw new NotFoundException(`Export job with id ${jobId} not found`);
     }
 
+    this.assertJobAccess(job, requester);
     return job;
   }
 
@@ -183,7 +206,10 @@ export class ExportService {
    * The caller receives a URL that expires (default 15 min) — the S3 object
    * itself remains private and is never publicly accessible.
    */
-  async downloadExport(jobId: string): Promise<{ presignedUrl: string; format: ExportFormat }> {
+  async downloadExport(
+    jobId: string,
+    requester?: ExportRequester,
+  ): Promise<{ presignedUrl: string; format: ExportFormat }> {
     const job = await this.exportJobRepository.findOne({
       where: { id: jobId },
     });
@@ -191,6 +217,8 @@ export class ExportService {
     if (!job) {
       throw new NotFoundException(`Export job with id ${jobId} not found`);
     }
+
+    this.assertJobAccess(job, requester);
 
     if (job.status !== ExportStatus.COMPLETED) {
       throw new NotFoundException(
@@ -218,11 +246,13 @@ export class ExportService {
    */
   async getExportFile(
     jobId: string,
+    requester?: ExportRequester,
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
     const job = await this.exportJobRepository.findOne({ where: { id: jobId } });
     if (!job) {
       throw new NotFoundException(`Export job with id ${jobId} not found`);
     }
+    this.assertJobAccess(job, requester);
     if (job.status !== ExportStatus.COMPLETED || !job.filePath) {
       throw new NotFoundException(`Export ${jobId} belum selesai`);
     }

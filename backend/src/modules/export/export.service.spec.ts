@@ -6,6 +6,8 @@ import { ExportService } from './export.service';
 import { S3StorageService } from './s3-storage.service';
 import { ExportJob } from './entities/export-job.entity';
 import { ExportFormat, ExportStatus, ResponseFilter, AuditFilter } from './interfaces';
+import { UserRole } from '@shared/enums';
+import { ForbiddenException } from '@nestjs/common';
 import {
   EXPORT_QUEUE,
   EXPORT_CSV_JOB,
@@ -309,6 +311,38 @@ describe('ExportService', () => {
           filtersApplied: { surveyId: 'survey-1', ...filters },
         }),
       );
+    });
+  });
+
+  describe('otorisasi kepemilikan job (M7)', () => {
+    it('menolak analyst mengakses job milik orang lain', async () => {
+      mockExportJobRepository.findOne.mockResolvedValue({
+        ...mockExportJob,
+        requestedBy: 'user-1',
+      });
+      await expect(
+        service.getExportStatus('job-1', { id: 'other-analyst', role: UserRole.ANALYST }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('mengizinkan pemilik job mengaksesnya', async () => {
+      mockExportJobRepository.findOne.mockResolvedValue({
+        ...mockExportJob,
+        requestedBy: 'user-1',
+      });
+      await expect(
+        service.getExportStatus('job-1', { id: 'user-1', role: UserRole.ANALYST }),
+      ).resolves.toBeDefined();
+    });
+
+    it('mengizinkan ADMIN mengakses job siapa pun', async () => {
+      mockExportJobRepository.findOne.mockResolvedValue({
+        ...mockExportJob,
+        requestedBy: 'user-1',
+      });
+      await expect(
+        service.getExportStatus('job-1', { id: 'admin-x', role: UserRole.ADMIN }),
+      ).resolves.toBeDefined();
     });
   });
 });

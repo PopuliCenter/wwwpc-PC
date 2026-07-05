@@ -511,9 +511,22 @@ export class ResponseService {
     // Dengan take()+join, TypeORM memetakan kolom orderBy lewat metadata properti;
     // memakai nama kolom mentah → "Cannot read properties of undefined
     // (reading 'databaseName')" saat getMany().
-    qb.orderBy('r.startedAt', 'DESC').take(500);
+    // Batas aman untuk tampilan tabel (data penuh diakses lewat Export). `limit`
+    // opsional bisa menaikkan (mis. 2000) bila admin perlu lebih banyak sekaligus.
+    const MAX_LIST = 5000;
+    const DEFAULT_LIST = 500;
+    const requested = Number((filters as { limit?: string | number }).limit);
+    const cap = Number.isFinite(requested) && requested > 0 ? Math.min(requested, MAX_LIST) : DEFAULT_LIST;
+    qb.orderBy('r.startedAt', 'DESC').take(cap);
 
-    const rows = await qb.getMany();
+    const [rows, total] = await qb.getManyAndCount();
+    // Jangan senyap: beri tahu bila hasil terpotong (M6) agar admin tahu masih
+    // ada respons lain (gunakan filter atau Export untuk data lengkap).
+    if (total > rows.length) {
+      this.logger.warn(
+        `Daftar respons dipotong: menampilkan ${rows.length} dari ${total} (naikkan filter.limit atau gunakan Export untuk data penuh).`,
+      );
+    }
 
     // Penanda dugaan duplikat (fraud): nomor tujuan yang dipakai >1 kali di
     // SELURUH respons (lintas survei), dihitung via agregasi DB — akurat &

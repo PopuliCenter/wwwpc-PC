@@ -84,16 +84,26 @@ export class ExportController {
   /** Status sebuah job export (untuk polling dari frontend). */
   @Get(':jobId/status')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
-  async status(@Param('jobId') jobId: string) {
-    const job = await this.exportService.getExportStatus(jobId);
+  async status(@Param('jobId') jobId: string, @Req() req: AuthenticatedRequest) {
+    const job = await this.exportService.getExportStatus(jobId, {
+      id: req.user.userId,
+      role: req.user.role,
+    });
     return { id: job.id, status: job.status, format: job.format };
   }
 
   /** Unduh file export selesai (di-stream lewat backend). */
   @Get(':jobId/download')
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
-  async download(@Param('jobId') jobId: string, @Res() res: Response) {
-    const { buffer, contentType, filename } = await this.exportService.getExportFile(jobId);
+  async download(
+    @Param('jobId') jobId: string,
+    @Req() req: AuthenticatedRequest,
+    @Res() res: Response,
+  ) {
+    const { buffer, contentType, filename } = await this.exportService.getExportFile(jobId, {
+      id: req.user.userId,
+      role: req.user.role,
+    });
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
