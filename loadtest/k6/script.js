@@ -170,18 +170,29 @@ export function setup() {
   return { answers: buildAnswers(fill) };
 }
 
-export default function (data) {
-  // Akun unik per iterasi (untuk submit: 1 respons/akun). browse boleh berulang.
-  const iter = exec.scenario.iterationInTest;
-  const idx = (iter % USERS) + 1;
-  const email = `loadtest+${String(idx).padStart(6, '0')}@loadtest.local`;
+// State per-VU (init context) — persist antar-iterasi VU yang sama.
+let vuToken = null;
 
-  const token = login(email);
+export default function (data) {
+  let token;
+  if (MODE === 'submit') {
+    // Akun UNIK per iterasi (1 respons/akun/survei) → login tiap iterasi.
+    const idx = (exec.scenario.iterationInTest % USERS) + 1;
+    token = login(`loadtest+${String(idx).padStart(6, '0')}@loadtest.local`);
+  } else {
+    // browse: user AKTIF realistis — login SEKALI per VU, token dipakai ulang
+    // (tanpa ini, bcrypt login tiap iterasi men-dominasi CPU & menyesatkan).
+    if (!vuToken) {
+      const idx = (exec.vu.idInTest % USERS) + 1;
+      vuToken = login(`loadtest+${String(idx).padStart(6, '0')}@loadtest.local`);
+    }
+    token = vuToken;
+  }
   if (!token) return;
   const auth = { headers: { Authorization: `Bearer ${token}` } };
 
-  // Baca daftar survei (beban baca umum).
-  http.get(`${BASE}/surveys`, { ...auth, tags: { name: 'surveys' } });
+  // Baca daftar survei tersedia (endpoint responden; beban baca umum).
+  http.get(`${BASE}/surveys/available`, { ...auth, tags: { name: 'available' } });
 
   // Buka form.
   const fillRes = http.get(`${BASE}/surveys/${SURVEY_ID}/fill`, { ...auth, tags: { name: 'fill' } });
