@@ -1,0 +1,49 @@
+# Override untuk LOAD TEST lokal. Gabungkan dengan compose utama:
+#   docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up -d --build
+#
+# Tujuan:
+#  1) Publikasikan port backend (3000) agar k6 di host bisa menembak langsung.
+#  2) Env ramah load-test: matikan anti-bot min-time, longgarkan throttle, reward
+#     provider MANUAL (tak memicu top-up IAK / biaya nyata).
+#  3) Batasi CPU/RAM tiap service agar TOTAL ~2 core / ~2 GB → meniru VPS
+#     Hostinger KVM2. Angka lokal jadi lebih representatif terhadap produksi.
+#
+# CATATAN: untuk hasil paling akurat, tetap validasi akhir terhadap salinan di
+# VPS. Batas resource di bawah adalah APROKSIMASI (kontensi lokal ≠ VPS persis).
+
+services:
+  postgres:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.7'
+          memory: 640M
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 160M
+
+  minio:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+
+  backend:
+    ports:
+      - '3000:3000' # akses langsung dari host untuk k6
+    environment:
+      # Load-test knobs (JANGAN dipakai di produksi):
+      MIN_COMPLETION_SECONDS: '0' # jangan tolak submit "terlalu cepat" saat uji
+      THROTTLE_LIMIT: '1000000' # banyak virtual-user dari satu IP
+      THROTTLE_TTL_MS: '60000'
+      REWARD_PROVIDER: manual # tak memicu fulfillment IAK sungguhan
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 768M

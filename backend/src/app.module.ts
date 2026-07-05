@@ -27,10 +27,13 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
   imports: [
     DatabaseModule,
     HealthModule,
+    // Batas laju global (anti-abuse). Dapat disetel via env untuk LOAD TEST
+    // (banyak virtual-user dari satu IP) — mis. THROTTLE_LIMIT=100000. JANGAN
+    // longgarkan di produksi normal; default 100/menit tetap berlaku bila kosong.
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
-        limit: 100,
+        ttl: Number(process.env.THROTTLE_TTL_MS ?? 60000),
+        limit: Number(process.env.THROTTLE_LIMIT ?? 100),
       },
     ]),
     AuthModule,
