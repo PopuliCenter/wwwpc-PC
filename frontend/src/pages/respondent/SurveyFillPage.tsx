@@ -50,7 +50,7 @@ import type {
 import { fieldClasses } from './questions/shared';
 import { IndonesiaRegionQuestion } from './questions/IndonesiaRegionQuestion';
 import { isActive as isActivePure } from '@/utils/surveyBranching';
-import { captureGeo, isAnswered, serializeAnswers } from './surveyFillHelpers';
+import { captureGeo, isAnswered, serializeAnswers, computeResumePage } from './surveyFillHelpers';
 import { useAutoSave } from './hooks/useAutoSave';
 import { useSurveySubmission } from './hooks/useSurveySubmission';
 
@@ -1181,6 +1181,9 @@ export function SurveyFillPage() {
             for (const a of mine.answers) seed[a.questionId] = a.value;
             setAnswers((prev) => ({ ...seed, ...prev }));
             setResumedDraft(true);
+            // Lanjut di posisi terakhir (checkpoint): langkah/halaman pertanyaan
+            // aktif pertama yang belum diisi — bukan mulai dari awal lagi.
+            setCurrentPage(computeResumePage(result, seed));
           }
         } catch {
           /* tak ada draft / offline → mulai baru */
@@ -1385,6 +1388,12 @@ export function SurveyFillPage() {
     : survey.questions.filter((q) => q.page === currentPage).filter(isActive);
   const isLastPage = currentPage >= totalSteps;
 
+  // Mode WIZARD: tombol "Selanjutnya" terkunci selama pertanyaan WAJIB di
+  // langkah ini belum diisi (satu pertanyaan per langkah). Mode lain tak dikunci
+  // di sini — validasi wajib penuh tetap dijalankan saat "Kirim".
+  const nextBlockedByRequired =
+    isWizard && pageQuestions.some((q) => q.required && !isAnswered(answers[q.id]));
+
   const handleAnswerChange = (questionId: string, value: AnswerValue) => {
     // UPPERCASE jawaban teks bebas ditangani di tiap komponen input (lihat
     // prop `uppercase`) agar nilai yang TAMPIL ikut huruf besar saat diketik.
@@ -1399,6 +1408,7 @@ export function SurveyFillPage() {
   };
 
   const goToNextPage = () => {
+    if (nextBlockedByRequired) return; // wizard: wajib diisi dulu
     if (currentPage < totalSteps) {
       setCurrentPage((p) => p + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1632,11 +1642,20 @@ export function SurveyFillPage() {
               <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
             </Button>
           ) : (
-            <Button onClick={goToNextPage}>
+            <Button
+              onClick={goToNextPage}
+              disabled={nextBlockedByRequired}
+              title={nextBlockedByRequired ? 'Jawab pertanyaan wajib ini dulu' : undefined}
+            >
               Selanjutnya <ChevronRight className="h-4 w-4" />
             </Button>
           )}
         </div>
+        {nextBlockedByRequired && (
+          <p className="-mt-1 text-right text-xs text-amber-600">
+            Pertanyaan ini wajib diisi untuk melanjutkan.
+          </p>
+        )}
       </div>
     </MediaUploadProvider>
   );
