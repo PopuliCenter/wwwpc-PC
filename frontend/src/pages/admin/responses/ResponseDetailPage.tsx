@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { showAppNotice } from '@/stores/notification.store';
+import { LoadingState } from '@/components/common/AsyncState';
 import { format } from 'date-fns';
 
 interface AnswerItem {
@@ -47,7 +48,7 @@ export function ResponseDetailPage() {
   }, [id, navigate]);
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-500">Memuat detail...</div>;
+    return <LoadingState text="Memuat detail..." />;
   }
 
   if (!response) return null;

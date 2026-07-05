@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { showAppNotice } from '@/stores/notification.store';
+import { LoadingState } from '@/components/common/AsyncState';
 
 interface BackendQuestion {
   id: string;
@@ -220,7 +221,7 @@ export function SurveyPreviewPage() {
     fetchAll();
   }, [id, navigate]);
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Memuat preview...</div>;
+  if (loading) return <LoadingState text="Memuat preview..." />;
 
   const sorted = [...questions].sort((a, b) => a.order - b.order);
 

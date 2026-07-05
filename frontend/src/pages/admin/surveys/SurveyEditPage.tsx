@@ -27,6 +27,7 @@ import {
   type ImportedQuestion,
 } from './questionImportExport';
 import { takePendingImport } from './questionImportHandoff';
+import { LoadingState } from '@/components/common/AsyncState';
 
 // ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
 type QuestionType =
@@ -1860,7 +1861,7 @@ export function SurveyEditPage() {
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-500">Memuat survei...</div>;
+    return <LoadingState text="Memuat survei..." />;
   }
 
   return (
