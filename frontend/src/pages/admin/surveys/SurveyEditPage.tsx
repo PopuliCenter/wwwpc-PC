@@ -31,6 +31,7 @@ import { mapBackendQuestion, buildQuestionsFromImport } from './surveyEditTypes'
 import { defaultsForType } from './questionTypeMeta';
 import { InfoHint } from './questionConfigs';
 import { SortableQuestionCard } from './SortableQuestionCard';
+import { SurveyEditorHelp } from './SurveyEditorHelp';
 
 export function SurveyEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -58,6 +59,7 @@ export function SurveyEditPage() {
   const [settingsRewardMode, setSettingsRewardMode] = useState<'automatic' | 'manual'>('automatic');
   const [settingsRewardPoints, setSettingsRewardPoints] = useState('');
   const [settingsRewardDescription, setSettingsRewardDescription] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
   // Alat pendukung (bukan tipe pertanyaan): rekam GPS & minta tanda tangan.
   const [settingsCaptureGps, setSettingsCaptureGps] = useState(false);
   const [settingsRequireSignature, setSettingsRequireSignature] = useState(false);
@@ -372,6 +374,7 @@ export function SurveyEditPage() {
 
   return (
     <div className="space-y-6">
+      <SurveyEditorHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -389,6 +392,13 @@ export function SurveyEditPage() {
               {saveMessage.ok ? '✓' : '✗'} {saveMessage.text}
             </span>
           )}
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
+            title="Panduan: percabangan, skip & kelompok eksperimen"
+          >
+            📘 Panduan
+          </button>
           <button
             onClick={() => navigate(`/admin/surveys/${id}/preview`)}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
