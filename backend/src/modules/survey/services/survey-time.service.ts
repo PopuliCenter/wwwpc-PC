@@ -139,15 +139,25 @@ export class SurveyTimeService {
   /**
    * Checks if the max duration has been exceeded for a respondent's session.
    * Returns true if timer has expired.
+   *
+   * `graceSeconds` memberi kelonggaran kecil saat SUBMIT: auto-submit di klien
+   * dipicu tepat saat timer mencapai 0, sehingga tanpa grace, drift + latensi
+   * jaringan membuat elapsed sedikit melebihi batas dan pengiriman terakhir yang
+   * sah justru ditolak (jawaban hilang persis di detik penyelamatan). Tidak
+   * dipakai untuk getRemainingTime (tampilan) agar hitung mundur tetap akurat.
    */
-  isTimerExpired(maxDurationMinutes: number | null, startedAt: Date): boolean {
+  isTimerExpired(
+    maxDurationMinutes: number | null,
+    startedAt: Date,
+    graceSeconds = 0,
+  ): boolean {
     if (maxDurationMinutes === null) {
       return false;
     }
 
     const now = new Date();
     const elapsedMs = now.getTime() - startedAt.getTime();
-    const maxDurationMs = maxDurationMinutes * 60 * 1000;
+    const maxDurationMs = maxDurationMinutes * 60 * 1000 + graceSeconds * 1000;
 
     return elapsedMs >= maxDurationMs;
   }

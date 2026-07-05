@@ -29,6 +29,7 @@ describe('ResponseService', () => {
     find: vi.fn(),
     create: vi.fn(),
     save: vi.fn(),
+    update: vi.fn(),
     createQueryBuilder: vi.fn(),
     // Raw query: assertProfileCompleted() (users.profile_completed) + assertEligible()
     // (survey targeting / user_profile). Default: profil lengkap, tanpa targeting.
@@ -379,6 +380,46 @@ describe('ResponseService', () => {
       const result = await service.getRespondentResponse('survey-1', 'respondent-1');
 
       expect(result).toBeNull();
+    });
+
+    it('resets timerStartedAt on resume when survey has a max duration', async () => {
+      const response = {
+        id: 'resp-1',
+        surveyId: 'survey-1',
+        respondentId: 'respondent-1',
+        status: ResponseStatus.IN_PROGRESS,
+        timerStartedAt: new Date('2020-01-01T00:00:00Z'),
+        answers: [],
+      };
+      responseRepository.findOne.mockResolvedValue(response);
+      surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: 30 });
+
+      const result = await service.getRespondentResponse('survey-1', 'respondent-1');
+
+      expect(responseRepository.update).toHaveBeenCalledWith(
+        'resp-1',
+        expect.objectContaining({ timerStartedAt: expect.any(Date) }),
+      );
+      // Patokan timer diperbarui ke sekarang, bukan waktu lama.
+      expect(result?.timerStartedAt?.getTime()).toBeGreaterThan(
+        new Date('2020-01-01T00:00:00Z').getTime(),
+      );
+    });
+
+    it('does not reset timer when survey has no max duration', async () => {
+      const response = {
+        id: 'resp-1',
+        surveyId: 'survey-1',
+        respondentId: 'respondent-1',
+        status: ResponseStatus.IN_PROGRESS,
+        answers: [],
+      };
+      responseRepository.findOne.mockResolvedValue(response);
+      surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: null });
+
+      await service.getRespondentResponse('survey-1', 'respondent-1');
+
+      expect(responseRepository.update).not.toHaveBeenCalled();
     });
   });
 

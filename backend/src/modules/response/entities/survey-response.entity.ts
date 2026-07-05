@@ -75,6 +75,15 @@ export class SurveyResponse {
   @Column({ type: 'timestamp', name: 'started_at', default: () => 'NOW()' })
   startedAt: Date;
 
+  /**
+   * Patokan timer "batas waktu pengisian" (maxDuration) — DI-RESET ke sekarang
+   * setiap responden melanjutkan (jeda→lanjut), agar batas waktu berlaku per
+   * sesi duduk, bukan sejak mulai pertama. Terpisah dari `startedAt` supaya
+   * analitik durasi & anti-bot tetap mengacu ke waktu mulai yang sebenarnya.
+   */
+  @Column({ type: 'timestamp', nullable: true, name: 'timer_started_at' })
+  timerStartedAt: Date | null;
+
   @Column({ type: 'timestamp', nullable: true, name: 'submitted_at' })
   submittedAt: Date | null;
 

@@ -237,5 +237,13 @@ describe('SurveyTimeService', () => {
       const result = service.isTimerExpired(30, startedAt); // 30 min max
       expect(result).toBe(true);
     });
+
+    it('should tolerate a small overrun within the grace window', () => {
+      // 10 dtk lewat batas 30 mnt, tapi grace 15 dtk → belum dianggap kedaluwarsa
+      const startedAt = new Date(Date.now() - (30 * 60 + 10) * 1000);
+      expect(service.isTimerExpired(30, startedAt, 15)).toBe(false);
+      // Tanpa grace, overrun sekecil apa pun sudah kedaluwarsa.
+      expect(service.isTimerExpired(30, startedAt)).toBe(true);
+    });
   });
 });

@@ -34,6 +34,13 @@ import { PaginatedResponse } from '@shared/interfaces';
  */
 const MIN_COMPLETION_SECONDS = Number(process.env.MIN_COMPLETION_SECONDS ?? 5);
 
+/**
+ * Kelonggaran saat SUBMIT untuk timer maxDuration: auto-submit klien dipicu
+ * tepat di detik ke-0, jadi drift + latensi jaringan tak boleh menolak
+ * penyelamatan jawaban terakhir yang sah.
+ */
+const TIMER_SUBMIT_GRACE_SECONDS = 15;
+
 /** Item respons untuk panel admin lintas-survei. */
 export interface AdminResponseItem {
   id: string;
@@ -187,7 +194,11 @@ export class ResponseService {
       if (
         this.surveyTimeService.isTimerExpired(
           timeConfig.maxDurationMinutes,
-          existingResponse.startedAt,
+          // Timer "reset per sesi": ukur dari saat terakhir melanjutkan, bukan
+          // dari mulai pertama. Fallback ke startedAt untuk baris lama (NULL).
+          existingResponse.timerStartedAt ?? existingResponse.startedAt,
+          // Grace 15 dtk agar auto-submit tepat di waktu habis tetap diterima.
+          TIMER_SUBMIT_GRACE_SECONDS,
         )
       ) {
         throw new ForbiddenException(
@@ -317,6 +328,7 @@ export class ResponseService {
           status: ResponseStatus.IN_PROGRESS,
           deviceType: dto.deviceType || null,
           startedAt: new Date(),
+          timerStartedAt: new Date(),
           startLatitude: dto.startLatitude ?? null,
           startLongitude: dto.startLongitude ?? null,
         });
@@ -350,10 +362,30 @@ export class ResponseService {
     surveyId: string,
     respondentId: string,
   ): Promise<SurveyResponse | null> {
-    return this.responseRepository.findOne({
+    const response = await this.responseRepository.findOne({
       where: { surveyId, respondentId, archivedAt: IsNull() },
       relations: ['answers'],
     });
+
+    // Timer "reset per sesi": ini adalah sinyal responden MELANJUTKAN pengisian.
+    // Bila survei punya batas waktu (maxDuration) dan draft masih berjalan,
+    // reset patokan timer ke sekarang agar batas waktu berlaku untuk sesi ini —
+    // selaras dengan timer di layar yang juga reset tiap halaman dibuka. Best-
+    // effort: kegagalan reset tak boleh menggagalkan pemuatan draft.
+    if (response && response.status === ResponseStatus.IN_PROGRESS) {
+      try {
+        const timeConfig = await this.surveyTimeService.getTimeConfig(surveyId);
+        if (timeConfig.maxDurationMinutes !== null) {
+          const now = new Date();
+          await this.responseRepository.update(response.id, { timerStartedAt: now });
+          response.timerStartedAt = now;
+        }
+      } catch {
+        // Tanpa time config (survei tanpa batas waktu) — tak ada yang perlu di-reset.
+      }
+    }
+
+    return response;
   }
 
   /**
