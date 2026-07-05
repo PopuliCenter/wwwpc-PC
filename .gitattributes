@@ -1,0 +1,3 @@
+# Skrip shell WAJIB berakhiran LF — CRLF merusak eksekusi di Linux
+# (bad interpreter: /usr/bin/env bash^M). Berlaku lintas OS kontributor.
+*.sh text eol=lf
