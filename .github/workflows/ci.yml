@@ -36,8 +36,8 @@ jobs:
       # Semua test backend pakai repository mock (tidak butuh Postgres/Redis/MinIO nyata).
       - name: Typecheck
         run: npx tsc --noEmit -p backend/tsconfig.json
-      - name: Test
-        run: npm run test --workspace=backend
+      - name: Test (dengan gate coverage)
+        run: npm run test:coverage --workspace=backend
       - name: Build
         run: npm run build --workspace=backend
 
