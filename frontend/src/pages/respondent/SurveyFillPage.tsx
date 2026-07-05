@@ -48,99 +48,19 @@ import {
   getVillages,
   type WilayahItem,
 } from '@/utils/wilayah';
+import type {
+  AnswerValue,
+  Question,
+  RendererProps,
+  SkipCondition,
+  SurveyFillData,
+  SurveyOption,
+} from '@/types/survey';
 
-// Types
-interface SurveyOption {
-  id: string;
-  label: string;
-  value: string;
-}
-
-interface SkipCondition {
-  questionId: string;
-  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
-  value: string;
-}
-
-interface RegionConfig {
-  regionDepth?: 'province' | 'regency' | 'district' | 'village';
-  lockedProvince?: { id: string; name: string } | null;
-  lockedRegency?: { id: string; name: string } | null;
-}
-
-interface RatingConfig {
-  ratingMax?: number;
-  ratingDisplayMode?: 'star' | 'number';
-  ratingMinLabel?: string;
-  ratingMaxLabel?: string;
-}
-
-export interface Question {
-  id: string;
-  type:
-    | 'single_choice'
-    | 'multiple_choice'
-    | 'short_text'
-    | 'long_text'
-    | 'phone_number'
-    | 'numeric_scale'
-    | 'dropdown'
-    | 'matrix_likert'
-    | 'file_upload'
-    | 'date_time'
-    | 'date'
-    | 'rating_scale'
-    | 'unique_id'
-    | 'indonesia_region'
-    | 'signature'
-    | 'photo'
-    | 'gps'
-    | 'audio';
-  text: string;
-  description?: string;
-  required: boolean;
-  options?: SurveyOption[];
-  matrixRows?: string[];
-  matrixColumns?: string[];
-  scaleMin?: number;
-  scaleMax?: number;
-  randomizeOptions?: boolean;
-  hasOtherOption?: boolean;
-  skipConditions?: SkipCondition[];
-  visibilityConditions?: SkipCondition[];
-  page: number;
-  regionConfig?: RegionConfig;
-  ratingConfig?: RatingConfig;
-  uniqueIdConfig?: { minLength?: number; maxLength?: number };
-}
-
-interface SurveyFillData {
-  id: string;
-  title: string;
-  description: string;
-  questions: Question[];
-  totalPages: number;
-  /** Mode tampilan form: paginated (default), scroll, atau wizard (1 pertanyaan/langkah). */
-  formMode?: 'paginated' | 'scroll' | 'wizard';
-  /** Rekam lokasi GPS otomatis (awal & akhir). Default false bila tak diset. */
-  captureGps?: boolean;
-  /** Minta tanda tangan responden di akhir pengisian. */
-  requireSignature?: boolean;
-  /** Jadikan jawaban teks (short_text/long_text) HURUF BESAR. */
-  uppercaseAnswers?: boolean;
-  maxDuration?: number; // in minutes
-  rewardMode: 'auto_point' | 'manual';
-  rewardPoints?: number;
-  rewardDescription?: string;
-  responseId: string;
-  /**
-   * Nilai pra-isi dari server (saat ini: penugasan acak / arm eksperimen),
-   * questionId → nilai. Ditanam ke peta jawaban agar aturan tampil cabang jalan.
-   */
-  assignments?: Record<string, string>;
-}
-
-export type AnswerValue = string | string[] | Record<string, any> | null;
+// Tipe domain pengisian survei dipindah ke `@/types/survey` (dipakai bersama
+// komponen renderer). Re-export agar impor lama yang menunjuk file ini (jika ada)
+// tetap jalan.
+export type { AnswerValue, Question } from '@/types/survey';
 
 export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : '',
@@ -177,16 +97,6 @@ export function isAnswered(value: AnswerValue): boolean {
 }
 
 // ─── Question Renderers ───────────────────────────────────────────────────────
-
-interface RendererProps {
-  question: Question;
-  value: AnswerValue;
-  onChange: (val: AnswerValue) => void;
-  surveyId: string;
-  invalid?: boolean;
-  /** Setelan survei: jadikan jawaban teks bebas HURUF BESAR saat diketik. */
-  uppercase?: boolean;
-}
 
 /** Terapkan UPPERCASE bila setelan aktif (untuk input teks bebas). */
 function maybeUpper(text: string, uppercase?: boolean): string {
