@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
 import {
   getProvinces,
   getRegencies,
@@ -131,10 +131,15 @@ export function IndonesiaRegionQuestion({ question, value, onChange, invalid }: 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" aria-busy={loadingLevel !== null}>
       <div className="flex items-center gap-1.5 text-xs text-gray-500">
         <MapPin className="h-3.5 w-3.5" />
         Pilih wilayah secara berurutan
+        {loadingLevel !== null && (
+          <span className="inline-flex items-center gap-1 text-primary-600">
+            <Loader2 className="h-3 w-3 animate-spin" /> memuat…
+          </span>
+        )}
       </div>
 
       {/* Provinsi */}

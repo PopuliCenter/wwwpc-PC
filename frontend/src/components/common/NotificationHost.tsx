@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, CheckCircle2, AlertTriangle, XCircle, X } from 'lucide-react';
 import { router } from '@/router';
 import { useNotificationStore, type AppNotice } from '@/stores/notification.store';
@@ -17,13 +17,15 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
   const dismiss = useNotificationStore((s) => s.dismiss);
   const tone = toneStyles[notice.tone ?? 'info'];
   const Icon = tone.icon;
+  // Jeda auto-tutup selama kursor/fokus di atas kartu agar tak hilang sebelum
+  // sempat diketuk (penting untuk notice ber-link "ketuk untuk membuka").
+  const [paused, setPaused] = useState(false);
 
-  // Auto-tutup setelah durationMs (0 = tidak).
   useEffect(() => {
-    if (!notice.durationMs) return;
+    if (!notice.durationMs || paused) return;
     const t = window.setTimeout(() => dismiss(notice.id), notice.durationMs);
     return () => window.clearTimeout(t);
-  }, [notice.id, notice.durationMs, dismiss]);
+  }, [notice.id, notice.durationMs, dismiss, paused]);
 
   const clickable = Boolean(notice.link);
   const open = () => {
@@ -35,6 +37,10 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
     <div
       className={`pointer-events-auto w-full max-w-sm rounded-xl border ${tone.ring} bg-white shadow-lg ring-1 ring-black/5`}
       role="status"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
     >
       <div className="flex items-start gap-3 p-3">
         <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${tone.iconCls}`} />

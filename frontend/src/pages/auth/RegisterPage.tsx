@@ -75,6 +75,14 @@ export function RegisterPage() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
+  // Pindahkan fokus ke input OTP saat masuk langkah verifikasi (agar responden
+  // langsung bisa mengetik, tak perlu mencari field).
+  useEffect(() => {
+    if (step === 'otp') {
+      setTimeout(() => document.getElementById('otp-register')?.focus(), 50);
+    }
+  }, [step]);
+
   const goToProfile = (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -197,11 +205,7 @@ export function RegisterPage() {
 
   const Header = ({ title, subtitle }: { title: string; subtitle: string }) => (
     <div className="mb-6 flex flex-col items-center">
-      <img
-        src="/logo-populi-center.png"
-        alt="Populi Center"
-        className="mb-2 h-14 w-14 object-contain"
-      />
+      <img src="/logo-populi-center.png" alt="" className="mb-2 h-14 w-14 object-contain" />
       <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
       <p className="mt-1 text-center text-sm text-gray-500">{subtitle}</p>
     </div>
@@ -434,6 +438,7 @@ export function RegisterPage() {
         <Input
           label="Email"
           type="email"
+          inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="nama@email.com"
@@ -443,6 +448,8 @@ export function RegisterPage() {
         <Input
           label="Nomor Telepon"
           type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder="08xxxxxxxxxx"
@@ -454,6 +461,7 @@ export function RegisterPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Minimal 8 karakter"
+          helperText="Minimal 8 karakter."
           required
           minLength={8}
           autoComplete="new-password"

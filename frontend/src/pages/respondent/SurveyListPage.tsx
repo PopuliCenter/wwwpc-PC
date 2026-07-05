@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Clock,
   HelpCircle,
   CalendarDays,
   Gift,
+  RefreshCw,
   ChevronDown,
   CheckCircle2,
   Hourglass,
@@ -136,19 +137,22 @@ export function SurveyListPage() {
   const points = usePointsStore((s) => s.available);
   const firstName = user?.fullName?.trim().split(' ')[0] ?? '';
 
-  useEffect(() => {
-    const fetchSurveys = async () => {
-      try {
-        const result = await api.get<AvailableSurvey[]>('/surveys/available');
-        setSurveys(Array.isArray(result) ? result : []);
-      } catch {
-        setError('Gagal memuat daftar survei');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSurveys();
+  const fetchSurveys = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.get<AvailableSurvey[]>('/surveys/available');
+      setSurveys(Array.isArray(result) ? result : []);
+    } catch {
+      setError('Gagal memuat daftar survei');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void fetchSurveys();
+  }, [fetchSurveys]);
 
   if (loading) {
     return (
@@ -171,7 +175,15 @@ export function SurveyListPage() {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-bold text-gray-900">Survei</h1>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+          <p>{error}</p>
+          <button
+            onClick={() => void fetchSurveys()}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Coba lagi
+          </button>
+        </div>
       </div>
     );
   }
@@ -182,13 +194,23 @@ export function SurveyListPage() {
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Halo, {firstName || 'Responden'} 👋</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {available.length > 0
-            ? `Ada ${available.length} survei menunggu untuk diisi. Setiap survei berhadiah poin.`
-            : 'Belum ada survei baru untuk Anda saat ini. Cek lagi nanti, ya.'}
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Halo, {firstName || 'Responden'} 👋</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {available.length > 0
+              ? `Ada ${available.length} survei menunggu untuk diisi. Setiap survei berhadiah poin.`
+              : 'Belum ada survei baru untuk Anda saat ini. Cek lagi nanti, ya.'}
+          </p>
+        </div>
+        <button
+          onClick={() => void fetchSurveys()}
+          aria-label="Muat ulang daftar survei"
+          title="Muat ulang"
+          className="shrink-0 rounded-lg border border-gray-200 p-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Kartu statistik */}

@@ -477,55 +477,60 @@ function RewardCatalog({
       ) : filteredRewards.length === 0 ? (
         <div className="p-8 text-center text-gray-500">Tidak ada reward tersedia</div>
       ) : (
-        // List kesamping (horizontal scroll) agar ringkas & mudah dijelajahi.
-        <div className="flex gap-4 overflow-x-auto p-4 pb-3 snap-x">
-          {filteredRewards.map((reward) => {
-            const canAfford = currentBalance >= reward.pointsCost;
-            return (
-              <div
-                key={reward.id}
-                className={`flex w-[230px] shrink-0 snap-start flex-col rounded-xl border border-gray-200 p-4 transition-all ${
-                  canAfford ? 'hover:border-primary-300 hover:shadow-sm' : 'opacity-60'
-                }`}
-              >
-                <div className="flex flex-1 items-start gap-3">
-                  {(() => {
-                    const w = walletOf(reward.id);
-                    const meta = w ? EWALLETS.find((x) => x.key === w) : null;
-                    const Icon = reward.category === 'pulsa' ? Smartphone : Wallet;
-                    const tone =
-                      meta?.tone ??
-                      (reward.category === 'pulsa'
-                        ? 'bg-indigo-50 text-indigo-600 ring-indigo-100'
-                        : 'bg-gray-50 text-gray-500 ring-gray-100');
-                    return (
-                      <span
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${tone}`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                    );
-                  })()}
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
-                    <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
-                      {reward.description}
-                    </p>
-                  </div>
-                </div>
-                <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
-                  <Gift className="h-3.5 w-3.5" /> {reward.pointsCost.toLocaleString('id-ID')} poin
-                </span>
-                <button
-                  onClick={() => onSelectReward(reward)}
-                  disabled={!canAfford}
-                  className="mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors bg-primary-600 text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+        // List kesamping (horizontal scroll) — gradient di tepi kanan menandakan
+        // masih ada pilihan reward lain untuk digeser.
+        <div className="relative">
+          <div className="flex gap-4 overflow-x-auto p-4 pb-3 snap-x">
+            {filteredRewards.map((reward) => {
+              const canAfford = currentBalance >= reward.pointsCost;
+              return (
+                <div
+                  key={reward.id}
+                  className={`flex w-[230px] shrink-0 snap-start flex-col rounded-xl border border-gray-200 p-4 transition-all ${
+                    canAfford ? 'hover:border-primary-300 hover:shadow-sm' : 'opacity-60'
+                  }`}
                 >
-                  {canAfford ? 'Tukar' : 'Poin tidak cukup'}
-                </button>
-              </div>
-            );
-          })}
+                  <div className="flex flex-1 items-start gap-3">
+                    {(() => {
+                      const w = walletOf(reward.id);
+                      const meta = w ? EWALLETS.find((x) => x.key === w) : null;
+                      const Icon = reward.category === 'pulsa' ? Smartphone : Wallet;
+                      const tone =
+                        meta?.tone ??
+                        (reward.category === 'pulsa'
+                          ? 'bg-indigo-50 text-indigo-600 ring-indigo-100'
+                          : 'bg-gray-50 text-gray-500 ring-gray-100');
+                      return (
+                        <span
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${tone}`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </span>
+                      );
+                    })()}
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
+                        {reward.description}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
+                    <Gift className="h-3.5 w-3.5" /> {reward.pointsCost.toLocaleString('id-ID')}{' '}
+                    poin
+                  </span>
+                  <button
+                    onClick={() => onSelectReward(reward)}
+                    disabled={!canAfford}
+                    className="mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors bg-primary-600 text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                  >
+                    {canAfford ? 'Tukar' : 'Poin tidak cukup'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-2xl bg-gradient-to-l from-white to-transparent" />
         </div>
       )}
     </div>

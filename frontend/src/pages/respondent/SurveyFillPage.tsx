@@ -24,6 +24,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { showAppNotice } from '@/stores/notification.store';
 import {
   useMediaUpload,
   MediaUploadProvider,
@@ -294,11 +295,50 @@ function NumericScaleQuestion({ question, value, onChange, invalid }: RendererPr
   const max = question.scaleMax ?? 10;
   const count = Math.max(0, max - min + 1);
   const numbers = Array.from({ length: count }, (_, i) => min + i);
+  const selected = (value as string) ?? '';
+
+  // Rentang kecil (≤11 mis. 1-10) → deretan tombol satu-ketuk, ramah mobile &
+  // aksesibel (radiogroup). Rentang besar → tetap dropdown agar tak meluber.
+  if (count > 0 && count <= 11) {
+    return (
+      <div>
+        <div
+          role="radiogroup"
+          aria-label={question.text}
+          className={`flex flex-wrap gap-2 ${invalid ? 'rounded-lg p-1 ring-1 ring-red-200' : ''}`}
+        >
+          {numbers.map((num) => {
+            const active = selected === String(num);
+            return (
+              <button
+                key={num}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                aria-label={String(num)}
+                onClick={() => onChange(active ? null : String(num))}
+                className={`h-11 min-w-[2.75rem] flex-1 rounded-lg border text-sm font-semibold transition-colors ${
+                  active
+                    ? 'border-primary-500 bg-primary-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {num}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-xs text-gray-500">
+          Ketuk angka {min} sampai {max}.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
       <select
-        value={(value as string) ?? ''}
+        value={selected}
         onChange={(e) => onChange(e.target.value || null)}
         className={fieldClasses(invalid)}
         aria-label={question.text}
@@ -536,27 +576,32 @@ function RatingScaleQuestion({ question, value, onChange }: RendererProps) {
   return (
     <div className="space-y-2">
       {mode === 'star' ? (
-        <div className="flex gap-1">
+        <div role="radiogroup" aria-label={question.text} className="flex gap-1">
           {Array.from({ length: max }, (_, i) => i + 1).map((num) => (
             <button
               key={num}
               type="button"
+              role="radio"
+              aria-checked={num === current}
               onClick={() => onChange(String(num))}
-              className={`transition-all ${num <= current ? 'text-yellow-400' : 'text-gray-300'} hover:scale-110`}
-              aria-label={`Rating ${num}`}
+              className={`p-0.5 transition-all ${num <= current ? 'text-yellow-400' : 'text-gray-300'} hover:scale-110`}
+              aria-label={`${num} bintang`}
             >
-              <Star className="h-8 w-8" fill={num <= current ? 'currentColor' : 'none'} />
+              <Star className="h-9 w-9" fill={num <= current ? 'currentColor' : 'none'} />
             </button>
           ))}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div role="radiogroup" aria-label={question.text} className="flex flex-wrap gap-2">
           {Array.from({ length: max }, (_, i) => i + 1).map((num) => {
             const sel = current === num;
             return (
               <button
                 key={num}
                 type="button"
+                role="radio"
+                aria-checked={sel}
+                aria-label={String(num)}
                 onClick={() => onChange(String(num))}
                 className={`h-11 w-11 rounded-lg border text-sm font-semibold transition-all ${
                   sel
@@ -1055,6 +1100,20 @@ export function QuestionRenderer(props: RendererProps) {
 
 function CountdownTimer({ minutes, onExpire }: { minutes: number; onExpire: () => void }) {
   const [secondsLeft, setSecondsLeft] = useState(minutes * 60);
+  const warnedRef = useRef(false);
+
+  // Peringatan sekali saat sisa ≤60 detik — agar responden tak kaget jawaban
+  // terkirim mendadak oleh timer.
+  useEffect(() => {
+    if (!warnedRef.current && secondsLeft > 0 && secondsLeft <= 60) {
+      warnedRef.current = true;
+      showAppNotice({
+        title: 'Waktu hampir habis',
+        body: 'Sisa waktu 1 menit — jawaban akan otomatis terkirim saat waktu habis.',
+        tone: 'warning',
+      });
+    }
+  }, [secondsLeft]);
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -1238,7 +1297,13 @@ export function SurveyFillPage() {
   );
 
   // Auto-simpan draft (berkala 30s + flush saat keluar) — lihat useAutoSave.
-  const { flushSave } = useAutoSave({ survey, answers, answersRef, submittedRef, startGeoRef });
+  const { flushSave, lastSavedAt } = useAutoSave({
+    survey,
+    answers,
+    answersRef,
+    submittedRef,
+    startGeoRef,
+  });
 
   // Logika percabangan dipindah ke util murni (@/utils/surveyBranching) yang
   // bisa diuji unit; wrapper di sini hanya mengikat `answers` + memoisasi.
@@ -1546,10 +1611,21 @@ export function SurveyFillPage() {
             total={totalSteps}
             unit={isWizard ? 'Pertanyaan' : 'Halaman'}
           />
+          {lastSavedAt && (
+            <p className="mt-1 flex items-center gap-1 text-[11px] text-emerald-600">
+              <CheckCircle2 className="h-3 w-3" />
+              Tersimpan otomatis{' '}
+              {lastSavedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
         </div>
 
         {error && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3"
+          >
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
             <p className="text-sm text-red-700">{error}</p>
           </div>

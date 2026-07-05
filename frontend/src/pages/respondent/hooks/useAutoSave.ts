@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, useCallback, type MutableRefObject } from 'react';
 import { api } from '@/services/api';
 import type { AnswerValue, SurveyFillData } from '@/types/survey';
 import { DEVICE_TYPE } from '../surveyFillHelpers';
@@ -31,10 +31,13 @@ export function useAutoSave(params: {
   /** Bila sudah submit, flush tak perlu jalan. */
   submittedRef: MutableRefObject<boolean>;
   startGeoRef: GeoRef;
-}): { flushSave: () => Promise<void> } {
+}): { flushSave: () => Promise<void>; lastSavedAt: Date | null } {
   const { survey, answers, answersRef, submittedRef, startGeoRef } = params;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSavedRef = useRef<string>('');
+  // Waktu simpan-otomatis terakhir yang SUKSES — ditampilkan sebagai jaminan
+  // ke responden bahwa jawaban aman.
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // Auto-save tiap 30 detik (hanya bila ada perubahan sejak simpan terakhir).
   useEffect(() => {
@@ -47,6 +50,7 @@ export function useAutoSave(params: {
             `/surveys/${survey.id}/responses/save-progress`,
             buildProgressPayload(answers, startGeoRef.current),
           )
+          .then(() => setLastSavedAt(new Date()))
           .catch(() => {
             /* silent auto-save failure */
           });
@@ -67,10 +71,11 @@ export function useAutoSave(params: {
         `/surveys/${survey.id}/responses/save-progress`,
         buildProgressPayload(answersRef.current, startGeoRef.current),
       );
+      setLastSavedAt(new Date());
     } catch {
       /* abaikan: auto-save berikutnya / antrean akan menyusul */
     }
   }, [survey, answersRef, submittedRef, startGeoRef]);
 
-  return { flushSave };
+  return { flushSave, lastSavedAt };
 }
