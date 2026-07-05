@@ -4,6 +4,7 @@ import { Camera, BadgeCheck } from 'lucide-react';
 import { api } from '@/services/api';
 import { Avatar } from '@/components/common/Avatar';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { LoadingState } from '@/components/common/AsyncState';
 import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { getAppVersion, WEB_APP_VERSION } from '@/utils/appVersion';
@@ -246,7 +247,7 @@ export function ProfilePage() {
   };
 
   if (loading) {
-    return <div className="p-6 text-center text-gray-500">Memuat profil...</div>;
+    return <LoadingState text="Memuat profil..." />;
   }
 
   const isRespondent = profile?.role === 'respondent';

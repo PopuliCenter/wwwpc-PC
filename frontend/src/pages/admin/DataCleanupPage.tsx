@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
+import { LoadingState } from '@/components/common/AsyncState';
 import { format } from 'date-fns';
 
 // Types
@@ -524,7 +525,12 @@ function ScheduledPurgeSection() {
   };
 
   if (loading) {
-    return <div className="p-4 text-center text-gray-500">Memuat konfigurasi...</div>;
+    return (
+      <LoadingState
+        text="Memuat konfigurasi..."
+        className="p-4 text-center text-sm text-gray-500"
+      />
+    );
   }
 
   return (

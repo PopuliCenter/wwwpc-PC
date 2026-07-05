@@ -614,6 +614,8 @@ function RedemptionModal({
       try {
         const balance = await api.get<PointBalance>('/rewards/balance');
         setRemainingBalance(balance?.available ?? null);
+        // Sinkronkan saldo header (store bersama) setelah penukaran mendebit poin.
+        if (balance) usePointsStore.getState().setAvailable(balance.available);
       } catch {
         setRemainingBalance(null);
       }
