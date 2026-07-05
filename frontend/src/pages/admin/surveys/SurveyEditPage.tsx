@@ -24,7 +24,9 @@ import {
   downloadQuestionTemplate,
   exportQuestions,
   parseQuestionsFile,
+  type ImportedQuestion,
 } from './questionImportExport';
+import { takePendingImport } from './questionImportHandoff';
 
 // ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
 type QuestionType =
@@ -175,6 +177,26 @@ function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
       visibilityAction: r.visibilityAction,
     })),
   };
+}
+
+/** Ubah pertanyaan hasil impor Excel → bentuk Question editor (order lanjut dari baseOrder). */
+function buildQuestionsFromImport(imported: ImportedQuestion[], baseOrder: number): Question[] {
+  return imported.map((iq, i) => ({
+    id: `q-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+    type: iq.type as QuestionType,
+    text: iq.text,
+    required: iq.required,
+    enabled: true,
+    order: baseOrder + i,
+    hasOtherOption: iq.hasOtherOption,
+    options: iq.options.map((o, oi) => ({
+      id: `opt-${Date.now()}-${i}-${oi}`,
+      label: o.label,
+      value: o.value,
+      order: oi,
+    })),
+    validationRules: iq.description ? { description: iq.description } : undefined,
+  }));
 }
 
 /**
@@ -1716,6 +1738,18 @@ export function SurveyEditPage() {
     }
   };
 
+  /** Tambahkan pertanyaan hasil impor ke bawah daftar (order lanjut) + notifikasi. */
+  const appendImported = useCallback((imported: ImportedQuestion[], skipped: number) => {
+    setQuestions((prev) => [...prev, ...buildQuestionsFromImport(imported, prev.length)]);
+    showAppNotice({
+      title: `${imported.length} pertanyaan diimpor.`,
+      body:
+        (skipped ? `${skipped} baris dilewati/dicatat. ` : '') +
+        'Tinjau lalu klik Simpan untuk menyimpan.',
+      tone: 'success',
+    });
+  }, []);
+
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // reset agar file sama bisa dipilih lagi
@@ -1730,32 +1764,7 @@ export function SurveyEditPage() {
         });
         return;
       }
-      // Tambahkan di bawah pertanyaan yang ada (order lanjut).
-      const base = questions.length;
-      const mapped: Question[] = imported.map((iq, i) => ({
-        id: `q-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
-        type: iq.type as QuestionType,
-        text: iq.text,
-        required: iq.required,
-        enabled: true,
-        order: base + i,
-        hasOtherOption: iq.hasOtherOption,
-        options: iq.options.map((o, oi) => ({
-          id: `opt-${Date.now()}-${i}-${oi}`,
-          label: o.label,
-          value: o.value,
-          order: oi,
-        })),
-        validationRules: iq.description ? { description: iq.description } : undefined,
-      }));
-      setQuestions((prev) => [...prev, ...mapped]);
-      showAppNotice({
-        title: `${mapped.length} pertanyaan diimpor.`,
-        body:
-          (errors.length ? `${errors.length} baris dilewati/dicatat. ` : '') +
-          'Tinjau lalu klik Simpan untuk menyimpan.',
-        tone: 'success',
-      });
+      appendImported(imported, errors.length);
     } catch {
       showAppNotice({
         title: 'Gagal membaca file.',
@@ -1764,6 +1773,14 @@ export function SurveyEditPage() {
       });
     }
   };
+
+  // Titipan impor dari halaman DAFTAR survei: setelah pertanyaan awal dimuat,
+  // ambil (sekali) & tambahkan untuk ditinjau. Dijalankan saat loading selesai.
+  useEffect(() => {
+    if (loading || !id) return;
+    const pending = takePendingImport(id);
+    if (pending && pending.length) appendImported(pending, 0);
+  }, [loading, id, appendImported]);
 
   const editQuestion = useCallback((updated: Question) => {
     setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));

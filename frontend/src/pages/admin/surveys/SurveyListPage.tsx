@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -12,6 +12,8 @@ import {
   BarChart3,
   Send,
   Users,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
@@ -20,6 +22,8 @@ import { Button } from '@/components/common/Button';
 import { TargetedInviteModal } from './TargetedInviteModal';
 import { useConfirm } from '@/components/common/ConfirmDialog';
 import { showAppNotice } from '@/stores/notification.store';
+import { exportQuestions, parseQuestionsFile } from './questionImportExport';
+import { setPendingImport } from './questionImportHandoff';
 import { format } from 'date-fns';
 
 interface Survey {
@@ -81,6 +85,80 @@ export function SurveyListPage() {
       setSurveys([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── Unduh / unggah kuesioner (Excel) per survei ────────────────────────────
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadTargetRef = useRef<{ id: string; title: string } | null>(null);
+
+  /** Ambil pertanyaan survei dari server lalu ekspor ke Excel. */
+  const handleDownloadQuestions = async (s: Survey) => {
+    try {
+      const qs = await api.get<
+        {
+          type: string;
+          questionText: string;
+          required: boolean;
+          hasOtherOption?: boolean;
+          options?: { label: string; value: string }[];
+          validationRules?: { description?: string } | null;
+        }[]
+      >(`/surveys/${s.id}/questions`);
+      if (!qs.length) {
+        showAppNotice({ title: 'Survei ini belum punya pertanyaan.', tone: 'info' });
+        return;
+      }
+      await exportQuestions(
+        qs.map((q) => ({
+          type: q.type,
+          text: q.questionText,
+          required: q.required,
+          hasOtherOption: q.hasOtherOption,
+          options: q.options,
+          validationRules: q.validationRules,
+        })),
+        s.title,
+      );
+    } catch {
+      showAppNotice({ title: 'Gagal mengunduh kuesioner.', tone: 'error' });
+    }
+  };
+
+  const openUploadPicker = (s: Survey) => {
+    uploadTargetRef.current = { id: s.id, title: s.title };
+    importInputRef.current?.click();
+  };
+
+  /** Parse file lalu titipkan ke editor untuk ditinjau & disimpan (tidak simpan langsung). */
+  const handleUploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const target = uploadTargetRef.current;
+    if (!file || !target) return;
+    try {
+      const { questions: imported, errors } = await parseQuestionsFile(file);
+      if (imported.length === 0) {
+        showAppNotice({
+          title: 'Tidak ada pertanyaan yang diimpor.',
+          body: errors[0] ?? undefined,
+          tone: 'error',
+        });
+        return;
+      }
+      setPendingImport(target.id, imported);
+      showAppNotice({
+        title: `${imported.length} pertanyaan siap ditambahkan.`,
+        body: 'Membuka editor untuk ditinjau lalu disimpan…',
+        tone: 'success',
+      });
+      navigate(`/admin/surveys/${target.id}/edit`);
+    } catch {
+      showAppNotice({
+        title: 'Gagal membaca file.',
+        body: 'Pastikan format .xlsx sesuai template.',
+        tone: 'error',
+      });
     }
   };
 
@@ -189,6 +267,18 @@ export function SurveyListPage() {
       cls: 'hover:text-emerald-700',
       onClick: () => handleDuplicate(s.id),
     },
+    {
+      icon: Download,
+      label: 'Unduh Kuesioner',
+      cls: 'hover:text-indigo-700',
+      onClick: () => handleDownloadQuestions(s),
+    },
+    {
+      icon: Upload,
+      label: 'Unggah Kuesioner',
+      cls: 'hover:text-blue-700',
+      onClick: () => openUploadPicker(s),
+    },
     s.status === 'active'
       ? {
           icon: PauseCircle,
@@ -229,6 +319,14 @@ export function SurveyListPage() {
 
   return (
     <div className="space-y-6">
+      {/* Input file tersembunyi untuk Unggah Kuesioner (dipicu dari ikon per baris). */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".xlsx"
+        onChange={handleUploadFile}
+        className="hidden"
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Manajemen Survei</h1>
