@@ -30,6 +30,14 @@ describe('SkipLogicService', () => {
 
     questionRepository = {
       findOne: vi.fn().mockResolvedValue({ id: 'q1', surveyId: 'survey-1' }),
+      // Urutan pertanyaan untuk perhitungan rentang jump_to.
+      find: vi.fn().mockResolvedValue([
+        { id: 'q1', orderIndex: 0 },
+        { id: 'q2', orderIndex: 1 },
+        { id: 'q3', orderIndex: 2 },
+        { id: 'q4', orderIndex: 3 },
+        { id: 'q5', orderIndex: 4 },
+      ]),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -170,7 +178,11 @@ describe('SkipLogicService', () => {
         q1: 'skip_ahead',
       });
 
-      expect(result).toContain('q2');
+      // Lompat dari q2 (order 1) ke q5 (order 4) → LEWATI q3 & q4 (di antaranya).
+      // q2 (pemicu) & q5 (target) TIDAK dilewati.
+      expect(result).toEqual(expect.arrayContaining(['q3', 'q4']));
+      expect(result).not.toContain('q2');
+      expect(result).not.toContain('q5');
     });
   });
 });

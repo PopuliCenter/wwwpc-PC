@@ -266,12 +266,12 @@ describe('SurveyFillService', () => {
     const result = await service.getFillData(SURVEY_ID, RESPONDENT_ID);
     const q = result.questions[0];
 
-    // Only the 'skip' action is mapped (jump_to is ignored)
+    // Only the 'skip' action is mapped (jump_to is ignored di sisi kondisi klien)
     expect(q.skipConditions).toEqual([{ questionId: 'q1', operator: 'equals', value: 'no' }]);
-    // A 'hide on equals' rule becomes 'show on not_equals'
-    expect(q.visibilityConditions).toEqual([
-      { questionId: 'q1', operator: 'not_equals', value: 'hidden' },
-    ]);
+    // Aturan 'hide' TIDAK diinversikan — dipetakan apa adanya ke hideConditions
+    // (M8); visibilityConditions hanya berisi aturan 'show'.
+    expect(q.visibilityConditions).toEqual([]);
+    expect(q.hideConditions).toEqual([{ questionId: 'q1', operator: 'equals', value: 'hidden' }]);
   });
 
   it('blocks filling with 403 when the respondent profile is not completed', async () => {

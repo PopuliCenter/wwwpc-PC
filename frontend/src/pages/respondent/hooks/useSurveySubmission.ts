@@ -109,8 +109,16 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
       // Rekam lokasi akhir (best-effort) saat submit — hanya bila diaktifkan.
       const endGeo = survey.captureGps ? await captureGeo() : null;
       const localId = makeLocalId();
+      // Buang jawaban "hantu": pertanyaan tampil yang KINI tersembunyi/dilewati
+      // oleh cabang jangan ikut terkirim (L-ghost). Jawaban untuk questionId yang
+      // BUKAN pertanyaan tampil (mis. assignment arm eksperimen) tetap dikirim.
+      const questionById = new Map(survey.questions.map((q) => [q.id, q]));
+      const answers = answersToArray().filter((a) => {
+        const q = questionById.get(a.questionId);
+        return !q || isActive(q);
+      });
       const payload = {
-        answers: answersToArray(),
+        answers,
         deviceType: DEVICE_TYPE,
         clientSubmissionId: localId,
         ...(startedAtRef.current ? { clientStartedAt: startedAtRef.current } : {}),

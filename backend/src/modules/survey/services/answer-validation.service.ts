@@ -183,9 +183,14 @@ export class AnswerValidationService {
       case QuestionType.NUMERIC_SCALE: {
         const num = typeof value === 'number' ? value : Number(value);
         if (Number.isNaN(num)) return 'jawaban harus berupa angka';
+        // Baca SEMUA jalur konfigurasi skala agar rentang selalu ditegakkan:
+        // numericRange.{min,max} | rules.{min,max} | rules.{scaleMin,scaleMax}.
+        // Frontend merender tombol dari scaleMin/scaleMax; tanpa ini, survei yang
+        // dikonfigurasi via scaleMin/scaleMax lolos tanpa cek rentang (M9) — klien
+        // termodifikasi bisa mengirim mis. 999.
         const range = rules.numericRange ?? {};
-        const min = range.min ?? rules.min;
-        const max = range.max ?? rules.max;
+        const min = range.min ?? rules.min ?? rules.scaleMin;
+        const max = range.max ?? rules.max ?? rules.scaleMax;
         if (min !== undefined && num < Number(min)) return `nilai minimal ${min}`;
         if (max !== undefined && num > Number(max)) return `nilai maksimal ${max}`;
         return null;

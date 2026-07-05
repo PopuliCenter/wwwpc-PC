@@ -64,6 +64,14 @@ export class SkipLogicService {
       .where('question.survey_id = :surveyId', { surveyId })
       .getMany();
 
+    // Urutan pertanyaan (dibutuhkan untuk menghitung rentang 'jump_to').
+    const questions = await this.questionRepository.find({
+      where: { surveyId },
+      select: { id: true, orderIndex: true },
+      order: { orderIndex: 'ASC' },
+    });
+    const orderById = new Map(questions.map((q) => [q.id, q.orderIndex]));
+
     const questionsToSkip = new Set<string>();
 
     for (const rule of rules) {
@@ -73,15 +81,24 @@ export class SkipLogicService {
         rule.conditionValue,
         actualValue,
       );
+      if (!conditionMet) continue;
 
-      if (conditionMet) {
-        if (rule.action === 'skip') {
-          // Skip the question that has this rule
-          questionsToSkip.add(rule.questionId);
-        } else if (rule.action === 'jump_to' && rule.targetQuestionId) {
-          // Skip all questions between current and target
-          // The question with the rule itself gets skipped
-          questionsToSkip.add(rule.questionId);
+      if (rule.action === 'skip') {
+        // Skip the question that has this rule
+        questionsToSkip.add(rule.questionId);
+      } else if (rule.action === 'jump_to' && rule.targetQuestionId) {
+        // 'jump_to': lompat dari pertanyaan ini ke target → LEWATI semua
+        // pertanyaan di ANTARANYA (setelah pertanyaan ber-aturan, sebelum target).
+        // Dulu hanya pertanyaan ber-aturan yang di-skip, sehingga pertanyaan
+        // yang dilompati tetap dianggap aktif & dipaksa wajib (L-jump).
+        const fromOrder = orderById.get(rule.questionId);
+        const toOrder = orderById.get(rule.targetQuestionId);
+        if (fromOrder != null && toOrder != null && toOrder > fromOrder) {
+          for (const q of questions) {
+            if (q.orderIndex > fromOrder && q.orderIndex < toOrder) {
+              questionsToSkip.add(q.id);
+            }
+          }
         }
       }
     }

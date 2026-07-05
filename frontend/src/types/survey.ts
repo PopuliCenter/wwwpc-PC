@@ -64,7 +64,10 @@ export interface Question {
   randomizeOptions?: boolean;
   hasOtherOption?: boolean;
   skipConditions?: SkipCondition[];
+  /** Aturan 'show': tampil bila SEMUA terpenuhi. */
   visibilityConditions?: SkipCondition[];
+  /** Aturan 'hide': disembunyikan bila SALAH SATU terpenuhi (semua operator). */
+  hideConditions?: SkipCondition[];
   page: number;
   regionConfig?: RegionConfig;
   ratingConfig?: RatingConfig;

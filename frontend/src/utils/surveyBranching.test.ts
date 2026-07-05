@@ -143,3 +143,31 @@ describe('isActive', () => {
     expect(isActive(hidden, { a: 'beda' })).toBe(false);
   });
 });
+
+describe('hideConditions (M8)', () => {
+  const hideOnGt = q({
+    hideConditions: [{ questionId: 'skor', operator: 'greater_than', value: '5' }],
+  });
+
+  it('menyembunyikan saat kondisi hide (operator non-equals) terpenuhi', () => {
+    expect(isQuestionVisible(hideOnGt, { skor: 8 })).toBe(false);
+    expect(isActive(hideOnGt, { skor: 8 })).toBe(false);
+  });
+
+  it('tetap tampil saat kondisi hide tidak terpenuhi', () => {
+    expect(isQuestionVisible(hideOnGt, { skor: 3 })).toBe(true);
+  });
+
+  it('tetap tampil saat sumber kosong (hide tidak terpenuhi → tak tersembunyi)', () => {
+    expect(isQuestionVisible(hideOnGt, {})).toBe(true);
+  });
+
+  it('hide menang atas show', () => {
+    const both = q({
+      visibilityConditions: [{ questionId: 'a', operator: 'equals', value: 'ya' }],
+      hideConditions: [{ questionId: 'b', operator: 'equals', value: 'stop' }],
+    });
+    expect(isQuestionVisible(both, { a: 'ya', b: 'stop' })).toBe(false);
+    expect(isQuestionVisible(both, { a: 'ya', b: 'lanjut' })).toBe(true);
+  });
+});

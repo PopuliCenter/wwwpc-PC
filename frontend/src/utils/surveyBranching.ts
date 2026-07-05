@@ -36,12 +36,20 @@ export function evaluateCondition(answers: AnswerMap, condition: SkipCondition):
   }
 }
 
-/** Pertanyaan tampil bila TIDAK punya syarat visibilitas, atau SEMUA syaratnya terpenuhi. */
+/**
+ * Pertanyaan tampil bila:
+ *  - tak punya syarat 'show', ATAU SEMUA syarat show terpenuhi; DAN
+ *  - tidak ada syarat 'hide' yang terpenuhi (hide menang atas show).
+ * Aturan hide dievaluasi apa adanya (semua operator) — konsisten dgn server.
+ */
 export function isQuestionVisible(question: Question, answers: AnswerMap): boolean {
-  return (
+  const shown =
     !question.visibilityConditions?.length ||
-    question.visibilityConditions.every((c) => evaluateCondition(answers, c))
-  );
+    question.visibilityConditions.every((c) => evaluateCondition(answers, c));
+  const hidden =
+    !!question.hideConditions?.length &&
+    question.hideConditions.some((c) => evaluateCondition(answers, c));
+  return shown && !hidden;
 }
 
 /** Pertanyaan dilewati bila punya syarat skip DAN salah satunya terpenuhi. */

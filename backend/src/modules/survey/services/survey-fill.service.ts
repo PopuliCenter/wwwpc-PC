@@ -67,7 +67,10 @@ export interface FillQuestion {
   /** Tampilkan opsi "Lainnya" (teks bebas) di bawah daftar opsi. */
   hasOtherOption?: boolean;
   skipConditions?: FillCondition[];
+  /** Aturan 'show': tampil bila SEMUA terpenuhi. */
   visibilityConditions?: FillCondition[];
+  /** Aturan 'hide': disembunyikan bila SALAH SATU terpenuhi (semua operator). */
+  hideConditions?: FillCondition[];
   page: number;
   /** Config khusus untuk tipe indonesia_region */
   regionConfig?: RegionConfig;
@@ -262,6 +265,7 @@ export class SurveyFillService {
     const pageNumberById = new Map(pages.map((p) => [p.id, p.pageNumber]));
     const skipByQuestion = this.groupSkipConditions(skipRules);
     const visibilityByQuestion = this.groupVisibilityConditions(visibilityRules);
+    const hideByQuestion = this.groupHideConditions(visibilityRules);
 
     const fillQuestions: FillQuestion[] = questions
       // Pertanyaan arm eksperimen TIDAK ditampilkan ke responden — nilainya
@@ -274,6 +278,7 @@ export class SurveyFillService {
           pageNumberById.get(q.pageId) ?? 1,
           skipByQuestion.get(q.id) ?? [],
           visibilityByQuestion.get(q.id) ?? [],
+          hideByQuestion.get(q.id) ?? [],
         ),
       );
 
@@ -399,6 +404,7 @@ export class SurveyFillService {
     page: number,
     skipConditions: FillCondition[],
     visibilityConditions: FillCondition[],
+    hideConditions: FillCondition[],
   ): FillQuestion {
     const rules = q.validationRules ?? {};
     const numericRange = (rules.numericRange ?? {}) as { min?: number; max?: number };
@@ -448,6 +454,7 @@ export class SurveyFillService {
       hasOtherOption: q.hasOtherOption,
       skipConditions,
       visibilityConditions,
+      hideConditions,
       page,
       regionConfig,
       ratingConfig,
@@ -472,42 +479,43 @@ export class SurveyFillService {
   }
 
   /**
-   * The respondent UI shows a question only when ALL of its visibilityConditions
-   * are met. A 'show' rule maps directly. A 'hide' rule is the inverse, which we
-   * can faithfully represent only for equals/not_equals; other 'hide' operators
-   * are left to the authoritative server-side check (AnswerValidationService).
+   * Aturan 'show': pertanyaan tampil bila SEMUA kondisi show terpenuhi. Aturan
+   * 'hide' TIDAK lagi diinversikan di sini (dulu hanya equals/not_equals yang bisa
+   * dipetakan, sehingga hide dengan contains/gt/lt hilang di klien → pertanyaan
+   * tampil & dipaksa wajib padahal harus tersembunyi, M8). Aturan hide dipisah ke
+   * groupHideConditions dan dievaluasi apa adanya di klien.
    */
   private groupVisibilityConditions(rules: VisibilityRule[]): Map<string, FillCondition[]> {
     const map = new Map<string, FillCondition[]>();
     for (const rule of rules) {
-      const operator = rule.conditionOperator as FillCondition['operator'];
-      let condition: FillCondition | null = null;
+      if (rule.visibilityAction !== 'show') continue;
+      const list = map.get(rule.questionId) ?? [];
+      list.push({
+        questionId: rule.sourceQuestionId,
+        operator: rule.conditionOperator as FillCondition['operator'],
+        value: rule.conditionValue,
+      });
+      map.set(rule.questionId, list);
+    }
+    return map;
+  }
 
-      if (rule.visibilityAction === 'show') {
-        condition = { questionId: rule.sourceQuestionId, operator, value: rule.conditionValue };
-      } else if (operator === 'equals') {
-        condition = {
-          questionId: rule.sourceQuestionId,
-          operator: 'not_equals',
-          value: rule.conditionValue,
-        };
-      } else if (operator === 'not_equals') {
-        condition = {
-          questionId: rule.sourceQuestionId,
-          operator: 'equals',
-          value: rule.conditionValue,
-        };
-      } else {
-        this.logger.debug(
-          `Skipping client mapping of 'hide' rule with operator '${operator}' for question ${rule.questionId}`,
-        );
-      }
-
-      if (condition) {
-        const list = map.get(rule.questionId) ?? [];
-        list.push(condition);
-        map.set(rule.questionId, list);
-      }
+  /**
+   * Aturan 'hide' (SEMUA operator): pertanyaan disembunyikan bila SALAH SATU
+   * kondisi terpenuhi. Dievaluasi langsung di klien (bukan diinversikan), agar
+   * contains/greater_than/less_than juga berfungsi & konsisten dgn server.
+   */
+  private groupHideConditions(rules: VisibilityRule[]): Map<string, FillCondition[]> {
+    const map = new Map<string, FillCondition[]>();
+    for (const rule of rules) {
+      if (rule.visibilityAction !== 'hide') continue;
+      const list = map.get(rule.questionId) ?? [];
+      list.push({
+        questionId: rule.sourceQuestionId,
+        operator: rule.conditionOperator as FillCondition['operator'],
+        value: rule.conditionValue,
+      });
+      map.set(rule.questionId, list);
     }
     return map;
   }
