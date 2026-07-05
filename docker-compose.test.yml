@@ -1,0 +1,39 @@
+# Infrastruktur EPHEMERAL untuk E2E smoke test (lokal). Postgres + Redis pada
+# PORT KHUSUS (5433/6380) agar tak bentrok dgn stack dev (5432/6379). Data tidak
+# di-persist (tmpfs) — bersih tiap kali. Kredensial sengaja statis & remeh:
+# database ini sekali-pakai dan hanya menempel di loopback.
+#
+# Pakai:  docker compose -f docker-compose.test.yml up -d
+# Berhenti: docker compose -f docker-compose.test.yml down -v
+#
+# Di CI, GitHub Actions memakai "service containers" (lihat ci.yml job e2e),
+# bukan file ini.
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: survei_test
+    ports:
+      - '127.0.0.1:5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U test -d survei_test']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Passwordless — sama dgn service container Redis di GitHub Actions (yang tak
+  # bisa di-set requirepass). App menangani password kosong sbg "tanpa AUTH".
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --save ''
+    ports:
+      - '127.0.0.1:6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20

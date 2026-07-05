@@ -57,6 +57,40 @@ jobs:
       - name: Typecheck + Build
         run: npm run build --workspace=frontend
 
+  e2e:
+    name: Backend E2E (smoke — DB+Redis nyata)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: survei_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U test -d survei_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      # Skema DB dibangun lewat migrasi asli (prepareSchema); creds & port
+      # service container cocok dgn default di backend/test/e2e-env.ts.
+      - name: E2E smoke (login → isi survei → redeem)
+        run: npm run test:e2e --workspace=backend
+
   audit:
     name: Security audit (dependency)
     runs-on: ubuntu-latest
