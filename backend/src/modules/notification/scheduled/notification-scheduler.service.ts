@@ -1,13 +1,15 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
 import { NotificationFeedService } from '../notification-feed.service';
 import { Survey } from '@modules/survey/entities/survey.entity';
-import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
+import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { SurveyStatus } from '@shared/enums';
@@ -44,6 +46,7 @@ export class NotificationSchedulerService {
     private readonly userRepository: Repository<User>,
     private readonly deviceTokenService: DeviceTokenService,
     private readonly feedService: NotificationFeedService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {
     // Base URL untuk tautan di email (undangan survei, reminder). Urutan: env
     // khusus APP_BASE_URL → APP_URL (dipakai template email lain) → default
@@ -72,6 +75,10 @@ export class NotificationSchedulerService {
       const surveys = await this.findSurveysWithDeadlineOn(targetDate);
 
       for (const survey of surveys) {
+        // Idempotensi (M2): lewati bila reminder H-3 untuk survei ini sudah
+        // terkirim hari ini (mis. cron ter-retrigger saat restart / multi-replika).
+        if (await this.reminderAlreadySent(survey.id, 'h3')) continue;
+
         const pendingRespondents = await this.findRespondentsWhoHaventFilled(survey.id);
 
         if (pendingRespondents.length > 0) {
@@ -113,6 +120,10 @@ export class NotificationSchedulerService {
       const surveys = await this.findSurveysWithDeadlineOn(targetDate);
 
       for (const survey of surveys) {
+        // Idempotensi (M2): lewati bila reminder H-1 untuk survei ini sudah
+        // terkirim hari ini.
+        if (await this.reminderAlreadySent(survey.id, 'h1')) continue;
+
         const pendingRespondents = await this.findRespondentsWhoHaventFilled(survey.id);
 
         if (pendingRespondents.length > 0) {
@@ -136,6 +147,20 @@ export class NotificationSchedulerService {
     } catch (error: any) {
       this.logger.error(`H-1 reminder job failed: ${error.message}`, error.stack);
     }
+  }
+
+  /**
+   * Idempotensi reminder (M2): kembalikan true bila reminder (survei, tipe) sudah
+   * dikirim HARI INI, sekaligus menandainya bila belum. Mencegah kirim ganda saat
+   * cron ter-retrigger (restart tepat jam 9) atau berjalan di >1 replika.
+   */
+  private async reminderAlreadySent(surveyId: string, kind: 'h3' | 'h1'): Promise<boolean> {
+    const day = new Date().toISOString().slice(0, 10);
+    const key = `reminder-sent:${kind}:${surveyId}:${day}`;
+    const seen = await this.cacheManager.get(key);
+    if (seen) return true;
+    await this.cacheManager.set(key, 1, 2 * 24 * 60 * 60 * 1000); // TTL 2 hari
+    return false;
   }
 
   /**
@@ -284,8 +309,11 @@ export class NotificationSchedulerService {
 
   /** Query builder responden yang cocok kriteria & BELUM mengisi survei. */
   private async buildTargetedQuery(surveyId: string, criteria: TargetCriteria) {
+    // Hanya kecualikan yang sudah SELESAI mengisi. Responden yang baru memulai
+    // (in_progress) atau meninggalkan (abandoned) TETAP layak diundang/diingatkan
+    // — merekalah yang paling perlu didorong (H2).
     const existing = await this.responseRepository.find({
-      where: { surveyId },
+      where: { surveyId, status: ResponseStatus.COMPLETE },
       select: ['respondentId'],
     });
     const respondedIds = existing.map((r) => r.respondentId);
@@ -362,9 +390,10 @@ export class NotificationSchedulerService {
   private async findRespondentsWhoHaventFilled(
     surveyId: string,
   ): Promise<Array<{ id: string; email: string; fullName: string }>> {
-    // Get IDs of respondents who already have a response (any status)
+    // Hanya yang sudah SELESAI yang dikecualikan; in_progress/abandoned tetap
+    // diingatkan (H2) — mereka justru target utama pengingat.
     const existingResponses = await this.responseRepository.find({
-      where: { surveyId },
+      where: { surveyId, status: ResponseStatus.COMPLETE },
       select: ['respondentId'],
     });
     const respondedIds = existingResponses.map((r) => r.respondentId);

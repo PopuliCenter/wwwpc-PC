@@ -126,7 +126,7 @@ export class NotificationFeedService {
   ): Promise<{ recipients: number; pushed: number; emailed: number }> {
     const respondents = await this.userRepository.find({
       where: { role: UserRole.RESPONDENT, status: UserStatus.ACTIVE },
-      select: ['id', 'email', 'fullName'],
+      select: ['id', 'email', 'fullName', 'emailVerified'],
     });
     const ids = respondents.map((r) => r.id);
     if (ids.length === 0) return { recipients: 0, pushed: 0, emailed: 0 };
@@ -161,13 +161,17 @@ export class NotificationFeedService {
         this.configService.get<string>('APP_URL') ??
         'https://survei.risetcenter.com';
       const actionUrl = dto.link ? `${baseUrl.replace(/\/+$/, '')}${dto.link}` : undefined;
+      // Email HANYA ke alamat terverifikasi (M3): feed/push boleh ke semua aktif,
+      // tapi email ke alamat tak terverifikasi menaikkan bounce & bisa nyasar ke
+      // orang lain. Undangan/reminder sudah memfilter emailVerified; samakan di sini.
+      const verified = respondents.filter((r) => r.emailVerified);
       await this.notificationService
         .sendAnnouncementEmail(
-          respondents.map((r) => ({ email: r.email, fullName: r.fullName })),
+          verified.map((r) => ({ email: r.email, fullName: r.fullName })),
           { title: dto.title, body: dto.body, actionUrl },
         )
         .then(() => {
-          emailed = respondents.length;
+          emailed = verified.length;
         })
         .catch((e) => this.logger.warn(`Gagal email pengumuman: ${e.message}`));
     }

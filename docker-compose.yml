@@ -136,6 +136,10 @@ services:
       - ./backend/.env
     environment:
       NODE_ENV:           production
+      # Zona waktu proses = WIB agar perhitungan window reminder H-3/H-1 (dihitung
+      # dari waktu lokal proses) selaras dengan deadline survei yang diset admin
+      # dalam WIB (M1: cegah reminder meleset satu hari saat TZ proses ≠ TZ DB).
+      TZ:                 ${TZ:-Asia/Jakarta}
       # Override agar gunakan nama service Docker, bukan localhost
       DB_HOST:            postgres
       DB_PORT:            "5432"

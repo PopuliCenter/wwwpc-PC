@@ -84,8 +84,8 @@ describe('NotificationFeedService', () => {
 
   it('broadcastAnnouncement emails recipients with an absolute action URL when sendEmail', async () => {
     userRepo.find.mockResolvedValue([
-      { id: 'r1', email: 'a@x.com', fullName: 'A' },
-      { id: 'r2', email: 'b@x.com', fullName: 'B' },
+      { id: 'r1', email: 'a@x.com', fullName: 'A', emailVerified: true },
+      { id: 'r2', email: 'b@x.com', fullName: 'B', emailVerified: true },
     ]);
 
     const result = await service.broadcastAnnouncement({

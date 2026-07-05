@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NotificationSchedulerService } from './notification-scheduler.service';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
@@ -71,6 +72,11 @@ describe('NotificationSchedulerService', () => {
         { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: DeviceTokenService, useValue: deviceTokenService },
         { provide: NotificationFeedService, useValue: feedService },
+        {
+          // Default: belum ada penanda "sudah dikirim" → reminder diproses.
+          provide: CACHE_MANAGER,
+          useValue: { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 
