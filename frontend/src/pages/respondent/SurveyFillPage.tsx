@@ -34,7 +34,6 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import {
   cachePut,
   cacheGet,
-  queueAdd,
   makeLocalId,
   mediaPut,
   LOCAL_MEDIA_PREFIX,
@@ -51,28 +50,14 @@ import type {
 import { fieldClasses } from './questions/shared';
 import { IndonesiaRegionQuestion } from './questions/IndonesiaRegionQuestion';
 import { isActive as isActivePure } from '@/utils/surveyBranching';
+import { captureGeo, isAnswered, serializeAnswers } from './surveyFillHelpers';
+import { useAutoSave } from './hooks/useAutoSave';
+import { useSurveySubmission } from './hooks/useSurveySubmission';
 
 // Tipe domain pengisian survei dipindah ke `@/types/survey` (dipakai bersama
 // komponen renderer). Re-export agar impor lama yang menunjuk file ini (jika ada)
 // tetap jalan.
 export type { AnswerValue, Question } from '@/types/survey';
-
-export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
-  typeof navigator !== 'undefined' ? navigator.userAgent : '',
-)
-  ? 'mobile'
-  : 'desktop';
-
-/**
- * Rekam koordinat GPS sekali (best-effort). Tidak pernah throw — resolve null
- * bila izin ditolak / tidak didukung / timeout, agar pengisian tetap berjalan.
- */
-export function captureGeo(): Promise<{ lat: number; lng: number } | null> {
-  // getPosition() menangani native (plugin + izin lokasi) maupun web.
-  return getPosition({ enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }).then((p) =>
-    p ? { lat: p.latitude, lng: p.longitude } : null,
-  );
-}
 
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
@@ -81,14 +66,6 @@ function shuffleArray<T>(array: T[]): T[] {
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
-}
-
-export function isAnswered(value: AnswerValue): boolean {
-  if (value === null || value === undefined) return false;
-  if (typeof value === 'string') return value.trim() !== '';
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return false;
 }
 
 // ─── Question Renderers ───────────────────────────────────────────────────────
@@ -1143,17 +1120,6 @@ function ProgressBar({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 /** Serialisasi kanonik (key terurut) agar perbandingan "berubah?" stabil. */
-function serializeAnswers(o: Record<string, AnswerValue>): string {
-  return JSON.stringify(
-    Object.keys(o)
-      .sort()
-      .reduce<Record<string, AnswerValue>>((acc, k) => {
-        acc[k] = o[k];
-        return acc;
-      }, {}),
-  );
-}
-
 export function SurveyFillPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -1161,16 +1127,10 @@ export function SurveyFillPage() {
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [earnedPoints, setEarnedPoints] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [missingIds, setMissingIds] = useState<Set<string>>(new Set());
   const [destinationNumber, setDestinationNumber] = useState('');
   const [rewardType, setRewardType] = useState('pulsa');
-  const [queuedOffline, setQueuedOffline] = useState(false);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSavedRef = useRef<string>('');
   /** Lokasi GPS saat form dibuka (best-effort), dikirim bersama jawaban. */
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
   const online = useOnlineStatus();
@@ -1186,9 +1146,6 @@ export function SurveyFillPage() {
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
-  useEffect(() => {
-    submittedRef.current = submitted;
-  }, [submitted]);
 
   // Upload media: online → endpoint responden; offline → simpan blob lokal,
   // kembalikan referensi local-media:// yang di-resolve saat sinkron.
@@ -1277,130 +1234,40 @@ export function SurveyFillPage() {
     [answers],
   );
 
-  // Auto-save every 30s
-  useEffect(() => {
-    if (!survey) return;
-    autoSaveTimerRef.current = setInterval(() => {
-      const snapshot = JSON.stringify(answers);
-      if (snapshot !== lastSavedRef.current) {
-        api
-          .post(`/surveys/${survey.id}/responses/save-progress`, {
-            answers: answersToArray(),
-            deviceType: DEVICE_TYPE,
-            ...(startGeoRef.current
-              ? {
-                  startLatitude: startGeoRef.current.lat,
-                  startLongitude: startGeoRef.current.lng,
-                }
-              : {}),
-          })
-          .catch(() => {
-            /* silent auto-save failure */
-          });
-        lastSavedRef.current = snapshot;
-      }
-    }, 30000);
-    return () => {
-      if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
-    };
-  }, [survey, answers, answersToArray]);
+  // Auto-simpan draft (berkala 30s + flush saat keluar) — lihat useAutoSave.
+  const { flushSave } = useAutoSave({ survey, answers, answersRef, submittedRef, startGeoRef });
 
   // Logika percabangan dipindah ke util murni (@/utils/surveyBranching) yang
   // bisa diuji unit; wrapper di sini hanya mengikat `answers` + memoisasi.
   const isActive = useCallback((q: Question) => isActivePure(q, answers), [answers]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!survey) return;
-
-    // Client-side required validation mirrors the server's checks.
-    const missing = survey.questions
-      .filter((q) => q.required && isActive(q) && !isAnswered(answers[q.id]))
-      .map((q) => q.id);
-
-    if (missing.length > 0) {
-      setMissingIds(new Set(missing));
-      if (survey.formMode === 'wizard') {
-        // Lompat ke langkah (indeks pertanyaan aktif) yang memuat pertanyaan wajib pertama.
-        const active = survey.questions.filter(isActive);
-        const stepIdx = active.findIndex((q) => q.id === missing[0]);
-        setCurrentPage(stepIdx >= 0 ? stepIdx + 1 : 1);
-      } else {
-        const firstPage = survey.questions.find((q) => q.id === missing[0])?.page ?? currentPage;
-        setCurrentPage(firstPage);
-      }
-      setError(`Masih ada ${missing.length} pertanyaan wajib yang belum diisi.`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    if (survey.rewardMode === 'manual' && !destinationNumber) {
-      setError('Mohon isi nomor tujuan reward.');
-      return;
-    }
-
-    setError(null);
-    setMissingIds(new Set());
-    setSubmitting(true);
-    try {
-      // Rekam lokasi akhir (best-effort) saat submit — hanya bila diaktifkan.
-      const endGeo = survey.captureGps ? await captureGeo() : null;
-      const localId = makeLocalId();
-      const payload = {
-        answers: answersToArray(),
-        deviceType: DEVICE_TYPE,
-        clientSubmissionId: localId,
-        ...(startGeoRef.current
-          ? {
-              startLatitude: startGeoRef.current.lat,
-              startLongitude: startGeoRef.current.lng,
-            }
-          : {}),
-        ...(endGeo ? { endLatitude: endGeo.lat, endLongitude: endGeo.lng } : {}),
-        ...(survey.rewardMode === 'manual' && destinationNumber
-          ? { destinationNumber, rewardType }
-          : {}),
-      };
-
-      if (online) {
-        const result = await api.post<{ pointsEarned?: number }>(
-          `/surveys/${survey.id}/responses/submit`,
-          payload,
-        );
-        setEarnedPoints(result?.pointsEarned ?? survey.rewardPoints ?? 0);
-        setSubmitted(true);
-      } else {
-        // Offline: antrikan submit; media (local-media://) di-resolve saat sync.
-        await queueAdd({
-          localId,
-          surveyId: survey.id,
-          surveyTitle: survey.title,
-          submitPath: `/surveys/${survey.id}/responses/submit`,
-          uploadPath: `/surveys/${survey.id}/responses/upload`,
-          payload,
-          createdAt: Date.now(),
-          attempts: 0,
-        });
-        await sync.refresh();
-        setQueuedOffline(true);
-        setSubmitted(true);
-      }
-    } catch (err: unknown) {
-      const e = err as { message?: string; errors?: string[] };
-      setError(e.errors?.[0] || e.message || 'Gagal mengirim jawaban. Silakan coba lagi.');
-    } finally {
-      setSubmitting(false);
-    }
-  }, [
+  // Alur submit final (jalur poin) diekstrak ke useSurveySubmission — lihat hook.
+  const {
+    submit: handleSubmit,
+    submitting,
+    submitted,
+    earnedPoints,
+    queuedOffline,
+  } = useSurveySubmission({
     survey,
     answers,
+    answersToArray,
+    isActive,
+    currentPage,
     destinationNumber,
     rewardType,
-    isActive,
-    answersToArray,
-    currentPage,
     online,
     sync,
-  ]);
+    startGeoRef,
+    setError,
+    setMissingIds,
+    setCurrentPage,
+  });
+
+  // Sinkron submittedRef (dibaca useAutoSave.flushSave & cleanup unmount).
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
 
   const handleTimerExpire = useCallback(() => {
     void handleSubmit();
@@ -1411,29 +1278,6 @@ export function SurveyFillPage() {
     if (submitted || baselineRef.current === null) return false;
     return serializeAnswers(answers) !== baselineRef.current;
   }, [answers, submitted]);
-
-  // Simpan progres SEGERA (dipakai saat meninggalkan halaman) — pakai answersRef
-  // agar selalu nilai terbaru. Best-effort, abaikan kegagalan.
-  const flushSave = useCallback(async () => {
-    if (!survey || submittedRef.current) return;
-    try {
-      await api.post(`/surveys/${survey.id}/responses/save-progress`, {
-        answers: Object.entries(answersRef.current).map(([questionId, value]) => ({
-          questionId,
-          value,
-        })),
-        deviceType: DEVICE_TYPE,
-        ...(startGeoRef.current
-          ? {
-              startLatitude: startGeoRef.current.lat,
-              startLongitude: startGeoRef.current.lng,
-            }
-          : {}),
-      });
-    } catch {
-      /* abaikan: auto-save berikutnya / antrean akan menyusul */
-    }
-  }, [survey]);
 
   // Kunci navigasi dalam-app (mis. ketuk Reward/Profil di bar bawah) saat ada
   // progres belum dikirim — tampilkan konfirmasi sebelum meninggalkan survei.
