@@ -121,4 +121,16 @@ describe('IakFulfillmentProvider', () => {
       expect(res?.outcome.status).toBe('completed');
     });
   });
+
+  describe('parseCallback fail-closed (H1)', () => {
+    it('menolak callback saat verifikasi aktif tapi kredensial kosong', () => {
+      // Default IAK_VERIFY_CALLBACK_SIGN=true, tapi username/api_key kosong →
+      // tak bisa diverifikasi → tolak (jangan diam-diam menerima payload palsu).
+      const provider = new IakFulfillmentProvider(makeConfig({}));
+      const res = provider.parseCallback({
+        data: { ref_id: '123', status: '1', sign: 'apapun' },
+      });
+      expect(res).toBeNull();
+    });
+  });
 });

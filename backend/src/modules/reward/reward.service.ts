@@ -815,52 +815,117 @@ export class RewardService {
 
   /**
    * Terapkan hasil fulfillment ke redemption + refund bila gagal.
-   * Dipakai oleh confirmRedemption (sinkron) maupun callback (async).
+   * Dipakai oleh confirmRedemption (sinkron), callback provider, cron poll, dan
+   * finalisasi admin — SEMUANYA bisa berjalan bersamaan untuk redemption yang
+   * sama. Karena itu transisi status + refund dilakukan ATOMIK: kunci baris
+   * (SELECT … FOR UPDATE), lalu HANYA caller pertama yang melihat PROCESSING
+   * yang boleh menuntaskan (completed/failed). Ini mencegah double-refund /
+   * double-credit dan status yang saling menimpa (C2). Efek samping (notifikasi
+   * + email) hanya dijalankan bila call ini benar-benar melakukan transisi.
    */
   private async applyOutcome(
     redemption: RewardRedemption,
     outcome: FulfillmentOutcome,
   ): Promise<RedemptionStatus> {
-    redemption.providerMessage = outcome.message ?? null;
-    if ('providerTrxId' in outcome && outcome.providerTrxId) {
-      redemption.providerTrxId = outcome.providerTrxId;
-    }
+    const result = await this.dataSource.transaction(async (manager) => {
+      const rrRepo = manager.getRepository(RewardRedemption);
+      const locked = await rrRepo.findOne({
+        where: { id: redemption.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) {
+        return { status: redemption.status, transitioned: false, refundedNow: false };
+      }
 
-    if (outcome.status === 'completed') {
-      redemption.status = RedemptionStatus.COMPLETED;
-      redemption.providerSn = outcome.sn ?? redemption.providerSn ?? null;
-      // Notifikasi "reward berhasil dikirim" (mis. pulsa). Berlaku utk konfirmasi
-      // sinkron maupun callback async karena applyOutcome dipakai keduanya.
-      void this.feedService
-        .notifyUser(
-          redemption.userId,
-          {
-            type: 'reward_fulfilled',
-            title: 'Reward berhasil dikirim 🎁',
-            body: `${this.rewardNameOf(redemption.rewardType)} telah dikirim ke ${redemption.destinationNumber ?? 'tujuan Anda'}.`,
-            link: '/rewards',
-          },
-          true,
-        )
-        .catch(() => {
-          /* notifikasi best-effort */
-        });
-    } else if (outcome.status === 'failed') {
-      redemption.status = RedemptionStatus.FAILED;
-      await this.refundRedemption(redemption);
-    } else {
-      redemption.status = RedemptionStatus.PROCESSING;
-    }
+      // Transisi terminal (completed/failed) hanya boleh dari status PROCESSING,
+      // dan hanya SEKALI. 'pending' membiarkan PROCESSING (idempoten).
+      if (outcome.status !== 'pending' && locked.status !== RedemptionStatus.PROCESSING) {
+        return { status: locked.status, transitioned: false, refundedNow: false };
+      }
 
-    await this.redemptionRepository.save(redemption);
+      locked.providerMessage = outcome.message ?? locked.providerMessage ?? null;
+      if ('providerTrxId' in outcome && outcome.providerTrxId) {
+        locked.providerTrxId = outcome.providerTrxId;
+      }
 
-    // Beri tahu responden: email konfirmasi saat sukses, email refund saat gagal.
-    if (redemption.status === RedemptionStatus.COMPLETED) {
-      await this.emitRedeemed(redemption);
-    } else if (redemption.status === RedemptionStatus.FAILED) {
-      await this.emitFailed(redemption);
+      let refundedNow = false;
+      if (outcome.status === 'completed') {
+        locked.status = RedemptionStatus.COMPLETED;
+        locked.providerSn = outcome.sn ?? locked.providerSn ?? null;
+      } else if (outcome.status === 'failed') {
+        locked.status = RedemptionStatus.FAILED;
+        if (!locked.refunded) {
+          // Refund poin di DALAM lock + tandai refunded pada baris yang sama →
+          // dua finalizer paralel tak mungkin refund dua kali.
+          const expiresAt = new Date();
+          expiresAt.setMonth(expiresAt.getMonth() + POINT_EXPIRATION_MONTHS);
+          await manager.getRepository(PointTransaction).save(
+            manager.getRepository(PointTransaction).create({
+              userId: locked.userId,
+              amount: locked.pointsSpent,
+              transactionType: TransactionType.CREDIT,
+              reason: PointCreditReason.REFUND,
+              referenceId: locked.id,
+              earnedAt: new Date(),
+              expiresAt,
+              expired: false,
+            }),
+          );
+          locked.refunded = true;
+          refundedNow = true;
+        }
+      } else {
+        locked.status = RedemptionStatus.PROCESSING;
+      }
+
+      await rrRepo.save(locked);
+      // Salin balik ke objek pemanggil agar pembaca berikutnya lihat status baru.
+      Object.assign(redemption, locked);
+      return { status: locked.status, transitioned: true, refundedNow };
+    });
+
+    // Efek samping HANYA bila call ini yang melakukan transisi (cegah duplikat).
+    if (result.transitioned) {
+      if (result.status === RedemptionStatus.COMPLETED) {
+        void this.feedService
+          .notifyUser(
+            redemption.userId,
+            {
+              type: 'reward_fulfilled',
+              title: 'Reward berhasil dikirim 🎁',
+              body: `${this.rewardNameOf(redemption.rewardType)} telah dikirim ke ${redemption.destinationNumber ?? 'tujuan Anda'}.`,
+              link: '/rewards',
+            },
+            true,
+          )
+          .catch(() => {
+            /* notifikasi best-effort */
+          });
+        await this.emitRedeemed(redemption);
+      } else if (result.status === RedemptionStatus.FAILED) {
+        if (result.refundedNow) {
+          this.logger.warn(
+            `[REFUND] ${redemption.pointsSpent} poin dikembalikan ke user=${redemption.userId} (redemption=${redemption.id} gagal).`,
+          );
+          void this.feedService
+            .notifyUser(
+              redemption.userId,
+              {
+                type: 'point_earned',
+                title: 'Poin dikembalikan',
+                body: `${redemption.pointsSpent.toLocaleString('id-ID')} poin dikembalikan karena penukaran gagal.`,
+                link: '/rewards',
+              },
+              true,
+            )
+            .catch(() => {
+              /* notifikasi best-effort */
+            });
+        }
+        await this.emitFailed(redemption);
+      }
     }
-    return redemption.status;
+    return result.status;
   }
 
   /**
@@ -923,24 +988,6 @@ export class RewardService {
         `Gagal memancarkan REWARD_REDEMPTION_FAILED utk ${redemption.id}: ${e?.message}`,
       );
     }
-  }
-
-  /**
-   * Kembalikan poin yang sudah terpotong saat fulfillment gagal.
-   * Idempoten: ditandai dgn flag `refunded` agar tidak dobel.
-   */
-  private async refundRedemption(redemption: RewardRedemption): Promise<void> {
-    if (redemption.refunded) return;
-    await this.creditPoints(
-      redemption.userId,
-      redemption.pointsSpent,
-      PointCreditReason.REFUND,
-      redemption.id,
-    );
-    redemption.refunded = true;
-    this.logger.warn(
-      `[REFUND] ${redemption.pointsSpent} poin dikembalikan ke user=${redemption.userId} (redemption=${redemption.id} gagal).`,
-    );
   }
 
   /**

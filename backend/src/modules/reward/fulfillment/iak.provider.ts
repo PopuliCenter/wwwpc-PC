@@ -247,8 +247,19 @@ export class IakFulfillmentProvider implements RewardFulfillmentProvider {
     const refId = d.ref_id ?? d.refId;
     if (!refId) return null;
 
-    // Verifikasi keaslian: sign = md5(username + api_key + ref_id).
-    if (this.verifyCallbackSign && this.username && this.apiKey) {
+    // Verifikasi keaslian (FAIL-CLOSED): sign = md5(username + api_key + ref_id).
+    // Bila verifikasi diaktifkan (default) tapi kredensial kosong, callback TAK
+    // DAPAT diverifikasi → tolak. Sebelumnya kondisi ini justru MELEWATI verifikasi
+    // saat kredensial kosong, sehingga callback palsu bisa memaksa refund/COMPLETED
+    // (endpoint callback bersifat publik).
+    if (this.verifyCallbackSign) {
+      if (!this.username || !this.apiKey) {
+        this.logger.error(
+          'Callback IAK ditolak: verifikasi signature aktif tetapi IAK_USERNAME/IAK_API_KEY kosong. ' +
+            'Lengkapi kredensial, atau set IAK_VERIFY_CALLBACK_SIGN=false secara sadar (tidak disarankan).',
+        );
+        return null;
+      }
       const expected = this.sign(String(refId));
       const got = typeof d.sign === 'string' ? d.sign.toLowerCase() : '';
       if (got !== expected) {

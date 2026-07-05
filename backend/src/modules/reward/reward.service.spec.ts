@@ -557,9 +557,10 @@ describe('RewardService', () => {
 
       await service.confirmRedemption('user-1', 'redemption-1', '123456');
 
-      // Lock + debit + update status HARUS di dalam satu transaksi.
-      expect(dataSourceMock.transaction).toHaveBeenCalledTimes(1);
-      // findOne dipanggil dengan pessimistic write lock.
+      // Dua transaksi: (1) klaim debit+status, (2) finalisasi atomik applyOutcome
+      // (lock + re-check status → cegah double-refund/credit, C2).
+      expect(dataSourceMock.transaction).toHaveBeenCalledTimes(2);
+      // findOne dipanggil dengan pessimistic write lock (di kedua transaksi).
       expect(redemptionRepo.findOne).toHaveBeenCalledWith(
         expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
       );
