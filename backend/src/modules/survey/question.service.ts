@@ -1,12 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Question } from './entities/question.entity';
 import { QuestionOption } from './entities/question-option.entity';
 import { Survey } from './entities/survey.entity';
 import { SurveyPage } from './entities/survey-page.entity';
 import { SkipLogicRule } from './entities/skip-logic-rule.entity';
 import { VisibilityRule } from './entities/visibility-rule.entity';
+import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
@@ -57,6 +64,8 @@ export class QuestionService {
     private readonly skipLogicRepository: Repository<SkipLogicRule>,
     @InjectRepository(VisibilityRule)
     private readonly visibilityRepository: Repository<VisibilityRule>,
+    @InjectRepository(SurveyResponse)
+    private readonly responseRepository: Repository<SurveyResponse>,
   ) {}
 
   async addQuestion(surveyId: string, dto: CreateQuestionDto): Promise<Question> {
@@ -143,6 +152,22 @@ export class QuestionService {
     const survey = await this.surveyRepository.findOne({ where: { id: surveyId } });
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+
+    // GERBANG ANTI KEHILANGAN DATA: bulkReplace menghapus semua pertanyaan lalu
+    // membuat ulang dengan UUID baru; FK answer→question ber-ON DELETE CASCADE,
+    // sehingga mengganti pertanyaan pada survei yang sudah punya respons SELESAI
+    // akan menghapus permanen seluruh jawaban responden. Tolak dengan pesan jelas
+    // — admin harus menduplikasi survei untuk mengubah kuesioner setelah ada data.
+    const completedResponses = await this.responseRepository.count({
+      where: { surveyId, status: ResponseStatus.COMPLETE, archivedAt: IsNull() },
+    });
+    if (completedResponses > 0) {
+      throw new ConflictException(
+        `Survei ini sudah memiliki ${completedResponses} respons selesai. Mengubah pertanyaan akan ` +
+          `menghapus jawaban yang sudah terkumpul. Duplikat survei ini untuk membuat versi baru, ` +
+          `atau arsipkan responsnya terlebih dulu bila memang ingin memulai ulang pengumpulan data.`,
+      );
     }
 
     // Pastikan ada minimal satu halaman (model question butuh page_id)

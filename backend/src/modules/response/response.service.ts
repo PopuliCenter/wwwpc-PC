@@ -190,8 +190,10 @@ export class ResponseService {
 
     // Validate timer if there's an in-progress response
     if (existingResponse && existingResponse.status === ResponseStatus.IN_PROGRESS) {
-      const timeConfig = await this.surveyTimeService.getTimeConfig(surveyId);
+      // Toleran: survei tanpa time config → tanpa batas waktu (jangan 404).
+      const timeConfig = await this.surveyTimeService.getTimeConfigOrNull(surveyId);
       if (
+        timeConfig &&
         this.surveyTimeService.isTimerExpired(
           timeConfig.maxDurationMinutes,
           // Timer "reset per sesi": ukur dari saat terakhir melanjutkan, bukan
@@ -239,7 +241,35 @@ export class ResponseService {
         return saved.id;
       });
     } else {
-      // Create new response (no existing in-progress)
+      // Create new response (no existing in-progress). Ini jalur submit TANPA
+      // sesi server: kirim langsung / offline→sync. Tanpa baris in-progress,
+      // anti-bot & timer sebelumnya terlewat sepenuhnya. Bila klien mengirim
+      // clientStartedAt yang masuk akal, tegakkan keduanya terhadap waktu itu;
+      // bila tak ada, tak bisa divalidasi waktunya (jangan tolak agar jalur
+      // offline yang sah tak rusak).
+      let newStartedAt = new Date();
+      if (dto.clientStartedAt) {
+        const cs = new Date(dto.clientStartedAt);
+        const ageMs = Date.now() - cs.getTime();
+        const plausible = !Number.isNaN(cs.getTime()) && ageMs >= 0 && ageMs <= 24 * 60 * 60 * 1000;
+        if (plausible) {
+          newStartedAt = cs;
+          this.assertMinimumCompletionTime(cs);
+          const tc = await this.surveyTimeService.getTimeConfigOrNull(surveyId);
+          if (
+            tc &&
+            this.surveyTimeService.isTimerExpired(
+              tc.maxDurationMinutes,
+              cs,
+              TIMER_SUBMIT_GRACE_SECONDS,
+            )
+          ) {
+            throw new ForbiddenException(
+              'Waktu pengisian survei telah habis. Respons tidak dapat dikirim.',
+            );
+          }
+        }
+      }
       try {
         savedResponseId = await this.dataSource.transaction(async (manager) => {
           const response = manager.create(SurveyResponse, {
@@ -247,7 +277,7 @@ export class ResponseService {
             respondentId,
             status: ResponseStatus.COMPLETE,
             deviceType: dto.deviceType || null,
-            startedAt: new Date(),
+            startedAt: newStartedAt,
             submittedAt: new Date(),
             destinationNumber: dto.destinationNumber || null,
             rewardType: dto.rewardType || null,

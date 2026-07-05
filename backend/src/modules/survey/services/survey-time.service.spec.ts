@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { SurveyTimeService } from './survey-time.service';
 import { SurveyTimeConfig } from '../entities/survey-time-config.entity';
-import { NotFoundException } from '@nestjs/common';
 
 function createTimeConfig(overrides: Partial<SurveyTimeConfig> = {}): SurveyTimeConfig {
   const config = new SurveyTimeConfig();
@@ -34,10 +33,12 @@ describe('SurveyTimeService', () => {
   });
 
   describe('checkSurveyAccess', () => {
-    it('should throw NotFoundException if time config does not exist', async () => {
+    it('should ALLOW access when no time config exists (survei tanpa batasan)', async () => {
       mockTimeConfigRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.checkSurveyAccess('non-existent')).rejects.toThrow(NotFoundException);
+      const result = await service.checkSurveyAccess('non-existent');
+
+      expect(result.allowed).toBe(true);
     });
 
     it('should deny access if current time is before start_datetime', async () => {
@@ -150,6 +151,7 @@ describe('SurveyTimeService', () => {
         update: vi.fn().mockReturnThis(),
         set: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         execute: vi.fn().mockResolvedValue({ affected }),
       };
       return qb;
@@ -170,12 +172,21 @@ describe('SurveyTimeService', () => {
       expect(qb.execute).toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if time config does not exist', async () => {
+    it('does NOT throw when no config / cap reached (affected=0) — response tetap diterima', async () => {
       const qb = makeQueryBuilder(0);
       mockTimeConfigRepository.createQueryBuilder.mockReturnValue(qb);
 
-      await expect(service.incrementRespondentCount('non-existent')).rejects.toThrow(
-        NotFoundException,
+      await expect(service.incrementRespondentCount('non-existent')).resolves.toBeUndefined();
+    });
+
+    it('guards the increment against the cap via andWhere', async () => {
+      const qb = makeQueryBuilder(1);
+      mockTimeConfigRepository.createQueryBuilder.mockReturnValue(qb);
+
+      await service.incrementRespondentCount('survey-1');
+
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        '(max_respondents IS NULL OR current_respondent_count < max_respondents)',
       );
     });
   });

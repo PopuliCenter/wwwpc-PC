@@ -2,6 +2,7 @@ import {
   Allow,
   IsArray,
   IsIn,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
@@ -48,6 +49,16 @@ export class SubmitResponseDto {
   @IsOptional()
   @IsUUID()
   clientSubmissionId?: string;
+
+  /**
+   * Waktu (ISO 8601) form pertama kali dibuka di klien. Dipakai untuk submit
+   * TANPA sesi server (offline→sync / kirim langsung) agar durasi minimum
+   * anti-bot & batas waktu maxDuration tetap bisa ditegakkan. Best-effort:
+   * waktu klien tak sepenuhnya tepercaya, tapi menaikkan ambang untuk bot naif.
+   */
+  @IsOptional()
+  @IsISO8601()
+  clientStartedAt?: string;
 
   // ── Geolokasi pengisian ──────────────────────────────────────────────────
   /** Lokasi saat form dibuka (dikirim dari klien yang menyimpan sejak awal). */

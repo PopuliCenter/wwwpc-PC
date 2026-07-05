@@ -1192,6 +1192,9 @@ export function SurveyFillPage() {
   const [rewardType, setRewardType] = useState('pulsa');
   /** Lokasi GPS saat form dibuka (best-effort), dikirim bersama jawaban. */
   const startGeoRef = useRef<{ lat: number; lng: number } | null>(null);
+  /** Waktu form dibuka (ISO) — dikirim saat submit agar server bisa menegakkan
+   *  anti-bot & batas waktu pada jalur tanpa sesi (offline→sync / kirim langsung). */
+  const startedAtRef = useRef<string>(new Date().toISOString());
   const online = useOnlineStatus();
   const sync = useOfflineSync();
   /** True bila draft tersimpan berhasil dimuat (pengisian dilanjutkan). */
@@ -1327,6 +1330,7 @@ export function SurveyFillPage() {
     online,
     sync,
     startGeoRef,
+    startedAtRef,
     setError,
     setMissingIds,
     setCurrentPage,

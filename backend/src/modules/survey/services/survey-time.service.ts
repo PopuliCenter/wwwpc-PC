@@ -21,7 +21,10 @@ export class SurveyTimeService {
    * - Max respondents reached
    */
   async checkSurveyAccess(surveyId: string): Promise<SurveyAccessResultDto> {
-    const timeConfig = await this.getTimeConfig(surveyId);
+    const timeConfig = await this.getTimeConfigOrNull(surveyId);
+    // Survei tanpa konfigurasi waktu = tanpa batasan waktu/kuota. Jangan 404
+    // (mencegah bug: form bisa dibuka tapi submit gagal karena config hilang).
+    if (!timeConfig) return { allowed: true };
     const now = new Date();
 
     if (timeConfig.startDatetime && now < timeConfig.startDatetime) {
@@ -58,7 +61,8 @@ export class SurveyTimeService {
    * - Max respondents reached
    */
   async checkSubmissionAllowed(surveyId: string): Promise<SurveyAccessResultDto> {
-    const timeConfig = await this.getTimeConfig(surveyId);
+    const timeConfig = await this.getTimeConfigOrNull(surveyId);
+    if (!timeConfig) return { allowed: true };
     const now = new Date();
 
     if (timeConfig.endDatetime && now > timeConfig.endDatetime) {
@@ -85,6 +89,11 @@ export class SurveyTimeService {
    * Atomically increments the current respondent count for a survey.
    * Uses a single `SET count = count + 1` statement so concurrent submissions
    * cannot lose updates (avoids the read-modify-write race condition).
+   *
+   * Increment BERSYARAT terhadap kuota: hanya menaikkan bila masih di bawah
+   * `max_respondents` (atau tanpa cap). Ini mencegah counter melampaui kuota
+   * saat submit bersamaan (TOCTOU antara pra-cek dan increment) — sehingga
+   * `checkSubmissionAllowed` untuk responden berikutnya menutup tepat di cap.
    */
   async incrementRespondentCount(surveyId: string): Promise<void> {
     const result = await this.timeConfigRepository
@@ -92,10 +101,15 @@ export class SurveyTimeService {
       .update(SurveyTimeConfig)
       .set({ currentRespondentCount: () => 'current_respondent_count + 1' })
       .where('survey_id = :surveyId', { surveyId })
+      .andWhere('(max_respondents IS NULL OR current_respondent_count < max_respondents)')
       .execute();
 
     if (!result.affected) {
-      throw new NotFoundException(`Time configuration for survey ${surveyId} not found`);
+      // affected=0 = tak ada config (tanpa kuota) ATAU kuota sudah penuh (race
+      // batas). Keduanya tak perlu melempar: response sudah tersimpan, dan cap
+      // tetap konsisten (counter tak melebihi max_respondents).
+      this.logger.debug(`Respondent count not incremented for survey ${surveyId} (no config or cap reached)`);
+      return;
     }
 
     this.logger.log(`Respondent count incremented for survey ${surveyId}`);
@@ -166,14 +180,21 @@ export class SurveyTimeService {
    * Gets the time config for a survey, with survey-level fallback.
    */
   async getTimeConfig(surveyId: string): Promise<SurveyTimeConfig> {
-    const timeConfig = await this.timeConfigRepository.findOne({
-      where: { surveyId },
-    });
+    const timeConfig = await this.getTimeConfigOrNull(surveyId);
 
     if (!timeConfig) {
       throw new NotFoundException(`Time configuration for survey ${surveyId} not found`);
     }
 
     return timeConfig;
+  }
+
+  /**
+   * Seperti getTimeConfig tapi mengembalikan null bila tak ada (bukan melempar).
+   * Dipakai jalur akses/submit agar survei tanpa konfigurasi waktu diperlakukan
+   * "tanpa batasan" alih-alih menggagalkan pengisian dengan 404.
+   */
+  async getTimeConfigOrNull(surveyId: string): Promise<SurveyTimeConfig | null> {
+    return this.timeConfigRepository.findOne({ where: { surveyId } });
   }
 }

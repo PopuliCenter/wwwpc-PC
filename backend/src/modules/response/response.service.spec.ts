@@ -59,6 +59,7 @@ describe('ResponseService', () => {
   const mockSurveyTimeService = {
     checkSubmissionAllowed: vi.fn(),
     getTimeConfig: vi.fn(),
+    getTimeConfigOrNull: vi.fn(),
     isTimerExpired: vi.fn(),
     incrementRespondentCount: vi.fn(),
     decrementRespondentCount: vi.fn(),
@@ -113,6 +114,8 @@ describe('ResponseService', () => {
         rewardPoints: 250,
       },
     ]);
+    // Default: survei tanpa batasan waktu (jalur submit memakai getTimeConfigOrNull).
+    mockSurveyTimeService.getTimeConfigOrNull.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -197,7 +200,7 @@ describe('ResponseService', () => {
       };
       responseRepository.findOne.mockResolvedValue(inProgressResponse);
       surveyTimeService.checkSubmissionAllowed.mockResolvedValue({ allowed: true });
-      surveyTimeService.getTimeConfig.mockResolvedValue({ maxDurationMinutes: 30 });
+      surveyTimeService.getTimeConfigOrNull.mockResolvedValue({ maxDurationMinutes: 30 });
       surveyTimeService.isTimerExpired.mockReturnValue(true);
 
       await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(

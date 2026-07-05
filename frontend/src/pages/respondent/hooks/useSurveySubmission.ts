@@ -17,6 +17,8 @@ interface UseSurveySubmissionParams {
   online: boolean;
   sync: { refresh: () => Promise<void> };
   startGeoRef: GeoRef;
+  /** Ref berisi waktu (ISO) form dibuka — dikirim sbg clientStartedAt. */
+  startedAtRef: MutableRefObject<string | null>;
   // State UI bersama tetap dimiliki komponen (dipakai luas di render).
   setError: (msg: string | null) => void;
   setMissingIds: (ids: Set<string>) => void;
@@ -54,6 +56,7 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
     online,
     sync,
     startGeoRef,
+    startedAtRef,
     setError,
     setMissingIds,
     setCurrentPage,
@@ -110,6 +113,7 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
         answers: answersToArray(),
         deviceType: DEVICE_TYPE,
         clientSubmissionId: localId,
+        ...(startedAtRef.current ? { clientStartedAt: startedAtRef.current } : {}),
         ...(startGeoRef.current
           ? {
               startLatitude: startGeoRef.current.lat,
@@ -162,6 +166,7 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
     online,
     sync,
     startGeoRef,
+    startedAtRef,
     setError,
     setMissingIds,
     setCurrentPage,

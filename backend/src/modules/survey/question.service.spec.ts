@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { QuestionService } from './question.service';
 import { Question } from './entities/question.entity';
 import { QuestionOption } from './entities/question-option.entity';
@@ -9,6 +9,7 @@ import { Survey } from './entities/survey.entity';
 import { SurveyPage } from './entities/survey-page.entity';
 import { SkipLogicRule } from './entities/skip-logic-rule.entity';
 import { VisibilityRule } from './entities/visibility-rule.entity';
+import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { QuestionType } from '@shared/enums';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -22,6 +23,7 @@ describe('QuestionService', () => {
   let pageRepository: any;
   let skipLogicRepository: any;
   let visibilityRepository: any;
+  let responseRepository: any;
 
   const mockSurveyId = 'survey-uuid-1';
   const mockPageId = 'page-uuid-1';
@@ -101,6 +103,9 @@ describe('QuestionService', () => {
     skipLogicRepository = ruleRepo();
     visibilityRepository = ruleRepo();
 
+    // Default: survei belum punya respons selesai → bulkReplace diizinkan.
+    responseRepository = { count: vi.fn().mockResolvedValue(0) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         QuestionService,
@@ -108,6 +113,7 @@ describe('QuestionService', () => {
         { provide: getRepositoryToken(QuestionOption), useValue: optionRepository },
         { provide: getRepositoryToken(Survey), useValue: surveyRepository },
         { provide: getRepositoryToken(SurveyPage), useValue: pageRepository },
+        { provide: getRepositoryToken(SurveyResponse), useValue: responseRepository },
         { provide: getRepositoryToken(SkipLogicRule), useValue: skipLogicRepository },
         { provide: getRepositoryToken(VisibilityRule), useValue: visibilityRepository },
       ],
@@ -668,6 +674,32 @@ describe('QuestionService', () => {
       };
 
       await expect(service.addQuestion(mockSurveyId, dto)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('bulkReplaceQuestions — gerbang anti kehilangan data (C1)', () => {
+    it('menolak replace bila survei sudah punya respons SELESAI (tak menghapus jawaban)', async () => {
+      responseRepository.count.mockResolvedValue(3);
+
+      await expect(
+        service.bulkReplaceQuestions(mockSurveyId, [
+          { clientId: 'c1', type: QuestionType.SHORT_TEXT, text: 'Q1' },
+        ]),
+      ).rejects.toThrow(ConflictException);
+
+      // Tidak boleh sampai menghapus pertanyaan lama.
+      expect(questionRepository.remove).not.toHaveBeenCalled();
+    });
+
+    it('mengizinkan replace bila belum ada respons selesai', async () => {
+      responseRepository.count.mockResolvedValue(0);
+      questionRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.bulkReplaceQuestions(mockSurveyId, [
+          { clientId: 'c1', type: QuestionType.SHORT_TEXT, text: 'Q1' },
+        ]),
+      ).resolves.toBeDefined();
     });
   });
 
