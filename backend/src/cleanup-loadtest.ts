@@ -12,9 +12,13 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
-import { LOADTEST_EMAIL_PREFIX, LOADTEST_EMAIL_DOMAIN } from './seed-loadtest';
 
 dotenv.config();
+
+// Inline (JANGAN impor dari seed-loadtest — modul itu menjalankan main() saat
+// diimpor sehingga seed ikut jalan & balapan dengan cleanup).
+const LOADTEST_EMAIL_PREFIX = 'loadtest+';
+const LOADTEST_EMAIL_DOMAIN = '@loadtest.local';
 
 async function main(): Promise<void> {
   const mode = (process.env.LOADTEST_CLEANUP || 'responses').toLowerCase();

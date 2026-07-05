@@ -205,7 +205,10 @@ async function main(): Promise<void> {
   await ds.destroy();
 }
 
-main().catch((err) => {
-  console.error('\nSeed load test gagal:', err?.message ?? err);
-  process.exit(1);
-});
+// Hanya jalan bila dieksekusi langsung (bukan saat diimpor modul lain).
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('\nSeed load test gagal:', err?.message ?? err);
+    process.exit(1);
+  });
+}
