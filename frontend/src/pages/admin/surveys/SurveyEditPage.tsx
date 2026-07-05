@@ -28,177 +28,24 @@ import {
 } from './questionImportExport';
 import { takePendingImport } from './questionImportHandoff';
 import { LoadingState } from '@/components/common/AsyncState';
-
-// ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
-type QuestionType =
-  | 'single_choice'
-  | 'multiple_choice'
-  | 'short_text'
-  | 'long_text'
-  | 'phone_number'
-  | 'numeric_scale'
-  | 'dropdown'
-  | 'matrix_likert'
-  | 'file_upload'
-  | 'date_time'
-  | 'date'
-  | 'rating_scale'
-  | 'unique_id'
-  | 'random_arm'
-  | 'indonesia_region'
-  | 'signature'
-  | 'photo'
-  | 'gps'
-  | 'audio';
-
-interface QuestionOption {
-  id: string;
-  label: string;
-  value: string;
-  order: number;
-}
-
-type ConditionOperator = 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
-
-interface SkipLogicRule {
-  sourceQuestionId: string;
-  operator: ConditionOperator;
-  conditionValue: string;
-  action: 'skip' | 'jump_to';
-  targetQuestionId?: string;
-}
-
-interface VisibilityRule {
-  sourceQuestionId: string;
-  operator: ConditionOperator;
-  conditionValue: string;
-  visibilityAction: 'show' | 'hide';
-}
-
-interface ValidationRules {
-  // Teks
-  minLength?: number;
-  maxLength?: number;
-  emailFormat?: boolean;
-  phoneFormat?: boolean;
-  regex?: string;
-  // Numeric
-  numericRange?: { min?: number; max?: number };
-  // Pilihan
-  maxCheckbox?: number;
-  minCheckbox?: number;
-  /** Acak urutan opsi saat ditampilkan ke responden ("Lainnya" tetap di bawah). */
-  randomizeOptions?: boolean;
-  // Matrix
-  matrixRows?: string[];
-  matrixColumns?: string[];
-  // Rating Scale
-  ratingMax?: number;
-  ratingDisplayMode?: 'star' | 'number';
-  ratingMinLabel?: string;
-  ratingMaxLabel?: string;
-  // Wilayah
-  regionDepth?: 'province' | 'regency' | 'district' | 'village';
-  lockedProvince?: { id: string; name: string } | null;
-  lockedRegency?: { id: string; name: string } | null;
-  // Misc
-  description?: string;
-  scaleMin?: number;
-  scaleMax?: number;
-}
-
-interface Question {
-  id: string;
-  type: QuestionType;
-  text: string;
-  required: boolean;
-  /** true=tampil, false=nonaktif (tidak ditampilkan ke responden). Default true. */
-  enabled?: boolean;
-  order: number;
-  hasOtherOption?: boolean;
-  options?: QuestionOption[];
-  skipLogicRules?: SkipLogicRule[];
-  visibilityRules?: VisibilityRule[];
-  validationRules?: ValidationRules;
-}
-
-interface SurveyDetail {
-  id: string;
-  title: string;
-  description: string;
-  surveyType: 'nasional' | 'daerah' | 'lainnya';
-  category: string | null;
-  formMode: 'paginated' | 'scroll' | 'wizard';
-  captureGps: boolean;
-  requireSignature: boolean;
-  questions: Question[];
-}
-
-// Bentuk pertanyaan dari backend (GET /surveys/:id/questions)
-interface BackendQuestion {
-  id: string;
-  type: QuestionType;
-  questionText: string;
-  required: boolean;
-  enabled?: boolean;
-  orderIndex: number;
-  validationRules: ValidationRules | null;
-  hasOtherOption: boolean;
-  options?: { id: string; label: string; value: string; orderIndex: number }[];
-  skipLogicRules?: SkipLogicRule[];
-  visibilityRules?: VisibilityRule[];
-}
-
-function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
-  return {
-    id: q.id,
-    type: q.type,
-    text: q.questionText ?? '',
-    required: !!q.required,
-    enabled: q.enabled !== false,
-    order: q.orderIndex ?? idx,
-    hasOtherOption: !!q.hasOtherOption,
-    validationRules: q.validationRules ?? undefined,
-    options: (q.options ?? [])
-      .slice()
-      .sort((a, b) => a.orderIndex - b.orderIndex)
-      .map((o) => ({ id: o.id, label: o.label, value: o.value, order: o.orderIndex })),
-    // Muat aturan skip/visibilitas agar logika tidak hilang saat survei diedit.
-    skipLogicRules: (q.skipLogicRules ?? []).map((r) => ({
-      sourceQuestionId: r.sourceQuestionId,
-      operator: r.operator,
-      conditionValue: r.conditionValue,
-      action: r.action,
-      targetQuestionId: r.targetQuestionId ?? undefined,
-    })),
-    visibilityRules: (q.visibilityRules ?? []).map((r) => ({
-      sourceQuestionId: r.sourceQuestionId,
-      operator: r.operator,
-      conditionValue: r.conditionValue,
-      visibilityAction: r.visibilityAction,
-    })),
-  };
-}
-
-/** Ubah pertanyaan hasil impor Excel → bentuk Question editor (order lanjut dari baseOrder). */
-function buildQuestionsFromImport(imported: ImportedQuestion[], baseOrder: number): Question[] {
-  return imported.map((iq, i) => ({
-    id: `q-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
-    type: iq.type as QuestionType,
-    text: iq.text,
-    required: iq.required,
-    enabled: true,
-    order: baseOrder + i,
-    hasOtherOption: iq.hasOtherOption,
-    options: iq.options.map((o, oi) => ({
-      id: `opt-${Date.now()}-${i}-${oi}`,
-      label: o.label,
-      value: o.value,
-      order: oi,
-    })),
-    validationRules: iq.description ? { description: iq.description } : undefined,
-  }));
-}
+import type {
+  QuestionType,
+  QuestionOption,
+  ConditionOperator,
+  SkipLogicRule,
+  VisibilityRule,
+  ValidationRules,
+  Question,
+  SurveyDetail,
+  BackendQuestion,
+} from './surveyEditTypes';
+import { mapBackendQuestion, buildQuestionsFromImport } from './surveyEditTypes';
+import {
+  questionTypeLabels,
+  typeGroups,
+  defaultsForType,
+  operatorLabels,
+} from './questionTypeMeta';
 
 /**
  * Ikon (?) kecil dengan penjelasan singkat (muncul saat kursor diarahkan) —
@@ -215,84 +62,6 @@ function InfoHint({ text }: { text: string }) {
     </span>
   );
 }
-
-// ─── Metadata tipe pertanyaan ─────────────────────────────────────────────────
-const questionTypeLabels: Record<QuestionType, string> = {
-  single_choice: 'Pilihan Tunggal',
-  multiple_choice: 'Pilihan Ganda',
-  short_text: 'Teks Pendek',
-  long_text: 'Teks Panjang',
-  phone_number: 'No. Telepon',
-  numeric_scale: 'Skala Angka',
-  dropdown: 'Pilih dari Daftar',
-  matrix_likert: 'Tabel Penilaian',
-  file_upload: 'Unggah Berkas',
-  date_time: 'Tanggal & Waktu',
-  date: 'Tanggal',
-  rating_scale: 'Bintang/Rating',
-  unique_id: 'Nomor Unik',
-  indonesia_region: 'Wilayah (Prov/Kab/Kec)',
-  signature: 'Tanda Tangan',
-  photo: 'Foto (Kamera)',
-  gps: 'Titik GPS',
-  audio: 'Rekaman Audio',
-  random_arm: 'Penugasan Acak (Eksperimen)',
-};
-
-// Grup tipe untuk dropdown tambah/ubah pertanyaan. (gps & signature SENGAJA
-// tak ada — kini setelan survei, bukan tipe pertanyaan.)
-const typeGroups: { label: string; types: QuestionType[] }[] = [
-  { label: 'Pilihan', types: ['single_choice', 'multiple_choice', 'dropdown'] },
-  { label: 'Teks', types: ['short_text', 'long_text'] },
-  { label: 'Angka & Skala', types: ['numeric_scale', 'rating_scale'] },
-  { label: 'Waktu', types: ['date', 'date_time'] },
-  { label: 'Kontak & ID', types: ['phone_number', 'unique_id'] },
-  { label: 'Lanjutan', types: ['matrix_likert', 'indonesia_region'] },
-  { label: 'Media', types: ['photo', 'audio', 'file_upload'] },
-  { label: 'Eksperimen', types: ['random_arm'] },
-];
-
-/** Default konfigurasi per tipe (opsi/aturan validasi). */
-function defaultsForType(type: QuestionType): Partial<Question> {
-  if (type === 'single_choice' || type === 'multiple_choice' || type === 'dropdown') {
-    return {
-      options: [
-        { id: `opt-${Date.now()}-1`, label: 'Opsi 1', value: 'option_1', order: 0 },
-        { id: `opt-${Date.now()}-2`, label: 'Opsi 2', value: 'option_2', order: 1 },
-      ],
-    };
-  }
-  if (type === 'matrix_likert')
-    return {
-      validationRules: {
-        matrixRows: ['Aspek 1'],
-        matrixColumns: ['Sangat Setuju', 'Setuju', 'Tidak Setuju'],
-      },
-    };
-  if (type === 'rating_scale')
-    return { validationRules: { ratingMax: 5, ratingDisplayMode: 'star' } };
-  if (type === 'numeric_scale') return { validationRules: { numericRange: { min: 1, max: 10 } } };
-  if (type === 'indonesia_region') return { validationRules: { regionDepth: 'village' } };
-  if (type === 'unique_id') return { validationRules: { minLength: 5, maxLength: 10 } };
-  if (type === 'random_arm') {
-    // Default 2 kelompok dengan KODE ANGKA (1, 2) — ramah SPSS.
-    return {
-      options: [
-        { id: `arm-${Date.now()}-1`, label: 'Kelompok 1', value: '1', order: 0 },
-        { id: `arm-${Date.now()}-2`, label: 'Kelompok 2', value: '2', order: 1 },
-      ],
-    };
-  }
-  return {};
-}
-
-const operatorLabels: Record<ConditionOperator, string> = {
-  equals: 'sama dengan (=)',
-  not_equals: 'tidak sama dengan (≠)',
-  contains: 'mengandung kata',
-  greater_than: 'lebih besar dari (>)',
-  less_than: 'lebih kecil dari (<)',
-};
 
 // ─── Komponen konfigurasi per tipe ───────────────────────────────────────────
 
