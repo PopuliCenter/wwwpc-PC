@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -20,6 +20,11 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '@/services/api';
 import { showAppNotice } from '@/stores/notification.store';
 import { getProvinces } from '@/utils/wilayah';
+import {
+  downloadQuestionTemplate,
+  exportQuestions,
+  parseQuestionsFile,
+} from './questionImportExport';
 
 // ─── Types (aligned dengan backend QuestionType enum) ─────────────────────────
 type QuestionType =
@@ -1688,6 +1693,78 @@ export function SurveyEditPage() {
     setExpandedId(newQ.id);
   };
 
+  // ─── Impor / ekspor pertanyaan (Excel) ─────────────────────────────────────
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleExportQuestions = async () => {
+    if (questions.length === 0) {
+      showAppNotice({ title: 'Belum ada pertanyaan untuk diunduh.', tone: 'info' });
+      return;
+    }
+    try {
+      await exportQuestions(questions, settingsTitle || survey?.title || 'survei');
+    } catch {
+      showAppNotice({ title: 'Gagal mengunduh pertanyaan.', tone: 'error' });
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      await downloadQuestionTemplate();
+    } catch {
+      showAppNotice({ title: 'Gagal mengunduh template.', tone: 'error' });
+    }
+  };
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset agar file sama bisa dipilih lagi
+    if (!file) return;
+    try {
+      const { questions: imported, errors } = await parseQuestionsFile(file);
+      if (imported.length === 0) {
+        showAppNotice({
+          title: 'Tidak ada pertanyaan yang diimpor.',
+          body: errors[0] ?? undefined,
+          tone: 'error',
+        });
+        return;
+      }
+      // Tambahkan di bawah pertanyaan yang ada (order lanjut).
+      const base = questions.length;
+      const mapped: Question[] = imported.map((iq, i) => ({
+        id: `q-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+        type: iq.type as QuestionType,
+        text: iq.text,
+        required: iq.required,
+        enabled: true,
+        order: base + i,
+        hasOtherOption: iq.hasOtherOption,
+        options: iq.options.map((o, oi) => ({
+          id: `opt-${Date.now()}-${i}-${oi}`,
+          label: o.label,
+          value: o.value,
+          order: oi,
+        })),
+        validationRules: iq.description ? { description: iq.description } : undefined,
+      }));
+      setQuestions((prev) => [...prev, ...mapped]);
+      showAppNotice({
+        title: `${mapped.length} pertanyaan diimpor.`,
+        body:
+          (errors.length ? `${errors.length} baris dilewati/dicatat. ` : '') +
+          'Tinjau lalu klik Simpan untuk menyimpan.',
+        tone: 'success',
+      });
+    } catch {
+      showAppNotice({
+        title: 'Gagal membaca file.',
+        body: 'Pastikan format .xlsx sesuai template.',
+        tone: 'error',
+      });
+    }
+  };
+
   const editQuestion = useCallback((updated: Question) => {
     setQuestions((prev) => prev.map((q) => (q.id === updated.id ? updated : q)));
   }, []);
@@ -2105,14 +2182,44 @@ export function SurveyEditPage() {
 
       {/* Builder */}
       <div className="bg-gray-50 rounded-lg p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Pertanyaan ({questions.length})</h2>
-          <button
-            onClick={() => addQuestion('single_choice')}
-            className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-          >
-            + Tambah Pertanyaan
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".xlsx"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+            <button
+              onClick={handleDownloadTemplate}
+              title="Unduh contoh format Excel untuk diisi"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+            >
+              Template
+            </button>
+            <button
+              onClick={handleExportQuestions}
+              title="Unduh pertanyaan survei ini ke Excel"
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
+            >
+              Unduh
+            </button>
+            <button
+              onClick={() => importInputRef.current?.click()}
+              title="Unggah pertanyaan dari file Excel (ditambahkan di bawah)"
+              className="rounded-md border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-100"
+            >
+              Unggah
+            </button>
+            <button
+              onClick={() => addQuestion('single_choice')}
+              className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+            >
+              + Tambah Pertanyaan
+            </button>
+          </div>
         </div>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
