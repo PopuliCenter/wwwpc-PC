@@ -1,6 +1,8 @@
 import { IsNotEmpty, IsString, MinLength, Matches, IsEmail, Length } from 'class-validator';
+import { NormalizeEmail } from '@shared/decorators/normalize-email.decorator';
 
 export class ResetPasswordDto {
+  @NormalizeEmail()
   @IsEmail()
   @IsNotEmpty()
   email: string;

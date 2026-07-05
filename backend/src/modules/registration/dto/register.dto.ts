@@ -11,12 +11,14 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { NormalizeEmail } from '@shared/decorators/normalize-email.decorator';
 
 export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   fullName: string;
 
+  @NormalizeEmail()
   @IsEmail()
   @IsNotEmpty()
   email: string;

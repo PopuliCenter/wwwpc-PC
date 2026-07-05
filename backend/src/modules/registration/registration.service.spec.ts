@@ -46,6 +46,7 @@ describe('RegistrationService', () => {
       create: vi.fn(),
       save: vi.fn(),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
+      delete: vi.fn().mockResolvedValue({ affected: 1 }),
     };
 
     userProfileRepository = {
@@ -53,6 +54,7 @@ describe('RegistrationService', () => {
       create: vi.fn(),
       save: vi.fn(),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
+      delete: vi.fn().mockResolvedValue({ affected: 1 }),
     };
 
     jwtService = {
@@ -142,18 +144,33 @@ describe('RegistrationService', () => {
       );
     });
 
-    it('should throw ConflictException when email already exists', async () => {
-      userRepository.findOne.mockResolvedValueOnce(mockUser); // email exists
+    const activeUser = { ...mockUser, status: UserStatus.ACTIVE };
+
+    it('should throw ConflictException when email already exists (akun AKTIF)', async () => {
+      userRepository.findOne.mockResolvedValueOnce(activeUser); // email exists (active)
 
       await expect(service.register(validRegistration)).rejects.toThrow(ConflictException);
     });
 
-    it('should throw ConflictException when phone already exists', async () => {
+    it('should throw ConflictException when phone already exists (akun AKTIF)', async () => {
       userRepository.findOne
         .mockResolvedValueOnce(null) // email doesn't exist
-        .mockResolvedValueOnce(mockUser); // phone exists
+        .mockResolvedValueOnce(activeUser); // phone exists (active)
 
       await expect(service.register(validRegistration)).rejects.toThrow(ConflictException);
+    });
+
+    it('mengizinkan daftar ulang bila akun lama masih PENDING (M5) — buang lalu buat baru', async () => {
+      userRepository.findOne
+        .mockResolvedValueOnce(mockUser) // email match, status PENDING → dibuang
+        .mockResolvedValueOnce(null); // phone bebas
+      userRepository.create.mockReturnValue(mockUser);
+      userRepository.save.mockResolvedValue(mockUser);
+
+      await expect(service.register(validRegistration)).resolves.toBeDefined();
+      // Akun PENDING lama beserta profilnya dibuang.
+      expect(userProfileRepository.delete).toHaveBeenCalledWith({ userId: mockUser.id });
+      expect(userRepository.delete).toHaveBeenCalledWith({ id: mockUser.id });
     });
 
     it('should hash the password before saving', async () => {

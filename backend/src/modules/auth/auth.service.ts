@@ -54,6 +54,8 @@ export interface ProfileResult {
 const GENERIC_LOGIN_ERROR = 'Invalid email or password';
 const PASSWORD_RESET_TTL = 3600; // 1 hour in seconds
 const PASSWORD_RESET_PREFIX = 'password-reset:';
+const PASSWORD_RESET_ATTEMPTS_PREFIX = 'password-reset-attempts:';
+const MAX_RESET_OTP_ATTEMPTS = 5; // batalkan kode setelah 5 percobaan salah (M4)
 const BCRYPT_SALT_ROUNDS = 10;
 
 // --- Brute-force protection ---
@@ -167,6 +169,8 @@ export class AuthService {
     if (!profile.emailVerified) {
       throw new UnauthorizedException('Email akun Google Anda belum terverifikasi.');
     }
+    // Normalisasi konsisten dgn DTO lain (H3): email disimpan huruf kecil.
+    profile.email = profile.email.trim().toLowerCase();
 
     let user = await this.userRepository.findOne({ where: { email: profile.email } });
 
@@ -311,6 +315,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    // Refresh token lama (diterbitkan sebelum ganti/reset password) ditolak (H5).
+    await this.assertTokenNotStale(payload);
+
     // Find user to ensure they still exist and are active
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
@@ -353,6 +360,9 @@ export class AuthService {
     if (!sessionData) {
       throw new UnauthorizedException('Session expired or invalidated');
     }
+
+    // Tolak token yang diterbitkan sebelum ganti/reset password (H5).
+    await this.assertTokenNotStale(payload);
 
     return {
       userId: payload.sub,
@@ -398,9 +408,21 @@ export class AuthService {
       );
     }
 
-    // Cocokkan OTP dari Redis.
+    // Cocokkan OTP dari Redis. Batasi percobaan per-kode (M4): setelah
+    // MAX_RESET_OTP_ATTEMPTS salah, kode dibatalkan agar tak bisa di-brute-force
+    // sepanjang TTL (1 jam) meski penyerang merotasi IP.
+    const attemptsKey = `${PASSWORD_RESET_ATTEMPTS_PREFIX}${email}`;
     const storedCode = await this.cacheManager.get<string>(`${PASSWORD_RESET_PREFIX}${email}`);
     if (!storedCode || storedCode !== code) {
+      const attempts = ((await this.cacheManager.get<number>(attemptsKey)) ?? 0) + 1;
+      if (attempts >= MAX_RESET_OTP_ATTEMPTS) {
+        await this.cacheManager.del(`${PASSWORD_RESET_PREFIX}${email}`);
+        await this.cacheManager.del(attemptsKey);
+        throw new BadRequestException(
+          'Terlalu banyak percobaan kode. Silakan minta kode reset baru.',
+        );
+      }
+      await this.cacheManager.set(attemptsKey, attempts, PASSWORD_RESET_TTL * 1000);
       throw new BadRequestException('Kode OTP salah atau sudah kedaluwarsa');
     }
 
@@ -415,6 +437,10 @@ export class AuthService {
 
     // Invalidate the OTP so it can't be reused
     await this.cacheManager.del(`${PASSWORD_RESET_PREFIX}${email}`);
+    await this.cacheManager.del(`${PASSWORD_RESET_ATTEMPTS_PREFIX}${email}`);
+
+    // Tendang semua sesi lama (mis. milik penyerang) setelah reset password (H5).
+    await this.invalidateUserSessions(user.id);
 
     this.logger.log(`Password reset completed for ${email}`);
   }
@@ -482,6 +508,10 @@ export class AuthService {
         throw new BadRequestException('Email sudah dipakai akun lain');
       }
       updates.email = dto.email;
+      // Email = anchor identitas/reset. Ganti ke alamat baru berarti kepemilikan
+      // BELUM terbukti → reset status verifikasi (H4). Mencegah "verified bypass":
+      // dulu emailVerified tetap true meski pindah ke alamat yang tak dimiliki.
+      updates.emailVerified = false;
     }
 
     if (dto.avatarUrl !== undefined) {
@@ -522,6 +552,8 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     await this.userRepository.update(userId, { passwordHash, passwordSet: true });
+    // Tendang sesi lain (mis. milik penyerang) setelah ganti password (H5).
+    await this.invalidateUserSessions(userId);
     this.logger.log(`Password changed by user ${user.email}`);
   }
 
@@ -654,5 +686,33 @@ export class AuthService {
 
   private getRefreshTokenKey(sessionId: string): string {
     return `refresh:${sessionId}`;
+  }
+
+  private getUserEpochKey(userId: string): string {
+    return `token_epoch:${userId}`;
+  }
+
+  /**
+   * Batalkan SEMUA sesi milik user (access + refresh) tanpa harus mengenumerasi
+   * sessionId: catat "epoch" = sekarang; token apa pun yang diterbitkan SEBELUM
+   * epoch ditolak saat validasi. Dipakai setelah ganti/reset password agar sesi
+   * lama (mis. milik penyerang) tak lagi berlaku. TTL melebihi umur token
+   * terpanjang agar catatan tak kedaluwarsa sebelum tokennya.
+   */
+  private async invalidateUserSessions(userId: string): Promise<void> {
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+    await this.cacheManager.set(this.getUserEpochKey(userId), Date.now(), THIRTY_DAYS_MS);
+  }
+
+  /** Tolak token yang diterbitkan sebelum epoch invalidasi user (bila ada). */
+  private async assertTokenNotStale(payload: JwtPayload): Promise<void> {
+    const epochRaw = await this.cacheManager.get<string | number>(
+      this.getUserEpochKey(payload.sub),
+    );
+    if (epochRaw == null) return;
+    const iat = (payload as JwtPayload & { iat?: number }).iat;
+    if (iat && iat * 1000 < Number(epochRaw)) {
+      throw new UnauthorizedException('Sesi tidak valid — silakan login ulang.');
+    }
   }
 }

@@ -42,6 +42,17 @@ export class RegistrationService {
     private readonly notificationService: NotificationService,
   ) {}
 
+  /**
+   * Buang akun PENDING (belum terverifikasi) beserta profil demografinya agar
+   * email/telepon-nya bebas untuk pendaftaran ulang. Aman: akun PENDING tak bisa
+   * login sehingga tak punya respons/poin/penukaran — hanya baris user + profil.
+   */
+  private async discardPendingAccount(user: User): Promise<void> {
+    await this.userProfileRepository.delete({ userId: user.id });
+    await this.userRepository.delete({ id: user.id });
+    this.logger.log(`Akun PENDING lama dibuang untuk pendaftaran ulang: ${user.email}`);
+  }
+
   async register(data: {
     fullName: string;
     email: string;
@@ -84,20 +95,29 @@ export class RegistrationService {
       );
     }
 
-    // Check email uniqueness
+    // Check email uniqueness. Akun yang masih PENDING (belum verifikasi OTP)
+    // BUKAN penghalang: izinkan daftar ulang dengan menghapus yang lama, agar
+    // pengguna tak buntu (mis. gagal verifikasi lalu kena batas kirim ulang →
+    // pesan "daftar lagi" yang sebelumnya justru ditolak "email sudah terdaftar").
     const existingEmail = await this.userRepository.findOne({
       where: { email: data.email },
     });
     if (existingEmail) {
-      throw new ConflictException('Email is already registered');
+      if (existingEmail.status !== UserStatus.PENDING) {
+        throw new ConflictException('Email is already registered');
+      }
+      await this.discardPendingAccount(existingEmail);
     }
 
-    // Check phone uniqueness
+    // Check phone uniqueness (perlakuan sama untuk akun PENDING).
     const existingPhone = await this.userRepository.findOne({
       where: { phone: data.phone },
     });
     if (existingPhone) {
-      throw new ConflictException('Phone number is already registered');
+      if (existingPhone.status !== UserStatus.PENDING) {
+        throw new ConflictException('Phone number is already registered');
+      }
+      await this.discardPendingAccount(existingPhone);
     }
 
     // Hash password
