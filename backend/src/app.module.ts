@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { EnvThrottlerGuard } from './common/guards/env-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -57,8 +58,10 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
   providers: [
     AppService,
     {
+      // EnvThrottlerGuard = ThrottlerGuard yang bisa dimatikan via DISABLE_THROTTLE
+      // (load test dari 1 IP). Default: aktif seperti biasa.
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: EnvThrottlerGuard,
     },
     {
       // Global auth: SEMUA route wajib JWT kecuali yang ditandai @Public().

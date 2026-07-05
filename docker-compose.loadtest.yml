@@ -38,9 +38,8 @@ services:
       - '3000:3000' # akses langsung dari host untuk k6
     environment:
       # Load-test knobs (JANGAN dipakai di produksi):
+      DISABLE_THROTTLE: 'true' # matikan rate-limit (login 5/mnt/IP dll) dari 1 IP
       MIN_COMPLETION_SECONDS: '0' # jangan tolak submit "terlalu cepat" saat uji
-      THROTTLE_LIMIT: '1000000' # banyak virtual-user dari satu IP
-      THROTTLE_TTL_MS: '60000'
       REWARD_PROVIDER: manual # tak memicu fulfillment IAK sungguhan
     deploy:
       resources:
