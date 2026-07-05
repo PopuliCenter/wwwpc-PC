@@ -43,8 +43,18 @@ rsync -az /var/backups/survei/ user@host-cadangan:/backup/survei/
 
 ## Verifikasi backup (lakукан berkala!)
 
-Backup yang tak pernah diuji = belum tentu bisa dipulihkan. Sebulan sekali,
-coba restore ke environment uji.
+Backup yang tak pernah diuji = belum tentu bisa dipulihkan. Ada uji ROUNDTRIP
+otomatis (backup → wipe → restore → cek data kembali) memakai script yang
+sesungguhnya terhadap container ephemeral:
+
+```bash
+docker compose -f docker-compose.backup-test.yml up -d
+bash scripts/test-backup-restore.sh      # → "LULUS" bila restore benar
+docker compose -f docker-compose.backup-test.yml down -v
+```
+
+Uji ini juga berjalan otomatis di CI (job `backup-restore`). Tetap disarankan
+sesekali menguji restore backup PRODUKSI ke environment uji.
 
 ---
 
@@ -52,34 +62,39 @@ coba restore ke environment uji.
 
 > Hentikan trafik dulu bila memungkinkan. Restore menimpa data — pastikan benar.
 
-## 1) PostgreSQL
+## Cara cepat (disarankan): `scripts/restore.sh`
 
 ```bash
 cd /var/www/online-survei
-# Hentikan backend agar tak menulis saat restore
-docker compose stop backend
+docker compose stop backend          # hentikan tulis saat restore DB
 
-# Restore dump custom-format (drop & buat ulang objek)
-docker exec -i survei_postgres sh -c \
-  'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' \
-  < /var/backups/survei/db-<TIMESTAMP>.dump
+./scripts/restore.sh <TIMESTAMP>     # pulihkan db-<TS>.dump + minio-<TS>.tar.gz
+#   ./scripts/restore.sh --latest        # backup terbaru
+#   ./scripts/restore.sh --db-only <TS>  # atau --minio-only <TS>
+#   tambah -y untuk lewati konfirmasi
 
 docker compose start backend
 ```
 
-Bila perlu DB benar-benar bersih: drop & create database dulu, lalu pg_restore
-tanpa `--clean`.
+Script memakai streaming (tanpa bind-mount): `pg_restore --clean --if-exists`
+untuk DB, ekstrak tar ke volume MinIO. Timestamp DB & MinIO dipasangkan otomatis.
 
-## 2) MinIO
+## Manual (rujukan / bila perlu granular)
+
+PostgreSQL:
 
 ```bash
-cd /var/www/online-survei
-docker compose stop minio
-# Ekstrak isi tar ke dalam volume data MinIO
-docker run --rm --volumes-from survei_minio \
-  -v /var/backups/survei:/backup alpine \
-  sh -c 'rm -rf /data/* && cd /data && tar xzf /backup/minio-<TIMESTAMP>.tar.gz'
-docker compose start minio
+docker exec -i survei_postgres sh -c \
+  'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < /var/backups/survei/db-<TIMESTAMP>.dump
+```
+
+MinIO (streaming, tanpa bind-mount):
+
+```bash
+docker run --rm -i --volumes-from survei_minio alpine \
+  sh -c 'rm -rf /data/* && cd /data && tar xzf -' \
+  < /var/backups/survei/minio-<TIMESTAMP>.tar.gz
 ```
 
 ## Catatan

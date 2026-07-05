@@ -91,6 +91,30 @@ jobs:
       - name: E2E smoke (login → isi survei → redeem)
         run: npm run test:e2e --workspace=backend
 
+  backup-restore:
+    name: Backup ↔ restore (roundtrip)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start Postgres + MinIO ephemeral
+        run: docker compose -f docker-compose.backup-test.yml up -d
+      - name: Tunggu container sehat
+        run: |
+          for i in $(seq 1 30); do
+            pg=$(docker inspect --format '{{.State.Health.Status}}' \
+              "$(docker compose -f docker-compose.backup-test.yml ps -q postgres)" 2>/dev/null || true)
+            mi=$(docker inspect --format '{{.State.Running}}' \
+              "$(docker compose -f docker-compose.backup-test.yml ps -q minio)" 2>/dev/null || true)
+            [ "$pg" = healthy ] && [ "$mi" = true ] && exit 0
+            sleep 2
+          done
+          echo "container tidak siap"; exit 1
+      - name: Uji roundtrip backup→restore
+        run: bash scripts/test-backup-restore.sh
+      - name: Bersihkan
+        if: always()
+        run: docker compose -f docker-compose.backup-test.yml down -v
+
   audit:
     name: Security audit (dependency)
     runs-on: ubuntu-latest

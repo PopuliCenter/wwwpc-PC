@@ -23,10 +23,11 @@ PG_FILE="$BACKUP_DIR/db-$TS.dump"
 docker exec "$PG_CONTAINER" sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -F c' > "$PG_FILE"
 echo "[$(date '+%F %T')] DB    → $PG_FILE ($(du -h "$PG_FILE" | cut -f1))"
 
-# --- MinIO: tar seluruh /data (mencakup semua bucket: uploads & exports) ------
+# --- MinIO: stream tar seluruh /data via stdout (semua bucket: uploads/exports)
+# Streaming (bukan bind-mount) → portabel & bisa diuji di mesin mana pun.
 MINIO_FILE="$BACKUP_DIR/minio-$TS.tar.gz"
-docker run --rm --volumes-from "$MINIO_CONTAINER" -v "$BACKUP_DIR":/backup alpine \
-  tar czf "/backup/minio-$TS.tar.gz" -C /data .
+docker run --rm --volumes-from "$MINIO_CONTAINER" alpine \
+  tar czf - -C /data . > "$MINIO_FILE"
 echo "[$(date '+%F %T')] MinIO → $MINIO_FILE ($(du -h "$MINIO_FILE" | cut -f1))"
 
 # --- Retensi: buang backup lama -----------------------------------------------
