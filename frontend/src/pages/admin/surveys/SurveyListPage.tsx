@@ -24,6 +24,7 @@ import { useConfirm } from '@/components/common/ConfirmDialog';
 import { showAppNotice } from '@/stores/notification.store';
 import { exportQuestions, parseQuestionsFile } from './questionImportExport';
 import { setPendingImport } from './questionImportHandoff';
+import { SurveyEditorHelp } from './SurveyEditorHelp';
 import { format } from 'date-fns';
 
 interface Survey {
@@ -63,6 +64,7 @@ export function SurveyListPage() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
   const [targetSurvey, setTargetSurvey] = useState<{ id: string; title: string } | null>(null);
   const { confirm, dialog } = useConfirm();
   const navigate = useNavigate();
@@ -319,6 +321,7 @@ export function SurveyListPage() {
 
   return (
     <div className="space-y-6">
+      <SurveyEditorHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       {/* Input file tersembunyi untuk Unggah Kuesioner (dipicu dari ikon per baris). */}
       <input
         ref={importInputRef}
@@ -332,9 +335,18 @@ export function SurveyListPage() {
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Manajemen Survei</h1>
           <p className="mt-1 text-sm text-gray-500">Kelola, duplikasi, dan arsipkan survei Anda.</p>
         </div>
-        <Button onClick={() => navigate('/admin/surveys/create')}>
-          <Plus className="h-4 w-4" /> Buat Survei Baru
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="rounded-md bg-gray-100 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200"
+            title="Panduan: percabangan, skip & kelompok eksperimen"
+          >
+            📘 Panduan
+          </button>
+          <Button onClick={() => navigate('/admin/surveys/create')}>
+            <Plus className="h-4 w-4" /> Buat Survei Baru
+          </Button>
+        </div>
       </div>
 
       {surveys.length > 0 && (
