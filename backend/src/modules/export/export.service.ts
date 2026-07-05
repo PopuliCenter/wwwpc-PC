@@ -181,8 +181,7 @@ export class ExportService {
    */
   private assertJobAccess(job: ExportJob, requester?: ExportRequester): void {
     if (!requester) return; // pemanggil internal tanpa konteks user
-    const privileged =
-      requester.role === UserRole.SUPER_ADMIN || requester.role === UserRole.ADMIN;
+    const privileged = requester.role === UserRole.SUPER_ADMIN || requester.role === UserRole.ADMIN;
     if (job.requestedBy && job.requestedBy !== requester.id && !privileged) {
       throw new ForbiddenException('Anda tidak berhak mengakses export ini.');
     }

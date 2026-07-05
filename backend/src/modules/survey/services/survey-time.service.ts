@@ -108,7 +108,9 @@ export class SurveyTimeService {
       // affected=0 = tak ada config (tanpa kuota) ATAU kuota sudah penuh (race
       // batas). Keduanya tak perlu melempar: response sudah tersimpan, dan cap
       // tetap konsisten (counter tak melebihi max_respondents).
-      this.logger.debug(`Respondent count not incremented for survey ${surveyId} (no config or cap reached)`);
+      this.logger.debug(
+        `Respondent count not incremented for survey ${surveyId} (no config or cap reached)`,
+      );
       return;
     }
 
@@ -160,11 +162,7 @@ export class SurveyTimeService {
    * sah justru ditolak (jawaban hilang persis di detik penyelamatan). Tidak
    * dipakai untuk getRemainingTime (tampilan) agar hitung mundur tetap akurat.
    */
-  isTimerExpired(
-    maxDurationMinutes: number | null,
-    startedAt: Date,
-    graceSeconds = 0,
-  ): boolean {
+  isTimerExpired(maxDurationMinutes: number | null, startedAt: Date, graceSeconds = 0): boolean {
     if (maxDurationMinutes === null) {
       return false;
     }

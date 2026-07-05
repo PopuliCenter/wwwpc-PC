@@ -75,7 +75,10 @@ describe('NotificationSchedulerService', () => {
         {
           // Default: belum ada penanda "sudah dikirim" → reminder diproses.
           provide: CACHE_MANAGER,
-          useValue: { get: vi.fn().mockResolvedValue(null), set: vi.fn().mockResolvedValue(undefined) },
+          useValue: {
+            get: vi.fn().mockResolvedValue(null),
+            set: vi.fn().mockResolvedValue(undefined),
+          },
         },
       ],
     }).compile();
