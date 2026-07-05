@@ -84,7 +84,13 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
         setCurrentPage(firstPage);
       }
       setError(`Masih ada ${missing.length} pertanyaan wajib yang belum diisi.`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll ke pertanyaan wajib PERTAMA yang kosong (setelah halaman/langkah
+      // berpindah & render) agar responden tahu persis apa yang kurang.
+      setTimeout(() => {
+        const el = document.getElementById(`q-${missing[0]}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 80);
       return;
     }
 

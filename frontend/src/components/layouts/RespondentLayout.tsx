@@ -25,6 +25,11 @@ export function RespondentLayout() {
   const points = usePointsStore((s) => s.available);
   const refreshPoints = usePointsStore((s) => s.refresh);
 
+  // Mode FOKUS saat mengisi survei: sembunyikan tab bawah agar responden tak
+  // salah keluar dan navigasi Sebelumnya/Selanjutnya/Kirim (sticky) tak bentrok
+  // dengan tab bar. Keluar tetap aman (dialog konfirmasi useBlocker).
+  const isFillMode = /^\/surveys\/[^/]+\/fill$/.test(location.pathname);
+
   // Saldo poin di header (store bersama dgn halaman Reward agar sinkron). Refresh
   // saat user siap & tiap pindah halaman → poin ikut berubah setelah selesai
   // survei / menukar reward, tanpa perlu reload.
@@ -114,7 +119,7 @@ export function RespondentLayout() {
       {/* Main content */}
       <main
         className={`mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 ${
-          isEmbedMode ? '' : 'pb-24 md:pb-8'
+          isEmbedMode || isFillMode ? '' : 'pb-24 md:pb-8'
         }`}
       >
         <Suspense fallback={<PageLoader />}>
@@ -126,18 +131,20 @@ export function RespondentLayout() {
           'fixed' (bukan 'sticky') agar selalu terlihat menempel di bawah layar —
           di browser mobile, sticky di dalam min-h-screen (100vh) bisa terdorong
           ke bawah area yang terlihat. paddingBottom menghormati safe-area iOS. */}
-      {!isEmbedMode && (
+      {!isEmbedMode && !isFillMode && (
         <nav
           className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white md:hidden"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          aria-label="Navigasi utama"
         >
           <div className="mx-auto grid max-w-md grid-cols-4">
             {navItems.map(({ path, label, icon: Icon }) => (
               <NavLink
                 key={path}
                 to={path}
+                aria-label={label}
                 className={({ isActive }) =>
-                  `flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+                  `flex min-h-[3rem] flex-col items-center justify-center gap-0.5 py-3 text-xs font-medium transition-colors ${
                     isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
                   }`
                 }

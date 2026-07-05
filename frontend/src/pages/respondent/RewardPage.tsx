@@ -251,7 +251,7 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
                   className={`text-sm font-medium ${earned ? 'text-green-600' : 'text-red-600'}`}
                 >
                   {earned ? '+' : '-'}
-                  {tx.amount.toLocaleString()}
+                  {tx.amount.toLocaleString('id-ID')}
                 </span>
               </div>
             );
@@ -381,7 +381,7 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
                     {meta.icon} {meta.label}
                   </span>
                   <span className="text-xs text-gray-400">
-                    -{r.pointsSpent.toLocaleString()} poin
+                    -{r.pointsSpent.toLocaleString('id-ID')} poin
                   </span>
                 </div>
               </div>
@@ -535,10 +535,12 @@ function RewardCatalog({
 // Redemption Flow Modal
 function RedemptionModal({
   reward,
+  currentBalance,
   onClose,
   onSuccess,
 }: {
   reward: RewardItem;
+  currentBalance: number;
   onClose: () => void;
   onSuccess: () => void;
 }) {
@@ -561,9 +563,30 @@ function RedemptionModal({
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
+  // Kunci scroll latar saat modal terbuka + tombol Back Android → TUTUP modal
+  // (bukan keluar aplikasi / pindah rute saat OTP penukaran sedang berjalan).
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    let remove: (() => void) | undefined;
+    void import('@capacitor/app').then(({ App }) => {
+      void App.addListener('backButton', () => onClose()).then((h) => {
+        remove = () => void h.remove();
+      });
+    });
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      remove?.();
+    };
+  }, [onClose]);
+
   const handleInitiate = async () => {
-    if (!destinationNumber) {
-      setError('Masukkan nomor tujuan');
+    if (currentBalance < reward.pointsCost) {
+      setError('Poin tidak mencukupi untuk reward ini.');
+      return;
+    }
+    if (destinationNumber.replace(/\D/g, '').length < 9) {
+      setError('Nomor tujuan tidak valid (minimal 9 digit).');
       return;
     }
     setLoading(true);
@@ -644,10 +667,33 @@ function RedemptionModal({
         {step === 'destination' && (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900">Tukar Reward</h3>
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className="space-y-1.5 rounded-lg bg-gray-50 p-3">
               <p className="text-sm font-medium text-gray-900">{reward.name}</p>
-              <p className="text-sm text-primary-600">{reward.pointsCost.toLocaleString()} poin</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Biaya</span>
+                <span className="font-semibold text-primary-600">
+                  {reward.pointsCost.toLocaleString('id-ID')} poin
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Saldo Anda</span>
+                <span className="text-gray-800">{currentBalance.toLocaleString('id-ID')} poin</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-gray-200 pt-1.5 text-sm">
+                <span className="text-gray-600">Sisa setelah tukar</span>
+                <span
+                  className={`font-medium ${currentBalance - reward.pointsCost < 0 ? 'text-red-600' : 'text-gray-900'}`}
+                >
+                  {(currentBalance - reward.pointsCost).toLocaleString('id-ID')} poin
+                </span>
+              </div>
             </div>
+            {currentBalance - reward.pointsCost < 0 && (
+              <p className="rounded-md bg-red-50 p-2 text-xs text-red-700">
+                Poin Anda kurang {(reward.pointsCost - currentBalance).toLocaleString('id-ID')}.
+                Selesaikan lebih banyak survei untuk menambah poin.
+              </p>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Tujuan</label>
               <p className="text-xs text-gray-500 mb-2">
@@ -666,11 +712,18 @@ function RedemptionModal({
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button
               onClick={handleInitiate}
-              disabled={loading}
-              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
+              disabled={
+                loading ||
+                currentBalance < reward.pointsCost ||
+                destinationNumber.replace(/\D/g, '').length < 9
+              }
+              className="w-full rounded-lg bg-primary-600 py-2 font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? 'Memproses...' : 'Lanjutkan'}
+              {loading ? 'Memproses...' : 'Lanjutkan & kirim OTP'}
             </button>
+            <p className="text-center text-xs text-gray-500">
+              Kode OTP akan dikirim ke email Anda untuk mengonfirmasi penukaran.
+            </p>
           </div>
         )}
 
@@ -743,7 +796,7 @@ function RedemptionModal({
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-sm text-gray-500">Sisa saldo</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {remainingBalance.toLocaleString()} poin
+                      {remainingBalance.toLocaleString('id-ID')} poin
                     </p>
                   </div>
                 )}
@@ -821,6 +874,7 @@ export function RewardPage() {
       {selectedReward && (
         <RedemptionModal
           reward={selectedReward}
+          currentBalance={balance?.available ?? 0}
           onClose={() => setSelectedReward(null)}
           onSuccess={handleRedemptionSuccess}
         />

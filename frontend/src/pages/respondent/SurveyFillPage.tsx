@@ -282,7 +282,7 @@ function PhoneNumberQuestion({ question, value, onChange, invalid }: RendererPro
           aria-label={question.text}
         />
       </div>
-      <p className="mt-1 text-xs text-gray-400">
+      <p className="mt-1 text-xs text-gray-500">
         Hanya angka, maksimal {PHONE_MAX_DIGITS} digit ({current.length}/{PHONE_MAX_DIGITS}).
       </p>
     </div>
@@ -310,7 +310,7 @@ function NumericScaleQuestion({ question, value, onChange, invalid }: RendererPr
           </option>
         ))}
       </select>
-      <p className="mt-1 text-xs text-gray-400">
+      <p className="mt-1 text-xs text-gray-500">
         Pilih angka {min} sampai {max}.
       </p>
     </div>
@@ -466,7 +466,7 @@ function FileUploadQuestion({ question, value, onChange, surveyId, invalid }: Re
                 aria-label={question.text}
               />
             </label>
-            <p className="text-xs text-gray-400">PNG, JPG, GIF, WEBP, atau PDF · maks 5 MB</p>
+            <p className="text-xs text-gray-500">PNG, JPG, GIF, WEBP, atau PDF · maks 5 MB</p>
           </div>
         )}
       </div>
@@ -519,7 +519,7 @@ function UniqueIdQuestion({ question, value, onChange, invalid }: RendererProps)
         aria-label={question.text}
       />
       {(min || max) && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-500">
           {min && max ? `${min}–${max} digit` : min ? `min ${min} digit` : `maks ${max} digit`}
         </p>
       )}
@@ -571,7 +571,7 @@ function RatingScaleQuestion({ question, value, onChange }: RendererProps) {
         </div>
       )}
       {(cfg?.ratingMinLabel || cfg?.ratingMaxLabel) && (
-        <div className="flex justify-between text-xs text-gray-400">
+        <div className="flex justify-between text-xs text-gray-500">
           <span>{cfg?.ratingMinLabel ?? ''}</span>
           <span>{cfg?.ratingMaxLabel ?? ''}</span>
         </div>
@@ -691,7 +691,7 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
         className={`w-full touch-none rounded-lg border bg-white ${invalid ? 'border-red-300' : 'border-gray-300'}`}
         style={{ height: 180 }}
       />
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Bubuhkan tanda tangan di kotak di atas (gunakan jari/mouse), lalu Simpan.
       </p>
       <div className="flex items-center gap-2">
@@ -782,7 +782,7 @@ function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
             <>
               <Camera className="h-6 w-6 text-gray-400" />
               <span className="text-sm font-medium text-primary-700">Buka Kamera / Pilih Foto</span>
-              <span className="text-xs text-gray-400">Di ponsel akan langsung membuka kamera</span>
+              <span className="text-xs text-gray-500">Di ponsel akan langsung membuka kamera</span>
             </>
           )}
           <input
@@ -1560,33 +1560,38 @@ export function SurveyFillPage() {
           {pageQuestions.map((question, idx) => {
             const invalid = missingIds.has(question.id);
             return (
-              <Card
-                key={question.id}
-                className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}
-              >
-                <div className="mb-4 flex items-start gap-3">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
-                    {isWizard ? currentPage : idx + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-base font-semibold leading-snug text-gray-900">
-                      {question.text}
-                      {question.required && <span className="ml-1 text-red-500">*</span>}
-                    </p>
-                    {question.description && (
-                      <p className="mt-1 text-xs text-gray-500">{question.description}</p>
-                    )}
+              // id + scroll-mt: jangkar agar submit gagal bisa scroll ke pertanyaan wajib kosong.
+              <div key={question.id} id={`q-${question.id}`} className="scroll-mt-20">
+                <Card className={invalid ? 'border-red-300 ring-1 ring-red-200' : ''}>
+                  <div className="mb-4 flex items-start gap-3">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
+                      {isWizard ? currentPage : idx + 1}
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-base font-semibold leading-snug text-gray-900">
+                        {question.text}
+                        {question.required && <span className="ml-1 text-red-500">*</span>}
+                      </p>
+                      {question.description && (
+                        <p className="mt-1 text-xs text-gray-500">{question.description}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <QuestionRenderer
-                  question={question}
-                  value={answers[question.id] ?? null}
-                  onChange={(val) => handleAnswerChange(question.id, val)}
-                  surveyId={survey.id}
-                  invalid={invalid}
-                  uppercase={survey.uppercaseAnswers ?? false}
-                />
-              </Card>
+                  <QuestionRenderer
+                    question={question}
+                    value={answers[question.id] ?? null}
+                    onChange={(val) => handleAnswerChange(question.id, val)}
+                    surveyId={survey.id}
+                    invalid={invalid}
+                    uppercase={survey.uppercaseAnswers ?? false}
+                  />
+                  {invalid && (
+                    <p className="mt-2 text-xs font-medium text-red-600">
+                      Pertanyaan ini wajib diisi.
+                    </p>
+                  )}
+                </Card>
+              </div>
             );
           })}
         </div>
@@ -1631,31 +1636,37 @@ export function SurveyFillPage() {
           </Card>
         )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between gap-3 pb-2">
-          <Button variant="secondary" onClick={goToPrevPage} disabled={currentPage === 1}>
-            <ChevronLeft className="h-4 w-4" /> Sebelumnya
-          </Button>
+        {/* Navigation — menempel di bawah layar (sticky) agar mudah dijangkau
+            tanpa scroll jauh pada survei panjang. */}
+        <div
+          className="sticky bottom-0 z-20 -mx-4 border-t border-gray-200 bg-white/95 px-4 pt-3 backdrop-blur sm:-mx-6 sm:px-6"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="secondary" onClick={goToPrevPage} disabled={currentPage === 1}>
+              <ChevronLeft className="h-4 w-4" /> Sebelumnya
+            </Button>
 
-          {isLastPage ? (
-            <Button onClick={handleSubmit} isLoading={submitting}>
-              <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
-            </Button>
-          ) : (
-            <Button
-              onClick={goToNextPage}
-              disabled={nextBlockedByRequired}
-              title={nextBlockedByRequired ? 'Jawab pertanyaan wajib ini dulu' : undefined}
-            >
-              Selanjutnya <ChevronRight className="h-4 w-4" />
-            </Button>
+            {isLastPage ? (
+              <Button onClick={handleSubmit} isLoading={submitting}>
+                <Send className="h-4 w-4" /> {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
+              </Button>
+            ) : (
+              <Button
+                onClick={goToNextPage}
+                disabled={nextBlockedByRequired}
+                title={nextBlockedByRequired ? 'Jawab pertanyaan wajib ini dulu' : undefined}
+              >
+                Selanjutnya <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {nextBlockedByRequired && (
+            <p className="mt-1.5 text-right text-xs text-amber-600">
+              Pertanyaan ini wajib diisi untuk melanjutkan.
+            </p>
           )}
         </div>
-        {nextBlockedByRequired && (
-          <p className="-mt-1 text-right text-xs text-amber-600">
-            Pertanyaan ini wajib diisi untuk melanjutkan.
-          </p>
-        )}
       </div>
     </MediaUploadProvider>
   );

@@ -120,10 +120,9 @@ export function LoginPage() {
           trailingIcon={
             <button
               type="button"
-              tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-              className="text-gray-400 transition-colors hover:text-gray-600 focus:outline-none"
+              className="-m-2 p-2 text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>

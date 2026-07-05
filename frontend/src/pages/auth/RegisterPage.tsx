@@ -1,4 +1,4 @@
-import { useState, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
@@ -65,6 +65,15 @@ export function RegisterPage() {
   const [otpInfo, setOtpInfo] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Cooldown "Kirim ulang kode" (detik) agar tak menekan berulang → rate-limit.
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resending, setResending] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   const goToProfile = (e: FormEvent) => {
     e.preventDefault();
@@ -112,6 +121,7 @@ export function RegisterPage() {
       });
       setOtpInfo(`Kode OTP telah dikirim ke ${email}.`);
       setStep('otp');
+      setResendCooldown(60);
     } catch (err: unknown) {
       const apiError = err as { message?: string | string[] };
       const msg = Array.isArray(apiError.message) ? apiError.message.join(', ') : apiError.message;
@@ -152,14 +162,19 @@ export function RegisterPage() {
   };
 
   const handleResendOtp = async () => {
+    if (resendCooldown > 0 || resending) return;
     setError('');
     setOtpInfo('');
+    setResending(true);
     try {
       await api.post('/registration/resend-otp', { email });
-      setOtpInfo(`Kode OTP baru telah dikirim ke ${email}.`);
+      setOtpInfo(`Kode OTP baru telah dikirim ke ${email}. Cek juga folder spam.`);
+      setResendCooldown(60);
     } catch (err: unknown) {
       const apiError = err as { message?: string };
       setError(apiError.message || 'Gagal mengirim ulang OTP.');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -214,12 +229,17 @@ export function RegisterPage() {
         )}
         <ErrorBox />
         <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <label htmlFor="otp-register" className="block text-sm font-medium text-gray-700">
+            Kode OTP (6 digit)
+          </label>
           <input
+            id="otp-register"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
             autoComplete="one-time-code"
             placeholder="______"
+            aria-label="Kode OTP 6 digit"
             className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-2xl font-semibold tracking-[0.5em] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             required
           />
@@ -236,9 +256,14 @@ export function RegisterPage() {
           <button
             type="button"
             onClick={handleResendOtp}
-            className="font-medium text-primary-600 hover:text-primary-500"
+            disabled={resendCooldown > 0 || resending}
+            className="font-medium text-primary-600 hover:text-primary-500 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:text-gray-400"
           >
-            Kirim ulang kode
+            {resending
+              ? 'Mengirim…'
+              : resendCooldown > 0
+                ? `Kirim ulang dalam ${resendCooldown}s`
+                : 'Kirim ulang kode'}
           </button>
           <button
             type="button"
@@ -435,10 +460,9 @@ export function RegisterPage() {
           trailingIcon={
             <button
               type="button"
-              tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-              className="text-gray-400 transition-colors hover:text-gray-600 focus:outline-none"
+              className="-m-2 p-2 text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
