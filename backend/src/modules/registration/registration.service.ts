@@ -43,6 +43,26 @@ export class RegistrationService {
   ) {}
 
   /**
+   * Cek dini ketersediaan email & telepon (langkah 1 registrasi) agar pengguna
+   * tak perlu mengisi seluruh langkah 2 hanya untuk ditolak di akhir. KONSISTEN
+   * dengan register(): akun PENDING (belum verifikasi) BUKAN penghalang (boleh
+   * didaftar ulang) → tidak dianggap "terpakai".
+   */
+  async checkAvailability(
+    email: string,
+    phone: string,
+  ): Promise<{ emailTaken: boolean; phoneTaken: boolean }> {
+    const [byEmail, byPhone] = await Promise.all([
+      this.userRepository.findOne({ where: { email } }),
+      this.userRepository.findOne({ where: { phone } }),
+    ]);
+    return {
+      emailTaken: !!byEmail && byEmail.status !== UserStatus.PENDING,
+      phoneTaken: !!byPhone && byPhone.status !== UserStatus.PENDING,
+    };
+  }
+
+  /**
    * Buang akun PENDING (belum terverifikasi) beserta profil demografinya agar
    * email/telepon-nya bebas untuk pendaftaran ulang. Aman: akun PENDING tak bisa
    * login sehingga tak punya respons/poin/penukaran — hanya baris user + profil.

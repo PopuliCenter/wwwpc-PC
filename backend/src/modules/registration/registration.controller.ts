@@ -2,7 +2,13 @@ import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Body, HttpCode, HttpStatus, UseGuards, Request } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { RegistrationService } from './registration.service';
-import { RegisterDto, VerifyOtpDto, ResendOtpDto, CompleteProfileDto } from './dto';
+import {
+  RegisterDto,
+  VerifyOtpDto,
+  ResendOtpDto,
+  CompleteProfileDto,
+  CheckAvailabilityDto,
+} from './dto';
 import { JwtAuthGuard } from '@modules/auth/guards';
 import { Public } from '@modules/auth/decorators';
 import { RegistrationResult, OtpResult, VerificationResult } from './interfaces';
@@ -37,6 +43,21 @@ export class RegistrationController {
       district: registerDto.district,
       address: registerDto.address,
     });
+  }
+
+  /**
+   * Cek dini ketersediaan email & telepon (langkah 1). Agar user tak mengisi
+   * seluruh langkah 2 hanya untuk ditolak. Throttle longgar (endpoint ringan)
+   * tapi tetap dibatasi untuk mengurangi enumerasi.
+   */
+  @Public()
+  @Post('check-availability')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  async checkAvailability(
+    @Body() dto: CheckAvailabilityDto,
+  ): Promise<{ emailTaken: boolean; phoneTaken: boolean }> {
+    return this.registrationService.checkAvailability(dto.email, dto.phone);
   }
 
   /**

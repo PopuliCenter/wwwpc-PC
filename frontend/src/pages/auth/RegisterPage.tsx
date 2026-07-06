@@ -88,12 +88,34 @@ export function RegisterPage() {
     }
   }, [step]);
 
-  const goToProfile = (e: FormEvent) => {
+  const goToProfile = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     if (password !== confirmPassword) {
       setError('Konfirmasi password tidak sama.');
       return;
+    }
+    // Cek dini email & telepon agar user tak mengisi seluruh langkah 2 hanya
+    // untuk ditolak di akhir. Bila cek gagal (jaringan/endpoint), tetap lanjut —
+    // register final tetap memvalidasi secara otoritatif.
+    setIsLoading(true);
+    try {
+      const res = await api.post<{ emailTaken: boolean; phoneTaken: boolean }>(
+        '/registration/check-availability',
+        { email, phone },
+      );
+      if (res.emailTaken) {
+        setError('Email sudah terdaftar. Silakan masuk, atau gunakan email lain.');
+        return;
+      }
+      if (res.phoneTaken) {
+        setError('Nomor telepon sudah terdaftar. Silakan masuk, atau gunakan nomor lain.');
+        return;
+      }
+    } catch {
+      /* endpoint hiccup → biarkan lanjut; validasi final tetap menegakkan */
+    } finally {
+      setIsLoading(false);
     }
     setStep('profile');
   };
@@ -519,7 +541,7 @@ export function RegisterPage() {
               : undefined
           }
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" isLoading={isLoading}>
           Lanjut
         </Button>
       </form>

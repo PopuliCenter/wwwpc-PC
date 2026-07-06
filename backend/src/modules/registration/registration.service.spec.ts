@@ -201,6 +201,39 @@ describe('RegistrationService', () => {
     });
   });
 
+  describe('checkAvailability', () => {
+    const activeUser = { ...mockUser, status: UserStatus.ACTIVE };
+    const pendingUser = { ...mockUser, status: UserStatus.PENDING };
+
+    it('email/telepon AKTIF → terpakai', async () => {
+      userRepository.findOne
+        .mockResolvedValueOnce(activeUser) // email
+        .mockResolvedValueOnce(activeUser); // phone
+      await expect(service.checkAvailability('a@x.com', '0812')).resolves.toEqual({
+        emailTaken: true,
+        phoneTaken: true,
+      });
+    });
+
+    it('akun PENDING TIDAK dianggap terpakai (boleh daftar ulang)', async () => {
+      userRepository.findOne
+        .mockResolvedValueOnce(pendingUser) // email
+        .mockResolvedValueOnce(null); // phone bebas
+      await expect(service.checkAvailability('a@x.com', '0812')).resolves.toEqual({
+        emailTaken: false,
+        phoneTaken: false,
+      });
+    });
+
+    it('email/telepon belum ada → bebas', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      await expect(service.checkAvailability('new@x.com', '0899')).resolves.toEqual({
+        emailTaken: false,
+        phoneTaken: false,
+      });
+    });
+  });
+
   describe('sendOtp', () => {
     it('should generate and store a 6-digit OTP in Redis', async () => {
       const result = await service.sendOtp('test@example.com');
