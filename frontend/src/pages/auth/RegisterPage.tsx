@@ -7,6 +7,7 @@ import { WilayahPicker } from '@/components/common/WilayahPicker';
 import { GoogleSignInButton } from '@/components/common/GoogleSignInButton';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
+import { OCCUPATIONS, OCCUPATION_OTHER } from '@/constants/occupations';
 import type { UserRole, LoginResponse } from '@/types';
 
 interface RegisterResult {
@@ -54,7 +55,11 @@ export function RegisterPage() {
   // Data diri
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
-  const [occupation, setOccupation] = useState('');
+  // Pekerjaan: pilihan dropdown + isian bebas saat "Lainnya".
+  const [occupationSelect, setOccupationSelect] = useState('');
+  const [occupationOther, setOccupationOther] = useState('');
+  const occupation =
+    occupationSelect === OCCUPATION_OTHER ? occupationOther.trim() : occupationSelect;
   const [education, setEducation] = useState('');
   const [religion, setReligion] = useState('');
   const [wilayah, setWilayah] = useState({ province: '', city: '', district: '' });
@@ -321,13 +326,36 @@ export function RegisterPage() {
                 <option value="female">Perempuan</option>
               </select>
             </div>
-            <Input
-              label="Pekerjaan"
-              value={occupation}
-              onChange={(e) => setOccupation(e.target.value)}
-              placeholder="Contoh: Wiraswasta"
-              required
-            />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Pekerjaan</label>
+              <select
+                value={occupationSelect}
+                onChange={(e) => setOccupationSelect(e.target.value)}
+                required
+                className={selectCls}
+              >
+                <option value="" disabled>
+                  Pilih…
+                </option>
+                {OCCUPATIONS.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+                <option value={OCCUPATION_OTHER}>Lainnya…</option>
+              </select>
+              {occupationSelect === OCCUPATION_OTHER && (
+                <div className="mt-2">
+                  <Input
+                    value={occupationOther}
+                    onChange={(e) => setOccupationOther(e.target.value)}
+                    placeholder="Tulis pekerjaan Anda"
+                    maxLength={100}
+                    required
+                  />
+                </div>
+              )}
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 Pendidikan Terakhir
