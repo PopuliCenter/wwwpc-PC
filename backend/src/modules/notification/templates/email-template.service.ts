@@ -18,6 +18,19 @@ export class EmailTemplateService {
     template: EmailTemplate,
     context: Record<string, any>,
   ): { subject: string; html: string; text: string } {
+    const inner = this.renderInner(template, context);
+    // Bungkus SEMUA email dengan header + footer brand yang konsisten.
+    return {
+      subject: inner.subject,
+      html: this.layout(inner.html),
+      text: `${inner.text}\n\n— Populi Center · Survei Online`,
+    };
+  }
+
+  private renderInner(
+    template: EmailTemplate,
+    context: Record<string, any>,
+  ): { subject: string; html: string; text: string } {
     switch (template) {
       case EmailTemplate.SURVEY_INVITATION:
         return this.renderSurveyInvitation(context as SurveyInvitationContext);
@@ -42,6 +55,51 @@ export class EmailTemplateService {
       default:
         throw new Error(`Unknown email template: ${template}`);
     }
+  }
+
+  /** URL aplikasi untuk logo & tautan (dari env, default produksi). */
+  private get appUrl(): string {
+    return (process.env.APP_URL || 'https://survei.risetcenter.com').replace(/\/+$/, '');
+  }
+
+  /**
+   * Bingkai email brand: HEADER gradient indigo + logo oranye (selaras dashboard/
+   * halaman login) dan FOOTER indigo gelap. Konten template dimasukkan di tengah
+   * (kartu putih). Inline-style + table agar tampil konsisten lintas klien email.
+   */
+  private layout(inner: string): string {
+    const year = new Date().getUTCFullYear();
+    const logo = `${this.appUrl}/logo-populi-center.png`;
+    return `
+<div style="margin:0;padding:24px 0;background:#eef2ff;">
+  <div style="max-width:600px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;">
+    <!-- Header -->
+    <div style="background:#4f46e5;background:linear-gradient(135deg,#6366f1 0%,#4338ca 100%);padding:22px 24px;border-radius:14px 14px 0 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="vertical-align:middle;padding-right:12px;">
+          <img src="${logo}" width="40" height="40" alt="Populi Center"
+               style="display:block;border-radius:9px;background:rgba(255,255,255,0.15);padding:6px;" />
+        </td>
+        <td style="vertical-align:middle;">
+          <div style="color:#ffffff;font-size:18px;font-weight:bold;line-height:1.2;">Populi Center</div>
+          <div style="color:#c7d2fe;font-size:12px;line-height:1.2;">Survei Online</div>
+        </td>
+      </tr></table>
+    </div>
+    <!-- Body -->
+    <div style="background:#ffffff;padding:28px 24px;color:#111827;font-size:14px;line-height:1.6;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+      ${inner}
+    </div>
+    <!-- Footer -->
+    <div style="background:#312e81;padding:20px 24px;border-radius:0 0 14px 14px;text-align:center;">
+      <div style="color:#c7d2fe;font-size:12px;line-height:1.6;">
+        Email ini dikirim otomatis oleh <strong style="color:#ffffff;">Populi Center · Survei Online</strong>.<br>
+        Mohon jangan membalas email ini.
+      </div>
+      <div style="color:#818cf8;font-size:11px;margin-top:10px;">© ${year} Populi Center. Semua hak dilindungi.</div>
+    </div>
+  </div>
+</div>`;
   }
 
   private renderAnnouncement(context: AnnouncementContext) {
