@@ -30,15 +30,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
+    // Detail validasi per-item (mis. daftar pertanyaan wajib) — diteruskan ke
+    // klien HANYA untuk error 4xx agar frontend bisa menampilkan alasan spesifik.
+    let errors: string[] | undefined;
 
     if (exception instanceof HttpException) {
       const res = exception.getResponse();
       if (typeof res === 'string') {
         message = res;
       } else if (res && typeof res === 'object') {
-        const r = res as { message?: string | string[]; error?: string };
+        const r = res as { message?: string | string[]; error?: string; errors?: unknown };
         message = r.message ?? exception.message;
         error = r.error ?? error;
+        if (Array.isArray(r.errors)) {
+          errors = r.errors.map((e) => String(e));
+        }
       }
     }
 
@@ -62,6 +68,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       error,
       message,
+      // Sertakan detail hanya utk 4xx (bukan 5xx yang di-scrub).
+      ...(errors && status < HttpStatus.INTERNAL_SERVER_ERROR ? { errors } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     });
