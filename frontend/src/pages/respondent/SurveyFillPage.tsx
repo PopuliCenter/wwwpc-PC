@@ -1241,7 +1241,6 @@ export function SurveyFillPage() {
           } | null>(`/surveys/${id}/responses/mine`);
           if (mine && mine.status !== 'complete' && mine.answers?.length) {
             for (const a of mine.answers) seed[a.questionId] = a.value;
-            setAnswers((prev) => ({ ...seed, ...prev }));
             setResumedDraft(true);
             // Lanjut di posisi terakhir (checkpoint): langkah/halaman pertanyaan
             // aktif pertama yang belum diisi — bukan mulai dari awal lagi.
@@ -1250,6 +1249,11 @@ export function SurveyFillPage() {
         } catch {
           /* tak ada draft / offline → mulai baru */
         }
+        // Seed jawaban (arm/assignments + draft) SEGERA di sini — baik ada draft
+        // maupun tidak — agar isActive (cabang berbasis arm) langsung benar tanpa
+        // menunggu efek terpisah render berikutnya (cegah race saat submit cepat/
+        // auto-submit timer di mana arm belum ter-seed).
+        setAnswers((prev) => ({ ...seed, ...prev }));
         baselineRef.current = serializeAnswers(seed);
       } catch (err: unknown) {
         // Sudah pernah menyelesaikan survei ini (409) → pesan jelas, JANGAN

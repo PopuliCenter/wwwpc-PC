@@ -67,32 +67,33 @@ export class VisibilityService {
       .where('question.survey_id = :surveyId', { surveyId })
       .getMany();
 
-    const visibilityMap: Record<string, boolean> = {};
-
+    // Kelompokkan aturan per pertanyaan agar hasil DETERMINISTIK (tak bergantung
+    // urutan baris) dan MENIRU PERSIS klien (surveyBranching.isQuestionVisible):
+    //   tampil  = tak ada aturan show ATAU SEMUA aturan show terpenuhi (AND / .every)
+    //   sembunyi= SALAH SATU aturan hide terpenuhi (hide menang atas show)
+    //   visible = tampil && !sembunyi
+    // Sebelumnya server memakai OR untuk show & bisa tertimpa urutan baris,
+    // sehingga pertanyaan cabang eksperimen (arm) bisa dianggap wajib di server
+    // padahal klien menyembunyikannya → submit ditolak "wajib diisi".
+    const grouped = new Map<string, { show: typeof rules; hide: typeof rules }>();
     for (const rule of rules) {
-      const actualValue = answers[rule.sourceQuestionId];
-      const conditionMet = evaluateCondition(
+      const g = grouped.get(rule.questionId) ?? { show: [], hide: [] };
+      (rule.visibilityAction === 'hide' ? g.hide : g.show).push(rule);
+      grouped.set(rule.questionId, g);
+    }
+
+    const met = (rule: (typeof rules)[number]): boolean =>
+      evaluateCondition(
         rule.conditionOperator as ConditionOperator,
         rule.conditionValue,
-        actualValue,
+        answers[rule.sourceQuestionId],
       );
 
-      if (rule.visibilityAction === 'show') {
-        // Show the question only if condition is met
-        // If multiple rules exist for same question, any met condition shows it
-        if (conditionMet) {
-          visibilityMap[rule.questionId] = true;
-        } else if (visibilityMap[rule.questionId] === undefined) {
-          visibilityMap[rule.questionId] = false;
-        }
-      } else if (rule.visibilityAction === 'hide') {
-        // Hide the question if condition is met
-        if (conditionMet) {
-          visibilityMap[rule.questionId] = false;
-        } else if (visibilityMap[rule.questionId] === undefined) {
-          visibilityMap[rule.questionId] = true;
-        }
-      }
+    const visibilityMap: Record<string, boolean> = {};
+    for (const [questionId, g] of grouped) {
+      const shown = g.show.length === 0 || g.show.every(met);
+      const hidden = g.hide.some(met);
+      visibilityMap[questionId] = shown && !hidden;
     }
 
     return visibilityMap;
