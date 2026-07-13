@@ -56,7 +56,7 @@ export class NotificationSchedulerService {
     this.baseUrl =
       this.configService.get<string>('APP_BASE_URL') ??
       this.configService.get<string>('APP_URL') ??
-      'https://survei.risetcenter.com';
+      'https://survei.populicenter.com';
   }
 
   /**

@@ -59,7 +59,7 @@ export class EmailTemplateService {
 
   /** URL aplikasi untuk logo & tautan (dari env, default produksi). */
   private get appUrl(): string {
-    return (process.env.APP_URL || 'https://survei.risetcenter.com').replace(/\/+$/, '');
+    return (process.env.APP_URL || 'https://survei.populicenter.com').replace(/\/+$/, '');
   }
 
   /**
@@ -288,7 +288,7 @@ export class EmailTemplateService {
       : isRedeem
         ? 'Gunakan kode berikut untuk mengonfirmasi penukaran reward Anda:'
         : 'Gunakan kode berikut untuk memverifikasi email dan mengaktifkan akun Anda:';
-    const appUrl = process.env.APP_URL || 'https://survei.risetcenter.com';
+    const appUrl = process.env.APP_URL || 'https://survei.populicenter.com';
 
     const html = `
       <div style="margin:0;padding:24px 12px;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">

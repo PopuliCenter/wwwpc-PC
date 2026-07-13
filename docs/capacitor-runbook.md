@@ -56,7 +56,7 @@ Berbeda dari web, aplikasi native memanggil server dari origin lokal, jadi:
 1. **URL API absolut.** Saat build native, set di `frontend/.env.production`:
 
    ```bash
-   VITE_API_BASE_URL=https://survei.risetcenter.com/api
+   VITE_API_BASE_URL=https://survei.populicenter.com/api
    ```
 
    (Di web ini kosong → otomatis `/api` relatif. Native WAJIB absolut — tanpa ini
@@ -65,7 +65,7 @@ Berbeda dari web, aplikasi native memanggil server dari origin lokal, jadi:
 2. **Izinkan origin aplikasi di CORS backend.** Di `backend/.env` VPS, tambahkan
    origin Capacitor ke `ALLOWED_ORIGINS`:
    ```bash
-   ALLOWED_ORIGINS=https://survei.risetcenter.com,https://localhost,capacitor://localhost
+   ALLOWED_ORIGINS=https://survei.populicenter.com,https://localhost,capacitor://localhost
    ```
    Lalu `docker compose up -d backend`. (Android pakai `https://localhost`, iOS
    `capacitor://localhost`.)

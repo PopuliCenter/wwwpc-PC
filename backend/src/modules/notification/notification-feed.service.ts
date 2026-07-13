@@ -159,7 +159,7 @@ export class NotificationFeedService {
       const baseUrl =
         this.configService.get<string>('APP_BASE_URL') ??
         this.configService.get<string>('APP_URL') ??
-        'https://survei.risetcenter.com';
+        'https://survei.populicenter.com';
       const actionUrl = dto.link ? `${baseUrl.replace(/\/+$/, '')}${dto.link}` : undefined;
       // Email HANYA ke alamat terverifikasi (M3): feed/push boleh ke semua aktif,
       // tapi email ke alamat tak terverifikasi menaikkan bounce & bisa nyasar ke
