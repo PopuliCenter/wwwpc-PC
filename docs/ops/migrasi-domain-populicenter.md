@@ -13,25 +13,21 @@ tindakan di Cloudflare + VPS + Google + rebuild AAB.
 
 ---
 
-## 1. Cloudflare — sertifikat Origin baru (WAJIB)
+## 1. Cloudflare — sertifikat Origin
 
-Cert lama `origin.pem` hanya SAN `*.risetcenter.com`, tidak menutup
-populicenter.com.
+Karena SELURUH VPS dipindah ke populicenter.com, file cert bersama
+`/etc/nginx/certs/origin.pem` (+ `origin.key`) kini berisi **Cloudflare Origin
+Certificate zona populicenter.com** (SAN `*.populicenter.com` + `populicenter.com`).
+SAN `*.populicenter.com` sudah mencakup `survei.populicenter.com`, jadi vhost
+survei memakai `origin.pem` yang sama — **tidak perlu file cert terpisah**.
 
-1. Cloudflare → pilih zona **populicenter.com** → **SSL/TLS → Origin Server →
-   Create Certificate**.
-2. Hostnames: `populicenter.com`, `*.populicenter.com`. Format PEM.
-3. Salin **Origin Certificate** dan **Private Key** ke VPS:
-   ```
-   sudo nano /etc/nginx/certs/populicenter-origin.pem   # tempel CERTIFICATE
-   sudo nano /etc/nginx/certs/populicenter-origin.key   # tempel PRIVATE KEY
-   sudo chmod 600 /etc/nginx/certs/populicenter-origin.key
-   ```
-   (Path harus berada di volume `certs` yang sudah di-mount nginx app lama —
-   sama dengan lokasi `origin.pem`.)
-4. **SSL/TLS → Overview** zona populicenter.com: set mode **Full** (disarankan —
-   CF↔origin lewat 443 memakai cert di atas). Jika terpaksa **Flexible**, vhost
-   sudah menyertakan `listen 80;` sebagai jaring pengaman.
+- Cert risetcenter lama di-backup sebagai `origin.pem.bak` / `origin.key.bak`.
+- **SSL/TLS → Overview** zona populicenter.com: mode **Full** (disarankan). Bila
+  **Flexible**, vhost sudah menyertakan `listen 80;` sebagai jaring pengaman.
+- Catatan: vhost redirect `survei.risetcenter.com.conf` juga menunjuk `origin.pem`.
+  Karena zona risetcenter.com pakai Flexible (CF↔origin via port 80) dan block ini
+  hanya `return 301`, mismatch cert di listener 443 tidak dipakai CF — redirect
+  tetap jalan.
 
 ## 2. VPS — pasang vhost
 
