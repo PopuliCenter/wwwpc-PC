@@ -40,8 +40,13 @@ Status item yang sudah disiapkan di repo ditandai ✅. Sisanya tindakan manual.
 
 ## 4. Versi
 
-- ☐ Naikkan `versionCode` tiap upload (mulai 1 → 2 → …) dan set `versionName`
-  (mis. "1.0.0") di `frontend/android/app/build.gradle`.
+- ✅ **Otomatis** — `frontend/android/app/build.gradle`:
+  - `versionCode` = jumlah commit git (`git rev-list --count HEAD`) → naik sendiri
+    tiap commit, tidak perlu dinaikkan manual.
+  - `versionName` = `version` di `frontend/package.json` (naikkan di sini untuk
+    rilis baru, mis. 1.0.0 → 1.1.0).
+  > Jangan menulis ulang riwayat git (squash/rebase yang mengurangi jumlah commit)
+  > — versionCode bisa turun dan Play akan menolak upload.
 
 ## 5. Legal & kebijakan
 

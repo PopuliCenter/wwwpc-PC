@@ -11,6 +11,38 @@ if (hasKeystore) {
     keystoreProps.load(new FileInputStream(keystorePropsFile))
 }
 
+// ── Versi otomatis ───────────────────────────────────────────────────────────
+// versionCode : jumlah commit git — naik sendiri tiap commit, tak pernah mundur,
+//               jadi tidak perlu diingat/dinaikkan manual. Play mewajibkan
+//               versionCode setiap upload LEBIH BESAR dari upload sebelumnya.
+//               (Catatan: jangan menulis ulang riwayat git — squash/rebase yang
+//               mengurangi jumlah commit akan menurunkan versionCode.)
+// versionName : "version" di frontend/package.json (satu sumber kebenaran).
+// Bila git atau package.json tak terbaca (mis. build dari arsip tanpa .git),
+// keduanya jatuh ke nilai cadangan agar build tetap jalan.
+def appVersionCode = {
+    try {
+        def out = providers.exec {
+            commandLine 'git', 'rev-list', '--count', 'HEAD'
+            workingDir rootProject.projectDir
+        }.standardOutput.asText.get().trim()
+        return out.isInteger() ? out.toInteger() : 1
+    } catch (Exception ignored) {
+        logger.warn("versionCode: git tidak terbaca, memakai fallback 1")
+        return 1
+    }
+}()
+
+def appVersionName = {
+    try {
+        def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+        return pkg.version ?: '1.0.0'
+    } catch (Exception ignored) {
+        logger.warn("versionName: package.json tidak terbaca, memakai fallback 1.0.0")
+        return '1.0.0'
+    }
+}()
+
 android {
     namespace = "com.populicenter.survei"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,8 +50,8 @@ android {
         applicationId "com.populicenter.survei"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
