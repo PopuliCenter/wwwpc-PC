@@ -51,6 +51,13 @@ android {
     }
 }
 
+// Nama output artifact unik agar tidak bentrok dengan aplikasi lain yang juga
+// menghasilkan "app-release.apk"/"app-release.aab". Output jadi:
+//   riset-populi-center-release.apk  &  riset-populi-center-release.aab
+base {
+    archivesName = 'riset-populi-center'
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
