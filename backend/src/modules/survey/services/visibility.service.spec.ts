@@ -201,28 +201,56 @@ describe('VisibilityService', () => {
 
     it('MULTI show: tampil hanya bila SEMUA aturan show terpenuhi (AND)', async () => {
       const rules = [
-        { questionId: 'q3', sourceQuestionId: 'arm', conditionOperator: 'equals', conditionValue: 'gender', visibilityAction: 'show' },
-        { questionId: 'q3', sourceQuestionId: 'qk', conditionOperator: 'equals', conditionValue: 'ya', visibilityAction: 'show' },
+        {
+          questionId: 'q3',
+          sourceQuestionId: 'arm',
+          conditionOperator: 'equals',
+          conditionValue: 'gender',
+          visibilityAction: 'show',
+        },
+        {
+          questionId: 'q3',
+          sourceQuestionId: 'qk',
+          conditionOperator: 'equals',
+          conditionValue: 'ya',
+          visibilityAction: 'show',
+        },
       ];
       visibilityRepository.createQueryBuilder.mockReturnValue(mockQb(rules));
 
       // arm cocok tapi qk TIDAK → dulu (OR) server keliru menampilkan; kini false.
-      expect(
-        (await service.evaluateVisibility('s', { arm: 'gender', qk: 'tidak' }))['q3'],
-      ).toBe(false);
+      expect((await service.evaluateVisibility('s', { arm: 'gender', qk: 'tidak' }))['q3']).toBe(
+        false,
+      );
       // keduanya cocok → tampil.
       expect((await service.evaluateVisibility('s', { arm: 'gender', qk: 'ya' }))['q3']).toBe(true);
     });
 
     it('show + hide: hide MENANG (deterministik)', async () => {
       const rules = [
-        { questionId: 'q4', sourceQuestionId: 'arm', conditionOperator: 'equals', conditionValue: 'gender', visibilityAction: 'show' },
-        { questionId: 'q4', sourceQuestionId: 'stop', conditionOperator: 'equals', conditionValue: 'x', visibilityAction: 'hide' },
+        {
+          questionId: 'q4',
+          sourceQuestionId: 'arm',
+          conditionOperator: 'equals',
+          conditionValue: 'gender',
+          visibilityAction: 'show',
+        },
+        {
+          questionId: 'q4',
+          sourceQuestionId: 'stop',
+          conditionOperator: 'equals',
+          conditionValue: 'x',
+          visibilityAction: 'hide',
+        },
       ];
       visibilityRepository.createQueryBuilder.mockReturnValue(mockQb(rules));
 
-      expect((await service.evaluateVisibility('s', { arm: 'gender', stop: 'x' }))['q4']).toBe(false);
-      expect((await service.evaluateVisibility('s', { arm: 'gender', stop: '-' }))['q4']).toBe(true);
+      expect((await service.evaluateVisibility('s', { arm: 'gender', stop: 'x' }))['q4']).toBe(
+        false,
+      );
+      expect((await service.evaluateVisibility('s', { arm: 'gender', stop: '-' }))['q4']).toBe(
+        true,
+      );
     });
   });
 });

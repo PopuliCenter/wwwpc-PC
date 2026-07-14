@@ -26,9 +26,7 @@ function LegalShell({ title, children }: { title: string; children: ReactNode })
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-medium text-indigo-100">Populi Center · Survei Online</p>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{title}</h1>
-          <p className="mt-2 text-xs text-indigo-200">
-            Terakhir diperbarui: {TERAKHIR_DIPERBARUI}
-          </p>
+          <p className="mt-2 text-xs text-indigo-200">Terakhir diperbarui: {TERAKHIR_DIPERBARUI}</p>
         </div>
       </header>
 
@@ -80,7 +78,9 @@ export function PublicPrivacyPolicyPage() {
 
       <section className="space-y-3">
         <H2>1. Data yang kami kumpulkan</H2>
-        <p className="font-medium text-gray-800">Data akun &amp; profil (Anda berikan saat daftar):</p>
+        <p className="font-medium text-gray-800">
+          Data akun &amp; profil (Anda berikan saat daftar):
+        </p>
         <Ul>
           <li>Nama lengkap, alamat email, nomor telepon</li>
           <li>Tanggal lahir, jenis kelamin, pendidikan, pekerjaan, agama</li>
@@ -177,8 +177,8 @@ export function PublicPrivacyPolicyPage() {
       <section className="space-y-3">
         <H2>6. Anak-anak</H2>
         <p>
-          Aplikasi ditujukan untuk pengguna berusia 17 tahun ke atas. Kami tidak sengaja mengumpulkan
-          data anak di bawah usia tersebut.
+          Aplikasi ditujukan untuk pengguna berusia 17 tahun ke atas. Kami tidak sengaja
+          mengumpulkan data anak di bawah usia tersebut.
         </p>
       </section>
 
@@ -210,8 +210,8 @@ export function PublicAccountDeletionPage() {
   return (
     <LegalShell title="Cara Menghapus Akun">
       <p>
-        Halaman ini menjelaskan cara menghapus akun <strong>Riset Populi Center</strong> beserta data
-        yang terkait dengannya.
+        Halaman ini menjelaskan cara menghapus akun <strong>Riset Populi Center</strong> beserta
+        data yang terkait dengannya.
       </p>
 
       <section className="space-y-3">
@@ -239,7 +239,8 @@ export function PublicAccountDeletionPage() {
         <H2>Menghapus akun tanpa aplikasi</H2>
         <p>
           Kirim email ke <strong>{EMAIL}</strong> dari alamat email yang terdaftar, dengan subjek{' '}
-          <strong>&quot;Hapus Akun&quot;</strong>. Permintaan diproses maksimal <strong>30 hari</strong>.
+          <strong>&quot;Hapus Akun&quot;</strong>. Permintaan diproses maksimal{' '}
+          <strong>30 hari</strong>.
         </p>
       </section>
 
@@ -290,8 +291,8 @@ export function PublicTermsPage() {
   return (
     <LegalShell title="Syarat & Ketentuan">
       <p>
-        Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan data yang benar.
-        Satu orang hanya boleh memiliki satu akun.
+        Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan data yang
+        benar. Satu orang hanya boleh memiliki satu akun.
       </p>
       <p>
         Poin diberikan atas survei yang diselesaikan sesuai ketentuan tiap survei, dan dapat ditukar
