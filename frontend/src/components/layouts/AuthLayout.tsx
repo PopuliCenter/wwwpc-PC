@@ -1,4 +1,4 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, Link } from 'react-router-dom';
 import { Suspense } from 'react';
 import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
@@ -118,14 +118,30 @@ export function AuthLayout() {
             </Suspense>
           </div>
         </div>
-        {/* Footer logo + hak cipta — tampil di mobile (desktop sudah ada di panel brand) */}
-        <div className="flex items-center justify-center gap-2 pb-6 text-xs text-gray-400 lg:hidden">
-          <img
-            src="/logo-populi-center.png"
-            alt="Populi Center"
-            className="h-4 w-4 object-contain opacity-70"
-          />
-          <span>© {new Date().getFullYear()} Populi Center</span>
+        {/* Footer: tautan legal publik (wajib mudah ditemukan — Play & OAuth Google)
+            + logo/hak cipta di mobile (desktop sudah ada di panel brand). */}
+        <div className="flex flex-col items-center gap-2 pb-6 text-xs text-gray-400">
+          <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+            <Link className="hover:text-gray-600 hover:underline" to="/kebijakan-privasi">
+              Kebijakan Privasi
+            </Link>
+            <span aria-hidden>·</span>
+            <Link className="hover:text-gray-600 hover:underline" to="/syarat-ketentuan">
+              Syarat &amp; Ketentuan
+            </Link>
+            <span aria-hidden>·</span>
+            <Link className="hover:text-gray-600 hover:underline" to="/penghapusan-akun">
+              Hapus Akun
+            </Link>
+          </nav>
+          <div className="flex items-center justify-center gap-2 lg:hidden">
+            <img
+              src="/logo-populi-center.png"
+              alt="Populi Center"
+              className="h-4 w-4 object-contain opacity-70"
+            />
+            <span>© {new Date().getFullYear()} Populi Center</span>
+          </div>
         </div>
       </div>
     </div>

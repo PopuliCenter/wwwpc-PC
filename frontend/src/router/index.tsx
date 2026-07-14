@@ -1,4 +1,4 @@
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AuthLayout } from '@/components/layouts/AuthLayout';
 import { AdminLayout } from '@/components/layouts/AdminLayout';
@@ -21,6 +21,25 @@ const RegisterPage = lazy(() =>
 const ForgotPasswordPage = lazy(() =>
   import('@/pages/auth/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })),
 );
+
+// Halaman legal PUBLIK (tanpa login) — Google Play mewajibkan URL kebijakan
+// privasi & penghapusan akun yang bisa dibuka reviewer tanpa akun. Berdiri
+// sendiri (punya shell/header sendiri), jadi TIDAK memakai AuthLayout dan perlu
+// <Suspense> sendiri.
+const PublicPrivacyPolicyPage = lazy(() =>
+  import('@/pages/legal/PublicLegalPages').then((m) => ({ default: m.PublicPrivacyPolicyPage })),
+);
+const PublicAccountDeletionPage = lazy(() =>
+  import('@/pages/legal/PublicLegalPages').then((m) => ({ default: m.PublicAccountDeletionPage })),
+);
+const PublicTermsPage = lazy(() =>
+  import('@/pages/legal/PublicLegalPages').then((m) => ({ default: m.PublicTermsPage })),
+);
+
+/** Bungkus halaman legal dengan Suspense (rute top-level tanpa layout). */
+function legal(element: React.ReactNode) {
+  return <Suspense fallback={<div className="min-h-screen bg-gray-50" />}>{element}</Suspense>;
+}
 
 const ProfileCompletionPage = lazy(() =>
   import('@/pages/respondent/ProfileCompletionPage').then((m) => ({
@@ -99,6 +118,11 @@ const AnnouncementPage = lazy(() =>
 );
 
 export const router = createBrowserRouter([
+  // Halaman legal publik — TANPA login (wajib Google Play).
+  { path: '/kebijakan-privasi', element: legal(<PublicPrivacyPolicyPage />) },
+  { path: '/penghapusan-akun', element: legal(<PublicAccountDeletionPage />) },
+  { path: '/syarat-ketentuan', element: legal(<PublicTermsPage />) },
+
   // Public auth routes
   {
     path: '/',

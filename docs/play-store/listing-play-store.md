@@ -3,8 +3,10 @@
 Salin-tempel ke Play Console → **Grow → Store presence → Main store listing**.
 Batas karakter Play: judul 30, deskripsi singkat 80, deskripsi lengkap 4000.
 
-> ⚠️ Ganti placeholder `[URL_KEBIJAKAN_PRIVASI]` dan `[EMAIL_DUKUNGAN]` sebelum
-> submit. Kebijakan privasi WAJIB berupa URL publik yang bisa dibuka reviewer.
+> ✅ URL legal sudah LIVE dan dapat dibuka **tanpa login** (syarat reviewer Play):
+> - Kebijakan Privasi — https://survei.populicenter.com/kebijakan-privasi
+> - Penghapusan Akun — https://survei.populicenter.com/penghapusan-akun
+> - Syarat & Ketentuan — https://survei.populicenter.com/syarat-ketentuan
 
 ---
 
@@ -65,7 +67,7 @@ KEAMANAN DAN PRIVASI
 • Pendaftaran diverifikasi melalui OTP yang dikirim ke email Anda.
 • Data diri Anda digunakan untuk pembobotan hasil riset, dan tidak diperjualbelikan.
 • Anda dapat menghapus akun beserta data Anda kapan saja melalui menu Profil.
-• Kebijakan privasi: [URL_KEBIJAKAN_PRIVASI]
+• Kebijakan privasi: https://survei.populicenter.com/kebijakan-privasi
 
 CATATAN PENTING
 Poin diberikan semata-mata sebagai apresiasi atas partisipasi Anda mengisi survei. Aplikasi ini bukan permainan berhadiah, bukan undian, dan bukan perjudian. Jumlah survei yang tersedia mengikuti kebutuhan riset yang sedang berjalan, sehingga survei baru tidak selalu tersedia setiap saat.
@@ -73,7 +75,7 @@ Poin diberikan semata-mata sebagai apresiasi atas partisipasi Anda mengisi surve
 TENTANG POPULI CENTER
 Populi Center adalah lembaga riset opini publik dan kebijakan. Jawaban Anda diolah secara agregat untuk keperluan riset.
 
-Butuh bantuan? Hubungi kami di [EMAIL_DUKUNGAN]
+Butuh bantuan? Hubungi kami di info@populicenter.org
 ```
 
 ---
@@ -84,9 +86,9 @@ Butuh bantuan? Hubungi kami di [EMAIL_DUKUNGAN]
 |---|---|
 | **App category** | Aplikasi → **Tools** (alternatif: *Lifestyle*). Jangan pilih *Finance* — memicu peninjauan tambahan. |
 | **Tags** | Surveys, Research, Rewards |
-| **Email kontak** | `[EMAIL_DUKUNGAN]` (wajib, tampil publik di listing) |
+| **Email kontak** | `info@populicenter.org` (wajib, tampil publik di listing) |
 | **Website** | `https://survei.populicenter.com` |
-| **Kebijakan privasi** | `[URL_KEBIJAKAN_PRIVASI]` (wajib, URL publik) |
+| **Kebijakan privasi** | `https://survei.populicenter.com/kebijakan-privasi` (wajib, URL publik) |
 | **Ads** | **Tidak** ada iklan |
 | **In-app purchases** | **Tidak** ada |
 | **Content rating** | Isi kuesioner IARC — jawab jujur: tidak ada kekerasan/seksual/judi. Hasil biasanya **Rated for 3+ / Everyone**. |
@@ -101,5 +103,6 @@ Butuh bantuan? Hubungi kami di [EMAIL_DUKUNGAN]
 - **App access**: Google harus bisa masuk. Sediakan akun tester (email + password
   responden yang sudah terverifikasi) di Play Console → *App content → App access*.
 - **Data safety**: isi mengacu `docs/play-store/data-safety.md`.
-- **Penghapusan akun**: cantumkan URL `docs/play-store/penghapusan-akun.md` yang
-  sudah dipublikasikan — Play mewajibkan jalur hapus akun dari luar aplikasi juga.
+- **Penghapusan akun**: isi URL `https://survei.populicenter.com/penghapusan-akun`
+  di *App content → Data deletion* — Play mewajibkan jalur hapus akun yang dapat
+  diakses dari luar aplikasi (tanpa login).
