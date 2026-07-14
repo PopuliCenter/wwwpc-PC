@@ -541,14 +541,14 @@ export class RewardService {
     // Check minimum threshold
     if (balance.available < MINIMUM_REDEMPTION_THRESHOLD) {
       throw new BadRequestException(
-        `Saldo tidak mencukupi. Minimum penukaran adalah ${MINIMUM_REDEMPTION_THRESHOLD.toLocaleString()} poin.`,
+        `Saldo tidak mencukupi. Minimum penukaran adalah ${MINIMUM_REDEMPTION_THRESHOLD.toLocaleString('id-ID')} poin.`,
       );
     }
 
     // Check sufficient balance for this reward
     if (balance.available < reward.pointsCost) {
       throw new BadRequestException(
-        `Saldo tidak mencukupi. Reward ini membutuhkan ${reward.pointsCost.toLocaleString()} poin, saldo tersedia: ${balance.available.toLocaleString()} poin.`,
+        `Saldo tidak mencukupi. Reward ini membutuhkan ${reward.pointsCost.toLocaleString('id-ID')} poin, saldo tersedia: ${balance.available.toLocaleString('id-ID')} poin.`,
       );
     }
 

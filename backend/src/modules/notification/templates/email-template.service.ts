@@ -204,7 +204,7 @@ export class EmailTemplateService {
         <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #4caf50;">
           <h3 style="margin: 0 0 8px 0;">${context.surveyTitle}</h3>
           <p style="margin: 0; color: #666;">Dikirim pada: ${context.submittedAt}</p>
-          ${context.pointsEarned ? `<p style="margin: 8px 0 0 0; color: #2e7d32;">🎉 Anda mendapatkan ${context.pointsEarned.toLocaleString()} poin!</p>` : ''}
+          ${context.pointsEarned ? `<p style="margin: 8px 0 0 0; color: #2e7d32;">🎉 Anda mendapatkan ${context.pointsEarned.toLocaleString('id-ID')} poin!</p>` : ''}
         </div>
       </div>
     `;
@@ -213,14 +213,14 @@ export class EmailTemplateService {
   }
 
   private renderPointsThreshold(context: PointsThresholdContext) {
-    const subject = `Selamat! Saldo poin Anda sudah mencapai ${context.threshold.toLocaleString()} poin`;
+    const subject = `Selamat! Saldo poin Anda sudah mencapai ${context.threshold.toLocaleString('id-ID')} poin`;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Halo ${context.respondentName},</h2>
         <p>Selamat! Saldo poin Anda telah mencapai threshold minimum penukaran:</p>
         <div style="background: #e3f2fd; padding: 16px; border-radius: 8px; margin: 16px 0; text-align: center;">
-          <p style="font-size: 32px; font-weight: bold; margin: 0; color: #1976d2;">${context.currentBalance.toLocaleString()} Poin</p>
-          <p style="margin: 8px 0 0 0; color: #666;">Minimum penukaran: ${context.threshold.toLocaleString()} poin</p>
+          <p style="font-size: 32px; font-weight: bold; margin: 0; color: #1976d2;">${context.currentBalance.toLocaleString('id-ID')} Poin</p>
+          <p style="margin: 8px 0 0 0; color: #666;">Minimum penukaran: ${context.threshold.toLocaleString('id-ID')} poin</p>
         </div>
         <p>Anda sekarang dapat menukarkan poin dengan pulsa, paket data, voucher, atau e-wallet!</p>
         <a href="${context.redeemUrl}" style="display: inline-block; background: #4caf50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Tukarkan Poin</a>
@@ -239,9 +239,9 @@ export class EmailTemplateService {
         <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; margin: 16px 0;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 4px 0; color: #666;">Tipe Reward:</td><td style="padding: 4px 0; font-weight: bold;">${context.rewardType}</td></tr>
-            <tr><td style="padding: 4px 0; color: #666;">Poin Digunakan:</td><td style="padding: 4px 0; font-weight: bold;">${context.pointsSpent.toLocaleString()}</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Poin Digunakan:</td><td style="padding: 4px 0; font-weight: bold;">${context.pointsSpent.toLocaleString('id-ID')}</td></tr>
             <tr><td style="padding: 4px 0; color: #666;">Nomor Tujuan:</td><td style="padding: 4px 0; font-weight: bold;">${context.destinationNumber}</td></tr>
-            <tr><td style="padding: 4px 0; color: #666;">Sisa Saldo:</td><td style="padding: 4px 0; font-weight: bold;">${context.remainingBalance.toLocaleString()} poin</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Sisa Saldo:</td><td style="padding: 4px 0; font-weight: bold;">${context.remainingBalance.toLocaleString('id-ID')} poin</td></tr>
           </table>
         </div>
         <p style="color: #666; font-size: 12px;">Reward akan diproses dalam 1x24 jam.</p>
@@ -261,15 +261,15 @@ export class EmailTemplateService {
           <table style="width: 100%; border-collapse: collapse;">
             <tr><td style="padding: 4px 0; color: #666;">Tipe Reward:</td><td style="padding: 4px 0; font-weight: bold;">${context.rewardType}</td></tr>
             <tr><td style="padding: 4px 0; color: #666;">Nomor Tujuan:</td><td style="padding: 4px 0; font-weight: bold;">${context.destinationNumber}</td></tr>
-            <tr><td style="padding: 4px 0; color: #666;">Poin Dikembalikan:</td><td style="padding: 4px 0; font-weight: bold; color: #2e7d32;">+${context.pointsRefunded.toLocaleString()}</td></tr>
-            <tr><td style="padding: 4px 0; color: #666;">Saldo Sekarang:</td><td style="padding: 4px 0; font-weight: bold;">${context.remainingBalance.toLocaleString()} poin</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Poin Dikembalikan:</td><td style="padding: 4px 0; font-weight: bold; color: #2e7d32;">+${context.pointsRefunded.toLocaleString('id-ID')}</td></tr>
+            <tr><td style="padding: 4px 0; color: #666;">Saldo Sekarang:</td><td style="padding: 4px 0; font-weight: bold;">${context.remainingBalance.toLocaleString('id-ID')} poin</td></tr>
           </table>
         </div>
         ${context.reason ? `<p style="color: #666;">Alasan: ${context.reason}</p>` : ''}
         <p style="color: #666;">Silakan periksa kembali nomor tujuan Anda dan coba lagi. Jika masalah berlanjut, hubungi tim kami.</p>
       </div>
     `;
-    const text = `Halo ${context.respondentName}, penukaran ${context.rewardType} ke ${context.destinationNumber} gagal.${context.reason ? ` Alasan: ${context.reason}.` : ''} ${context.pointsRefunded.toLocaleString()} poin telah dikembalikan. Saldo sekarang: ${context.remainingBalance.toLocaleString()} poin.`;
+    const text = `Halo ${context.respondentName}, penukaran ${context.rewardType} ke ${context.destinationNumber} gagal.${context.reason ? ` Alasan: ${context.reason}.` : ''} ${context.pointsRefunded.toLocaleString('id-ID')} poin telah dikembalikan. Saldo sekarang: ${context.remainingBalance.toLocaleString('id-ID')} poin.`;
     return { subject, html, text };
   }
 

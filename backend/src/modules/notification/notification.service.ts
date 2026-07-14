@@ -202,7 +202,7 @@ export class NotificationService {
 
     const payload: EmailPayload = {
       to: respondent.email,
-      subject: `Selamat! Saldo poin Anda sudah mencapai ${POINTS_THRESHOLD.toLocaleString()} poin`,
+      subject: `Selamat! Saldo poin Anda sudah mencapai ${POINTS_THRESHOLD.toLocaleString('id-ID')} poin`,
       template: EmailTemplate.POINTS_THRESHOLD,
       context: {
         respondentName: respondent.fullName,

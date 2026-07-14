@@ -47,4 +47,10 @@ def('SMTP_HOST', 'localhost');
 def('SMTP_PORT', '1025');
 def('MAIL_FROM', 'Test <test@example.com>');
 
+// Enkripsi koordinat GPS. GeolocationService MELEMPAR error saat konstruksi bila
+// kosong, sehingga seluruh AppModule gagal dimuat → E2E mati. Di mesin dev nilai
+// ini datang dari backend/.env (yang di-gitignore), jadi tanpa default di sini
+// E2E hijau lokal tapi MERAH di CI. Nilai uji saja — jangan dipakai di produksi.
+def('GEO_ENCRYPTION_KEY', 'e2e-test-geo-key-32-bytes-000000');
+
 def('ALLOWED_ORIGINS', '');
