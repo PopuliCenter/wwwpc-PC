@@ -68,7 +68,10 @@ export class EmailTemplateService {
    * (kartu putih). Inline-style + table agar tampil konsisten lintas klien email.
    */
   private layout(inner: string): string {
-    const year = new Date().getUTCFullYear();
+    // Zona waktu proses (TZ=Asia/Jakarta), bukan UTC: pada 1 Jan 00:00–07:00 WIB
+    // UTC masih 31 Des, sehingga footer email akan menulis tahun lama sementara
+    // footer web (getFullYear lokal) sudah tahun baru.
+    const year = new Date().getFullYear();
     const logo = `${this.appUrl}/logo-populi-center.png`;
     return `
 <div style="margin:0;padding:24px 0;background:#eef2ff;">
