@@ -11,7 +11,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'com.populicenter.survei',
-  appName: 'Survei Populi Center',
+  appName: 'Riset Populi Center',
   webDir: 'dist',
   server: {
     // Skema https untuk Android agar service worker / API sama seperti web.
