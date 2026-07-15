@@ -3,6 +3,7 @@ import { Wallet, Gift, Hourglass, Clock, Smartphone } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
 import { usePointsStore } from '@/stores/points.store';
+import { pushBackButtonOverride } from '@/utils/nativeBackButton';
 
 // Types — disesuaikan dgn kontrak backend (modules/reward)
 interface PointBalance {
@@ -570,18 +571,15 @@ function RedemptionModal({
 
   // Kunci scroll latar saat modal terbuka + tombol Back Android → TUTUP modal
   // (bukan keluar aplikasi / pindah rute saat OTP penukaran sedang berjalan).
+  // Override didaftarkan ke koordinator pusat agar tidak dobel-aksi dengan
+  // handler default NativeBackGuard.
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    let remove: (() => void) | undefined;
-    void import('@capacitor/app').then(({ App }) => {
-      void App.addListener('backButton', () => onClose()).then((h) => {
-        remove = () => void h.remove();
-      });
-    });
+    const removeOverride = pushBackButtonOverride(() => onClose());
     return () => {
       document.body.style.overflow = prevOverflow;
-      remove?.();
+      removeOverride();
     };
   }, [onClose]);
 

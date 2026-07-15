@@ -4,6 +4,7 @@ import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { isEmbedMode } from '@/utils/embed';
 import { PageLoader } from '@/components/common/PageLoader';
+import { NativeBackGuard } from '@/components/common/NativeBackGuard';
 
 const highlights = [
   {
@@ -58,6 +59,8 @@ export function AuthLayout() {
 
   return (
     <div className="grid min-h-screen grid-rows-1 lg:grid-cols-2">
+      {/* Back Android: di /login langsung keluar aplikasi. */}
+      <NativeBackGuard />
       {/* Brand panel — hidden on small screens */}
       <div className="relative hidden overflow-hidden bg-primary-800 lg:flex lg:flex-col lg:justify-between">
         <div className="bg-grain absolute inset-0 opacity-60" />

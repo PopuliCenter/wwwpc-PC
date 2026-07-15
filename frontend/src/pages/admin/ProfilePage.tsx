@@ -4,6 +4,7 @@ import { Camera, BadgeCheck } from 'lucide-react';
 import { api } from '@/services/api';
 import { Avatar } from '@/components/common/Avatar';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { pushBackButtonOverride } from '@/utils/nativeBackButton';
 import { LoadingState } from '@/components/common/AsyncState';
 import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
@@ -85,23 +86,12 @@ export function ProfilePage() {
   }, []);
 
   // Tombol back Android: saat di sub-layar Settings, kembali ke menu (bukan
-  // keluar app). Listener hanya aktif selama di sub-layar; di menu dilepas agar
-  // perilaku back default (navigasi/keluar) kembali normal.
+  // keluar app). Override hanya aktif selama di sub-layar; di menu dilepas agar
+  // perilaku default (NativeBackGuard) kembali berlaku.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     if (!(profile?.role === 'respondent' && view !== 'menu')) return;
-    let cleanup: (() => void) | undefined;
-    let cancelled = false;
-    void import('@capacitor/app').then(({ App }) => {
-      void App.addListener('backButton', () => setView('menu')).then((handle) => {
-        if (cancelled) void handle.remove();
-        else cleanup = () => void handle.remove();
-      });
-    });
-    return () => {
-      cancelled = true;
-      cleanup?.();
-    };
+    return pushBackButtonOverride(() => setView('menu'));
   }, [profile?.role, view]);
 
   const openStoreRating = () => {

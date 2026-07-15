@@ -9,6 +9,7 @@ import { usePointsStore } from '@/stores/points.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isEmbedMode } from '@/utils/embed';
+import { NativeBackGuard } from '@/components/common/NativeBackGuard';
 
 const navItems = [
   { path: '/surveys', label: 'Survei', icon: FileText },
@@ -47,6 +48,8 @@ export function RespondentLayout() {
 
   return (
     <div className={`flex flex-col ${isEmbedMode ? '' : 'min-h-screen'}`}>
+      {/* Back Android: di beranda (/surveys) konfirmasi dulu sebelum keluar app. */}
+      <NativeBackGuard />
       {/* Header — disembunyikan di mode embed (Elementor sudah punya header) */}
       {!isEmbedMode && (
         <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">

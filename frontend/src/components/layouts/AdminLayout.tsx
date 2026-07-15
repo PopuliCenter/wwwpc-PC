@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { PageLoader } from '@/components/common/PageLoader';
+import { NativeBackGuard } from '@/components/common/NativeBackGuard';
 import {
   LayoutDashboard,
   ClipboardList,
@@ -75,6 +76,8 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-surface">
+      {/* Back Android: di beranda (/admin/dashboard) konfirmasi sebelum keluar app. */}
+      <NativeBackGuard />
       {/* Backdrop gelap — hanya saat drawer terbuka di mobile */}
       {sidebarOpen && (
         <div
