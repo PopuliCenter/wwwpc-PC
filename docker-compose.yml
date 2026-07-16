@@ -24,27 +24,26 @@
 name: survei
 
 services:
-
   # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: survei_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER:     ${DB_USERNAME:-postgres}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD wajib diisi di .env}
-      POSTGRES_DB:       ${DB_DATABASE:-survei_online}
+      POSTGRES_DB: ${DB_DATABASE:-survei_online}
     # Bind ke loopback saja — DB tidak boleh terbuka ke internet publik.
     # Container lain menjangkaunya via jaringan internal Docker.
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - survei_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-survei_online}"]
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-survei_online}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -62,13 +61,13 @@ services:
       --maxmemory-policy allkeys-lru
       --save 60 1
     ports:
-      - "127.0.0.1:6379:6379"
+      - '127.0.0.1:6379:6379'
     volumes:
       - redis_data:/data
     networks:
       - survei_network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,20 +79,20 @@ services:
     container_name: survei_minio
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD wajib diisi di .env}
     # API :9000 dan console :9001 hanya dapat diakses dari host lokal.
     # Akses console dari luar via SSH tunnel jika diperlukan.
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - minio_data:/data
     networks:
       - survei_network
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 15s
       timeout: 5s
       retries: 5
@@ -103,14 +102,14 @@ services:
   minio-init:
     image: minio/mc:latest
     container_name: survei_minio_init
-    restart: "no"
+    restart: 'no'
     depends_on:
       minio:
         condition: service_healthy
     networks:
       - survei_network
     environment:
-      MINIO_ROOT_USER:     ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     entrypoint: >
       /bin/sh -c "
@@ -124,6 +123,12 @@ services:
   # Migration TypeORM dijalankan otomatis saat startup (migrationsRun=true
   # di database.config.ts ketika NODE_ENV=production).
   backend:
+    # Image rilis dari CI (GitHub Actions build & push ke GHCR tiap push main).
+    # Deploy normal: `docker compose pull backend && docker compose up -d backend`
+    # (tanpa build di VPS). Rollback: `IMAGE_TAG=sha-<commit> docker compose up -d`.
+    # Blok `build:` dipertahankan sebagai fallback (`--build`) bila registry
+    # tak terjangkau.
+    image: ghcr.io/populicenter/survei-backend:${IMAGE_TAG:-latest}
     build:
       # Context = root monorepo (npm workspaces). Dockerfile butuh package-lock.json
       # root + tsconfig.base.json + manifest kedua workspace.
@@ -135,29 +140,29 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      NODE_ENV:           production
+      NODE_ENV: production
       # Zona waktu proses = WIB agar perhitungan window reminder H-3/H-1 (dihitung
       # dari waktu lokal proses) selaras dengan deadline survei yang diset admin
       # dalam WIB (M1: cegah reminder meleset satu hari saat TZ proses ≠ TZ DB).
-      TZ:                 ${TZ:-Asia/Jakarta}
+      TZ: ${TZ:-Asia/Jakarta}
       # Override agar gunakan nama service Docker, bukan localhost
-      DB_HOST:            postgres
-      DB_PORT:            "5432"
-      DB_USERNAME:        ${DB_USERNAME:-postgres}
-      DB_PASSWORD:        ${DB_PASSWORD}
-      DB_DATABASE:        ${DB_DATABASE:-survei_online}
-      DB_SYNCHRONIZE:     "false"
-      DB_LOGGING:         "false"
-      REDIS_HOST:         redis
-      REDIS_PORT:         "6379"
-      REDIS_PASSWORD:     ${REDIS_PASSWORD}
-      BULL_REDIS_HOST:    redis
-      BULL_REDIS_PORT:    "6379"
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE:-survei_online}
+      DB_SYNCHRONIZE: 'false'
+      DB_LOGGING: 'false'
+      REDIS_HOST: redis
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      BULL_REDIS_HOST: redis
+      BULL_REDIS_PORT: '6379'
       BULL_REDIS_PASSWORD: ${REDIS_PASSWORD}
-      S3_ENDPOINT:        http://minio:9000
-      S3_ACCESS_KEY:      ${MINIO_ROOT_USER:-minioadmin}
-      S3_SECRET_KEY:      ${MINIO_ROOT_PASSWORD}
-      ALLOWED_ORIGINS:    ${ALLOWED_ORIGINS:-http://localhost}
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost}
     # TIDAK publish ke host: frontend (nginx) menjangkau backend lewat jaringan
     # internal Docker (survei_network) via nama service "backend:3000".
     # Host port 3000 sudah dipakai survey-populicenter, jadi jangan di-bind.
@@ -165,7 +170,7 @@ services:
     # ports:
     #   - "127.0.0.1:3100:3000"
     expose:
-      - "3000"
+      - '3000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -176,7 +181,7 @@ services:
     networks:
       - survei_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/health || exit 1']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -187,6 +192,8 @@ services:
   #   /api/*  → proxy ke backend:3000 (strip /api prefix)
   #   /*      → file statis SPA + fallback ke index.html
   frontend:
+    # Image rilis dari CI — lihat catatan di service backend.
+    image: ghcr.io/populicenter/survei-frontend:${IMAGE_TAG:-latest}
     build:
       # Context = root monorepo (npm workspaces) — lihat catatan di service backend.
       context: .
@@ -203,17 +210,17 @@ services:
     # ports:
     #   - "127.0.0.1:8081:80"
     expose:
-      - "80"
+      - '80'
     depends_on:
       backend:
         condition: service_healthy
     networks:
-      - survei_network   # internal: ke backend/postgres/redis/minio
-      - web              # bersama: tempat reverse proxy menjangkau frontend
+      - survei_network # internal: ke backend/postgres/redis/minio
+      - web # bersama: tempat reverse proxy menjangkau frontend
     healthcheck:
       # 127.0.0.1 (bukan localhost): nginx hanya listen IPv4; localhost di Alpine
       # bisa resolve ke ::1 (IPv6) lebih dulu → "Connection refused" palsu.
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/health || exit 1']
       interval: 30s
       timeout: 5s
       retries: 3
