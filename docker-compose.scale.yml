@@ -1,0 +1,29 @@
+# =============================================================================
+# Override OPSIONAL — jalankan BEBERAPA replika backend (horizontal scale).
+# =============================================================================
+# Default stack = 1 backend (cukup untuk 1200 responden/7 hari, headroom ~20x).
+# Pakai ini HANYA bila menjalankan beberapa survei nasional BERSAMAAN dan ingin
+# memakai lebih banyak core CPU (Node single-thread ≈ 1 core per replika).
+#
+# Prasyarat sudah terpenuhi di kode:
+#   - Job @Cron dikunci di Redis (CronLockService) → tidak jalan ganda.
+#   - Sesi di Redis, berkas di S3/MinIO, job di BullMQ (terdistribusi) → stateless.
+#   - nginx frontend resolve "backend" dinamis (127.0.0.11) → round-robin replika.
+#
+# Jalankan:
+#   docker compose -f docker-compose.yml -f docker-compose.scale.yml up -d
+#   # atau set jumlahnya:
+#   BACKEND_REPLICAS=3 docker compose -f docker-compose.yml -f docker-compose.scale.yml up -d
+#
+# `!reset null` melepas container_name tetap dari base (WAJIB agar bisa di-replika)
+# — butuh Docker Compose v2.24+. Kalau versi lebih lama, sebagai gantinya komentari
+# baris `container_name: survei_backend` di docker-compose.yml lalu:
+#   docker compose up -d --scale backend=2
+# =============================================================================
+
+services:
+  backend:
+    # Lepas nama kontainer tetap — Docker beri nama survei-backend-1, -2, dst.
+    container_name: !reset null
+    deploy:
+      replicas: ${BACKEND_REPLICAS:-2}

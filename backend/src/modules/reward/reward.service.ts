@@ -39,6 +39,11 @@ import {
   MAX_REDEMPTION_OTP_ATTEMPTS,
 } from './constants';
 import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
+import {
+  CronLockService,
+  CRON_LOCK_TTL_DAILY_MS,
+  CRON_LOCK_TTL_MINUTE_MS,
+} from '../../common/scheduling/cron-lock.service';
 import { PaginatedResponse, PaginationQuery } from '@shared/interfaces';
 import { CircuitBreaker } from '@shared/circuit-breaker';
 
@@ -63,6 +68,7 @@ export class RewardService {
     private readonly fulfillmentProvider: RewardFulfillmentProvider,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly cronLock: CronLockService,
   ) {
     this.fulfillmentCircuitBreaker = new CircuitBreaker({
       name: 'reward-fulfillment',
@@ -454,11 +460,21 @@ export class RewardService {
   }
 
   /**
-   * Process expired points. Marks point transactions as expired
-   * when their expires_at date has passed.
-   * Runs as a scheduled cron job daily at midnight.
+   * Wrapper cron processExpiredPoints. @Cron sengaja di wrapper (bukan di
+   * method aslinya) agar pemanggilan MANUAL admin via controller tidak ikut
+   * terblokir kunci multi-replika.
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async cronProcessExpiredPoints(): Promise<void> {
+    if (!(await this.cronLock.acquire('expired-points', CRON_LOCK_TTL_DAILY_MS))) return;
+    await this.processExpiredPoints();
+  }
+
+  /**
+   * Process expired points. Marks point transactions as expired
+   * when their expires_at date has passed.
+   * Runs via cronProcessExpiredPoints (harian, tengah malam) atau manual admin.
+   */
   async processExpiredPoints(): Promise<ExpiredPointsSummary> {
     const now = new Date();
 
@@ -1039,6 +1055,9 @@ export class RewardService {
   async pollPendingFulfillments(): Promise<void> {
     const provider = this.fulfillmentProvider;
     if (!provider.checkStatus) return;
+    // Multi-replika: satu replika saja per menit (TTL < 60 dtk agar siklus
+    // berikutnya tidak terhalang kunci menit sebelumnya).
+    if (!(await this.cronLock.acquire('poll-fulfillments', CRON_LOCK_TTL_MINUTE_MS))) return;
 
     const cutoff = Date.now() - 90_000;
     const pending = await this.redemptionRepository.find({

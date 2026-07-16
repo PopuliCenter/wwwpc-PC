@@ -5,6 +5,7 @@ import { In, Repository, LessThan, ILike } from 'typeorm';
 import { AuditLog } from './entities/audit-log.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { AuditEvent, AuditFilter, PaginationOptions, PaginatedAuditEntries } from './interfaces';
+import { CronLockService, CRON_LOCK_TTL_DAILY_MS } from '../../common/scheduling/cron-lock.service';
 
 const DEFAULT_RETENTION_MONTHS = 12;
 
@@ -17,6 +18,7 @@ export class AuditService {
     private readonly auditLogRepository: Repository<AuditLog>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly cronLock: CronLockService,
   ) {}
 
   /**
@@ -220,6 +222,8 @@ export class AuditService {
    */
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
   async scheduledAuditCleanup(): Promise<void> {
+    // Multi-replika: hanya satu replika yang mengeksekusi per jadwal.
+    if (!(await this.cronLock.acquire('audit-cleanup', CRON_LOCK_TTL_DAILY_MS))) return;
     try {
       await this.cleanupOldLogs();
     } catch (err: any) {

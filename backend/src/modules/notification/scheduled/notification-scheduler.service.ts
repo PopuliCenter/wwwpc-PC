@@ -13,6 +13,10 @@ import { SurveyResponse, ResponseStatus } from '@modules/response/entities/surve
 import { User } from '@modules/auth/entities/user.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { SurveyStatus } from '@shared/enums';
+import {
+  CronLockService,
+  CRON_LOCK_TTL_DAILY_MS,
+} from '../../../common/scheduling/cron-lock.service';
 
 /** Kriteria penargetan undangan (semua opsional). */
 export interface TargetCriteria {
@@ -47,6 +51,7 @@ export class NotificationSchedulerService {
     private readonly deviceTokenService: DeviceTokenService,
     private readonly feedService: NotificationFeedService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly cronLock: CronLockService,
   ) {
     // Base URL untuk tautan di email (undangan survei, reminder). Urutan: env
     // khusus APP_BASE_URL → APP_URL (dipakai template email lain) → default
@@ -66,6 +71,11 @@ export class NotificationSchedulerService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async sendH3Reminders(): Promise<void> {
+    // Multi-replika: kunci atomik — guard reminderAlreadySent di bawah adalah
+    // check-then-act (get lalu set) yang TIDAK aman bila dua replika tick
+    // bersamaan; kunci ini yang mencegah kiriman dobel, guard itu tetap
+    // berguna untuk kasus restart/retrigger dalam satu replika.
+    if (!(await this.cronLock.acquire('reminder-h3', CRON_LOCK_TTL_DAILY_MS))) return;
     this.logger.log('Running H-3 reminder job...');
 
     try {
@@ -111,6 +121,8 @@ export class NotificationSchedulerService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async sendH1Reminders(): Promise<void> {
+    // Multi-replika: lihat catatan di sendH3Reminders.
+    if (!(await this.cronLock.acquire('reminder-h1', CRON_LOCK_TTL_DAILY_MS))) return;
     this.logger.log('Running H-1 reminder job...');
 
     try {

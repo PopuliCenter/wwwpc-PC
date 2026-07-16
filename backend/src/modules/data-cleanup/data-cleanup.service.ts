@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { S3StorageService } from '@modules/export/s3-storage.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { CronLockService, CRON_LOCK_TTL_DAILY_MS } from '../../common/scheduling/cron-lock.service';
 import { v4 as uuidv4 } from 'uuid';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
@@ -52,6 +53,7 @@ export class DataCleanupService {
     private readonly purgeConfigRepository: Repository<ScheduledPurgeConfig>,
     private readonly auditService: AuditService,
     private readonly s3: S3StorageService,
+    private readonly cronLock: CronLockService,
   ) {}
 
   /**
@@ -435,6 +437,10 @@ export class DataCleanupService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async executeScheduledPurge(): Promise<{ deletedCount: number }> {
+    // Multi-replika: hanya satu replika yang mengeksekusi per jadwal.
+    if (!(await this.cronLock.acquire('scheduled-purge', CRON_LOCK_TTL_DAILY_MS))) {
+      return { deletedCount: 0 };
+    }
     const config = await this.purgeConfigRepository.findOne({
       where: { enabled: true },
       order: { createdAt: 'DESC' },

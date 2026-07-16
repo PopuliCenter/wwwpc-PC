@@ -33,6 +33,9 @@ FROM nginx:1.27-alpine AS runner
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY frontend/nginx.conf /etc/nginx/conf.d/app.conf
+# Validasi sintaks nginx saat BUILD → config rusak menggagalkan CI, bukan baru
+# ketahuan saat container gagal start di produksi.
+RUN nginx -t
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 EXPOSE 80

@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { JwtAuthGuard } from './modules/auth/guards';
 import { DatabaseModule } from './config';
 import { HealthModule } from './common/health';
+import { CronLockModule } from './common/scheduling/cron-lock.module';
 import { AuthModule } from './modules/auth';
 import { RegistrationModule } from './modules/registration';
 import { SurveyModule } from './modules/survey';
@@ -28,6 +29,9 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
   imports: [
     DatabaseModule,
     HealthModule,
+    // Kunci terdistribusi utk job @Cron — wajib saat backend multi-replika
+    // agar reminder/purge/expiry tidak berjalan ganda. Global module.
+    CronLockModule,
     // Batas laju global (anti-abuse). Dapat disetel via env untuk LOAD TEST
     // (banyak virtual-user dari satu IP) — mis. THROTTLE_LIMIT=100000. JANGAN
     // longgarkan di produksi normal; default 100/menit tetap berlaku bila kosong.

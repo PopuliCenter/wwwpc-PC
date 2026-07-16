@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { RewardService } from './reward.service';
+import { CronLockService } from '../../common/scheduling/cron-lock.service';
 import { PointTransaction, TransactionType } from './entities/point-transaction.entity';
 import { RewardRedemption, RedemptionStatus } from './entities/reward-redemption.entity';
 import { StreakTracker } from './entities/streak-tracker.entity';
@@ -65,6 +66,7 @@ describe('RewardService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RewardService,
+        { provide: CronLockService, useValue: { acquire: async () => true } },
         {
           provide: getRepositoryToken(PointTransaction),
           useValue: ptRepoMock,

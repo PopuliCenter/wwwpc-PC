@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NotificationSchedulerService } from './notification-scheduler.service';
+import { CronLockService } from '../../../common/scheduling/cron-lock.service';
 import { NotificationService } from '../notification.service';
 import { DeviceTokenService } from '../device-token.service';
 import { NotificationFeedService } from '../notification-feed.service';
@@ -62,6 +63,7 @@ describe('NotificationSchedulerService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationSchedulerService,
+        { provide: CronLockService, useValue: { acquire: async () => true } },
         { provide: NotificationService, useValue: notificationService },
         {
           provide: ConfigService,

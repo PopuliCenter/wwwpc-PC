@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuditService } from './audit.service';
+import { CronLockService } from '../../common/scheduling/cron-lock.service';
 import { AuditLog } from './entities/audit-log.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { AuditActionType } from '@shared/enums';
@@ -23,6 +24,7 @@ describe('AuditService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
+        { provide: CronLockService, useValue: { acquire: async () => true } },
         { provide: getRepositoryToken(AuditLog), useValue: repository },
         {
           provide: getRepositoryToken(User),

@@ -8,6 +8,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DataCleanupService } from './data-cleanup.service';
+import { CronLockService } from '../../common/scheduling/cron-lock.service';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { Survey } from '@modules/survey/entities/survey.entity';
 import { User } from '@modules/auth/entities/user.entity';
@@ -50,6 +51,7 @@ describe('DataCleanupService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DataCleanupService,
+        { provide: CronLockService, useValue: { acquire: async () => true } },
         {
           provide: getRepositoryToken(PendingDeletion),
           useValue: {
