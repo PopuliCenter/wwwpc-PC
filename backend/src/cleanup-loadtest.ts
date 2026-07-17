@@ -48,6 +48,27 @@ async function main(): Promise<void> {
   if (mode === 'all') {
     await ds.query(`DELETE FROM point_transaction WHERE user_id IN (${idSub})`, [like]);
     await ds.query(`DELETE FROM user_profile WHERE user_id IN (${idSub})`, [like]);
+
+    // Akun loadtest #1 adalah PEMBUAT survei uji (fk_survey_created_by) → survei
+    // uji + seluruh baris anaknya HARUS dihapus dulu, kalau tidak DELETE users
+    // gagal karena constraint. Urutan mengikuti struktur ensureLoadtestSurvey
+    // (seed-loadtest): child dihapus sebelum survey. Bila seed menambah tabel
+    // anak survei baru, tambahkan di sini.
+    const surveyIdSub = `SELECT id FROM survey WHERE created_by IN (${idSub})`;
+    for (const table of [
+      'survey_response',
+      'question',
+      'survey_page',
+      'survey_time_config',
+      'survey_reward_config',
+      'manual_reward_distribution',
+      'surveyor_quota',
+    ]) {
+      await ds.query(`DELETE FROM "${table}" WHERE survey_id IN (${surveyIdSub})`, [like]);
+    }
+    const surveys = await ds.query(`DELETE FROM survey WHERE created_by IN (${idSub})`, [like]);
+    console.log(`✓ Survei uji dihapus: ${surveys?.[1] ?? surveys?.rowCount ?? '?'}`);
+
     const users = await ds.query(`DELETE FROM users WHERE email LIKE $1`, [like]);
     console.log(`✓ Akun loadtest dihapus: ${users?.[1] ?? users?.rowCount ?? '?'}`);
   } else {
