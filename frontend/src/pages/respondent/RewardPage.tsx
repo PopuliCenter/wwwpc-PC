@@ -4,6 +4,8 @@ import { api } from '@/services/api';
 import { format } from 'date-fns';
 import { usePointsStore } from '@/stores/points.store';
 import { pushBackButtonOverride } from '@/utils/nativeBackButton';
+import { celebrate } from '@/utils/celebrate';
+import { haptic } from '@/utils/haptics';
 
 // Types — disesuaikan dgn kontrak backend (modules/reward)
 interface PointBalance {
@@ -646,6 +648,13 @@ function RedemptionModal({
         setRemainingBalance(null);
       }
       setStep('success');
+      // Rayakan bila penukaran diterima (completed/processing); getar gagal bila ditolak.
+      if (result.status === 'failed') {
+        void haptic('error');
+      } else {
+        celebrate();
+        void haptic('success');
+      }
     } catch (e: any) {
       setError(e?.message || 'Kode OTP salah atau sudah kedaluwarsa. Silakan coba lagi.');
     } finally {

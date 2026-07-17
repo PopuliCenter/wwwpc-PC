@@ -10,6 +10,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isEmbedMode } from '@/utils/embed';
 import { NativeBackGuard } from '@/components/common/NativeBackGuard';
+import { CountUp } from '@/components/common/CountUp';
 
 const navItems = [
   { path: '/surveys', label: 'Survei', icon: FileText },
@@ -106,7 +107,7 @@ export function RespondentLayout() {
                   title="Saldo poin Anda"
                   className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                 >
-                  <Gift className="h-3.5 w-3.5" /> {points.toLocaleString('id-ID')}
+                  <Gift className="h-3.5 w-3.5" /> <CountUp value={points} />
                   <span className="hidden sm:inline">&nbsp;poin</span>
                 </NavLink>
               )}

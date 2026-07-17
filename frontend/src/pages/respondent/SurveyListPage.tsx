@@ -15,6 +15,7 @@ import {
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePointsStore } from '@/stores/points.store';
+import { Skeleton, SurveyCardSkeleton } from '@/components/common/Skeleton';
 import { format } from 'date-fns';
 
 interface AvailableSurvey {
@@ -157,14 +158,10 @@ export function SurveyListPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="h-7 w-48 animate-pulse rounded bg-gray-200" />
+        <Skeleton className="h-7 w-48" />
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="mb-3 h-5 w-3/4 rounded bg-gray-200" />
-              <div className="mb-2 h-3 w-full rounded bg-gray-200" />
-              <div className="mt-4 h-9 w-full rounded-xl bg-gray-200" />
-            </div>
+            <SurveyCardSkeleton key={i} />
           ))}
         </div>
       </div>

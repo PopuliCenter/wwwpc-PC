@@ -54,6 +54,8 @@ import { isActive as isActivePure } from '@/utils/surveyBranching';
 import { captureGeo, isAnswered, serializeAnswers, computeResumePage } from './surveyFillHelpers';
 import { useAutoSave } from './hooks/useAutoSave';
 import { useSurveySubmission } from './hooks/useSurveySubmission';
+import { celebrate } from '@/utils/celebrate';
+import { haptic } from '@/utils/haptics';
 
 // Tipe domain pengisian survei dipindah ke `@/types/survey` (dipakai bersama
 // komponen renderer). Re-export agar impor lama yang menunjuk file ini (jika ada)
@@ -1344,6 +1346,15 @@ export function SurveyFillPage() {
   useEffect(() => {
     submittedRef.current = submitted;
   }, [submitted]);
+
+  // Perayaan saat jawaban BENAR-BENAR terkirim (bukan sekadar antre offline):
+  // konfeti + getar sukses. Sekali saat transisi ke submitted.
+  useEffect(() => {
+    if (submitted && !queuedOffline) {
+      celebrate();
+      void haptic('success');
+    }
+  }, [submitted, queuedOffline]);
 
   const handleTimerExpire = useCallback(() => {
     void handleSubmit();
