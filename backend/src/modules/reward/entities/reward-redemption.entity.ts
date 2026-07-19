@@ -37,16 +37,16 @@ export class RewardRedemption {
   })
   status: RedemptionStatus;
 
-  @Column({ type: 'timestamp', name: 'requested_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'requested_at', default: () => 'NOW()' })
   requestedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'processed_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'processed_at' })
   processedAt: Date | null;
 
   @Column({ type: 'varchar', length: 10, nullable: true, name: 'otp_code' })
   otpCode: string | null;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'otp_expires_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'otp_expires_at' })
   otpExpiresAt: Date | null;
 
   /** Jumlah percobaan OTP yang salah (anti brute-force per-redemption). */

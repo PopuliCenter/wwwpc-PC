@@ -40,9 +40,9 @@ export class UserNotification {
   @Column({ type: 'varchar', length: 500, nullable: true })
   link: string | null;
 
-  @Column({ type: 'timestamp', name: 'read_at', nullable: true })
+  @Column({ type: 'timestamptz', name: 'read_at', nullable: true })
   readAt: Date | null;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 }

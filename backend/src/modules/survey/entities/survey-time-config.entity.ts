@@ -13,10 +13,10 @@ export class SurveyTimeConfig {
   @JoinColumn({ name: 'survey_id' })
   survey: Survey;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'start_datetime' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'start_datetime' })
   startDatetime: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'end_datetime' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'end_datetime' })
   endDatetime: Date | null;
 
   @Column({ type: 'int', nullable: true, name: 'max_duration_minutes' })

@@ -57,7 +57,7 @@ export class Question {
   @Column({ type: 'boolean', default: false, name: 'has_other_option' })
   hasOtherOption: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
   @OneToMany(() => QuestionOption, (option) => option.question, {

@@ -72,7 +72,7 @@ export class SurveyResponse {
   @Column({ type: 'double precision', nullable: true, name: 'end_longitude' })
   endLongitude: number | null;
 
-  @Column({ type: 'timestamp', name: 'started_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'started_at', default: () => 'NOW()' })
   startedAt: Date;
 
   /**
@@ -81,13 +81,13 @@ export class SurveyResponse {
    * sesi duduk, bukan sejak mulai pertama. Terpisah dari `startedAt` supaya
    * analitik durasi & anti-bot tetap mengacu ke waktu mulai yang sebenarnya.
    */
-  @Column({ type: 'timestamp', nullable: true, name: 'timer_started_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'timer_started_at' })
   timerStartedAt: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'submitted_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'submitted_at' })
   submittedAt: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'exported_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'exported_at' })
   exportedAt: Date | null;
 
   /**
@@ -95,7 +95,7 @@ export class SurveyResponse {
    * tersimpan tapi disembunyikan dari daftar aktif, dan membebaskan responden
    * untuk mengisi survei kembali (lihat index unik parsial uq_one_response_per_survey).
    */
-  @Column({ type: 'timestamp', nullable: true, name: 'archived_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'archived_at' })
   archivedAt: Date | null;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -113,7 +113,7 @@ export class SurveyResponse {
   @Column({ type: 'boolean', default: false, name: 'reward_distributed' })
   rewardDistributed: boolean;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'reward_distributed_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'reward_distributed_at' })
   rewardDistributedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true, name: 'reward_distributed_by' })

@@ -37,7 +37,7 @@ export class ManualRewardDistribution {
   })
   status: ManualRewardStatus;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'distributed_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'distributed_at' })
   distributedAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true, name: 'distributed_by' })

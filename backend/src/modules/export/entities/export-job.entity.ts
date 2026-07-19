@@ -35,9 +35,9 @@ export class ExportJob {
   @Column({ type: 'jsonb', nullable: true, name: 'filters_applied' })
   filtersApplied: Record<string, any> | null;
 
-  @Column({ type: 'timestamp', name: 'created_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'completed_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'completed_at' })
   completedAt: Date | null;
 }

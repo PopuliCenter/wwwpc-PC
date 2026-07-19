@@ -26,9 +26,9 @@ export class PendingDeletion {
   @Column({ type: 'boolean', default: false })
   confirmed: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', name: 'expires_at' })
+  @Column({ type: 'timestamptz', name: 'expires_at' })
   expiresAt: Date;
 }

@@ -21,6 +21,6 @@ export class Answer {
   @Column({ type: 'jsonb', nullable: true })
   value: any;
 
-  @Column({ type: 'timestamp', name: 'answered_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'answered_at', default: () => 'NOW()' })
   answeredAt: Date;
 }

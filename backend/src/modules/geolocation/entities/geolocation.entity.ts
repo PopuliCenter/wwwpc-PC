@@ -25,6 +25,6 @@ export class Geolocation {
   @Column({ type: 'varchar', length: 255, nullable: true })
   province: string | null;
 
-  @Column({ type: 'timestamp', default: () => 'NOW()', name: 'captured_at' })
+  @Column({ type: 'timestamptz', default: () => 'NOW()', name: 'captured_at' })
   capturedAt: Date;
 }

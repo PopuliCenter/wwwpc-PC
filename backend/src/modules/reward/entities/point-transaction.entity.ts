@@ -40,10 +40,10 @@ export class PointTransaction {
   @Column({ type: 'uuid', nullable: true, name: 'reference_id' })
   referenceId: string | null;
 
-  @Column({ type: 'timestamp', name: 'earned_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'earned_at', default: () => 'NOW()' })
   earnedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'expires_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'expires_at' })
   expiresAt: Date | null;
 
   @Column({ type: 'boolean', default: false })

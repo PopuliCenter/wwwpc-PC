@@ -26,9 +26,9 @@ export class DeviceToken {
   @Column({ type: 'varchar', length: 16, default: 'android' })
   platform: string;
 
-  @Column({ type: 'timestamp', name: 'created_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'created_at', default: () => 'NOW()' })
   createdAt: Date;
 
-  @Column({ type: 'timestamp', name: 'last_seen_at', default: () => 'NOW()' })
+  @Column({ type: 'timestamptz', name: 'last_seen_at', default: () => 'NOW()' })
   lastSeenAt: Date;
 }

@@ -60,10 +60,10 @@ export class Survey {
   })
   rewardMode: RewardMode;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'start_datetime' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'start_datetime' })
   startDatetime: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'end_datetime' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'end_datetime' })
   endDatetime: Date | null;
 
   @Column({ type: 'int', nullable: true, name: 'max_duration_minutes' })
@@ -124,13 +124,13 @@ export class Survey {
   @Column({ type: 'jsonb', name: 'allowed_provinces', default: () => "'[]'" })
   allowedProvinces: string[];
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updatedAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'archived_at' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'archived_at' })
   archivedAt: Date | null;
 
   @OneToOne(() => SurveyTimeConfig, (config) => config.survey, {
