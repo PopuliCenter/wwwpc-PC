@@ -11,37 +11,18 @@ if (hasKeystore) {
     keystoreProps.load(new FileInputStream(keystorePropsFile))
 }
 
-// ── Versi otomatis ───────────────────────────────────────────────────────────
-// versionCode : jumlah commit git — naik sendiri tiap commit, tak pernah mundur,
-//               jadi tidak perlu diingat/dinaikkan manual. Play mewajibkan
-//               versionCode setiap upload LEBIH BESAR dari upload sebelumnya.
-//               (Catatan: jangan menulis ulang riwayat git — squash/rebase yang
-//               mengurangi jumlah commit akan menurunkan versionCode.)
-// versionName : "version" di frontend/package.json (satu sumber kebenaran).
-// Bila git atau package.json tak terbaca (mis. build dari arsip tanpa .git),
-// keduanya jatuh ke nilai cadangan agar build tetap jalan.
-def appVersionCode = {
-    try {
-        def out = providers.exec {
-            commandLine 'git', 'rev-list', '--count', 'HEAD'
-            workingDir rootProject.projectDir
-        }.standardOutput.asText.get().trim()
-        return out.isInteger() ? out.toInteger() : 1
-    } catch (Exception ignored) {
-        logger.warn("versionCode: git tidak terbaca, memakai fallback 1")
-        return 1
-    }
-}()
-
-def appVersionName = {
-    try {
-        def pkg = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
-        return pkg.version ?: '1.0.0'
-    } catch (Exception ignored) {
-        logger.warn("versionName: package.json tidak terbaca, memakai fallback 1.0.0")
-        return '1.0.0'
-    }
-}()
+// ── Versi (MANUAL) ───────────────────────────────────────────────────────────
+// Ubah DI SINI tiap rilis. Dua angka, beda fungsi:
+//   appVersionName : versi yang DILIHAT pengguna (Play, "Tentang aplikasi").
+//                    Naikkan untuk rilis bermakna — 1.0.0 → 1.0.1 (perbaikan)
+//                    atau 1.1.0 (fitur baru).
+//   appVersionCode : angka internal, TIDAK dilihat pengguna. WAJIB dinaikkan
+//                    +1 SETIAP upload ke Play (1 → 2 → 3 …); Play menolak bila
+//                    ≤ upload sebelumnya. Nilai boleh berapa saja asal naik.
+// Nama file output otomatis memuat keduanya:
+//   riset-populi-center-v<appVersionName>-code<appVersionCode>-release.{aab,apk}
+def appVersionName = "1.0.0"
+def appVersionCode = 1
 
 android {
     namespace = "com.populicenter.survei"
@@ -83,11 +64,11 @@ android {
     }
 }
 
-// Nama output artifact unik agar tidak bentrok dengan aplikasi lain yang juga
-// menghasilkan "app-release.apk"/"app-release.aab". Output jadi:
-//   riset-populi-center-release.apk  &  riset-populi-center-release.aab
+// Nama output artifact memuat versi + code agar mudah dibedakan & diarsipkan
+// (juga tak bentrok dengan aplikasi lain). Contoh:
+//   riset-populi-center-v1.0.0-code1-release.apk / .aab
 base {
-    archivesName = 'riset-populi-center'
+    archivesName = "riset-populi-center-v${appVersionName}-code${appVersionCode}"
 }
 
 repositories {

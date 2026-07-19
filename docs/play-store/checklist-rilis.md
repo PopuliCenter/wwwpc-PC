@@ -40,13 +40,15 @@ Status item yang sudah disiapkan di repo ditandai ✅. Sisanya tindakan manual.
 
 ## 4. Versi
 
-- ✅ **Otomatis** — `frontend/android/app/build.gradle`:
-  - `versionCode` = jumlah commit git (`git rev-list --count HEAD`) → naik sendiri
-    tiap commit, tidak perlu dinaikkan manual.
-  - `versionName` = `version` di `frontend/package.json` (naikkan di sini untuk
-    rilis baru, mis. 1.0.0 → 1.1.0).
-  > Jangan menulis ulang riwayat git (squash/rebase yang mengurangi jumlah commit)
-  > — versionCode bisa turun dan Play akan menolak upload.
+- ✅ **Manual** di `frontend/android/app/build.gradle` (dua baris paling atas):
+  - `appVersionName` (mis. "1.0.0") — versi yang dilihat pengguna. Naikkan untuk
+    rilis bermakna: 1.0.0 → 1.0.1 (perbaikan) atau 1.1.0 (fitur).
+  - `appVersionCode` (mis. 1) — angka internal. **WAJIB +1 tiap upload ke Play**
+    (1 → 2 → 3 …); Play menolak bila ≤ upload sebelumnya.
+  - Nama file output otomatis memuat keduanya:
+    `riset-populi-center-v<name>-code<code>-release.{apk,aab}`.
+  > Alur bump rilis baru: ubah kedua angka → `npm run build && npx cap sync android`
+  > (bila ada perubahan web) → `cd android && ./gradlew bundleRelease`.
 
 ## 5. Legal & kebijakan
 
