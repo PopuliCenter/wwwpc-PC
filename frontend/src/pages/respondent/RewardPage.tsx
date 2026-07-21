@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Gift, Hourglass, Clock, Smartphone } from 'lucide-react';
+import { Wallet, Gift, Hourglass, Clock, Smartphone, CheckCircle2, XCircle } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
 import { usePointsStore } from '@/stores/points.store';
@@ -97,27 +98,27 @@ function walletOf(id: string): string | null {
 
 const REDEMPTION_STATUS_META: Record<
   RedemptionStatus,
-  { label: string; badge: string; icon: string }
+  { label: string; badge: string; Icon: LucideIcon }
 > = {
   pending: {
     label: 'Menunggu konfirmasi',
     badge: 'bg-gray-100 text-gray-700',
-    icon: '🕓',
+    Icon: Clock,
   },
   processing: {
     label: 'Diproses',
     badge: 'bg-amber-100 text-amber-700',
-    icon: '⏳',
+    Icon: Hourglass,
   },
   completed: {
     label: 'Berhasil',
     badge: 'bg-green-100 text-green-700',
-    icon: '✅',
+    Icon: CheckCircle2,
   },
   failed: {
     label: 'Gagal (poin dikembalikan)',
     badge: 'bg-red-100 text-red-700',
-    icon: '❌',
+    Icon: XCircle,
   },
 };
 
@@ -140,7 +141,7 @@ function describeTransaction(tx: BackendTransaction): string {
 function BalanceCard({ balance, loading }: { balance: PointBalance | null; loading: boolean }) {
   if (loading) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-6">
+      <div className="rounded-2xl bg-primary-700 p-6">
         <div className="mb-3 h-4 w-1/3 animate-pulse rounded bg-white/20" />
         <div className="h-10 w-1/2 animate-pulse rounded bg-white/20" />
       </div>
@@ -152,7 +153,7 @@ function BalanceCard({ balance, loading }: { balance: PointBalance | null; loadi
   const expiring = balance?.expiringWithin30Days ?? 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 p-6 text-white shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl bg-primary-700 p-6 text-white shadow-sm">
       <Gift className="pointer-events-none absolute -right-5 -top-5 h-28 w-28 text-white/10" />
       <div className="relative">
         <div className="flex items-center gap-2 text-primary-100">
@@ -381,7 +382,8 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${meta.badge}`}
                   >
-                    {meta.icon} {meta.label}
+                    <meta.Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {meta.label}
                   </span>
                   <span className="text-xs text-gray-400">
                     -{r.pointsSpent.toLocaleString('id-ID')} poin
@@ -784,12 +786,12 @@ function RedemptionModal({
           (() => {
             const failed = resultStatus === 'failed';
             const completed = resultStatus === 'completed';
-            const icon = failed ? '❌' : completed ? '✅' : '⏳';
+            const StatusIcon = failed ? XCircle : completed ? CheckCircle2 : Hourglass;
             const title = failed
-              ? 'Penukaran Gagal'
+              ? 'Penukaran gagal'
               : completed
-                ? 'Penukaran Berhasil!'
-                : 'Penukaran Diproses';
+                ? 'Penukaran berhasil'
+                : 'Penukaran diproses';
             const desc = failed
               ? `${resultMessage || 'Penukaran tidak dapat diselesaikan.'} Poin Anda telah dikembalikan.`
               : completed
@@ -797,7 +799,17 @@ function RedemptionModal({
                 : `${reward.name} sedang diproses. Status akan diperbarui otomatis.`;
             return (
               <div className="space-y-4 text-center">
-                <div className="text-5xl">{icon}</div>
+                <div
+                  className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
+                    failed
+                      ? 'bg-red-50 text-red-600'
+                      : completed
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-amber-50 text-amber-600'
+                  }`}
+                >
+                  <StatusIcon className="h-7 w-7" strokeWidth={1.75} aria-hidden="true" />
+                </div>
                 <h3
                   className={`text-lg font-semibold ${failed ? 'text-red-600' : 'text-gray-900'}`}
                 >

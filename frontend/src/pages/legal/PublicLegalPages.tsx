@@ -22,7 +22,7 @@ const WHATSAPP = '0812-9206-8362';
 function LegalShell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-gradient-to-r from-indigo-500 to-indigo-700 px-6 py-8 text-white">
+      <header className="bg-primary-700 px-6 py-8 text-white">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-medium text-indigo-100">Populi Center · Survei Online</p>
           <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{title}</h1>

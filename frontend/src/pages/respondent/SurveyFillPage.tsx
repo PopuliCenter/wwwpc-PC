@@ -1170,7 +1170,7 @@ function ProgressBar({
       </div>
       <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
         <div
-          className="h-2.5 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-500 ease-out"
+          className="h-2.5 rounded-full bg-primary-600 transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -1432,7 +1432,7 @@ export function SurveyFillPage() {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-100">
             <CheckCircle2 className="h-9 w-9 text-emerald-600" strokeWidth={1.75} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">Terima kasih!</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Terima kasih</h2>
           {queuedOffline ? (
             <p className="mt-1.5 text-gray-600">
               Jawaban Anda tersimpan dan akan dikirim otomatis saat perangkat kembali online.
@@ -1589,7 +1589,7 @@ export function SurveyFillPage() {
         )}
 
         {/* Header — hero ber-tema (selaras identitas app) */}
-        <div className="overflow-hidden rounded-xl bg-gradient-to-br from-primary-600 to-primary-700 p-5 text-white shadow-sm sm:p-6">
+        <div className="overflow-hidden rounded-xl bg-primary-700 p-5 text-white shadow-sm sm:p-6">
           <div className="flex items-start gap-3">
             <img
               src="/logo-populi-center.png"

@@ -94,7 +94,7 @@ export function SettingsMenu({
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
           <div
-            className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all"
+            className="h-2 rounded-full bg-primary-600 transition-all"
             style={{ width: `${(completeCount / 3) * 100}%` }}
           />
         </div>
@@ -116,7 +116,7 @@ export function SettingsMenu({
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-xs text-emerald-600">Profil Anda sudah lengkap. 🎉</p>
+          <p className="mt-2 text-xs text-emerald-600">Profil Anda sudah lengkap.</p>
         )}
         <p className="mt-2 text-xs text-gray-400">
           Lengkapi untuk menambah kesempatan &amp; poin survei.

@@ -63,7 +63,7 @@ export function SurveyEditorHelp({ open, onClose }: { open: boolean; onClose: ()
               </Step>
               <Step>
                 Klik <b>Edit</b> pada sebuah pertanyaan → muncul 3 tab: <b>✏️ Pertanyaan</b> (teks,
-                tipe, opsi), <b>🔀 Aturan Tampil</b> (percabangan & skip), <b>✅ Batasan Isian</b>{' '}
+                tipe, opsi), <b>Aturan Tampil</b> (percabangan & skip), <b>Batasan Isian</b>{' '}
                 (validasi).
               </Step>
               <Step>
@@ -75,7 +75,7 @@ export function SurveyEditorHelp({ open, onClose }: { open: boolean; onClose: ()
           <Section title="② Pertanyaan bercabang — Aturan Tampil (tampil/sembunyi berdasarkan jawaban lain)">
             <p>
               Gunakan agar sebuah pertanyaan <b>hanya muncul</b> jika jawaban pertanyaan lain
-              memenuhi syarat. Buka pertanyaan → tab <b>🔀 Aturan Tampil</b> → bagian{' '}
+              memenuhi syarat. Buka pertanyaan → tab <b>Aturan Tampil</b> → bagian{' '}
               <b>“Tampilkan otomatis”</b> → <b>+ Tambah Aturan</b>.
             </p>
             <p className="font-medium text-gray-800">Contoh:</p>
@@ -95,7 +95,7 @@ export function SurveyEditorHelp({ open, onClose }: { open: boolean; onClose: ()
 
           <Section title="③ Lompat / Sembunyikan otomatis (Skip logic)">
             <p>
-              Di tab <b>🔀 Aturan Tampil</b> yang sama, bagian <b>“Sembunyikan otomatis”</b>. Dua
+              Di tab <b>Aturan Tampil</b> yang sama, bagian <b>“Sembunyikan otomatis”</b>. Dua
               pilihan aksi:
             </p>
             <ul className="ml-4 list-disc space-y-1">

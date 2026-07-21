@@ -252,7 +252,7 @@ export function ClientLogsPage() {
       ) : logs.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
           <Bug className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="text-gray-600">Belum ada error yang dilaporkan. 🎉</p>
+          <p className="text-gray-600">Belum ada error yang dilaporkan.</p>
         </div>
       ) : (
         <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">

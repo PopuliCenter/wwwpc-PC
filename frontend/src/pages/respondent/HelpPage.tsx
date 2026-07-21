@@ -148,7 +148,7 @@ export function HelpPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       {/* Hero asisten */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-primary-600 to-violet-600 p-6 text-white shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl bg-primary-700 p-6 text-white shadow-sm">
         <Sparkles className="pointer-events-none absolute -right-4 -top-4 h-24 w-24 text-white/10" />
         <div className="relative">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold backdrop-blur">

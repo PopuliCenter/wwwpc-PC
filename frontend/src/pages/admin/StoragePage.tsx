@@ -296,7 +296,7 @@ export function StoragePage() {
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-        ⚠️ Menghapus berkas bersifat <strong>permanen</strong> dan bisa memutus rujukan pada respons
+        Menghapus berkas bersifat <strong>permanen</strong> dan bisa memutus rujukan pada respons
         survei. Gunakan untuk pembersihan/koreksi yang disengaja.
       </div>
 

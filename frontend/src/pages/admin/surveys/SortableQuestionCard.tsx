@@ -144,8 +144,8 @@ export function SortableQuestionCard({
                   {t === 'edit'
                     ? '✏️ Pertanyaan'
                     : t === 'logic'
-                      ? '🔀 Aturan Tampil'
-                      : '✅ Batasan Isian'}
+                      ? 'Aturan Tampil'
+                      : 'Batasan Isian'}
                 </button>
               ))}
             </div>

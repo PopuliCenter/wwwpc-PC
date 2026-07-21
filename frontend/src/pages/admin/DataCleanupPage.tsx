@@ -405,8 +405,8 @@ function GdprDeletionSection() {
 
       <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
         <p className="text-sm text-yellow-800">
-          ⚠️ Penghapusan GDPR bersifat <strong>permanen dan tidak dapat dibatalkan</strong>. Semua
-          data personal (nama, email, telepon, lokasi) akan dihapus secara permanen.
+          Penghapusan GDPR bersifat <strong>permanen dan tidak dapat dibatalkan</strong>. Semua data
+          personal (nama, email, telepon, lokasi) akan dihapus secara permanen.
         </p>
       </div>
 

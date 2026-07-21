@@ -116,7 +116,7 @@ function CreateUserModal({
       {tempPassword ? (
         <div>
           <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-            <p className="text-sm text-green-800 font-medium">Pengguna berhasil dibuat!</p>
+            <p className="text-sm text-green-800 font-medium">Pengguna berhasil dibuat</p>
             <p className="text-sm text-green-700 mt-1">
               Password sementara:{' '}
               <code className="bg-green-100 px-2 py-0.5 rounded font-mono">{tempPassword}</code>
