@@ -35,7 +35,7 @@ export function AvatarPicker({
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-1 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-900">Pilih Avatar</h2>
         <button

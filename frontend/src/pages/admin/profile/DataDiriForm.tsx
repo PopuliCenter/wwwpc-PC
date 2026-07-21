@@ -60,7 +60,7 @@ export function DataDiriForm({
     <>
       <form
         onSubmit={onSubmit}
-        className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
       >
         <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
           <User className="h-4 w-4 text-primary-600" /> Data Diri
@@ -139,7 +139,7 @@ export function DataDiriForm({
 
       {/* Data demografi (pembobot) — read-only untuk responden */}
       {demographics && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-gray-900">
             <BarChart3 className="h-4 w-4 text-primary-600" /> Data Demografi (Pembobot)
           </h2>

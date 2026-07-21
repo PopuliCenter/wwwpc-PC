@@ -284,7 +284,7 @@ export function ProfilePage() {
       )}
 
       {showHeader && (
-        <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="relative shrink-0">
             <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
             <button

@@ -376,14 +376,14 @@ export function StoragePage() {
       {loading ? (
         <p className="py-10 text-center text-sm text-gray-400">Memuat…</p>
       ) : visibleObjects.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-10 text-center">
           <HardDrive className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="text-gray-600">Tidak ada berkas pada filter ini.</p>
         </div>
       ) : (
         <>
           {/* Toolbar seleksi */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-2.5">
             <button
               type="button"
               onClick={toggleAll}
@@ -416,7 +416,7 @@ export function StoragePage() {
             </div>
           </div>
 
-          <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+          <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             {visibleObjects.map((o) => {
               const Icon = KIND_ICON[kindOf(o.key)];
               const busy = busyKey === o.key;

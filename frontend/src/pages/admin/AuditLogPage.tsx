@@ -304,7 +304,7 @@ export function AuditLogPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4">
+      <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div>
             <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 mb-1">
@@ -429,7 +429,7 @@ export function AuditLogPage() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">Memuat data...</div>
         ) : (

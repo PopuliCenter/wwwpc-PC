@@ -246,7 +246,7 @@ export function SurveyPreviewPage() {
 
       <div className="space-y-4">
         {sorted.map((q, idx) => (
-          <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4">
+          <div key={q.id} className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             <p className="text-sm font-semibold text-gray-900">
               {idx + 1}. {q.text || <span className="italic text-gray-400">(tanpa teks)</span>}
               {q.required && <span className="ml-1 text-red-500">*</span>}

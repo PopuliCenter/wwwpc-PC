@@ -250,12 +250,12 @@ export function ClientLogsPage() {
       {loading ? (
         <p className="py-10 text-center text-sm text-gray-400">Memuat…</p>
       ) : logs.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-10 text-center">
           <Bug className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="text-gray-600">Belum ada error yang dilaporkan.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           {logs.map((log) => (
             <LogRow key={log.id} log={log} onDelete={handleDelete} />
           ))}

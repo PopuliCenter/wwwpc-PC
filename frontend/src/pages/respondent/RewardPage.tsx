@@ -212,7 +212,7 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
   }, [page, refreshKey]);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200">
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Riwayat Transaksi</h3>
       </div>
@@ -335,7 +335,7 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
   }, [hasInFlight, fetchRedemptions]);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200">
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Riwayat Penukaran</h3>
         {hasInFlight && (
@@ -443,7 +443,7 @@ function RewardCatalog({
           : rewards;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200">
+    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Katalog Reward</h3>
       </div>

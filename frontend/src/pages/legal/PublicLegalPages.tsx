@@ -31,7 +31,7 @@ function LegalShell({ title, children }: { title: string; children: ReactNode })
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <article className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-700 shadow-sm sm:p-8">
+        <article className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-700 shadow-sm sm:p-8">
           {children}
         </article>
 

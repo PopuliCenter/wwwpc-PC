@@ -51,7 +51,7 @@ function SurveyCard({ survey }: { survey: AvailableSurvey }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   return (
-    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-3 flex items-start justify-between gap-3">
         <h3 className="text-base font-semibold leading-snug text-gray-900">{survey.title}</h3>
         <RewardBadge survey={survey} />
@@ -283,7 +283,7 @@ export function SurveyListPage() {
 
       {/* Kosong total */}
       {available.length === 0 && upcoming.length === 0 && completed.length === 0 && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-10 text-center">
           <ClipboardList className="mx-auto mb-3 h-10 w-10 text-gray-300" />
           <p className="text-gray-600">Belum ada survei yang tersedia saat ini.</p>
           <p className="mt-1 text-sm text-gray-400">Silakan cek kembali nanti.</p>
@@ -307,7 +307,7 @@ export function SurveyListPage() {
             />
           </button>
           {showDone && (
-            <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
               {completed.map((s) => (
                 <li key={s.id} className="flex items-center gap-3 px-4 py-3">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />

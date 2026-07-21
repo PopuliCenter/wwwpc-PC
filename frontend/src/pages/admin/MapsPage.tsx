@@ -139,7 +139,7 @@ export function MapsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="h-[28rem] overflow-hidden rounded-lg border border-gray-200 bg-white">
+          <div className="h-[28rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             {loading ? (
               <div className="flex h-full items-center justify-center text-sm text-gray-500">
                 Memuat peta...
@@ -155,7 +155,7 @@ export function MapsPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             <p className="text-xs font-medium uppercase tracking-wider text-gray-400">Ringkasan</p>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-gray-900">{total}</span>
@@ -164,7 +164,7 @@ export function MapsPage() {
             <p className="mt-1 text-sm text-gray-500">{points.length} titik lokasi</p>
           </div>
 
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-400">
               Konsentrasi tertinggi
             </p>

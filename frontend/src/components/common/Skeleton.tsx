@@ -10,7 +10,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 /** Kerangka satu kartu survei (dipakai di daftar survei responden saat memuat). */
 export function SurveyCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2.5">
           <Skeleton className="h-5 w-3/4" />

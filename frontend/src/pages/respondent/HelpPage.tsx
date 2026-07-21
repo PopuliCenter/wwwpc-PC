@@ -81,7 +81,7 @@ function FaqItem({ faq, defaultOpen }: { faq: Faq; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(Boolean(defaultOpen));
   const Icon = faq.icon;
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -221,7 +221,7 @@ export function HelpPage() {
             )}
 
             {aiLoading && (
-              <div className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <Sparkles className="h-4 w-4" />
                 </span>
@@ -275,7 +275,7 @@ export function HelpPage() {
       </section>
 
       {/* Kontak */}
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 text-base font-semibold text-gray-900">Masih butuh bantuan?</h2>
         <p className="mb-4 text-sm text-gray-500">
           Hubungi tim dukungan kami — sertakan email akun &amp; deskripsi masalah.

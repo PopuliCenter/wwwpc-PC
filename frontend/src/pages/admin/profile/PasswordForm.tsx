@@ -93,7 +93,7 @@ export function PasswordForm({
   onSubmit,
 }: PasswordFormProps) {
   return (
-    <form onSubmit={onSubmit} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+    <form onSubmit={onSubmit} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
         <Lock className="h-4 w-4 text-primary-600" />
         {hasPassword ? 'Ganti Password' : 'Buat Password'}

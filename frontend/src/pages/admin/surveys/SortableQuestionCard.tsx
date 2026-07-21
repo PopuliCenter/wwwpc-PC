@@ -48,7 +48,11 @@ export function SortableQuestionCard({
     (question.skipLogicRules?.length ?? 0) > 0 || (question.visibilityRules?.length ?? 0) > 0;
 
   return (
-    <div ref={setNodeRef} style={style} className="bg-white border border-gray-200 rounded-lg mb-3">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="bg-white shadow-sm border border-gray-200 rounded-xl mb-3"
+    >
       {/* Header */}
       <div className="flex items-center gap-3 p-4">
         <button

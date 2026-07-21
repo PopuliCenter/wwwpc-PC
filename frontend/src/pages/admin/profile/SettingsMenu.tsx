@@ -87,7 +87,7 @@ export function SettingsMenu({
       </button>
 
       {/* Kelengkapan profil */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900">Kelengkapan Profil</h3>
           <span className="text-xs font-semibold text-primary-600">{completeCount}/3</span>
@@ -124,7 +124,7 @@ export function SettingsMenu({
       </div>
 
       {/* Aktivitas */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h3 className="mb-3 text-sm font-semibold text-gray-900">Aktivitas</h3>
         <div className="grid grid-cols-3 gap-2">
           {ACTIVITIES.map(({ icon: Icon, label, to }) => (
@@ -143,7 +143,7 @@ export function SettingsMenu({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <p className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Akun
         </p>
@@ -153,7 +153,7 @@ export function SettingsMenu({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <p className="border-b border-gray-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Info Lainnya
         </p>
@@ -169,7 +169,7 @@ export function SettingsMenu({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="divide-y divide-gray-100">
           <MenuRow icon={LogOut} label="Keluar" danger onClick={onLogout} />
           <MenuRow icon={Trash2} label="Hapus Akun" danger onClick={onDeleteAccount} />

@@ -416,7 +416,7 @@ export function SurveyEditPage() {
       </div>
 
       {/* Informasi Survei — judul, deskripsi, jadwal (bisa diedit, mis. survei duplikat) */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Informasi Survei</h2>
         <div className="space-y-4">
           <div>
@@ -478,7 +478,7 @@ export function SurveyEditPage() {
       </div>
 
       {/* Pengaturan Survei */}
-      <div className="rounded-lg border border-gray-200 bg-white p-5">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Pengaturan Survei</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>

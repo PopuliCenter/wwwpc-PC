@@ -121,19 +121,19 @@ export function SurveySummaryPage() {
 
       {/* Kartu metrik */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Respons selesai
           </div>
           <p className="mt-1 text-2xl font-bold text-gray-900">{data.totalResponses}</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Clock className="h-4 w-4 text-amber-500" /> Sedang mengisi
           </div>
           <p className="mt-1 text-2xl font-bold text-gray-900">{data.inProgress}</p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Users className="h-4 w-4 text-primary-600" /> Kuota
           </div>
@@ -158,18 +158,18 @@ export function SurveySummaryPage() {
 
       {/* Sebaran */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Sebaran Jenis Kelamin</h2>
           <BarList items={data.byGender} labelMap={GENDER_LABEL} />
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
           <h2 className="mb-3 text-sm font-semibold text-gray-900">Sebaran Provinsi</h2>
           <BarList items={data.byProvince} />
         </div>
       </div>
 
       {/* Daftar responden */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>

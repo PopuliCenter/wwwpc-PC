@@ -1,7 +1,7 @@
 /** Sub-layar statis "Kebijakan Privasi" (menu Settings responden). */
 export function PrivacyPolicyView() {
   return (
-    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
+    <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
       <h2 className="text-base font-semibold text-gray-900">Kebijakan Privasi</h2>
       <p>
         Kami mengumpulkan data akun (nama, email, telepon), data profil/demografi, jawaban survei
@@ -26,7 +26,7 @@ export function PrivacyPolicyView() {
 /** Sub-layar statis "Syarat & Ketentuan" (menu Settings responden). */
 export function TermsView() {
   return (
-    <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
+    <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-600 shadow-sm">
       <h2 className="text-base font-semibold text-gray-900">Syarat &amp; Ketentuan</h2>
       <p>
         Dengan menggunakan aplikasi ini, Anda setuju mengisi survei dengan jujur dan data yang
