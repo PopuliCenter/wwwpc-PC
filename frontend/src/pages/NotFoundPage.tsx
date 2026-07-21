@@ -14,7 +14,7 @@ export function NotFoundPage() {
         alt="Populi Center"
         className="h-16 w-16 object-contain opacity-90"
       />
-      <h1 className="text-xl font-bold text-gray-900">Halaman tidak ditemukan</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Halaman tidak ditemukan</h1>
       <p className="max-w-xs text-sm text-gray-500">
         Tautan yang Anda buka tidak tersedia atau sudah berpindah.
       </p>

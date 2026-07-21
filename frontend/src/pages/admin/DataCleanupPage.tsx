@@ -615,7 +615,7 @@ function ScheduledPurgeSection() {
 
 export function DataCleanupPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Data Cleanup</h1>
 
       {/* Cleanup Candidates */}

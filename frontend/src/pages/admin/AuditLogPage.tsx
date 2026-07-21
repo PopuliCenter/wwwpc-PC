@@ -523,7 +523,7 @@ export function AuditLogPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{log.module}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs">
+                      <td className="px-4 py-3 text-sm text-gray-600 font-mono text-sm">
                         {log.ipAddress}
                       </td>
                       <td

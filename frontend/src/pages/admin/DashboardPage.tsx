@@ -507,16 +507,16 @@ function CompletionRatesTable() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead>
               <tr className="border-y border-gray-200 bg-gray-50/60">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Survei
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Total Respons
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Selesai
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Rate
                 </th>
               </tr>
@@ -533,14 +533,14 @@ function CompletionRatesTable() {
                   const rate = Number(item.completionRate ?? 0);
                   return (
                     <tr key={item.surveyId} className="transition-colors hover:bg-gray-50/60">
-                      <td className="px-6 py-3.5 text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3.5 text-sm font-medium text-gray-900">
                         {item.surveyTitle}
                       </td>
-                      <td className="px-6 py-3.5 text-sm text-gray-600">{item.totalResponses}</td>
-                      <td className="px-6 py-3.5 text-sm text-gray-600">
+                      <td className="px-4 py-3.5 text-sm text-gray-600">{item.totalResponses}</td>
+                      <td className="px-4 py-3.5 text-sm text-gray-600">
                         {item.completedResponses}
                       </td>
-                      <td className="px-6 py-3.5 text-sm">
+                      <td className="px-4 py-3.5 text-sm">
                         <Badge
                           tone={rate >= 75 ? 'success' : rate >= 50 ? 'warning' : 'danger'}
                           dot

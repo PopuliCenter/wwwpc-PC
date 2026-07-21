@@ -389,9 +389,9 @@ function MatrixLikertQuestion({ question, value, onChange }: RendererProps) {
       <table className="min-w-full">
         <thead>
           <tr className="bg-gray-50/60">
-            <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500" />
+            <th className="px-4 py-3.5 text-left text-xs font-medium text-gray-500" />
             {columns.map((col) => (
-              <th key={col} className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">
+              <th key={col} className="px-4 py-3.5 text-center text-xs font-medium text-gray-500">
                 {col}
               </th>
             ))}
@@ -1597,7 +1597,7 @@ export function SurveyFillPage() {
               className="h-10 w-10 shrink-0 rounded-lg bg-white/15 p-1.5"
             />
             <div className="min-w-0">
-              <h1 className="text-xl font-bold tracking-tight">{survey.title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{survey.title}</h1>
               {survey.description && (
                 <p className="mt-1 text-sm text-primary-100">{survey.description}</p>
               )}

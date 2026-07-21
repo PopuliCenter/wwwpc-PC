@@ -423,7 +423,7 @@ export function RespondentsPage() {
     className?: string;
   }) => (
     <th
-      className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 hover:text-gray-700 ${className}`}
+      className={`cursor-pointer select-none whitespace-nowrap px-4 py-3.5 hover:text-gray-700 ${className}`}
       onClick={() => toggleSort(k)}
     >
       <span className="inline-flex items-center gap-1">
@@ -569,7 +569,7 @@ export function RespondentsPage() {
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
-              <th className="px-3 py-2.5">
+              <th className="px-4 py-3.5">
                 <input
                   type="checkbox"
                   checked={allDisplayedSelected}
@@ -578,19 +578,19 @@ export function RespondentsPage() {
                 />
               </th>
               <SortHead k="fullName" label="Nama" />
-              <th className="px-3 py-2.5">Email</th>
-              <th className="px-3 py-2.5">Telepon</th>
+              <th className="px-4 py-3.5">Email</th>
+              <th className="px-4 py-3.5">Telepon</th>
               <SortHead k="age" label="Umur" />
               <SortHead k="gender" label="Jenis Kelamin" />
-              <th className="px-3 py-2.5">Pekerjaan</th>
-              <th className="px-3 py-2.5">Pendidikan</th>
-              <th className="px-3 py-2.5">Agama</th>
+              <th className="px-4 py-3.5">Pekerjaan</th>
+              <th className="px-4 py-3.5">Pendidikan</th>
+              <th className="px-4 py-3.5">Agama</th>
               <SortHead k="province" label="Provinsi" />
               <SortHead k="city" label="Kota/Kab" />
               <SortHead k="district" label="Kecamatan" />
-              <th className="px-3 py-2.5">Alamat</th>
+              <th className="px-4 py-3.5">Alamat</th>
               <SortHead k="registeredAt" label="Tgl Daftar" />
-              <th className="px-3 py-2.5 text-right">Aksi</th>
+              <th className="px-4 py-3.5 text-right">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -614,7 +614,7 @@ export function RespondentsPage() {
                   key={r.id}
                   className={selected.has(r.id) ? 'bg-primary-50/40' : 'hover:bg-gray-50'}
                 >
-                  <td className="px-3 py-2">
+                  <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selected.has(r.id)}
@@ -622,32 +622,32 @@ export function RespondentsPage() {
                       className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-800">
                     {r.fullName}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.email}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.phone}</td>
-                  <td className="px-3 py-2 text-gray-600">{r.age ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.email}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.phone}</td>
+                  <td className="px-4 py-3 text-gray-600">{r.age ?? '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                     {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                     {r.occupation ?? '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                     {r.education ?? '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.religion ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.district ?? '—'}</td>
-                  <td className="max-w-xs truncate px-3 py-2 text-gray-600" title={r.address ?? ''}>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.religion ?? '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.province ?? '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.city ?? '—'}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.district ?? '—'}</td>
+                  <td className="max-w-xs truncate px-4 py-3 text-gray-600" title={r.address ?? ''}>
                     {r.address ?? '—'}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-gray-500">
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                     {fmtDate(r.registeredAt)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
                     <button
                       onClick={() => handleDelete(r)}
                       title="Hapus responden"

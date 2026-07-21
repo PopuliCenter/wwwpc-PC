@@ -406,22 +406,22 @@ export function SurveyListPage() {
             <table className="min-w-full">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/60">
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Judul
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Tipe / Kategori
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Reward
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Dibuat
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Aksi
                   </th>
                 </tr>
@@ -431,10 +431,10 @@ export function SurveyListPage() {
                   const t = surveyTypeBadge[survey.surveyType ?? 'lainnya'];
                   return (
                     <tr key={survey.id} className="transition-colors hover:bg-gray-50/60">
-                      <td className="px-6 py-3.5 text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3.5 text-sm font-medium text-gray-900">
                         {survey.title}
                       </td>
-                      <td className="px-6 py-3.5">
+                      <td className="px-4 py-3.5">
                         <div className="flex flex-col gap-1">
                           <span
                             className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.cls}`}
@@ -446,18 +446,18 @@ export function SurveyListPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-3.5">
+                      <td className="px-4 py-3.5">
                         <Badge tone={statusTone[survey.status]} dot>
                           {statusLabels[survey.status]}
                         </Badge>
                       </td>
-                      <td className="px-6 py-3.5 text-sm capitalize text-gray-600">
+                      <td className="px-4 py-3.5 text-sm capitalize text-gray-600">
                         {survey.rewardMode}
                       </td>
-                      <td className="px-6 py-3.5 text-sm text-gray-600">
+                      <td className="px-4 py-3.5 text-sm text-gray-600">
                         {format(new Date(survey.createdAt), 'dd/MM/yyyy')}
                       </td>
-                      <td className="px-6 py-3.5">
+                      <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1">
                           {actions(survey).map(({ icon: Icon, label, cls, onClick }) => (
                             <button

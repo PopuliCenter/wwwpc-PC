@@ -161,7 +161,7 @@ function QuestionInput({ q }: { q: PreviewQuestion }) {
             <tbody>
               {q.matrixRows.map((r) => (
                 <tr key={r}>
-                  <td className="border px-2 py-1 text-xs text-gray-700">{r}</td>
+                  <td className="border px-2 py-1 text-sm text-gray-700">{r}</td>
                   {q.matrixColumns.map((c) => (
                     <td key={c} className="border px-2 py-1 text-center">
                       <input type="radio" disabled />

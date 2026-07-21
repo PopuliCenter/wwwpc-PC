@@ -297,7 +297,7 @@ export function ProfilePage() {
             </button>
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-xl font-bold text-gray-900">
+            <h1 className="truncate text-2xl font-bold text-gray-900">
               {profile?.fullName || 'Profil Saya'}
             </h1>
             <p className="truncate text-sm text-gray-500">{profile?.email}</p>

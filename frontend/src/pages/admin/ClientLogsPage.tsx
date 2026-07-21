@@ -185,7 +185,7 @@ export function ClientLogsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {dialog}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>

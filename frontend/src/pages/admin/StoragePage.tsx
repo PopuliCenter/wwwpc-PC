@@ -284,7 +284,7 @@ export function StoragePage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {dialog}
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900">

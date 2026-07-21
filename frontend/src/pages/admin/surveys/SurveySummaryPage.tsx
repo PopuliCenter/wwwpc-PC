@@ -173,11 +173,11 @@ export function SurveySummaryPage() {
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
             <tr>
-              <th className="px-3 py-2.5">Nama</th>
-              <th className="px-3 py-2.5">Jenis Kelamin</th>
-              <th className="px-3 py-2.5">Provinsi</th>
-              <th className="px-3 py-2.5">Kota/Kab</th>
-              <th className="px-3 py-2.5">Waktu Kirim</th>
+              <th className="px-4 py-3.5">Nama</th>
+              <th className="px-4 py-3.5">Jenis Kelamin</th>
+              <th className="px-4 py-3.5">Provinsi</th>
+              <th className="px-4 py-3.5">Kota/Kab</th>
+              <th className="px-4 py-3.5">Waktu Kirim</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -190,15 +190,15 @@ export function SurveySummaryPage() {
             )}
             {data.respondents.map((r, i) => (
               <tr key={i} className="hover:bg-gray-50">
-                <td className="whitespace-nowrap px-3 py-2 font-medium text-gray-800">
+                <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-800">
                   {r.fullName}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.province ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-600">{r.city ?? '—'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-gray-500">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.province ?? '—'}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.city ?? '—'}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                   {fmtDate(r.submittedAt)}
                 </td>
               </tr>
