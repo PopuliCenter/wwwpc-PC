@@ -178,6 +178,7 @@ jobs:
           # Samakan dengan build-arg di docker-compose.yml (API relatif /api).
           build-args: |
             VITE_API_BASE_URL=/api
+            VITE_GOOGLE_CLIENT_ID=${{ vars.VITE_GOOGLE_CLIENT_ID }}
           tags: |
             ghcr.io/populicenter/survei-frontend:latest
             ghcr.io/populicenter/survei-frontend:sha-${{ github.sha }}

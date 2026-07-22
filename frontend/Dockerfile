@@ -25,6 +25,14 @@ COPY frontend/ ./frontend/
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
+# Client ID Google OAuth — WAJIB di-bake saat build, karena tombol "Masuk dengan
+# Google" hanya dirender bila variabel ini ada. Nilainya memang publik (ikut
+# terkirim ke browser pada alur OAuth), bukan rahasia. Kalau kosong, tombolnya
+# hilang diam-diam di web — sementara APK Android tetap punya karena dibangun
+# dari frontend/.env.production yang tidak ikut ke konteks build CI.
+ARG VITE_GOOGLE_CLIENT_ID=
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+
 RUN npm run build --workspace=frontend
 
 

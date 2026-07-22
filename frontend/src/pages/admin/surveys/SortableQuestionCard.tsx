@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Question, QuestionType } from './surveyEditTypes';
@@ -15,7 +15,7 @@ import {
 } from './questionConfigs';
 import { LogicEditor } from './LogicEditor';
 import { Shuffle, Pin } from 'lucide-react';
-import { blockColor } from './RandomBlockPanel';
+import { buildBlockColors } from './RandomBlockPanel';
 
 export function SortableQuestionCard({
   question,
@@ -48,6 +48,9 @@ export function SortableQuestionCard({
 
   const hasLogic =
     (question.skipLogicRules?.length ?? 0) > 0 || (question.visibilityRules?.length ?? 0) > 0;
+
+  // Warna lencana blok dibagi menurut urutan blok, sama seperti di panel.
+  const blockColors = useMemo(() => buildBlockColors(allQuestions), [allQuestions]);
 
   return (
     <div
@@ -87,7 +90,7 @@ export function SortableQuestionCard({
             {question.randomizeGroup?.trim() && (
               <span
                 title={`Blok acak: ${question.randomizeGroup}`}
-                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset ${blockColor(question.randomizeGroup.trim())}`}
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset ${blockColors[question.randomizeGroup.trim()]}`}
               >
                 <Shuffle className="h-3 w-3" />
                 {question.randomizeGroup.trim()}

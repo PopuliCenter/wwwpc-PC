@@ -23,11 +23,22 @@ const BLOCK_COLORS = [
   'bg-teal-100 text-teal-700 ring-teal-200',
 ];
 
-/** Warna stabil per nama blok, supaya tidak berubah saat daftar diurut ulang. */
-export function blockColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return BLOCK_COLORS[hash % BLOCK_COLORS.length];
+/**
+ * Peta nama blok → warna, dibagikan menurut URUTAN kemunculan blok.
+ *
+ * Sempat memakai hash dari nama blok agar warnanya melekat pada nama, tapi
+ * dengan palet 6 warna dua blok gampang bertabrakan — pada survei uji,
+ * "Elektabilitas" dan "Media & Informasi" sama-sama ungu, sehingga batas blok
+ * justru tak terbaca. Pembagian berdasar urutan menjamin blok yang berdekatan
+ * selalu beda warna, dan itu yang sebenarnya dibutuhkan mata saat menyusuri
+ * daftar pertanyaan.
+ */
+export function buildBlockColors(questions: Question[]): Record<string, string> {
+  const colors: Record<string, string> = {};
+  collectBlocks(questions).forEach((block, i) => {
+    colors[block.name] = BLOCK_COLORS[i % BLOCK_COLORS.length];
+  });
+  return colors;
 }
 
 /** Ringkas nomor anggota blok jadi rentang terbaca: [1,2,3,7] → "1–3, 7". */
@@ -131,6 +142,7 @@ interface Props {
 
 export function RandomBlockPanel({ questions, onApply, onClose }: Props) {
   const blocks = useMemo(() => collectBlocks(questions), [questions]);
+  const blockColors = useMemo(() => buildBlockColors(questions), [questions]);
   const conflicts = useMemo(() => findBlockConflicts(questions), [questions]);
 
   const [from, setFrom] = useState('');
@@ -272,7 +284,7 @@ export function RandomBlockPanel({ questions, onApply, onClose }: Props) {
                 {blocks.map((b) => (
                   <li key={b.name} className="flex items-center gap-3 px-4 py-3">
                     <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${blockColor(b.name)}`}
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${blockColors[b.name]}`}
                     >
                       {b.name}
                     </span>

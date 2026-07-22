@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { collectBlocks, findBlockConflicts, summarizeRanges } from './RandomBlockPanel';
+import {
+  buildBlockColors,
+  collectBlocks,
+  findBlockConflicts,
+  summarizeRanges,
+} from './RandomBlockPanel';
 import type { Question } from './surveyEditTypes';
 
 /** Bikin daftar pertanyaan: n buah, semuanya di luar blok. */
@@ -100,6 +105,38 @@ describe('collectBlocks — beberapa blok sekaligus', () => {
   it('mengabaikan nama blok yang hanya berisi spasi', () => {
     const questions = makeQuestions(3).map((q) => ({ ...q, randomizeGroup: '   ' }));
     expect(collectBlocks(questions)).toHaveLength(0);
+  });
+});
+
+describe('buildBlockColors', () => {
+  it('memberi warna BERBEDA untuk tiap blok pada skenario tiga rentang', () => {
+    // Regresi: pembagian warna lewat hash nama membuat "Elektabilitas" dan
+    // "Media & Informasi" sama-sama ungu, sehingga batas blok tak terbaca.
+    let questions = makeQuestions(100);
+    questions = assignRange(questions, 10, 50, 'Pengetahuan Politik');
+    questions = assignRange(questions, 58, 70, 'Elektabilitas');
+    questions = assignRange(questions, 90, 100, 'Media & Informasi');
+
+    const colors = buildBlockColors(questions);
+    const dipakai = Object.values(colors);
+    expect(dipakai).toHaveLength(3);
+    expect(new Set(dipakai).size).toBe(3);
+  });
+
+  it('blok yang berurutan tidak pernah berwarna sama', () => {
+    let questions = makeQuestions(60);
+    const names = ['A', 'B', 'C', 'D', 'E', 'F'];
+    names.forEach((n, i) => {
+      questions = assignRange(questions, i * 10 + 1, i * 10 + 10, n);
+    });
+    const colors = buildBlockColors(questions);
+    for (let i = 1; i < names.length; i++) {
+      expect(colors[names[i]]).not.toBe(colors[names[i - 1]]);
+    }
+  });
+
+  it('mengembalikan peta kosong bila tidak ada blok', () => {
+    expect(buildBlockColors(makeQuestions(5))).toEqual({});
   });
 });
 
