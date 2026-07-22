@@ -10,6 +10,7 @@ import { SkipLogicService } from './services/skip-logic.service';
 import { VisibilityService } from './services/visibility.service';
 import { BranchingService } from './services/branching.service';
 import { OptionRandomizerService } from './services/option-randomizer';
+import { QuestionOrderService } from './services/question-order.service';
 import { SurveyTimeService } from './services/survey-time.service';
 import { AnswerValidationService } from './services/answer-validation.service';
 import { SurveyFillService } from './services/survey-fill.service';
@@ -60,6 +61,7 @@ import { NotificationModule } from '@modules/notification/notification.module';
     VisibilityService,
     BranchingService,
     OptionRandomizerService,
+    QuestionOrderService,
     SurveyTimeService,
     AnswerValidationService,
     SurveyFillService,
@@ -71,6 +73,7 @@ import { NotificationModule } from '@modules/notification/notification.module';
     VisibilityService,
     BranchingService,
     OptionRandomizerService,
+    QuestionOrderService,
     SurveyTimeService,
     AnswerValidationService,
     SurveyFillService,

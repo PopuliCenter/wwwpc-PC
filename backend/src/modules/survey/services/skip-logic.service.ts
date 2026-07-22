@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { SkipLogicRule } from '../entities/skip-logic-rule.entity';
 import { Question } from '../entities/question.entity';
 import { evaluateCondition, ConditionOperator } from './condition-evaluator';
 import { SkipLogicRuleDto } from '../dto/set-skip-logic.dto';
+import { assertRandomizationSafe } from './randomization-validator';
 
 @Injectable()
 export class SkipLogicService {
@@ -28,6 +29,32 @@ export class SkipLogicService {
     if (!question) {
       throw new NotFoundException(`Question with id ${questionId} not found`);
     }
+
+    // Aturan tidak boleh bentrok dengan pengacakan urutan — diperiksa memakai
+    // setelan blok pertanyaan-pertanyaan yang terlibat.
+    const referenced = new Set<string>([questionId]);
+    for (const rule of rules) {
+      referenced.add(rule.sourceQuestionId);
+      if (rule.targetQuestionId) referenced.add(rule.targetQuestionId);
+    }
+    const involved = await this.questionRepository.find({
+      where: { id: In([...referenced]) },
+      select: { id: true, questionText: true, randomizeGroup: true, pinPosition: true },
+    });
+    assertRandomizationSafe(
+      involved.map((q) => ({
+        id: q.id,
+        label: q.questionText,
+        randomizeGroup: q.randomizeGroup,
+        pinPosition: q.pinPosition,
+      })),
+      rules.map((rule) => ({
+        questionId,
+        sourceQuestionId: rule.sourceQuestionId,
+        action: rule.action,
+        targetQuestionId: rule.targetQuestionId ?? null,
+      })),
+    );
 
     // Remove existing rules for this question
     await this.skipLogicRepository.delete({ questionId });

@@ -393,6 +393,8 @@ export class SurveyService {
         enabled: q.enabled,
         order: q.orderIndex,
         hasOtherOption: q.hasOtherOption,
+        randomizeGroup: q.randomizeGroup,
+        pinPosition: q.pinPosition,
         validationRules: q.validationRules,
         options: [...(q.options ?? [])]
           .sort((a, b) => a.orderIndex - b.orderIndex)

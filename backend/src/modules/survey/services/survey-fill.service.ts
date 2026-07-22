@@ -16,6 +16,7 @@ import { SurveyResponse, ResponseStatus } from '@modules/response/entities/surve
 import { Answer } from '@modules/response/entities/answer.entity';
 import { QuestionType } from '@shared/enums';
 import { SurveyTimeService } from './survey-time.service';
+import { QuestionOrderService } from './question-order.service';
 import { checkEligibility } from '../utils/eligibility';
 
 /** A condition in the shape the respondent frontend evaluates. */
@@ -133,6 +134,7 @@ export class SurveyFillService {
     @InjectRepository(Answer)
     private readonly answerRepository: Repository<Answer>,
     private readonly surveyTimeService: SurveyTimeService,
+    private readonly questionOrderService: QuestionOrderService,
   ) {}
 
   async getFillData(surveyId: string, respondentId: string): Promise<SurveyFillData> {
@@ -171,7 +173,9 @@ export class SurveyFillService {
     // pra-isi untuk aturan tampil cabang.
     const assignments = await this.ensureArmAssignments(surveyId, responseId);
 
-    const data = await this.assembleFillData(survey);
+    // Seed = responseId ⇒ urutan acak sama setiap kali responden melanjutkan
+    // pengisian yang tertunda.
+    const data = await this.assembleFillData(survey, responseId);
     return { ...data, responseId, assignments };
   }
 
@@ -237,11 +241,20 @@ export class SurveyFillService {
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
     }
-    return this.assembleFillData(survey);
+    // Seed null: urutan pertanyaan TIDAK diacak untuk surveyor/TPD, supaya
+    // layar selalu sama dengan kuesioner cetak yang mereka pegang.
+    return this.assembleFillData(survey, null);
   }
 
-  /** Rakit pertanyaan + konfigurasi survei (dipakai responden & surveyor). */
-  private async assembleFillData(survey: Survey): Promise<Omit<SurveyFillData, 'responseId'>> {
+  /**
+   * Rakit pertanyaan + konfigurasi survei (dipakai responden & surveyor).
+   *
+   * @param orderSeed Kunci pengacakan urutan pertanyaan; null = urutan asli.
+   */
+  private async assembleFillData(
+    survey: Survey,
+    orderSeed: string | null,
+  ): Promise<Omit<SurveyFillData, 'responseId'>> {
     const surveyId = survey.id;
     const [pages, questions] = await Promise.all([
       this.pageRepository.find({ where: { surveyId }, order: { pageNumber: 'ASC' } }),
@@ -267,7 +280,8 @@ export class SurveyFillService {
     const visibilityByQuestion = this.groupVisibilityConditions(visibilityRules);
     const hideByQuestion = this.groupHideConditions(visibilityRules);
 
-    const fillQuestions: FillQuestion[] = questions
+    const fillQuestions: FillQuestion[] = this.questionOrderService
+      .order(questions, orderSeed)
       // Pertanyaan arm eksperimen TIDAK ditampilkan ke responden — nilainya
       // diundi sistem & dikirim lewat `assignments`, hanya jadi sumber aturan tampil.
       .filter((q) => q.type !== QuestionType.RANDOM_ARM)

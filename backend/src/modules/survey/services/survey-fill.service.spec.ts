@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
 import { SurveyFillService } from './survey-fill.service';
+import { QuestionOrderService } from './question-order.service';
 import { ResponseStatus } from '@modules/response/entities/survey-response.entity';
 
 const SURVEY_ID = 'survey-1';
@@ -95,6 +96,8 @@ function makeService(m: Mocks = {}) {
     responseRepository as any,
     answerRepository as any,
     surveyTimeService as any,
+    // Layanan murni tanpa dependensi — pakai yang asli agar urutan yang diuji nyata.
+    new QuestionOrderService(),
   );
 
   return { service, surveyRepository, responseRepository, answerRepository, surveyTimeService };

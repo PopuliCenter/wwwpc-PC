@@ -17,6 +17,7 @@ import { SurveyResponse, ResponseStatus } from '@modules/response/entities/surve
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { ReorderQuestionsDto } from './dto/reorder-questions.dto';
+import { assertRandomizationSafe } from './services/randomization-validator';
 import { QuestionType } from '@shared/enums';
 
 /** Bentuk aturan skip/visibilitas dalam payload builder (referensi pakai id-builder). */
@@ -41,10 +42,18 @@ export interface BulkQuestionInput {
   enabled?: boolean;
   order?: number;
   hasOtherOption?: boolean;
+  randomizeGroup?: string | null;
+  pinPosition?: boolean;
   options?: Array<{ label?: string; value?: string; orderIndex?: number }>;
   validationRules?: Record<string, any> | null;
   skipLogicRules?: BulkSkipRuleInput[];
   visibilityRules?: BulkVisibilityRuleInput[];
+}
+
+/** Rapikan nama blok: string kosong / spasi saja dianggap "tanpa blok". */
+function normalizeGroup(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed.slice(0, 50) : null;
 }
 
 @Injectable()
@@ -119,6 +128,8 @@ export class QuestionService {
       orderIndex,
       validationRules: dto.validationRules ?? null,
       hasOtherOption: dto.hasOtherOption ?? false,
+      randomizeGroup: normalizeGroup(dto.randomizeGroup),
+      pinPosition: dto.pinPosition ?? false,
     });
 
     const savedQuestion = await this.questionRepository.save(question);
@@ -170,6 +181,33 @@ export class QuestionService {
       );
     }
 
+    // Tolak aturan yang jadi tak masuk akal setelah urutan diacak — DIPERIKSA
+    // SEBELUM penghapusan di bawah, supaya payload bermasalah tidak sempat
+    // menghancurkan pertanyaan lama.
+    assertRandomizationSafe(
+      questions.map((q, i) => ({
+        id: q.clientId ?? `#${i + 1}`,
+        label: q.text,
+        randomizeGroup: normalizeGroup(q.randomizeGroup),
+        pinPosition: q.pinPosition ?? false,
+      })),
+      questions.flatMap((q, i) => {
+        const questionId = q.clientId ?? `#${i + 1}`;
+        const skip = (q.skipLogicRules ?? [])
+          .filter((r) => r.sourceQuestionId)
+          .map((r) => ({
+            questionId,
+            sourceQuestionId: r.sourceQuestionId!,
+            action: r.action,
+            targetQuestionId: r.targetQuestionId,
+          }));
+        const visibility = (q.visibilityRules ?? [])
+          .filter((r) => r.sourceQuestionId)
+          .map((r) => ({ questionId, sourceQuestionId: r.sourceQuestionId! }));
+        return [...skip, ...visibility];
+      }),
+    );
+
     // Pastikan ada minimal satu halaman (model question butuh page_id)
     let page = await this.pageRepository.findOne({
       where: { surveyId },
@@ -205,6 +243,8 @@ export class QuestionService {
           orderIndex: q.order ?? i,
           validationRules: q.validationRules ?? null,
           hasOtherOption: q.hasOtherOption ?? false,
+          randomizeGroup: normalizeGroup(q.randomizeGroup),
+          pinPosition: q.pinPosition ?? false,
         }),
       );
       if (q.clientId) idMap.set(q.clientId, saved.id);
@@ -330,6 +370,10 @@ export class QuestionService {
       }
       question.hasOtherOption = dto.hasOtherOption;
     }
+    if (dto.randomizeGroup !== undefined) {
+      question.randomizeGroup = normalizeGroup(dto.randomizeGroup);
+    }
+    if (dto.pinPosition !== undefined) question.pinPosition = dto.pinPosition;
 
     await this.questionRepository.save(question);
 

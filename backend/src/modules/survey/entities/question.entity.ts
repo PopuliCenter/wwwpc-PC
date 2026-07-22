@@ -51,6 +51,18 @@ export class Question {
   @Column({ type: 'int', default: 0, name: 'order_index' })
   orderIndex: number;
 
+  /**
+   * Nama blok acak. Pertanyaan dengan nama blok sama akan diacak DI ANTARA
+   * posisi mereka sendiri. NULL = tidak pernah diacak (default, dan wajib
+   * untuk bagian data diri/penyaring agar urutannya sama dengan kuesioner TPD).
+   */
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'randomize_group' })
+  randomizeGroup: string | null;
+
+  /** Tetap di posisi aslinya meski bloknya diacak (mis. pengantar blok). */
+  @Column({ type: 'boolean', default: false, name: 'pin_position' })
+  pinPosition: boolean;
+
   @Column({ type: 'jsonb', nullable: true, name: 'validation_rules' })
   validationRules: Record<string, any> | null;
 
