@@ -14,6 +14,8 @@ import {
   UniqueIdConfig,
 } from './questionConfigs';
 import { LogicEditor } from './LogicEditor';
+import { Shuffle, Pin } from 'lucide-react';
+import { blockColor } from './RandomBlockPanel';
 
 export function SortableQuestionCard({
   question,
@@ -80,6 +82,16 @@ export function SortableQuestionCard({
             {hasLogic && (
               <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">
                 Aturan
+              </span>
+            )}
+            {question.randomizeGroup?.trim() && (
+              <span
+                title={`Blok acak: ${question.randomizeGroup}`}
+                className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs ring-1 ring-inset ${blockColor(question.randomizeGroup.trim())}`}
+              >
+                <Shuffle className="h-3 w-3" />
+                {question.randomizeGroup.trim()}
+                {question.pinPosition && <Pin className="h-3 w-3" />}
               </span>
             )}
           </div>
@@ -273,6 +285,47 @@ export function SortableQuestionCard({
                         Pertanyaan ini tidak ditampilkan ke responden.
                       </p>
                     )}
+                  </div>
+
+                  {/* Blok acak urutan — atur massal lewat tombol "Blok Acak" di atas daftar. */}
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">
+                      Blok acak urutan
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        maxLength={50}
+                        value={question.randomizeGroup ?? ''}
+                        onChange={(e) =>
+                          onEdit({ ...question, randomizeGroup: e.target.value || null })
+                        }
+                        placeholder="Kosongkan = tidak diacak"
+                        list="nama-blok-tersedia"
+                        className="flex-1 min-w-[12rem] rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+                      />
+                      <label
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${
+                          question.randomizeGroup?.trim()
+                            ? 'cursor-pointer border-gray-300 text-gray-700 hover:bg-gray-50'
+                            : 'cursor-not-allowed border-gray-200 text-gray-300'
+                        }`}
+                        title="Pertanyaan tetap di posisinya walau bloknya diacak"
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!question.randomizeGroup?.trim()}
+                          checked={!!question.pinPosition}
+                          onChange={(e) => onEdit({ ...question, pinPosition: e.target.checked })}
+                          className="h-3.5 w-3.5"
+                        />
+                        <Pin className="h-3.5 w-3.5" /> Kunci posisi
+                      </label>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pertanyaan dengan nama blok sama akan bertukar urutan tiap responden. Biarkan
+                      kosong untuk data diri, penyaring, dan pertanyaan yang jadi syarat aturan.
+                    </p>
                   </div>
 
                   {/* Konfigurasi per tipe */}

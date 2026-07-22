@@ -93,6 +93,10 @@ export interface Question {
   enabled?: boolean;
   order: number;
   hasOtherOption?: boolean;
+  /** Nama blok acak; kosong/null = pertanyaan tidak ikut diacak. */
+  randomizeGroup?: string | null;
+  /** Tetap di posisinya meski bloknya diacak. */
+  pinPosition?: boolean;
   options?: QuestionOption[];
   skipLogicRules?: SkipLogicRule[];
   visibilityRules?: VisibilityRule[];
@@ -121,6 +125,8 @@ export interface BackendQuestion {
   orderIndex: number;
   validationRules: ValidationRules | null;
   hasOtherOption: boolean;
+  randomizeGroup?: string | null;
+  pinPosition?: boolean;
   options?: { id: string; label: string; value: string; orderIndex: number }[];
   skipLogicRules?: SkipLogicRule[];
   visibilityRules?: VisibilityRule[];
@@ -136,6 +142,8 @@ export function mapBackendQuestion(q: BackendQuestion, idx: number): Question {
     enabled: q.enabled !== false,
     order: q.orderIndex ?? idx,
     hasOtherOption: !!q.hasOtherOption,
+    randomizeGroup: q.randomizeGroup ?? null,
+    pinPosition: !!q.pinPosition,
     validationRules: q.validationRules ?? undefined,
     options: (q.options ?? [])
       .slice()
