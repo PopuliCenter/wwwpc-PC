@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Jalankan manual dari tab Actions. Diperlukan saat yang berubah bukan kode
+  # melainkan konfigurasi build di GitHub (mis. variable VITE_GOOGLE_CLIENT_ID
+  # yang di-bake ke image web) — tanpa ini, satu-satunya cara membangun ulang
+  # image adalah membuat commit kosong.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
