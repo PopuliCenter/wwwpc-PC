@@ -130,11 +130,14 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      # GERBANG WAJIB: gagal bila ada kerentanan PRODUKSI high/critical. Saat ini
-      # bersih (0 high/critical) setelah multer di-override & xlsx diganti exceljs.
-      # (moderate/low tidak memblokir.)
-      - name: Audit production deps (high+)
-        run: npm audit --omit=dev --audit-level=high
+      # GERBANG WAJIB: gagal bila ada high/critical PRODUKSI DI LUAR allowlist
+      # ber-batas-waktu di scripts/audit-gate.mjs. Allowlist hanya memuat advisory
+      # yang penutupannya butuh upgrade major @nestjs v10→v12 (proyek terpisah);
+      # tiap entri punya alasan + tanggal kedaluwarsa. Menurunkan --audit-level
+      # SENGAJA dihindari (itu membutakan gerbang thd high lain). moderate/low
+      # tidak memblokir.
+      - name: Audit production deps (gate + allowlist)
+        run: node scripts/audit-gate.mjs
 
   # ── Rilis image (12-factor V: build-release-run terpisah) ────────────────────
   # Build image backend+frontend SEKALI di CI, push ke GHCR. VPS tinggal
