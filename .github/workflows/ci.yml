@@ -114,7 +114,7 @@ jobs:
             echo "GAGAL pull $1 setelah 5 percobaan"; return 1
           }
           pull_retry postgres:16-alpine
-          pull_retry minio/minio:latest
+          pull_retry quay.io/minio/minio:latest
           docker compose -f docker-compose.backup-test.yml up -d
       - name: Tunggu container sehat
         run: |

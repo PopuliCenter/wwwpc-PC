@@ -75,7 +75,10 @@ services:
 
   # ── MinIO (S3-compatible object storage) ───────────────────────────────────
   minio:
-    image: minio/minio:latest
+    # quay.io = distribusi resmi MinIO; image Docker Hub (minio/minio) tak lagi
+    # bisa di-pull (401). Container yang sudah jalan tak terpengaruh sampai
+    # di-recreate; ganti ini agar full restart / pull di masa depan tidak gagal.
+    image: quay.io/minio/minio:latest
     container_name: survei_minio
     restart: unless-stopped
     environment:
@@ -100,7 +103,7 @@ services:
 
   # ── MinIO Init — buat bucket satu kali lalu keluar ─────────────────────────
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: survei_minio_init
     restart: 'no'
     depends_on:

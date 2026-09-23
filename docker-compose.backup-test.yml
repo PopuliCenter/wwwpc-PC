@@ -19,7 +19,9 @@ services:
       retries: 20
 
   minio:
-    image: minio/minio:latest
+    # MinIO memindahkan distribusi resmi ke quay.io; image Docker Hub (minio/minio)
+    # tidak lagi bisa di-pull (401) — inilah penyebab job backup-restore gagal.
+    image: quay.io/minio/minio:latest
     command: server /data
     environment:
       MINIO_ROOT_USER: minioadmin
