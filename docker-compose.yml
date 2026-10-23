@@ -23,10 +23,21 @@
 # menyatu dengan "survey-populicenter". Container/volume akan diberi prefix ini.
 name: survei
 
+# Rotasi log default untuk semua service (setelan produksi VPS). Tanpa ini log
+# json-file Docker tumbuh tanpa batas dan bisa memenuhi disk.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   # ── PostgreSQL 16 ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
+    logging: *default-logging
+    mem_limit: 1024m
+    cpus: 1
     container_name: survei_postgres
     restart: unless-stopped
     environment:
@@ -52,6 +63,9 @@ services:
   # ── Redis 7 ────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
+    logging: *default-logging
+    mem_limit: 256m
+    cpus: 0.25
     container_name: survei_redis
     restart: unless-stopped
     command: >
@@ -75,10 +89,15 @@ services:
 
   # ── MinIO (S3-compatible object storage) ───────────────────────────────────
   minio:
-    # quay.io = distribusi resmi MinIO; image Docker Hub (minio/minio) tak lagi
-    # bisa di-pull (401). Container yang sudah jalan tak terpengaruh sampai
-    # di-recreate; ganti ini agar full restart / pull di masa depan tidak gagal.
-    image: quay.io/minio/minio:latest
+    # Salinan MILIK SENDIRI di GHCR, dikunci ke versi persis yang berjalan di
+    # produksi. Proyek MinIO komunitas sudah di-archive (2026) dan image-nya tak
+    # lagi bisa ditarik dari Docker Hub maupun quay.io (401). Salinan dibuat dari
+    # image container survei_minio di VPS (docker tag + push). JANGAN ganti ke
+    # :latest — tag versi menjamin recreate memakai biner yang sama persis.
+    image: ghcr.io/populicenter/minio:RELEASE.2025-09-07T16-13-09Z
+    logging: *default-logging
+    mem_limit: 512m
+    cpus: 0.5
     container_name: survei_minio
     restart: unless-stopped
     environment:
@@ -103,7 +122,11 @@ services:
 
   # ── MinIO Init — buat bucket satu kali lalu keluar ─────────────────────────
   minio-init:
-    image: quay.io/minio/mc:latest
+    # Salinan GHCR milik sendiri (lihat catatan di service minio).
+    image: ghcr.io/populicenter/minio-mc:RELEASE.2025-08-13T08-35-41Z
+    logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
     container_name: survei_minio_init
     restart: 'no'
     depends_on:
@@ -132,6 +155,9 @@ services:
     # Blok `build:` dipertahankan sebagai fallback (`--build`) bila registry
     # tak terjangkau.
     image: ghcr.io/populicenter/survei-backend:${IMAGE_TAG:-latest}
+    logging: *default-logging
+    mem_limit: 1024m
+    cpus: 1
     build:
       # Context = root monorepo (npm workspaces). Dockerfile butuh package-lock.json
       # root + tsconfig.base.json + manifest kedua workspace.
@@ -197,6 +223,9 @@ services:
   frontend:
     # Image rilis dari CI — lihat catatan di service backend.
     image: ghcr.io/populicenter/survei-frontend:${IMAGE_TAG:-latest}
+    logging: *default-logging
+    mem_limit: 128m
+    cpus: 0.25
     build:
       # Context = root monorepo (npm workspaces) — lihat catatan di service backend.
       context: .
