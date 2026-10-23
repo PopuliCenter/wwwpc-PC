@@ -34,6 +34,10 @@ const ALLOWLIST = [
   { id: 'GHSA-qfvm-cv95-jqjf', reason: 'multer DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
   { id: 'GHSA-qvfw-j98x-7q72', reason: 'multer size-bypass; ditahan cek ukuran app', expires: '2026-12-31' },
   { id: 'GHSA-535w-7cp7-47q4', reason: 'multer DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
+  // Orphaned disk writes saat upload dibatalkan — hanya berlaku utk diskStorage.
+  // App memakai memoryStorage (file-validation membaca file.buffer) → tak ada
+  // tulis disk, tak terjangkau.
+  { id: 'GHSA-3pph-fpjx-jg34', reason: 'multer diskStorage; app pakai memory', expires: '2026-12-31' },
   // body-parser DoS (limit tak berlaku) via express bundled di platform-express@10;
   // akar sama, tertutup oleh upgrade @nestjs/express. App set batas body sendiri.
   { id: 'GHSA-v422-hmwv-36x6', reason: 'body-parser DoS; ikut upgrade @nestjs', expires: '2026-12-31' },

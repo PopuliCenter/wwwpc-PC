@@ -7,7 +7,7 @@
 # =============================================================================
 
 # ── Stage 1: builder — install seluruh workspace + build Vite ────────────────
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Manifest dulu (root + kedua workspace) agar layer install ter-cache
