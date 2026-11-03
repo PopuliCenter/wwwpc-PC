@@ -2,4 +2,8 @@
 <resources>
     <!-- Warna tint ikon notifikasi (oranye Populi). -->
     <color name="populi_notification">#F26522</color>
+    <!-- Oranye merek: latar splash, sama dengan ic_launcher_background. -->
+    <color name="populi_brand">#F26522</color>
+    <!-- Status bar, bar navigasi, dan latar jendela: menyatu dengan header dan tab bawah. -->
+    <color name="populi_chrome">#FFFFFF</color>
 </resources>

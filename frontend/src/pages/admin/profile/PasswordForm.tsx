@@ -1,8 +1,10 @@
-import { Lock, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/common/Button';
+import { fieldCls } from '@/components/common/fieldStyles';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
 
-const inputClass =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-gray-50 disabled:text-gray-500';
-const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
+const labelClass = 'mb-1 block text-sm font-medium text-gray-700';
 
 interface PasswordFieldProps {
   id: string;
@@ -36,20 +38,25 @@ function PasswordField({
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`${inputClass} pr-10`}
+          className={`${fieldCls} pr-12`}
           required
           autoComplete={autoComplete}
         />
-        <button
-          type="button"
-          onClick={onToggleShow}
-          aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-        >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
+        {/* Pembungkus yang absolute karena IconButton sendiri relative. */}
+        <span className="absolute inset-y-0 right-0.5 flex items-center">
+          <IconButton
+            onClick={onToggleShow}
+            aria-label={show ? 'Sembunyikan password' : 'Tampilkan password'}
+          >
+            {show ? (
+              <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+            ) : (
+              <Eye className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+            )}
+          </IconButton>
+        </span>
       </div>
-      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-gray-600">{hint}</p>}
     </div>
   );
 }
@@ -93,22 +100,21 @@ export function PasswordForm({
   onSubmit,
 }: PasswordFormProps) {
   return (
-    <form onSubmit={onSubmit} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-gray-900">
-        <Lock className="h-4 w-4 text-primary-600" />
-        {hasPassword ? 'Ganti Password' : 'Buat Password'}
+    <form onSubmit={onSubmit} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+      <h2 className="mb-4 text-base font-semibold text-gray-900">
+        {hasPassword ? 'Ganti kata sandi' : 'Buat kata sandi'}
       </h2>
       {!hasPassword && (
-        <p className="mb-4 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+        <Notice className="mb-4">
           Akun Anda dibuat lewat Google (belum punya password). Buat password agar bisa juga login
           dengan email &amp; password — login Google tetap berfungsi.
-        </p>
+        </Notice>
       )}
       <div className="space-y-4">
         {hasPassword && (
           <PasswordField
             id="currentPassword"
-            label="Password Lama"
+            label="Kata sandi lama"
             value={currentPassword}
             onChange={onCurrentPasswordChange}
             show={showCurrentPw}
@@ -118,7 +124,7 @@ export function PasswordForm({
         )}
         <PasswordField
           id="newPassword"
-          label="Password Baru"
+          label="Kata sandi baru"
           value={newPassword}
           onChange={onNewPasswordChange}
           show={showNewPw}
@@ -128,7 +134,7 @@ export function PasswordForm({
         />
         <PasswordField
           id="confirmPassword"
-          label="Konfirmasi Password Baru"
+          label="Konfirmasi kata sandi baru"
           value={confirmPassword}
           onChange={onConfirmPasswordChange}
           show={showConfirmPw}
@@ -136,16 +142,15 @@ export function PasswordForm({
           autoComplete="new-password"
         />
       </div>
-      <div className="mt-5 flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
-        >
-          {saving ? 'Menyimpan...' : hasPassword ? 'Ganti Password' : 'Buat Password'}
-        </button>
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <Button type="submit" isLoading={saving}>
+          {saving ? 'Menyimpan...' : hasPassword ? 'Ganti kata sandi' : 'Buat kata sandi'}
+        </Button>
         {message && (
-          <span className={`text-sm ${message.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+          <span
+            role={message.ok ? 'status' : 'alert'}
+            className={`text-sm ${message.ok ? 'text-success-fg' : 'text-danger-fg'}`}
+          >
             {message.text}
           </span>
         )}

@@ -1,7 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '@/services/api';
-import { LoadingState } from '@/components/common/AsyncState';
 import { format } from 'date-fns';
+import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { Card } from '@/components/common/Card';
+import { useConfirm } from '@/components/common/ConfirmDialog';
+import { Notice } from '@/components/common/Notice';
+import { Skeleton, TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
+
+// Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
+const thBase = `${thBaseCls} whitespace-nowrap py-2.5`;
+const thCls = `${thBase} text-left`;
+const thNumCls = `${thBase} text-right`;
+const tdBase = `${tdBaseCls} text-sm`;
+const tdCls = `${tdBase} py-3 text-gray-600`;
+const tdNumCls = `${tdBase} py-3 text-right tabular-nums text-gray-600`;
+const labelCls = 'mb-1 block text-sm font-medium text-gray-700';
+
+/** Pesan hasil aksi; warnanya dari flag ini, bukan dari isi teks pesan. */
+interface ResultMessage {
+  text: string;
+  ok: boolean;
+}
+
+function ResultNotice({ message }: { message: ResultMessage }) {
+  return (
+    <Notice tone={message.ok ? 'success' : 'danger'} role={message.ok ? 'status' : 'alert'}>
+      {message.text}
+    </Notice>
+  );
+}
 
 // Types
 interface CleanupCandidate {
@@ -25,59 +54,6 @@ interface PurgeConfig {
   cronExpression: string;
 }
 
-// Confirmation Modal
-function ConfirmModal({
-  open,
-  onClose,
-  title,
-  message,
-  confirmLabel,
-  onConfirm,
-  loading,
-  variant,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  message: string;
-  confirmLabel: string;
-  onConfirm: () => void;
-  loading: boolean;
-  variant?: 'danger' | 'warning';
-}) {
-  if (!open) return null;
-
-  const btnClass =
-    variant === 'danger'
-      ? 'bg-red-600 hover:bg-red-700 text-white'
-      : 'bg-yellow-600 hover:bg-yellow-700 text-white';
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
-        <p className="text-sm text-gray-600 mb-4">{message}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            Batal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className={`flex-1 px-4 py-2 rounded-md disabled:opacity-50 ${btnClass}`}
-          >
-            {loading ? 'Memproses...' : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Cleanup Candidates Section
 function CleanupCandidatesSection() {
   const [candidates, setCandidates] = useState<CleanupCandidate[]>([]);
@@ -95,11 +71,11 @@ function CleanupCandidatesSection() {
   const [confirmToken, setConfirmToken] = useState('');
   const [confirmRequestId, setConfirmRequestId] = useState('');
   const [confirming, setConfirming] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState<ResultMessage | null>(null);
 
   // Archive state
   const [archiving, setArchiving] = useState<string | null>(null);
-  const [archiveMessage, setArchiveMessage] = useState<string | null>(null);
+  const [archiveMessage, setArchiveMessage] = useState<ResultMessage | null>(null);
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
@@ -148,14 +124,14 @@ function CleanupCandidatesSection() {
       await api.post(`/data-cleanup/confirm/${confirmRequestId}`, {
         confirmationToken: confirmToken,
       });
-      setConfirmMessage('Data berhasil dihapus');
+      setConfirmMessage({ text: 'Data berhasil dihapus', ok: true });
       setDeletionResult(null);
       setConfirmToken('');
       setConfirmRequestId('');
       fetchCandidates();
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
-      setConfirmMessage(apiErr.message || 'Gagal mengkonfirmasi penghapusan');
+      setConfirmMessage({ text: apiErr.message || 'Gagal mengkonfirmasi penghapusan', ok: false });
     } finally {
       setConfirming(false);
     }
@@ -166,10 +142,10 @@ function CleanupCandidatesSection() {
     setArchiveMessage(null);
     try {
       await api.post(`/data-cleanup/archive/${surveyId}`);
-      setArchiveMessage('Survei berhasil diarsipkan');
+      setArchiveMessage({ text: 'Survei berhasil diarsipkan', ok: true });
       fetchCandidates();
     } catch {
-      setArchiveMessage('Gagal mengarsipkan survei');
+      setArchiveMessage({ text: 'Gagal mengarsipkan survei', ok: false });
     } finally {
       setArchiving(null);
       setTimeout(() => setArchiveMessage(null), 3000);
@@ -181,71 +157,59 @@ function CleanupCandidatesSection() {
       <h2 className="text-lg font-semibold text-gray-900">Kandidat Penghapusan Data</h2>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-3">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
+        <Notice tone="danger" role="alert">
+          {error}
+        </Notice>
       )}
 
-      {archiveMessage && (
-        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
-          <p className="text-sm text-primary-800">{archiveMessage}</p>
-        </div>
-      )}
+      {archiveMessage && <ResultNotice message={archiveMessage} />}
 
       {loading ? (
-        <div className="p-8 text-center text-gray-500">Memuat data...</div>
+        <TableSkeleton rows={3} cols={5} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full">
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Survei
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Total Respons
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Sudah Export
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Dapat Dihapus
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Export Terakhir
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Aksi
-                </th>
+                <th className={thCls}>Survei</th>
+                <th className={thNumCls}>Total Respons</th>
+                <th className={thNumCls}>Sudah Diekspor</th>
+                <th className={thNumCls}>Dapat Dihapus</th>
+                <th className={thCls}>Ekspor Terakhir</th>
+                <th className={thNumCls}>Aksi</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="[&>tr:last-child>td]:border-b-0">
               {candidates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className={`${tdBase} py-8 text-center text-gray-600`}>
                     Tidak ada data yang dapat dihapus
                   </td>
                 </tr>
               ) : (
                 candidates.map((c) => (
                   <tr key={c.surveyId} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{c.surveyTitle}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.totalResponses}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.exportedResponses}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-orange-600">
+                    <td className={`${tdBase} py-3 text-gray-900`}>{c.surveyTitle}</td>
+                    <td className={tdNumCls}>{c.totalResponses}</td>
+                    <td className={tdNumCls}>{c.exportedResponses}</td>
+                    <td
+                      className={`${tdBase} py-3 text-right font-medium tabular-nums text-danger-fg`}
+                    >
                       {c.deletableCount}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
                       {c.lastExportDate ? format(new Date(c.lastExportDate), 'dd/MM/yyyy') : '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
+                    <td className={`${tdBase} py-1.5 text-right`}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleArchive(c.surveyId)}
                         disabled={archiving === c.surveyId}
-                        className="text-primary-600 hover:text-primary-800 text-xs font-medium disabled:opacity-50"
                       >
                         {archiving === c.surveyId ? 'Mengarsipkan...' : 'Arsipkan'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -256,18 +220,18 @@ function CleanupCandidatesSection() {
       )}
 
       {/* Request Deletion Form */}
-      <div className="border border-gray-200 rounded-lg p-4 mt-4">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Ajukan Penghapusan Data</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="mt-4 rounded-lg border border-gray-200 p-4">
+        <h3 className="mb-3 text-sm font-semibold text-gray-900">Ajukan Penghapusan Data</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <div>
-            <label htmlFor="deleteSurvey" className="block text-xs font-medium text-gray-700 mb-1">
+            <label htmlFor="deleteSurvey" className={labelCls}>
               Survei
             </label>
             <select
               id="deleteSurvey"
               value={selectedSurvey}
               onChange={(e) => setSelectedSurvey(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             >
               <option value="">Pilih survei...</option>
               {candidates.map((c) => (
@@ -278,7 +242,7 @@ function CleanupCandidatesSection() {
             </select>
           </div>
           <div>
-            <label htmlFor="dateFrom" className="block text-xs font-medium text-gray-700 mb-1">
+            <label htmlFor="dateFrom" className={labelCls}>
               Dari Tanggal
             </label>
             <input
@@ -286,11 +250,11 @@ function CleanupCandidatesSection() {
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="dateTo" className="block text-xs font-medium text-gray-700 mb-1">
+            <label htmlFor="dateTo" className={labelCls}>
               Sampai Tanggal
             </label>
             <input
@@ -298,37 +262,40 @@ function CleanupCandidatesSection() {
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div className="flex items-end">
-            <button
+            <Button
+              type="button"
+              variant="danger"
               onClick={handleRequestDeletion}
               disabled={!selectedSurvey || requesting}
-              className="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 text-sm"
+              className="w-full"
             >
               {requesting ? 'Memproses...' : 'Ajukan Hapus'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Deletion Result & Confirmation */}
       {deletionResult && (
-        <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-red-900 mb-2">Konfirmasi Penghapusan</h3>
-          <p className="text-sm text-red-700 mb-1">
-            Data yang akan dihapus: <strong>{deletionResult.affectedCount}</strong> respons
+        <Notice tone="danger" title="Konfirmasi Penghapusan">
+          <p className="mb-1">
+            Data yang akan dihapus:{' '}
+            <strong className="font-semibold tabular-nums">{deletionResult.affectedCount}</strong>{' '}
+            respons
           </p>
-          <p className="text-sm text-red-700 mb-3">
+          <p className="mb-3">
             Token konfirmasi:{' '}
-            <code className="bg-red-100 px-2 py-0.5 rounded font-mono text-xs">
+            <code className="break-all rounded-sm border border-danger-border bg-white px-1.5 py-0.5 font-mono text-xs">
               {deletionResult.confirmationToken}
             </code>
           </p>
-          <div className="flex gap-3 items-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
-              <label htmlFor="confirmToken" className="block text-xs font-medium text-red-800 mb-1">
+              <label htmlFor="confirmToken" className={labelCls}>
                 Masukkan token konfirmasi
               </label>
               <input
@@ -337,37 +304,22 @@ function CleanupCandidatesSection() {
                 value={confirmToken}
                 onChange={(e) => setConfirmToken(e.target.value)}
                 placeholder="Masukkan token..."
-                className="w-full px-3 py-2 border border-red-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                className={fieldCls}
               />
             </div>
-            <button
+            <Button
+              type="button"
+              variant="danger"
               onClick={handleConfirmDeletion}
               disabled={!confirmToken || confirming}
-              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
             >
               {confirming ? 'Menghapus...' : 'Konfirmasi Hapus'}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Notice>
       )}
 
-      {confirmMessage && (
-        <div
-          className={`rounded-md p-3 ${
-            confirmMessage.includes('berhasil')
-              ? 'bg-green-50 border border-green-200'
-              : 'bg-red-50 border border-red-200'
-          }`}
-        >
-          <p
-            className={`text-sm ${
-              confirmMessage.includes('berhasil') ? 'text-green-800' : 'text-red-700'
-            }`}
-          >
-            {confirmMessage}
-          </p>
-        </div>
-      )}
+      {confirmMessage && <ResultNotice message={confirmMessage} />}
     </div>
   );
 }
@@ -377,61 +329,51 @@ function GdprDeletionSection() {
   const [respondentId, setRespondentId] = useState('');
   const [superAdminApproval, setSuperAdminApproval] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [message, setMessage] = useState<ResultMessage | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   const handleGdprDelete = async () => {
+    const ok = await confirm({
+      title: 'Konfirmasi Penghapusan GDPR',
+      message: `Anda akan menghapus SEMUA data personal untuk responden ${respondentId}. Tindakan ini TIDAK DAPAT dibatalkan. Lanjutkan?`,
+      confirmText: 'Ya, Hapus Permanen',
+      danger: true,
+    });
+    if (!ok) return;
     setLoading(true);
     setMessage(null);
     try {
       await api.post(`/data-cleanup/gdpr/${respondentId}`, {
         superAdminApproval,
       });
-      setMessage('Data personal berhasil dihapus sesuai GDPR');
+      setMessage({ text: 'Data personal berhasil dihapus sesuai GDPR', ok: true });
       setRespondentId('');
       setSuperAdminApproval('');
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
-      setMessage(apiErr.message || 'Gagal menghapus data');
+      setMessage({ text: apiErr.message || 'Gagal menghapus data', ok: false });
     } finally {
       setLoading(false);
-      setShowConfirm(false);
     }
   };
 
   return (
     <div className="space-y-4">
+      {dialog}
       <h2 className="text-lg font-semibold text-gray-900">Penghapusan Data GDPR</h2>
 
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-        <p className="text-sm text-yellow-800">
-          Penghapusan GDPR bersifat <strong>permanen dan tidak dapat dibatalkan</strong>. Semua data
-          personal (nama, email, telepon, lokasi) akan dihapus secara permanen.
-        </p>
-      </div>
+      <Notice tone="warning">
+        Penghapusan GDPR bersifat{' '}
+        <strong className="font-semibold">permanen dan tidak dapat dibatalkan</strong>. Semua data
+        personal (nama, email, telepon, lokasi) akan dihapus secara permanen.
+      </Notice>
 
-      {message && (
-        <div
-          className={`rounded-md p-3 ${
-            message.includes('berhasil')
-              ? 'bg-green-50 border border-green-200'
-              : 'bg-red-50 border border-red-200'
-          }`}
-        >
-          <p
-            className={`text-sm ${
-              message.includes('berhasil') ? 'text-green-800' : 'text-red-700'
-            }`}
-          >
-            {message}
-          </p>
-        </div>
-      )}
+      {message && <ResultNotice message={message} />}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-          <label htmlFor="respondentId" className="block text-sm font-medium text-gray-700 mb-1">
-            Respondent ID
+          <label htmlFor="respondentId" className={labelCls}>
+            ID Responden
           </label>
           <input
             id="respondentId"
@@ -439,46 +381,34 @@ function GdprDeletionSection() {
             value={respondentId}
             onChange={(e) => setRespondentId(e.target.value)}
             placeholder="ID responden..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={fieldCls}
           />
         </div>
         <div>
-          <label
-            htmlFor="superAdminApproval"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Approval Super Admin
+          <label htmlFor="superAdminApproval" className={labelCls}>
+            Persetujuan Super Admin
           </label>
           <input
             id="superAdminApproval"
             type="text"
             value={superAdminApproval}
             onChange={(e) => setSuperAdminApproval(e.target.value)}
-            placeholder="Kode approval..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Kode persetujuan..."
+            className={fieldCls}
           />
         </div>
         <div className="flex items-end">
-          <button
-            onClick={() => setShowConfirm(true)}
-            disabled={!respondentId || !superAdminApproval}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 text-sm font-medium"
+          <Button
+            type="button"
+            variant="danger"
+            onClick={handleGdprDelete}
+            disabled={!respondentId || !superAdminApproval || loading}
+            className="w-full"
           >
-            Hapus Data GDPR
-          </button>
+            {loading ? 'Memproses...' : 'Hapus Data GDPR'}
+          </Button>
         </div>
       </div>
-
-      <ConfirmModal
-        open={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        title="Konfirmasi Penghapusan GDPR"
-        message={`Anda akan menghapus SEMUA data personal untuk responden ${respondentId}. Tindakan ini TIDAK DAPAT dibatalkan. Lanjutkan?`}
-        confirmLabel="Ya, Hapus Permanen"
-        onConfirm={handleGdprDelete}
-        loading={loading}
-        variant="danger"
-      />
     </div>
   );
 }
@@ -492,7 +422,7 @@ function ScheduledPurgeSection() {
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<ResultMessage | null>(null);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -514,10 +444,10 @@ function ScheduledPurgeSection() {
     setMessage(null);
     try {
       await api.post('/data-cleanup/purge-config', config);
-      setMessage('Konfigurasi berhasil disimpan');
+      setMessage({ text: 'Konfigurasi berhasil disimpan', ok: true });
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
-      setMessage(apiErr.message || 'Gagal menyimpan konfigurasi');
+      setMessage({ text: apiErr.message || 'Gagal menyimpan konfigurasi', ok: false });
     } finally {
       setSaving(false);
       setTimeout(() => setMessage(null), 3000);
@@ -526,53 +456,43 @@ function ScheduledPurgeSection() {
 
   if (loading) {
     return (
-      <LoadingState
-        text="Memuat konfigurasi..."
-        className="p-4 text-center text-sm text-gray-500"
-      />
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-2/3" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-900">Konfigurasi Scheduled Purge</h2>
+      <h2 className="text-lg font-semibold text-gray-900">Konfigurasi Pembersihan Terjadwal</h2>
 
-      {message && (
-        <div
-          className={`rounded-md p-3 ${
-            message.includes('berhasil')
-              ? 'bg-green-50 border border-green-200'
-              : 'bg-red-50 border border-red-200'
-          }`}
-        >
-          <p
-            className={`text-sm ${
-              message.includes('berhasil') ? 'text-green-800' : 'text-red-700'
-            }`}
-          >
-            {message}
-          </p>
-        </div>
-      )}
+      {message && <ResultNotice message={message} />}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+      <div className="grid grid-cols-1 items-end gap-4 md:grid-cols-3">
         <div>
-          <label className="flex items-center gap-2 cursor-pointer">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 lg:min-h-0">
             <input
               type="checkbox"
               checked={config.enabled}
               onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
-              className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+              className="h-4 w-4 accent-primary-600"
             />
-            <span className="text-sm font-medium text-gray-700">Aktifkan Scheduled Purge</span>
+            <span className="text-sm font-medium text-gray-700">
+              Aktifkan Pembersihan Terjadwal
+            </span>
           </label>
-          <p className="text-xs text-gray-500 mt-1">
-            Otomatis hapus data exported yang melebihi retention period
+          <p className="mt-1 text-xs text-gray-600">
+            Otomatis hapus data yang sudah diekspor dan melewati masa simpan
           </p>
         </div>
         <div>
-          <label htmlFor="retentionDays" className="block text-sm font-medium text-gray-700 mb-1">
-            Retention (hari)
+          <label htmlFor="retentionDays" className={labelCls}>
+            Masa simpan (hari)
           </label>
           <input
             id="retentionDays"
@@ -581,11 +501,11 @@ function ScheduledPurgeSection() {
             max={3650}
             value={config.retentionDays}
             onChange={(e) => setConfig({ ...config, retentionDays: Number(e.target.value) })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={`${fieldCls} tabular-nums`}
           />
         </div>
         <div>
-          <label htmlFor="cronExpression" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="cronExpression" className={labelCls}>
             Jadwal (Cron)
           </label>
           <input
@@ -594,20 +514,16 @@ function ScheduledPurgeSection() {
             value={config.cronExpression}
             onChange={(e) => setConfig({ ...config, cronExpression: e.target.value })}
             placeholder="0 2 * * *"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={`${fieldCls} font-mono`}
           />
-          <p className="text-xs text-gray-500 mt-1">Contoh: 0 2 * * * (setiap hari jam 02:00)</p>
+          <p className="mt-1 text-xs text-gray-600">Contoh: 0 2 * * * (setiap hari jam 02:00)</p>
         </div>
       </div>
 
       <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm"
-        >
+        <Button type="button" onClick={handleSave} disabled={saving}>
           {saving ? 'Menyimpan...' : 'Simpan Konfigurasi'}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -616,22 +532,22 @@ function ScheduledPurgeSection() {
 export function DataCleanupPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Data Cleanup</h1>
+      <h1 className="text-2xl font-bold text-gray-900">Pembersihan Data</h1>
 
       {/* Cleanup Candidates */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <Card>
         <CleanupCandidatesSection />
-      </div>
+      </Card>
 
       {/* GDPR Deletion */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <Card>
         <GdprDeletionSection />
-      </div>
+      </Card>
 
       {/* Scheduled Purge */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <Card>
         <ScheduledPurgeSection />
-      </div>
+      </Card>
     </div>
   );
 }

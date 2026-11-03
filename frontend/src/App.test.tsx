@@ -10,6 +10,6 @@ describe('App', () => {
     });
 
     render(<RouterProvider router={router} />);
-    expect(screen.getByText('Selamat datang kembali')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Masuk' })).toBeInTheDocument();
   });
 });

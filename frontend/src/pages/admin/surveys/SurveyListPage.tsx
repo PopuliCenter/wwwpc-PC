@@ -8,17 +8,23 @@ import {
   PauseCircle,
   Archive,
   Trash2,
-  ClipboardList,
   BarChart3,
   Send,
   Users,
   Download,
   Upload,
+  BookOpen,
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { Card } from '@/components/common/Card';
-import { Badge } from '@/components/common/Badge';
+import { Tag } from '@/components/common/Tag';
 import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { IconButton } from '@/components/common/IconButton';
+import { RowMenu, type RowMenuItem } from '@/components/common/RowMenu';
+import { TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
+import { SurveyStatusBadge, type SurveyStatus } from './SurveyStatusBadge';
 import { TargetedInviteModal } from './TargetedInviteModal';
 import { useConfirm } from '@/components/common/ConfirmDialog';
 import { showAppNotice } from '@/stores/notification.store';
@@ -30,7 +36,7 @@ import { format } from 'date-fns';
 interface Survey {
   id: string;
   title: string;
-  status: 'draft' | 'active' | 'inactive' | 'archived';
+  status: SurveyStatus;
   rewardMode: 'automatic' | 'manual';
   surveyType?: 'nasional' | 'daerah' | 'lainnya';
   category?: string | null;
@@ -39,25 +45,21 @@ interface Survey {
   endDate?: string;
 }
 
-const surveyTypeBadge: Record<'nasional' | 'daerah' | 'lainnya', { label: string; cls: string }> = {
-  nasional: { label: 'Nasional', cls: 'bg-primary-100 text-primary-700' },
-  daerah: { label: 'Daerah', cls: 'bg-emerald-100 text-emerald-700' },
-  lainnya: { label: 'Lainnya', cls: 'bg-gray-100 text-gray-600' },
+const surveyTypeLabels: Record<'nasional' | 'daerah' | 'lainnya', string> = {
+  nasional: 'Nasional',
+  daerah: 'Daerah',
+  lainnya: 'Lainnya',
 };
 
-const statusTone: Record<Survey['status'], 'neutral' | 'success' | 'warning' | 'danger'> = {
-  draft: 'neutral',
-  active: 'success',
-  inactive: 'warning',
-  archived: 'danger',
+const rewardModeLabels: Record<Survey['rewardMode'], string> = {
+  automatic: 'Otomatis',
+  manual: 'Manual',
 };
 
-const statusLabels: Record<Survey['status'], string> = {
-  draft: 'Draft',
-  active: 'Aktif',
-  inactive: 'Nonaktif',
-  archived: 'Diarsipkan',
-};
+// Kepala tabel gaya laporan: garis navy di bawah, tanpa latar.
+const thBase = `${thBaseCls} py-2.5`;
+const thCls = `${thBase} text-left`;
+const tdCls = `${tdBaseCls} py-3`;
 
 export function SurveyListPage() {
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -250,48 +252,32 @@ export function SurveyListPage() {
     }
   };
 
-  const actions = (s: Survey) => [
-    {
-      icon: Pencil,
-      label: 'Edit',
-      cls: 'hover:text-primary-700',
-      onClick: () => navigate(`/admin/surveys/${s.id}/edit`),
-    },
-    {
-      icon: BarChart3,
-      label: 'Ringkasan',
-      cls: 'hover:text-indigo-700',
-      onClick: () => navigate(`/admin/surveys/${s.id}/summary`),
-    },
+  // Edit dan Ringkasan tampil langsung di baris; aksi lainnya masuk menu.
+  const menuItems = (s: Survey): RowMenuItem[] => [
     {
       icon: Copy,
       label: 'Duplikasi',
-      cls: 'hover:text-emerald-700',
       onClick: () => handleDuplicate(s.id),
     },
     {
       icon: Download,
       label: 'Unduh Kuesioner',
-      cls: 'hover:text-indigo-700',
       onClick: () => handleDownloadQuestions(s),
     },
     {
       icon: Upload,
       label: 'Unggah Kuesioner',
-      cls: 'hover:text-blue-700',
       onClick: () => openUploadPicker(s),
     },
     s.status === 'active'
       ? {
           icon: PauseCircle,
           label: 'Nonaktifkan',
-          cls: 'hover:text-amber-700',
           onClick: () => handleDeactivate(s.id),
         }
       : {
           icon: PlayCircle,
           label: 'Aktifkan',
-          cls: 'hover:text-emerald-700',
           onClick: () => handleActivate(s.id),
         },
     ...(s.status === 'active'
@@ -299,13 +285,11 @@ export function SurveyListPage() {
           {
             icon: Send,
             label: 'Kirim Undangan',
-            cls: 'hover:text-blue-700',
             onClick: () => handleSendInvitations(s),
           },
           {
             icon: Users,
             label: 'Undang Bertarget',
-            cls: 'hover:text-indigo-700',
             onClick: () => setTargetSurvey({ id: s.id, title: s.title }),
           },
         ]
@@ -313,16 +297,17 @@ export function SurveyListPage() {
     {
       icon: Archive,
       label: 'Arsipkan',
-      cls: 'hover:text-gray-900',
       onClick: () => handleArchive(s.id),
     },
-    { icon: Trash2, label: 'Hapus', cls: 'hover:text-red-700', onClick: () => handleDelete(s.id) },
+    { icon: Trash2, label: 'Hapus', destructive: true, onClick: () => handleDelete(s.id) },
   ];
+
+  const activeCount = surveys.filter((s) => s.status === 'active').length;
 
   return (
     <div className="space-y-6">
       <SurveyEditorHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
-      {/* Input file tersembunyi untuk Unggah Kuesioner (dipicu dari ikon per baris). */}
+      {/* Input file tersembunyi untuk Unggah Kuesioner (dipicu dari menu per baris). */}
       <input
         ref={importInputRef}
         type="file"
@@ -330,151 +315,146 @@ export function SurveyListPage() {
         onChange={handleUploadFile}
         className="hidden"
       />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Manajemen Survei</h1>
-          <p className="mt-1 text-sm text-gray-500">Kelola, duplikasi, dan arsipkan survei Anda.</p>
+          <h1 className="text-2xl text-gray-900">Manajemen Survei</h1>
+          {!loading && surveys.length > 0 && (
+            <p className="mt-1 text-sm text-gray-600 tabular-nums">
+              {surveys.length} survei · {activeCount} aktif
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => setHelpOpen(true)}
-            className="rounded-md bg-gray-100 px-4 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-200"
             title="Panduan: percabangan, skip & kelompok eksperimen"
           >
-            📘 Panduan
-          </button>
-          <Button onClick={() => navigate('/admin/surveys/create')}>
-            <Plus className="h-4 w-4" /> Buat Survei Baru
+            <BookOpen className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Panduan
+          </Button>
+          <Button type="button" onClick={() => navigate('/admin/surveys/create')}>
+            <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Buat Survei Baru
           </Button>
         </div>
       </div>
 
       {surveys.length > 0 && (
         <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-          >
-            <option value="">Semua Tipe</option>
-            <option value="nasional">Nasional</option>
-            <option value="daerah">Daerah</option>
-            <option value="lainnya">Lainnya</option>
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-          >
-            <option value="">Semua Kategori</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <div className="w-full sm:w-44">
+            <select
+              aria-label="Saring menurut tipe"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">Semua Tipe</option>
+              <option value="nasional">Nasional</option>
+              <option value="daerah">Daerah</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div className="w-full sm:w-52">
+            <select
+              aria-label="Saring menurut kategori"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className={fieldCls}
+            >
+              <option value="">Semua Kategori</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
           {(typeFilter || categoryFilter) && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setTypeFilter('');
                 setCategoryFilter('');
               }}
-              className="text-sm text-gray-500 hover:text-gray-700"
             >
               Reset
-            </button>
+            </Button>
           )}
-          <span className="text-sm text-gray-400">{filtered.length} survei</span>
+          <span className="text-sm text-gray-600 tabular-nums">{filtered.length} survei</span>
         </div>
       )}
 
-      <Card flush>
+      <Card flush className="overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-sm text-gray-500">Memuat...</div>
+          <TableSkeleton rows={5} cols={6} />
         ) : surveys.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 p-12 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-              <ClipboardList className="h-6 w-6" />
-            </span>
-            <p className="text-sm text-gray-500">
-              Belum ada survei. Klik{' '}
-              <span className="font-medium text-gray-700">Buat Survei Baru</span> untuk memulai.
-            </p>
-          </div>
+          <p className="p-12 text-center text-sm text-gray-600">
+            Belum ada survei. Klik{' '}
+            <span className="font-medium text-gray-800">Buat Survei Baru</span> untuk memulai.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/60">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Judul
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Tipe / Kategori
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Reward
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Dibuat
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Aksi
-                  </th>
+                <tr>
+                  <th className={thCls}>Judul</th>
+                  <th className={thCls}>Tipe / Kategori</th>
+                  <th className={thCls}>Status</th>
+                  <th className={thCls}>Reward</th>
+                  <th className={thCls}>Dibuat</th>
+                  <th className={`${thBase} text-right`}>Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((survey) => {
-                  const t = surveyTypeBadge[survey.surveyType ?? 'lainnya'];
-                  return (
-                    <tr key={survey.id} className="transition-colors hover:bg-gray-50/60">
-                      <td className="px-4 py-3.5 text-sm font-medium text-gray-900">
-                        {survey.title}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex flex-col gap-1">
-                          <span
-                            className={`inline-flex w-fit items-center rounded-full px-2 py-0.5 text-xs font-semibold ${t.cls}`}
-                          >
-                            {t.label}
-                          </span>
-                          {survey.category && (
-                            <span className="text-xs text-gray-500">{survey.category}</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <Badge tone={statusTone[survey.status]} dot>
-                          {statusLabels[survey.status]}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3.5 text-sm capitalize text-gray-600">
-                        {survey.rewardMode}
-                      </td>
-                      <td className="px-4 py-3.5 text-sm text-gray-600">
-                        {format(new Date(survey.createdAt), 'dd/MM/yyyy')}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          {actions(survey).map(({ icon: Icon, label, cls, onClick }) => (
-                            <button
-                              key={label}
-                              onClick={onClick}
-                              title={label}
-                              aria-label={label}
-                              className={`rounded-md p-1.5 text-gray-400 transition-colors hover:bg-gray-100 ${cls}`}
-                            >
-                              <Icon className="h-4 w-4" />
-                            </button>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody>
+                {filtered.map((survey) => (
+                  <tr
+                    key={survey.id}
+                    className="transition-colors hover:bg-gray-50 [&:last-child>td]:border-b-0"
+                  >
+                    <td className={`${tdCls} min-w-48 text-sm font-medium text-gray-900`}>
+                      {survey.title}
+                    </td>
+                    <td className={tdCls}>
+                      <div className="flex flex-col items-start gap-1">
+                        <Tag>{surveyTypeLabels[survey.surveyType ?? 'lainnya']}</Tag>
+                        {survey.category && (
+                          <span className="text-xs text-gray-600">{survey.category}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap`}>
+                      <SurveyStatusBadge status={survey.status} />
+                    </td>
+                    <td className={`${tdCls} text-sm text-gray-600`}>
+                      {rewardModeLabels[survey.rewardMode] ?? survey.rewardMode}
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap text-sm text-gray-600`}>
+                      {format(new Date(survey.createdAt), 'dd/MM/yyyy')}
+                    </td>
+                    <td className={tdCls}>
+                      <div className="flex items-center justify-end gap-1">
+                        <IconButton
+                          aria-label="Edit"
+                          onClick={() => navigate(`/admin/surveys/${survey.id}/edit`)}
+                        >
+                          <Pencil className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </IconButton>
+                        <IconButton
+                          aria-label="Ringkasan"
+                          onClick={() => navigate(`/admin/surveys/${survey.id}/summary`)}
+                        >
+                          <BarChart3 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                        </IconButton>
+                        <RowMenu
+                          label={`Aksi lainnya untuk ${survey.title}`}
+                          items={menuItems(survey)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

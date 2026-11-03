@@ -2,7 +2,7 @@ import { useState, useCallback, type MutableRefObject } from 'react';
 import { api } from '@/services/api';
 import { queueAdd, makeLocalId } from '@/utils/offlineQueue';
 import type { AnswerValue, Question, SurveyFillData } from '@/types/survey';
-import { DEVICE_TYPE, captureGeo, isAnswered } from '../surveyFillHelpers';
+import { DEVICE_TYPE, autoScrollBehavior, captureGeo, isAnswered } from '../surveyFillHelpers';
 
 type GeoRef = MutableRefObject<{ lat: number; lng: number } | null>;
 
@@ -91,8 +91,8 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
       // berpindah & render) agar responden tahu persis apa yang kurang.
       setTimeout(() => {
         const el = document.getElementById(`q-${missing[0]}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        else window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (el) el.scrollIntoView({ behavior: autoScrollBehavior(), block: 'center' });
+        else window.scrollTo({ top: 0, behavior: autoScrollBehavior() });
       }, 80);
       return;
     }

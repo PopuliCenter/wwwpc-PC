@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Bell, CheckCircle2, AlertTriangle, XCircle, X } from 'lucide-react';
 import { router } from '@/router';
 import { useNotificationStore, type AppNotice } from '@/stores/notification.store';
+import { isEmbedMode } from '@/utils/embed';
+import { IconButton } from './IconButton';
 
-const toneStyles: Record<
-  NonNullable<AppNotice['tone']>,
-  { ring: string; icon: typeof Bell; iconCls: string }
-> = {
-  info: { ring: 'border-indigo-200', icon: Bell, iconCls: 'text-indigo-600' },
-  success: { ring: 'border-emerald-200', icon: CheckCircle2, iconCls: 'text-emerald-600' },
-  warning: { ring: 'border-amber-200', icon: AlertTriangle, iconCls: 'text-amber-600' },
-  error: { ring: 'border-red-200', icon: XCircle, iconCls: 'text-red-600' },
+const subscribeRoute = (onChange: () => void) => router.subscribe(() => onChange());
+const isFillRoute = () => /^\/surveys\/[^/]+\/fill$/.test(router.state.location.pathname);
+
+const toneStyles: Record<NonNullable<AppNotice['tone']>, { icon: typeof Bell; iconCls: string }> = {
+  info: { icon: Bell, iconCls: 'text-gray-600' },
+  success: { icon: CheckCircle2, iconCls: 'text-success-fg' },
+  warning: { icon: AlertTriangle, iconCls: 'text-warning-fg' },
+  error: { icon: XCircle, iconCls: 'text-danger-fg' },
 };
 
 function NoticeCard({ notice }: { notice: AppNotice }) {
@@ -35,7 +37,7 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
 
   return (
     <div
-      className={`animate-toast-in pointer-events-auto w-full max-w-sm rounded-xl border ${tone.ring} bg-white shadow-lg ring-1 ring-black/5`}
+      className="animate-toast-in pointer-events-auto w-full max-w-sm rounded-lg border border-gray-200 bg-white text-sm text-gray-900 shadow-lg"
       role="status"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -43,26 +45,21 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
       onBlurCapture={() => setPaused(false)}
     >
       <div className="flex items-start gap-3 p-3">
-        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${tone.iconCls}`} />
+        <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${tone.iconCls}`} strokeWidth={1.75} />
         <button
           type="button"
           onClick={clickable ? open : undefined}
           className={`min-w-0 flex-1 text-left ${clickable ? 'cursor-pointer' : 'cursor-default'}`}
         >
-          <p className="text-sm font-semibold text-gray-900">{notice.title}</p>
-          {notice.body && <p className="mt-0.5 text-sm text-gray-600">{notice.body}</p>}
+          <p className="font-medium text-gray-900">{notice.title}</p>
+          {notice.body && <p className="mt-0.5 text-gray-600">{notice.body}</p>}
           {clickable && (
-            <p className="mt-1 text-xs font-medium text-indigo-600">Ketuk untuk membuka →</p>
+            <p className="mt-1 text-xs font-medium text-gray-600">Ketuk untuk membuka →</p>
           )}
         </button>
-        <button
-          type="button"
-          onClick={() => dismiss(notice.id)}
-          className="shrink-0 rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Tutup"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <IconButton aria-label="Tutup" className="-my-2 -mr-2" onClick={() => dismiss(notice.id)}>
+          <X className="h-4 w-4" strokeWidth={1.75} />
+        </IconButton>
       </div>
     </div>
   );
@@ -74,10 +71,17 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
  */
 export function NotificationHost() {
   const notices = useNotificationStore((s) => s.notices);
+  const fillMode = useSyncExternalStore(subscribeRoute, isFillRoute);
   if (notices.length === 0) return null;
 
+  // Saat mengisi survei, toast turun ke bawah strip progres (header 64px + strip 39px)
+  // agar timer tetap terbaca, termasuk saat toast "Waktu hampir habis" muncul.
+  const top = !fillMode ? 'top-0' : isEmbedMode ? 'top-7' : 'top-[92px]';
+
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 p-3 sm:items-end">
+    <div
+      className={`pointer-events-none fixed inset-x-0 z-[60] flex flex-col items-center gap-2 p-3 sm:items-end ${top}`}
+    >
       {notices.map((n) => (
         <NoticeCard key={n.id} notice={n} />
       ))}

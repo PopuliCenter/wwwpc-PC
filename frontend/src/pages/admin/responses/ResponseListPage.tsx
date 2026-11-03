@@ -1,10 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Archive,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Trash2,
+} from 'lucide-react';
 import { api } from '@/services/api';
 import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
+import { Badge } from '@/components/common/Badge';
+import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { RowCheckbox } from '@/components/common/RowCheckbox';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { Notice } from '@/components/common/Notice';
+import { RowMenu } from '@/components/common/RowMenu';
+import { TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
 import { showAppNotice } from '@/stores/notification.store';
+import { ResponseStatusLabel } from './ResponseStatusLabel';
+
+// Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
+const thBase = `${thBaseCls} whitespace-nowrap text-left`;
+const thCls = `${thBase} py-2.5`;
+const tdBase = `${tdBaseCls} text-sm`;
+const tdCls = `${tdBase} py-3 text-gray-600`;
+const filterLabelCls = 'mb-1 block text-xs text-gray-600';
 
 interface ResponseItem {
   id: string;
@@ -46,18 +71,6 @@ interface FilterState {
 
 type SortKey = 'respondentName' | 'surveyTitle' | 'status' | 'submittedAt' | 'deviceType';
 
-const statusColors: Record<string, string> = {
-  completed: 'bg-green-100 text-green-800',
-  partial: 'bg-yellow-100 text-yellow-800',
-  abandoned: 'bg-red-100 text-red-800',
-};
-
-const statusLabels: Record<string, string> = {
-  completed: 'Selesai',
-  partial: 'Sebagian',
-  abandoned: 'Ditinggalkan',
-};
-
 function ManualRewardPanel({
   responses,
   onMarkDistributed,
@@ -86,59 +99,45 @@ function ManualRewardPanel({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+    <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+      <h3 className="mb-4 text-lg font-semibold text-gray-900">
         Distribusi Reward Manual ({eligibleResponses.length} menunggu)
       </h3>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full">
+          <thead>
             <tr>
-              <th className="px-4 py-3 text-left">
-                <input
-                  type="checkbox"
+              <th className={thCls}>
+                <RowCheckbox
+                  label="Pilih semua respons"
                   checked={
                     selectedIds.length === eligibleResponses.length && eligibleResponses.length > 0
                   }
                   onChange={toggleAll}
-                  className="rounded border-gray-300"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Responden
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Survei
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Jenis
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                No. Tujuan
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Tanggal
-              </th>
+              <th className={thCls}>Responden</th>
+              <th className={thCls}>Survei</th>
+              <th className={thCls}>Jenis</th>
+              <th className={thCls}>No. Tujuan</th>
+              <th className={thCls}>Tanggal</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="[&>tr:last-child>td]:border-b-0">
             {eligibleResponses.map((r) => (
               <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <input
-                    type="checkbox"
+                <td className={tdCls}>
+                  <RowCheckbox
+                    label={`Pilih ${r.respondentName}`}
                     checked={selectedIds.includes(r.id)}
                     onChange={() => toggleSelect(r.id)}
-                    className="rounded border-gray-300"
                   />
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-900">{r.respondentName}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
-                <td className="px-4 py-3 text-sm text-gray-600 capitalize">
-                  {r.rewardType ?? '-'}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-600">{r.destinationNumber ?? '-'}</td>
-                <td className="px-4 py-3 text-sm text-gray-600">
+                <td className={`${tdBase} py-3 text-gray-900`}>{r.respondentName}</td>
+                <td className={tdCls}>{r.surveyTitle}</td>
+                <td className={`${tdCls} capitalize`}>{r.rewardType ?? '-'}</td>
+                <td className={`${tdCls} tabular-nums`}>{r.destinationNumber ?? '-'}</td>
+                <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
                   {format(new Date(r.submittedAt), 'dd/MM/yyyy HH:mm')}
                 </td>
               </tr>
@@ -147,17 +146,18 @@ function ManualRewardPanel({
         </table>
       </div>
       {selectedIds.length > 0 && (
-        <div className="mt-4 flex items-center gap-4">
-          <span className="text-sm text-gray-600">{selectedIds.length} dipilih</span>
-          <button
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <span className="text-sm tabular-nums text-gray-600">{selectedIds.length} dipilih</span>
+          <Button
+            type="button"
             onClick={() => {
               onMarkDistributed(selectedIds);
               setSelectedIds([]);
             }}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
           >
-            ✓ Tandai Sudah Didistribusikan
-          </button>
+            <Check className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Tandai Sudah
+            Didistribusikan
+          </Button>
         </div>
       )}
     </div>
@@ -266,7 +266,7 @@ export function ResponseListPage() {
       await pollAndDownloadExport(job.id);
     } catch (e) {
       showAppNotice({
-        title: `Gagal export ${fmt.toUpperCase()}`,
+        title: `Gagal mengekspor ${fmt.toUpperCase()}`,
         body: (e as { message?: string })?.message,
         tone: 'error',
       });
@@ -353,77 +353,98 @@ export function ResponseListPage() {
     return sortDir === 'asc' ? cmp : -cmp;
   });
 
-  const sortIndicator = (key: SortKey) =>
-    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+  const renderSortTh = (key: SortKey, label: string) => (
+    <th
+      aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={`${thBase} py-0 lg:py-2.5`}
+    >
+      <button
+        type="button"
+        onClick={() => toggleSort(key)}
+        className="inline-flex min-h-11 min-w-11 items-center gap-1 font-medium hover:text-gray-900 lg:min-h-0"
+      >
+        {label}
+        {sortKey === key &&
+          (sortDir === 'asc' ? (
+            <ChevronUp className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+          ))}
+      </button>
+    </th>
+  );
 
   return (
     <div className="space-y-6">
       {dialog}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Respons</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleExport('csv')}
-            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            CSV
-          </button>
-          <button
-            onClick={() => handleExport('excel')}
-            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            Excel
-          </button>
-          <button
-            onClick={() => handleExport('pdf')}
-            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            PDF
-          </button>
-          <button
-            onClick={() => handleExport('json')}
-            className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
-            JSON
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { fmt: 'csv', label: 'CSV' },
+              { fmt: 'excel', label: 'Excel' },
+              { fmt: 'pdf', label: 'PDF' },
+              { fmt: 'json', label: 'JSON' },
+            ] as const
+          ).map(({ fmt, label }) => (
+            <Button
+              key={fmt}
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => handleExport(fmt)}
+            >
+              <Download className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> {label}
+            </Button>
+          ))}
         </div>
       </div>
 
       {/* Panduan singkat pembersihan data — boleh ditutup, untuk admin awam */}
-      <details className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">
-        <summary className="cursor-pointer font-semibold text-amber-800">
-          Aturan pembersihan data — kapan Arsip, kapan Hapus?
-        </summary>
-        <div className="mt-3 space-y-2 text-amber-900">
-          <p>
-            <span className="font-semibold">Arsip (disarankan):</span> data jawaban tetap tersimpan,
-            hanya disembunyikan dari daftar aktif. Bisa dilihat lagi lewat tombol{' '}
-            <span className="font-medium">“Tampilkan arsip”</span>, dan responden tetap bisa mengisi
-            survei ini lagi. Pakai untuk salah isi, pengisian tertahan, atau data mencurigakan.
-          </p>
-          <p>
-            <span className="font-semibold">Hapus (permanen):</span> jawaban hilang dan tidak bisa
-            dikembalikan. Pakai hanya untuk data uji coba/testing atau permintaan penghapusan data
-            pribadi. Responden juga bisa mengisi ulang setelahnya.
-          </p>
-          <p className="text-amber-800">
-            Keduanya membebaskan responden untuk mengisi ulang dan mengembalikan kuota (jika respons
-            sudah selesai). Setiap tindakan dicatat di log audit.
-            <span className="font-medium"> Ragu? Pilih Arsip.</span>
-          </p>
-        </div>
-      </details>
+      <Notice>
+        <details>
+          <summary className="-my-3 cursor-pointer py-3 font-medium text-gray-900">
+            Aturan pembersihan data — kapan Arsip, kapan Hapus?
+          </summary>
+          <div className="mt-3 space-y-2">
+            <p>
+              <span className="font-semibold">Arsip (disarankan):</span> data jawaban tetap
+              tersimpan, hanya disembunyikan dari daftar aktif. Bisa dilihat lagi lewat tombol{' '}
+              <span className="font-medium">“Tampilkan arsip”</span>, dan responden tetap bisa
+              mengisi survei ini lagi. Pakai untuk salah isi, pengisian tertahan, atau data
+              mencurigakan.
+            </p>
+            <p>
+              <span className="font-semibold">Hapus (permanen):</span> jawaban hilang dan tidak bisa
+              dikembalikan. Pakai hanya untuk data uji coba/testing atau permintaan penghapusan data
+              pribadi. Responden juga bisa mengisi ulang setelahnya.
+            </p>
+            <p>
+              Keduanya membebaskan responden untuk mengisi ulang dan mengembalikan kuota (jika
+              respons sudah selesai). Setiap tindakan dicatat di log audit.
+              <span className="font-medium"> Ragu? Pilih Arsip.</span>
+            </p>
+          </div>
+        </details>
+      </Notice>
 
       {/* Filter Panel */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 space-y-4">
+      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
         {/* Survei — filter utama, ditempatkan di atas & diperbesar */}
         <div>
-          <label className="block text-sm font-semibold text-gray-800 mb-1.5">Survei</label>
+          <label
+            htmlFor="filterSurveyId"
+            className="mb-1.5 block text-sm font-semibold text-gray-800"
+          >
+            Survei
+          </label>
           <select
+            id="filterSurveyId"
             name="surveyId"
             value={filters.surveyId}
             onChange={handleFilterChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={fieldCls}
           >
             <option value="">— Pilih survei untuk menampilkan respons —</option>
             {surveys.map((s) => (
@@ -442,12 +463,13 @@ export function ResponseListPage() {
             value={filters.search}
             onChange={handleFilterChange}
             placeholder="Cari nama atau nomor HP responden..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
+            aria-label="Cari responden"
+            className={fieldCls}
           />
         </div>
 
         {/* Toggle tampilkan respons terarsip */}
-        <label className="flex items-center gap-2 text-sm text-gray-600">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 lg:min-h-0">
           <input
             type="checkbox"
             checked={filters.archived === 'true'}
@@ -460,54 +482,73 @@ export function ResponseListPage() {
         </label>
 
         {/* Filter lanjutan — disembunyikan agar tidak bertumpuk */}
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="sm"
+          aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced((v) => !v)}
-          className="text-sm font-medium text-primary-600 hover:text-primary-700"
         >
-          {showAdvanced ? '− Sembunyikan filter lanjutan' : '+ Filter lanjutan'}
-        </button>
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+          {showAdvanced ? 'Sembunyikan filter lanjutan' : 'Filter lanjutan'}
+        </Button>
 
         {showAdvanced && (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-1 border-t border-gray-100">
+          <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 md:grid-cols-3 lg:grid-cols-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Dari Tanggal</label>
+              <label htmlFor="filterStartDate" className={filterLabelCls}>
+                Dari Tanggal
+              </label>
               <input
+                id="filterStartDate"
                 type="date"
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Sampai Tanggal</label>
+              <label htmlFor="filterEndDate" className={filterLabelCls}>
+                Sampai Tanggal
+              </label>
               <input
+                id="filterEndDate"
                 type="date"
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Wilayah</label>
+              <label htmlFor="filterRegion" className={filterLabelCls}>
+                Wilayah
+              </label>
               <input
+                id="filterRegion"
                 type="text"
                 name="region"
                 value={filters.region}
                 onChange={handleFilterChange}
                 placeholder="Semua"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Status</label>
+              <label htmlFor="filterStatus" className={filterLabelCls}>
+                Status
+              </label>
               <select
+                id="filterStatus"
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               >
                 <option value="">Semua</option>
                 <option value="completed">Selesai</option>
@@ -516,12 +557,15 @@ export function ResponseListPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Perangkat</label>
+              <label htmlFor="filterDeviceType" className={filterLabelCls}>
+                Perangkat
+              </label>
               <select
+                id="filterDeviceType"
                 name="deviceType"
                 value={filters.deviceType}
                 onChange={handleFilterChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               >
                 <option value="">Semua</option>
                 <option value="mobile">Mobile</option>
@@ -530,12 +574,15 @@ export function ResponseListPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Tipe Survei</label>
+              <label htmlFor="filterSurveyType" className={filterLabelCls}>
+                Tipe Survei
+              </label>
               <select
+                id="filterSurveyType"
                 name="surveyType"
                 value={filters.surveyType}
                 onChange={handleFilterChange}
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               >
                 <option value="">Semua</option>
                 <option value="nasional">Nasional</option>
@@ -544,14 +591,17 @@ export function ResponseListPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Kategori</label>
+              <label htmlFor="filterCategory" className={filterLabelCls}>
+                Kategori
+              </label>
               <input
+                id="filterCategory"
                 type="text"
                 name="category"
                 value={filters.category}
                 onChange={handleFilterChange}
                 placeholder="Semua"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
+                className={fieldCls}
               />
             </div>
           </div>
@@ -562,137 +612,109 @@ export function ResponseListPage() {
       <ManualRewardPanel responses={responses} onMarkDistributed={handleMarkDistributed} />
 
       {/* Response Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Memuat...</div>
+          <TableSkeleton rows={6} cols={5} />
         ) : !hasActiveFilter ? (
-          <div className="p-8 text-center text-gray-500">
+          <div className="p-8 text-center text-gray-600">
             Pilih survei (atau filter lain) untuk menampilkan data respons.
           </div>
         ) : responses.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">Tidak ada respons ditemukan.</div>
+          <div className="p-8 text-center text-gray-600">Tidak ada respons ditemukan.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead>
                 <tr>
-                  <th
-                    onClick={() => toggleSort('respondentName')}
-                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
-                  >
-                    Responden{sortIndicator('respondentName')}
-                  </th>
-                  <th
-                    onClick={() => toggleSort('surveyTitle')}
-                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
-                  >
-                    Survei{sortIndicator('surveyTitle')}
-                  </th>
-                  <th
-                    onClick={() => toggleSort('status')}
-                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
-                  >
-                    Status{sortIndicator('status')}
-                  </th>
-                  <th
-                    onClick={() => toggleSort('submittedAt')}
-                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
-                  >
-                    Tanggal{sortIndicator('submittedAt')}
-                  </th>
-                  <th
-                    onClick={() => toggleSort('deviceType')}
-                    className="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hover:text-gray-700"
-                  >
-                    Perangkat{sortIndicator('deviceType')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Reward
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
+                  {renderSortTh('respondentName', 'Responden')}
+                  {renderSortTh('surveyTitle', 'Survei')}
+                  {renderSortTh('status', 'Status')}
+                  {renderSortTh('submittedAt', 'Tanggal')}
+                  {renderSortTh('deviceType', 'Perangkat')}
+                  <th className={thCls}>Reward</th>
+                  <th className={`${thBaseCls} whitespace-nowrap py-2.5 text-right`}>Aksi</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="[&>tr:last-child>td]:border-b-0">
                 {sortedResponses.map((r) => (
                   <tr key={r.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      <div className="flex items-center gap-2">
+                    <td className={`${tdBase} py-3 text-gray-900`}>
+                      <div className="flex flex-wrap items-center gap-x-2">
                         <span>{r.respondentName}</span>
                         {r.duplicateFlag && (
-                          <span
-                            className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                          <Badge
+                            tone="warning"
+                            icon={AlertTriangle}
                             title="Nomor tujuan sama dipakai lebih dari satu respons"
                           >
                             Duplikat
-                          </span>
+                          </Badge>
                         )}
-                        {r.archived && (
-                          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
-                            Terarsip
-                          </span>
-                        )}
+                        {r.archived && <Badge tone="muted">Terarsip</Badge>}
                       </div>
                       {r.respondentPhone && (
-                        <span className="text-xs text-gray-400">{r.respondentPhone}</span>
+                        <span className="text-xs tabular-nums text-gray-500">
+                          {r.respondentPhone}
+                        </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{r.surveyTitle}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusColors[r.status]}`}
-                      >
-                        {statusLabels[r.status]}
-                      </span>
+                    <td className={tdCls}>{r.surveyTitle}</td>
+                    <td className={`${tdBase} whitespace-nowrap py-3`}>
+                      <ResponseStatusLabel status={r.status} />
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
                       {format(new Date(r.submittedAt), 'dd/MM/yyyy HH:mm')}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 capitalize">{r.deviceType}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className={`${tdCls} capitalize`}>{r.deviceType}</td>
+                    <td className={tdCls}>
                       {r.rewardMode === 'manual' ? (
                         r.destinationNumber ? (
                           <div>
                             <span className="capitalize">{r.rewardType ?? 'reward'}</span>
-                            <span className="block text-xs text-gray-400">
+                            <span className="block text-xs tabular-nums text-gray-500">
                               {r.destinationNumber}
                             </span>
                             {r.rewardDistributed && (
-                              <span className="text-xs text-emerald-600">sudah ditop-up</span>
+                              <Badge tone="success" icon={Check}>
+                                sudah ditop-up
+                              </Badge>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-gray-400">belum diisi</span>
+                          <span className="text-xs text-gray-500">belum diisi</span>
                         )
                       ) : (
-                        <span className="text-xs text-gray-400">otomatis</span>
+                        <span className="text-xs text-gray-500">otomatis</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="flex items-center gap-3">
-                        <button
+                    <td className={`${tdBase} py-1.5`}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => navigate(`/admin/responses/${r.id}`)}
-                          className="text-primary-600 hover:text-primary-800"
                         >
                           Detail
-                        </button>
-                        {!r.archived && (
-                          <button
-                            onClick={() => handleArchive(r)}
-                            className="text-gray-600 hover:text-gray-900"
-                            title="Arsipkan (data disimpan, responden bisa mengisi ulang)"
-                          >
-                            Arsip
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(r)}
-                          className="text-red-600 hover:text-red-800"
-                          title="Hapus permanen (responden bisa mengisi ulang)"
-                        >
-                          Hapus
-                        </button>
+                        </Button>
+                        <RowMenu
+                          label={`Aksi lainnya untuk respons ${r.respondentName}`}
+                          items={[
+                            !r.archived && {
+                              label: 'Arsipkan',
+                              title: 'Data disimpan, responden bisa mengisi ulang',
+                              icon: Archive,
+                              onClick: () => handleArchive(r),
+                            },
+                            {
+                              label: 'Hapus',
+                              title: 'Hapus permanen, responden bisa mengisi ulang',
+                              icon: Trash2,
+                              destructive: true,
+                              onClick: () => handleDelete(r),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

@@ -2,14 +2,21 @@
 
 ## Sudah jadi ✅
 
-| Berkas | Ukuran | Alpha | Dipakai di Play Console |
-|---|---|---|---|
-| `icon-512.png` | 512×512 | tidak | **App icon** (Main store listing) |
+| Berkas                         | Ukuran   | Alpha | Dipakai di Play Console                  |
+| ------------------------------ | -------- | ----- | ---------------------------------------- |
+| `icon-512.png`                 | 512×512  | tidak | **App icon** (Main store listing)        |
 | `feature-graphic-1024x500.png` | 1024×500 | tidak | **Feature graphic** (Main store listing) |
 
 Keduanya **tanpa transparansi** — Play menolak aset ber-alpha. Ikon memakai logo
-oranye brand (`#F86828`) di atas putih agar konsisten dengan ikon aplikasi di HP;
-feature graphic memakai gradient indigo yang sama dengan header aplikasi & email.
+putih di atas oranye merek (`#F26522`), sama dengan ikon aplikasi di HP. Feature
+graphic memakai latar navy rata `#0F2342`, logo oranye (kontras 4,97:1), judul putih
+(15,68:1), dan satu keterangan `#AECAE9` (9,28:1), tanpa gradien, lingkaran, dan pill.
+
+Skrip yang sama juga menghasilkan ikon PWA di `frontend/public/icons/`: `icon-192.png`,
+`icon-512.png`, dan `icon-maskable-512.png` (logo di dalam area aman 80%).
+
+Teks feature graphic memakai font yang terpasang di komputer pembuat: Source Serif 4
+dan IBM Plex Sans bila ada, selain itu Georgia dan Roboto, Segoe UI, atau Arial.
 
 ### Mengubah aset (mis. ganti tagline/warna)
 
@@ -28,6 +35,7 @@ Play mewajibkan **minimal 2** screenshot HP (disarankan **4–8**). Ini tidak bi
 digenerate otomatis — ambil langsung dari HP yang sudah terpasang APK rilis.
 
 **Syarat Play:**
+
 - Format PNG atau JPEG, tanpa transparansi
 - Sisi terpendek minimal **320 px**, sisi terpanjang maksimal **3840 px**
 - Rasio antara 16:9 dan 9:16 (screenshot HP normal sudah memenuhi)
@@ -35,6 +43,7 @@ digenerate otomatis — ambil langsung dari HP yang sudah terpasang APK rilis.
 **Cara ambil:** buka aplikasi di HP → tekan **Power + Volume Bawah**.
 
 **Saran 5 layar (urutan ini menjelaskan alur produk ke calon pengguna):**
+
 1. **Daftar Survei** — memperlihatkan survei tersedia + poin & estimasi waktu
 2. **Isi Survei** — halaman pertanyaan (tunjukkan progress bar)
 3. **Reward** — katalog penukaran (pulsa & e-wallet)

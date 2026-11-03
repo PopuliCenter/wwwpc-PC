@@ -1,12 +1,12 @@
 import { useState, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { GoogleSignInButton } from '@/components/common/GoogleSignInButton';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
 import type { LoginResponse } from '@/types';
+import { AuthError, AuthHeader, OrDivider, PasswordToggle, authLinkCls } from './AuthShared';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -49,7 +49,7 @@ export function LoginPage() {
       redirectAfterLogin(response);
     } catch (err: unknown) {
       const apiError = err as { message?: string; statusCode?: number };
-      setError(apiError.message || 'Login gagal. Periksa email dan password Anda.');
+      setError(apiError.message || 'Gagal masuk. Periksa email dan kata sandi Anda.');
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +64,7 @@ export function LoginPage() {
         redirectAfterLogin(response);
       } catch (err: unknown) {
         const apiError = err as { message?: string };
-        setError(apiError.message || 'Login Google gagal. Coba lagi.');
+        setError(apiError.message || 'Gagal masuk dengan Google. Coba lagi.');
       }
     },
     [redirectAfterLogin],
@@ -72,29 +72,8 @@ export function LoginPage() {
 
   return (
     <div>
-      {/* Compact brand mark — visible mainly on mobile where the side panel is hidden.
-          Di mobile: logo & judul dipusatkan agar rapi; di desktop rata kiri. */}
-      <div className="mb-8 text-center lg:text-left">
-        <img
-          src="/logo-populi-center.png"
-          alt="Populi Center"
-          className="mx-auto mb-6 h-20 w-20 object-contain lg:hidden"
-        />
-        <h2 className="text-2xl font-bold text-gray-900">Selamat datang kembali</h2>
-        <p className="mt-1.5 text-sm text-gray-500">
-          Masuk untuk melanjutkan ke panel survei Anda.
-        </p>
-      </div>
-
-      {error && (
-        <div
-          className="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3"
-          role="alert"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
+      <AuthHeader title="Masuk" subtitle="Gunakan akun Riset Populi Center Anda." />
+      <AuthError message={error} />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
@@ -105,36 +84,24 @@ export function LoginPage() {
           placeholder="nama@email.com"
           required
           autoComplete="email"
-          leadingIcon={<Mail className="h-4 w-4" />}
         />
 
         <Input
-          label="Password"
+          label="Kata sandi"
           type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Masukkan password"
           required
           autoComplete="current-password"
-          leadingIcon={<Lock className="h-4 w-4" />}
           trailingIcon={
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-              className="-m-2 p-2 text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+            <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           }
         />
 
-        <div className="flex items-center justify-end">
-          <Link
-            to="/forgot-password"
-            className="text-sm font-medium text-primary-600 hover:text-primary-700"
-          >
-            Lupa password?
+        {/* Margin mengimbangi target sentuh 44px di HP agar jarak atas dan bawah teks sama. */}
+        <div className="-mt-2 mb-2 flex justify-end text-sm lg:mt-0 lg:mb-4">
+          <Link to="/forgot-password" className={authLinkCls}>
+            Lupa kata sandi?
           </Link>
         </div>
 
@@ -146,19 +113,15 @@ export function LoginPage() {
       {/* Login Google — hanya tampil bila VITE_GOOGLE_CLIENT_ID diset */}
       {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
         <>
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs text-gray-400">atau</span>
-            <span className="h-px flex-1 bg-gray-200" />
-          </div>
+          <OrDivider />
           <GoogleSignInButton onCredential={handleGoogleCredential} />
         </>
       )}
 
-      <p className="mt-8 text-center text-sm text-gray-600">
+      <p className="mt-6 text-sm text-gray-600">
         Belum punya akun?{' '}
-        <Link to="/register" className="font-semibold text-primary-600 hover:text-primary-700">
-          Daftar sekarang
+        <Link to="/register" className={authLinkCls}>
+          Daftar
         </Link>
       </p>
     </div>

@@ -46,7 +46,7 @@ export function Avatar({ name, url, size = 40, className = '' }: AvatarProps) {
   return (
     <span
       style={{ ...dim, fontSize: Math.round(size * 0.4) }}
-      className={`flex shrink-0 items-center justify-center rounded-full bg-primary-600 font-semibold leading-none text-white ${className}`}
+      className={`flex shrink-0 items-center justify-center rounded-full bg-gray-200 font-medium leading-none text-gray-700 ${className}`}
     >
       {initials(name)}
     </span>

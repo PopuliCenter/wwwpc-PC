@@ -14,6 +14,11 @@ export const DEVICE_TYPE = /Mobi|Android|iPhone|iPad/i.test(
   ? 'mobile'
   : 'desktop';
 
+/** Gulir otomatis yang menghormati setelan "kurangi gerakan"; pemicu gulirnya tidak berubah. */
+export function autoScrollBehavior(): ScrollBehavior {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
 /**
  * Rekam koordinat GPS sekali (best-effort). Tidak pernah throw — resolve null
  * bila izin ditolak / tidak didukung / timeout, agar pengisian tetap berjalan.

@@ -1,28 +1,12 @@
 import { Outlet, Navigate, Link } from 'react-router-dom';
 import { Suspense } from 'react';
-import { ShieldCheck, Gift, Clock } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { isEmbedMode } from '@/utils/embed';
+import { Logo } from '@/components/common/Logo';
 import { PageLoader } from '@/components/common/PageLoader';
 import { NativeBackGuard } from '@/components/common/NativeBackGuard';
 
-const highlights = [
-  {
-    icon: Gift,
-    title: 'Reward tiap survei',
-    desc: 'Kumpulkan poin di setiap survei dan tukar jadi pulsa atau saldo e-wallet.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Privasi terjaga',
-    desc: 'Identitas dan lokasi Anda dienkripsi, dipakai hanya untuk riset — tidak dijual.',
-  },
-  {
-    icon: Clock,
-    title: 'Cepat & mudah',
-    desc: 'Isi kapan saja langsung dari ponsel, hanya butuh beberapa menit.',
-  },
-];
+const legalLinkCls = 'inline-flex min-h-11 items-center text-gray-600 underline lg:min-h-0';
 
 export function AuthLayout() {
   const { isAuthenticated, user, isLoading } = useAuthStore();
@@ -30,10 +14,8 @@ export function AuthLayout() {
   if (isLoading) {
     // Di mode embed hindari min-h-screen (100vh) agar iframe tidak overshoot.
     return (
-      <div
-        className={`flex items-center justify-center ${isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'}`}
-      >
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-primary-600" />
+      <div className={`mx-auto w-full max-w-[400px] p-4 ${isEmbedMode ? '' : 'pt-16'}`}>
+        <PageLoader className={isEmbedMode ? 'min-h-[160px]' : 'min-h-screen'} />
       </div>
     );
   }
@@ -48,7 +30,7 @@ export function AuthLayout() {
   if (isEmbedMode) {
     return (
       <div className="flex w-full items-center justify-center px-4 py-8 sm:px-6">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-[400px]">
           <Suspense fallback={<PageLoader />}>
             <Outlet />
           </Suspense>
@@ -58,92 +40,84 @@ export function AuthLayout() {
   }
 
   return (
-    <div className="grid min-h-screen grid-rows-1 lg:grid-cols-2">
+    <div className="grid min-h-screen grid-rows-1 lg:grid-cols-[5fr_7fr]">
       {/* Back Android: di /login langsung keluar aplikasi. */}
       <NativeBackGuard />
-      {/* Brand panel — hidden on small screens */}
-      <div className="relative hidden overflow-hidden bg-primary-800 lg:flex lg:flex-col lg:justify-between">
-        <div className="bg-grain absolute inset-0 opacity-60" />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(120% 80% at 0% 0%, rgba(255,255,255,0.10), transparent 60%), linear-gradient(160deg, #312e81 0%, #1e1b4b 100%)',
-          }}
-        />
-        <div className="relative z-10 flex items-center gap-3 p-10">
-          <img
-            src="/logo-populi-center.png"
-            alt="Populi Center"
-            className="h-14 w-14 object-contain"
-          />
-          <div className="leading-tight">
-            <p className="text-sm font-semibold text-white">Populi Center</p>
-            <p className="text-xs text-white/60">Survei Online</p>
-          </div>
+      {/* Panel sampul laporan — hanya desktop; warna rata tanpa gradien atau ikon. */}
+      <div className="hidden bg-primary-900 p-10 lg:flex lg:flex-col lg:justify-between xl:p-12">
+        <div className="flex items-center gap-3">
+          <Logo size={48} />
+          <p className="text-sm font-semibold text-white">Populi Center</p>
         </div>
 
-        <div className="relative z-10 px-10">
-          <h1 className="max-w-md text-3xl font-bold leading-tight text-white">
-            Isi survei, suara Anda dihargai.
-          </h1>
-          <p className="mt-3 max-w-sm text-sm text-white/70">
-            Bagikan pendapat Anda dalam beberapa menit dan kumpulkan reward — data serta privasi
-            Anda tetap terlindungi.
+        {/* Bukan <h1>: judul halaman ada di form (Masuk/Daftar/Lupa kata sandi). */}
+        <p className="max-w-md font-serif text-[40px] font-semibold leading-[46px] tracking-tight text-white [font-synthesis:none]">
+          Pendapat Anda menjadi data penelitian.
+        </p>
+
+        <div>
+          <dl className="text-xs">
+            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
+              <dt className="text-primary-300">Penyelenggara</dt>
+              <dd className="text-right text-primary-100">Populi Center</dd>
+            </div>
+            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
+              <dt className="text-primary-300">Poin</dt>
+              <dd className="text-right text-primary-100">
+                Dapat ditukar pulsa atau saldo e-wallet
+              </dd>
+            </div>
+            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
+              <dt className="text-primary-300">Data pribadi</dt>
+              <dd className="text-right">
+                <Link
+                  to="/kebijakan-privasi"
+                  // Outline fokus global (primary-500) tidak terbaca di atas primary-900.
+                  className="text-primary-100 underline decoration-primary-300 underline-offset-2 hover:text-white focus-visible:outline-white"
+                >
+                  Kebijakan Privasi
+                </Link>
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-4 text-xs text-white/60">
+            © {new Date().getFullYear()} Populi Center. Seluruh hak cipta dilindungi.
           </p>
-
-          <ul className="mt-10 space-y-5">
-            {highlights.map(({ icon: Icon, title, desc }) => (
-              <li key={title} className="flex items-start gap-3.5">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-inset ring-white/15">
-                  <Icon className="h-5 w-5" strokeWidth={1.75} />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-white">{title}</p>
-                  <p className="text-sm text-white/60">{desc}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="relative z-10 p-10 text-xs text-white/50">
-          © {new Date().getFullYear()} Populi Center. Seluruh hak cipta dilindungi.
         </div>
       </div>
 
       {/* Form panel */}
-      <div className="flex flex-col bg-surface">
-        <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">
-          <div className="w-full max-w-sm">
+      <div className="flex flex-col bg-white">
+        <div className="flex flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-16 xl:px-24">
+          <div className="mx-auto w-full max-w-[400px] lg:mx-0">
+            {/* Identitas di bawah lg saja; desktop sudah punya panel sampul. */}
+            <div className="mb-8 flex items-center gap-2.5 lg:hidden">
+              <Logo size={40} />
+              <span className="text-sm font-semibold text-gray-900">Populi Center</span>
+            </div>
             <Suspense fallback={<PageLoader />}>
               <Outlet />
             </Suspense>
           </div>
         </div>
         {/* Footer: tautan legal publik (wajib mudah ditemukan — Play & OAuth Google)
-            + logo/hak cipta di mobile (desktop sudah ada di panel brand). */}
-        <div className="flex flex-col items-center gap-2 pb-6 text-xs text-gray-400">
-          <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <Link className="hover:text-gray-600 hover:underline" to="/kebijakan-privasi">
-              Kebijakan Privasi
-            </Link>
-            <span aria-hidden>·</span>
-            <Link className="hover:text-gray-600 hover:underline" to="/syarat-ketentuan">
-              Syarat &amp; Ketentuan
-            </Link>
-            <span aria-hidden>·</span>
-            <Link className="hover:text-gray-600 hover:underline" to="/penghapusan-akun">
-              Hapus Akun
-            </Link>
-          </nav>
-          <div className="flex items-center justify-center gap-2 lg:hidden">
-            <img
-              src="/logo-populi-center.png"
-              alt="Populi Center"
-              className="h-4 w-4 object-contain opacity-70"
-            />
-            <span>© {new Date().getFullYear()} Populi Center</span>
+            + hak cipta di mobile (desktop sudah ada di panel brand). */}
+        <div className="px-4 pb-6 text-xs sm:px-6 lg:px-16 xl:px-24">
+          <div className="mx-auto w-full max-w-[400px] lg:mx-0">
+            <nav className="flex flex-wrap items-center gap-x-4" aria-label="Tautan legal">
+              <Link className={legalLinkCls} to="/kebijakan-privasi">
+                Kebijakan Privasi
+              </Link>
+              <Link className={legalLinkCls} to="/syarat-ketentuan">
+                Syarat &amp; Ketentuan
+              </Link>
+              <Link className={legalLinkCls} to="/penghapusan-akun">
+                Hapus Akun
+              </Link>
+            </nav>
+            <p className="mt-1 text-gray-500 lg:hidden">
+              © {new Date().getFullYear()} Populi Center
+            </p>
           </div>
         </div>
       </div>

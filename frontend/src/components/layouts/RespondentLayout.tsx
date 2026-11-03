@@ -3,6 +3,9 @@ import { useEffect, Suspense } from 'react';
 import { WifiOff, CloudUpload, FileText, Gift, User, LifeBuoy } from 'lucide-react';
 import { NotificationBell } from '@/components/common/NotificationBell';
 import { Avatar } from '@/components/common/Avatar';
+import { Badge } from '@/components/common/Badge';
+import { Button, useTapFeedback } from '@/components/common/Button';
+import { Logo } from '@/components/common/Logo';
 import { PageLoader } from '@/components/common/PageLoader';
 import { useAuthStore } from '@/stores/auth.store';
 import { usePointsStore } from '@/stores/points.store';
@@ -26,6 +29,7 @@ export function RespondentLayout() {
   const sync = useOfflineSync();
   const points = usePointsStore((s) => s.available);
   const refreshPoints = usePointsStore((s) => s.refresh);
+  const tap = useTapFeedback();
 
   // Mode FOKUS saat mengisi survei: sembunyikan tab bawah agar responden tak
   // salah keluar dan navigasi Sebelumnya/Selanjutnya/Kirim (sticky) tak bentrok
@@ -54,65 +58,82 @@ export function RespondentLayout() {
       {/* Header — disembunyikan di mode embed (Elementor sudah punya header) */}
       {!isEmbedMode && (
         <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-8">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-8">
               <div className="flex items-center gap-2">
-                <img
-                  src="/logo-populi-center.png"
-                  alt="Populi Center"
-                  className="h-9 w-9 object-contain"
-                />
-                <span className="hidden text-lg font-bold text-primary-600 sm:inline">
-                  Survei Online
+                <Logo size={36} />
+                {/* Wordmark disembunyikan di bawah 400px agar header tidak melebar. */}
+                <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-900 min-[400px]:inline">
+                  Populi Center
                 </span>
               </div>
               {/* Nav inline hanya di desktop; di HP memakai tab bawah */}
-              <nav className="hidden gap-5 md:flex">
+              <nav className="hidden h-16 gap-6 md:flex">
                 {navItems.map(({ path, label }) => (
                   <NavLink
                     key={path}
                     to={path}
                     className={({ isActive }) =>
-                      `text-sm font-medium transition-colors ${
+                      `relative flex items-center text-sm transition-colors ${
                         isActive
-                          ? 'border-b-2 border-primary-600 pb-1 text-primary-600'
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'font-semibold text-primary-700'
+                          : 'font-medium text-gray-600 hover:text-gray-900'
                       }`
                     }
                   >
-                    {label}
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span
+                            className="absolute inset-x-0 top-0 h-0.5 bg-accent-600"
+                            aria-hidden="true"
+                          />
+                        )}
+                        {label}
+                      </>
+                    )}
                   </NavLink>
                 ))}
               </nav>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3">
-              {!online && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
-                  <WifiOff className="h-3.5 w-3.5" /> Offline
-                </span>
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+              {/* Saat mengisi survei, status offline dan tombol sinkron sudah ada di Notice
+                  halaman itu, dan saldo poin tidak ditampilkan agar tidak memengaruhi jawaban. */}
+              {!isFillMode && !online && (
+                <Badge tone="warning" icon={WifiOff} className="whitespace-nowrap">
+                  Offline
+                </Badge>
               )}
-              {sync.queuedCount > 0 && (
-                <button
+              {!isFillMode && sync.queuedCount > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => sync.syncNow()}
                   disabled={!online || sync.syncing}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700 disabled:opacity-60"
                   title="Sinkronkan jawaban offline"
+                  aria-label={`Sinkronkan ${sync.queuedCount} jawaban offline`}
+                  className="gap-1 px-2! tabular-nums"
                 >
-                  <CloudUpload className="h-3.5 w-3.5" /> {sync.queuedCount}
-                </button>
+                  <CloudUpload className="h-4 w-4" strokeWidth={1.75} /> {sync.queuedCount}
+                </Button>
               )}
-              {points !== null && (
+              {!isFillMode && points !== null && (
                 <NavLink
                   to="/rewards"
                   title="Saldo poin Anda"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-primary-600 px-3 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
+                  className="inline-flex min-h-11 items-center whitespace-nowrap text-sm font-medium tabular-nums text-gray-800 hover:text-primary-700"
                 >
-                  <Gift className="h-3.5 w-3.5" /> <CountUp value={points} />
-                  <span className="hidden sm:inline">&nbsp;poin</span>
+                  <CountUp value={points} />
+                  &nbsp;poin
                 </NavLink>
               )}
               <NotificationBell />
-              <NavLink to="/profile" aria-label="Profil" className="shrink-0">
+              <NavLink
+                to="/profile"
+                aria-label="Profil"
+                className="-mr-1.5 flex h-11 w-11 shrink-0 items-center justify-center"
+              >
                 <Avatar name={user?.fullName} url={user?.avatarUrl} size={32} />
               </NavLink>
             </div>
@@ -120,13 +141,17 @@ export function RespondentLayout() {
         </header>
       )}
 
-      {/* Main content */}
+      {/* Main content. Mode isi survei tanpa jarak atas: strip progres halaman
+          itu menempel langsung di bawah header. */}
       <main
-        className={`mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8 ${
-          isEmbedMode || isFillMode ? '' : 'pb-24 md:pb-8'
-        }`}
+        className={`mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 ${
+          isFillMode ? 'pb-8' : 'py-8'
+        } ${isEmbedMode || isFillMode ? '' : 'pb-24 md:pb-8'}`}
       >
-        <Suspense fallback={<PageLoader />}>
+        {/* Mode isi survei: main tanpa jarak atas, jadi kerangka memuat yang memberi jarak. */}
+        <Suspense
+          fallback={<PageLoader className={isFillMode ? 'min-h-[40vh] pt-8' : undefined} />}
+        >
           <Outlet />
         </Suspense>
       </main>
@@ -147,14 +172,27 @@ export function RespondentLayout() {
                 key={path}
                 to={path}
                 aria-label={label}
+                onClick={tap}
                 className={({ isActive }) =>
-                  `flex min-h-[3rem] flex-col items-center justify-center gap-0.5 py-3 text-xs font-medium transition-colors ${
-                    isActive ? 'text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                  `relative flex min-h-14 flex-col items-center justify-center gap-0.5 py-2 text-2xs transition-colors ${
+                    isActive
+                      ? 'font-semibold text-primary-700'
+                      : 'font-medium text-gray-600 hover:text-gray-900'
                   }`
                 }
               >
-                <Icon className="h-5 w-5" />
-                {label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span
+                        className="absolute inset-x-4 -top-px h-0.5 bg-accent-600"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Icon className="h-5 w-5" strokeWidth={1.75} />
+                    {label}
+                  </>
+                )}
               </NavLink>
             ))}
           </div>

@@ -12,7 +12,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { Button, useTapFeedback } from '@/components/common/Button';
+import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { IconButton } from '@/components/common/IconButton';
+import { ListRowsSkeleton } from '@/components/common/Skeleton';
 
 interface FeedItem {
   id: string;
@@ -26,17 +30,15 @@ interface FeedItem {
 
 type Category = 'semua' | 'survei' | 'poin' | 'reward' | 'pengumuman';
 
-// Meta tampilan per tipe notifikasi: ikon, warna, dan kategori penyaring.
-const TYPE_META: Record<
-  string,
-  { icon: LucideIcon; color: string; category: Exclude<Category, 'semua'> }
-> = {
-  survey_new: { icon: FileText, color: 'text-indigo-600', category: 'survei' },
-  survey_done: { icon: CheckCircle2, color: 'text-emerald-600', category: 'survei' },
-  point_earned: { icon: Coins, color: 'text-amber-500', category: 'poin' },
-  point_spent: { icon: ArrowUpRight, color: 'text-rose-500', category: 'reward' },
-  reward_fulfilled: { icon: Gift, color: 'text-emerald-600', category: 'reward' },
-  announcement: { icon: Megaphone, color: 'text-primary-600', category: 'pengumuman' },
+// Meta tampilan per tipe notifikasi: ikon dan kategori penyaring. Ikon selalu gray-600;
+// warna tidak membedakan tipe, karena menukar poin bukan masalah.
+const TYPE_META: Record<string, { icon: LucideIcon; category: Exclude<Category, 'semua'> }> = {
+  survey_new: { icon: FileText, category: 'survei' },
+  survey_done: { icon: CheckCircle2, category: 'survei' },
+  point_earned: { icon: Coins, category: 'poin' },
+  point_spent: { icon: ArrowUpRight, category: 'reward' },
+  reward_fulfilled: { icon: Gift, category: 'reward' },
+  announcement: { icon: Megaphone, category: 'pengumuman' },
 };
 
 const FILTERS: { key: Category; label: string }[] = [
@@ -65,6 +67,7 @@ function timeAgo(iso: string): string {
 
 export function NotificationsPage() {
   const navigate = useNavigate();
+  const tap = useTapFeedback();
   const { confirm, dialog } = useConfirm();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,77 +120,71 @@ export function NotificationsPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       {dialog}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-          <Bell className="h-6 w-6 text-primary-600" /> Notifikasi
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900">Notifikasi</h1>
         {items.length > 0 && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Hapus semua
-          </button>
+          <Button type="button" variant="secondary" size="sm" onClick={clearAll}>
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Hapus semua
+          </Button>
         )}
       </div>
 
       {/* Kategori */}
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-              filter === f.key
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs items={FILTERS} active={filter} onChange={setFilter} />
 
       {/* Daftar */}
       {loading ? (
-        <p className="py-10 text-center text-sm text-gray-400">Memuat…</p>
+        <div className="rounded-xl border border-gray-200 bg-white">
+          <ListRowsSkeleton rows={5} />
+        </div>
       ) : filtered.length === 0 ? (
-        <p className="py-12 text-center text-sm text-gray-400">
+        <p className="py-12 text-center text-sm text-gray-600">
           {filter === 'semua' ? 'Belum ada notifikasi.' : 'Tidak ada notifikasi di kategori ini.'}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
           {filtered.map((it) => {
-            const meta = TYPE_META[it.type] ?? { icon: Bell, color: 'text-gray-500' };
-            const Icon = meta.icon;
+            const Icon = TYPE_META[it.type]?.icon ?? Bell;
+            const unread = !it.readAt;
             return (
-              <li
-                key={it.id}
-                className={`flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-3 ${
-                  it.readAt ? '' : 'ring-1 ring-primary-100'
-                }`}
-              >
-                <span className={`mt-0.5 shrink-0 ${meta.color}`}>
-                  <Icon className="h-5 w-5" />
-                </span>
+              <li key={it.id} className="flex items-start gap-3 p-3">
+                <Icon
+                  className="mt-0.5 h-5 w-5 shrink-0 text-gray-600"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
                 <button
                   type="button"
-                  onClick={() => it.link && navigate(it.link)}
-                  className="min-w-0 flex-1 text-left"
+                  onClick={(e) => {
+                    if (!it.link) return;
+                    tap(e);
+                    navigate(it.link);
+                  }}
+                  className="min-h-11 min-w-0 flex-1 rounded-md text-left"
                 >
-                  <p className="text-sm font-medium text-gray-900">{it.title}</p>
+                  <p className={`text-sm text-gray-900 ${unread ? 'font-medium' : 'font-normal'}`}>
+                    {unread && (
+                      <>
+                        <span
+                          className="mr-1.5 inline-block h-2 w-2 bg-accent-600 align-middle"
+                          aria-hidden="true"
+                        />
+                        <span className="sr-only">Belum dibaca: </span>
+                      </>
+                    )}
+                    {it.title}
+                  </p>
                   <p className="text-xs leading-relaxed text-gray-600">{it.body}</p>
-                  <p className="mt-0.5 text-[11px] text-gray-400">{timeAgo(it.createdAt)}</p>
+                  <p className="mt-0.5 text-xs tabular-nums text-gray-500">
+                    {timeAgo(it.createdAt)}
+                  </p>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => deleteOne(it.id)}
+                <IconButton
                   aria-label="Hapus notifikasi"
-                  className="shrink-0 rounded-lg p-1.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-rose-500"
+                  destructive
+                  onClick={() => deleteOne(it.id)}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+                </IconButton>
               </li>
             );
           })}

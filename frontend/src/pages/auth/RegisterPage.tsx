@@ -1,14 +1,22 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { WilayahPicker } from '@/components/common/WilayahPicker';
 import { GoogleSignInButton } from '@/components/common/GoogleSignInButton';
+import { fieldCls, textareaCls } from '@/components/common/fieldStyles';
 import { useAuthStore } from '@/stores/auth.store';
 import { api } from '@/services/api';
 import { OCCUPATIONS, OCCUPATION_OTHER } from '@/constants/occupations';
 import type { UserRole, LoginResponse } from '@/types';
+import {
+  AuthError,
+  AuthHeader,
+  OrDivider,
+  PasswordToggle,
+  authLinkCls,
+  otpInputCls,
+} from './AuthShared';
 
 interface RegisterResult {
   userId: string;
@@ -23,8 +31,7 @@ interface VerifyResult {
   user: { id: string; email: string; fullName: string; role: UserRole };
 }
 
-const selectCls =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
+const labelCls = 'mb-1.5 block text-sm font-medium text-gray-700';
 
 /** Hitung usia (tahun penuh) dari tanggal lahir ISO, atau null bila kosong/invalid. */
 function ageFromDob(dob: string): number | null {
@@ -92,7 +99,7 @@ export function RegisterPage() {
     e.preventDefault();
     setError('');
     if (password !== confirmPassword) {
-      setError('Konfirmasi password tidak sama.');
+      setError('Konfirmasi kata sandi tidak sama.');
       return;
     }
     // Cek dini email & telepon agar user tak mengisi seluruh langkah 2 hanya
@@ -230,52 +237,40 @@ export function RegisterPage() {
     [login, navigate],
   );
 
-  const Header = ({ title, subtitle }: { title: string; subtitle: string }) => (
-    <div className="mb-6 flex flex-col items-center">
-      <img src="/logo-populi-center.png" alt="" className="mb-2 h-14 w-14 object-contain" />
-      <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-      <p className="mt-1 text-center text-sm text-gray-500">{subtitle}</p>
-    </div>
-  );
-
-  const ErrorBox = () =>
-    error ? (
-      <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3" role="alert">
-        <p className="text-sm text-red-700">{error}</p>
-      </div>
-    ) : null;
-
   // ── Langkah 3: OTP ──────────────────────────────────────────────────────────
   if (step === 'otp') {
     return (
       <div>
-        <Header
-          title="Verifikasi Email"
-          subtitle="Masukkan 6 digit kode yang dikirim ke email Anda."
+        <AuthHeader
+          title="Verifikasi email"
+          subtitle="Langkah 3 dari 3. Masukkan 6 digit kode yang dikirim ke email Anda."
         />
         {otpInfo && (
-          <div className="mb-4 rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">
+          <p className="mb-4 text-sm text-gray-600" role="status">
             {otpInfo}
-          </div>
+          </p>
         )}
-        <ErrorBox />
+        <AuthError message={error} />
         <form onSubmit={handleVerifyOtp} className="space-y-4">
-          <label htmlFor="otp-register" className="block text-sm font-medium text-gray-700">
-            Kode OTP (6 digit)
-          </label>
-          <input
-            id="otp-register"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="______"
-            aria-label="Kode OTP 6 digit"
-            className="w-full rounded-md border border-gray-300 px-3 py-3 text-center text-2xl font-semibold tracking-[0.5em] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            required
-          />
+          <div>
+            <label htmlFor="otp-register" className={labelCls}>
+              Kode OTP (6 digit)
+            </label>
+            <input
+              id="otp-register"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="______"
+              aria-label="Kode OTP 6 digit"
+              className={otpInputCls}
+              required
+            />
+          </div>
           <Button
             type="submit"
+            size="lg"
             isLoading={isLoading}
             className="w-full"
             disabled={otp.length !== 6}
@@ -283,30 +278,37 @@ export function RegisterPage() {
             Verifikasi
           </Button>
         </form>
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <button
+        {/* Margin negatif meratakan teks tombol ghost dengan tepi form.
+            Hitung mundur perlu terbaca saat tombol nonaktif, jadi opasitas 50% bawaan
+            Button dilepas dan warnanya dibuat lebih redup (gray-500, 6,42:1 di putih). */}
+        <div className="mt-4 flex items-center justify-between">
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-3 tabular-nums disabled:opacity-100! disabled:text-gray-500"
             onClick={handleResendOtp}
             disabled={resendCooldown > 0 || resending}
-            className="font-medium text-primary-600 hover:text-primary-500 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:text-gray-400"
           >
             {resending
               ? 'Mengirim…'
               : resendCooldown > 0
                 ? `Kirim ulang dalam ${resendCooldown}s`
                 : 'Kirim ulang kode'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="-mr-3"
             onClick={() => {
               setStep('profile');
               setOtp('');
               setError('');
             }}
-            className="text-gray-500 hover:text-gray-700"
           >
             Kembali
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -316,13 +318,13 @@ export function RegisterPage() {
   if (step === 'profile') {
     return (
       <div>
-        <Header title="Data Diri" subtitle="Langkah 2 dari 2 — lengkapi data demografi Anda." />
-        <ErrorBox />
+        <AuthHeader title="Data diri" subtitle="Langkah 2 dari 3. Lengkapi data diri Anda." />
+        <AuthError message={error} />
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Input
-                label="Tanggal Lahir"
+                label="Tanggal lahir"
                 type="date"
                 max={TODAY_ISO}
                 value={dateOfBirth}
@@ -330,16 +332,19 @@ export function RegisterPage() {
                 required
               />
               {ageFromDob(dateOfBirth) !== null && (
-                <p className="mt-1 text-xs text-gray-500">Usia: {ageFromDob(dateOfBirth)} tahun</p>
+                <p className="mt-1 text-xs text-gray-600">Usia: {ageFromDob(dateOfBirth)} tahun</p>
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Jenis Kelamin</label>
+              <label htmlFor="jenis-kelamin" className={labelCls}>
+                Jenis kelamin
+              </label>
               <select
+                id="jenis-kelamin"
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
                 required
-                className={selectCls}
+                className={fieldCls}
               >
                 <option value="" disabled>
                   Pilih…
@@ -349,12 +354,15 @@ export function RegisterPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Pekerjaan</label>
+              <label htmlFor="pekerjaan" className={labelCls}>
+                Pekerjaan
+              </label>
               <select
+                id="pekerjaan"
                 value={occupationSelect}
                 onChange={(e) => setOccupationSelect(e.target.value)}
                 required
-                className={selectCls}
+                className={fieldCls}
               >
                 <option value="" disabled>
                   Pilih…
@@ -369,6 +377,7 @@ export function RegisterPage() {
               {occupationSelect === OCCUPATION_OTHER && (
                 <div className="mt-2">
                   <Input
+                    aria-label="Pekerjaan lainnya"
                     value={occupationOther}
                     onChange={(e) => setOccupationOther(e.target.value)}
                     placeholder="Tulis pekerjaan Anda"
@@ -379,14 +388,15 @@ export function RegisterPage() {
               )}
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Pendidikan Terakhir
+              <label htmlFor="pendidikan-terakhir" className={labelCls}>
+                Pendidikan terakhir
               </label>
               <select
+                id="pendidikan-terakhir"
                 value={education}
                 onChange={(e) => setEducation(e.target.value)}
                 required
-                className={selectCls}
+                className={fieldCls}
               >
                 <option value="" disabled>
                   Pilih…
@@ -399,12 +409,15 @@ export function RegisterPage() {
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-gray-700">Agama</label>
+              <label htmlFor="agama" className={labelCls}>
+                Agama
+              </label>
               <select
+                id="agama"
                 value={religion}
                 onChange={(e) => setReligion(e.target.value)}
                 required
-                className={selectCls}
+                className={fieldCls}
               >
                 <option value="" disabled>
                   Pilih…
@@ -420,41 +433,47 @@ export function RegisterPage() {
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-4">
-            <p className="mb-2 text-sm font-semibold text-gray-700">Alamat sesuai KTP</p>
+          <div className="border-t border-gray-200 pt-4">
+            <p className="mb-2 text-sm font-semibold text-gray-900">Alamat sesuai KTP</p>
             <WilayahPicker value={wilayah} onChange={setWilayah} required />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Alamat Lengkap</label>
+            <label htmlFor="alamat-lengkap" className={labelCls}>
+              Alamat lengkap
+            </label>
             <textarea
+              id="alamat-lengkap"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               required
               rows={2}
               placeholder="Jalan, RT/RW, kelurahan…"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className={textareaCls}
             />
           </div>
 
-          <div className="flex items-start gap-2">
+          {/* Seluruh baris menjadi area ketuk, jadi targetnya tidak sekecil kotak centang. */}
+          <label
+            htmlFor="terms"
+            className="flex min-h-11 items-start gap-3 py-1 text-sm text-gray-700"
+          >
             <input
               type="checkbox"
               id="terms"
               checked={acceptTerms}
               onChange={(e) => setAcceptTerms(e.target.checked)}
-              className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="h-5 w-5 shrink-0 accent-primary-600"
               required
             />
-            <label htmlFor="terms" className="text-sm text-gray-600">
-              Saya menyetujui syarat dan ketentuan layanan
-            </label>
-          </div>
+            <span>Saya menyetujui syarat dan ketentuan layanan</span>
+          </label>
 
           <div className="flex gap-3">
             <Button
               type="button"
               variant="secondary"
+              size="lg"
               className="flex-1"
               onClick={() => {
                 setStep('account');
@@ -463,7 +482,7 @@ export function RegisterPage() {
             >
               Kembali
             </Button>
-            <Button type="submit" isLoading={isLoading} className="flex-1">
+            <Button type="submit" size="lg" isLoading={isLoading} className="flex-1">
               Daftar
             </Button>
           </div>
@@ -475,11 +494,11 @@ export function RegisterPage() {
   // ── Langkah 1: Akun ─────────────────────────────────────────────────────────
   return (
     <div>
-      <Header title="Buat Akun" subtitle="Langkah 1 dari 2 — buat akun Anda." />
-      <ErrorBox />
+      <AuthHeader title="Daftar" subtitle="Langkah 1 dari 3. Buat akun Anda." />
+      <AuthError message={error} />
       <form onSubmit={goToProfile} className="space-y-4">
         <Input
-          label="Nama Lengkap"
+          label="Nama lengkap"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
           placeholder="Masukkan nama lengkap"
@@ -496,7 +515,7 @@ export function RegisterPage() {
           autoComplete="email"
         />
         <Input
-          label="Nomor Telepon"
+          label="Nomor telepon"
           type="tel"
           inputMode="numeric"
           autoComplete="tel"
@@ -506,42 +525,34 @@ export function RegisterPage() {
           required
         />
         <Input
-          label="Password"
+          label="Kata sandi"
           type={showPassword ? 'text' : 'password'}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Minimal 8 karakter"
           helperText="Minimal 8 karakter."
           required
           minLength={8}
           autoComplete="new-password"
           trailingIcon={
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-              className="-m-2 p-2 text-gray-500 transition-colors hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
-            >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
+            <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           }
         />
         <Input
-          label="Konfirmasi Password"
+          label="Konfirmasi kata sandi"
           type={showPassword ? 'text' : 'password'}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Ulangi password"
+          placeholder="Ulangi kata sandi"
           required
           minLength={8}
           autoComplete="new-password"
           error={
             confirmPassword.length > 0 && confirmPassword !== password
-              ? 'Password tidak sama'
+              ? 'Kata sandi tidak sama'
               : undefined
           }
         />
-        <Button type="submit" className="w-full" isLoading={isLoading}>
+        <Button type="submit" size="lg" className="w-full" isLoading={isLoading}>
           Lanjut
         </Button>
       </form>
@@ -549,18 +560,14 @@ export function RegisterPage() {
       {/* Daftar dengan Google — hanya tampil bila VITE_GOOGLE_CLIENT_ID diset */}
       {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
         <>
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs text-gray-400">atau</span>
-            <span className="h-px flex-1 bg-gray-200" />
-          </div>
-          <GoogleSignInButton onCredential={handleGoogleCredential} />
+          <OrDivider />
+          <GoogleSignInButton onCredential={handleGoogleCredential} label="Daftar dengan Google" />
         </>
       )}
 
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <p className="mt-6 text-sm text-gray-600">
         Sudah punya akun?{' '}
-        <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
+        <Link to="/login" className={authLinkCls}>
           Masuk
         </Link>
       </p>

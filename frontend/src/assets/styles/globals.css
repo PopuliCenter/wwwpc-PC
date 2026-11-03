@@ -1,82 +1,195 @@
 @import 'tailwindcss';
 
+/* ---------------------------------------------------------------------
+ * Font self-host (wajib jalan offline & di APK Capacitor). Berkas woff2 +
+ * lisensi OFL ada di src/assets/fonts/; Vite mengemasnya ke dist/assets dan
+ * workbox ikut mem-precache. Hanya empat berkas ini: jangan menambah bobot.
+ * ------------------------------------------------------------------- */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url('../fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url('../fonts/ibm-plex-sans-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('../fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url('../fonts/source-serif-4-latin-600-normal.woff2') format('woff2');
+}
+
 @theme {
   /* ---------------------------------------------------------------------
    * Typography
+   * Sans untuk UI; serif 600 hanya untuk judul (aturan base h1 + kelas
+   * font-serif) dan tidak pernah di bawah 20px, pertanyaan, atau angka.
    * ------------------------------------------------------------------- */
-  --font-sans:
-    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  --font-sans: 'IBM Plex Sans', Roboto, system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-serif: 'Source Serif 4', 'Noto Serif', Georgia, serif;
+  /* font-bold memakai berkas 600: tidak ada berkas 700 yang dimuat. */
+  --font-weight-bold: 600;
+  --tracking-tight: -0.01em;
+
+  /* Skala teks (ukuran / tinggi baris). */
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-question: 1.0625rem;
+  --text-question--line-height: 1.5625rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 1.875rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
 
   /* ---------------------------------------------------------------------
-   * Brand palette — Indigo modern.
-   * Used everywhere via the `primary-*` utilities (bg/text/border/ring).
-   * Aksen orange logo Populi Center dipertahankan pada aset/ikon.
+   * Warna: setiap warna punya satu arti.
+   * - Navy (primary) = aksi: bisa ditekan atau terpilih.
+   * - Oranye (accent) = posisi Anda sekarang: penanda navigasi, progres, belum
+   *   dibaca, titik terbaru grafik. Bukan untuk tombol, teks, atau latar area.
+   * - Semantik (success/warning/danger/info) = status, selalu disertai teks.
    * ------------------------------------------------------------------- */
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-  --color-primary-950: #1e1b4b;
+  --color-primary-50: #eef4fb;
+  --color-primary-100: #d6e4f5;
+  --color-primary-200: #aecae9;
+  --color-primary-300: #7ba6d8;
+  --color-primary-400: #4d80c4;
+  --color-primary-500: #2f63ab;
+  --color-primary-600: #234e8c;
+  --color-primary-700: #1c3f72;
+  --color-primary-800: #16315a;
+  --color-primary-900: #0f2342;
+  --color-primary-950: #08172e;
+
+  /* Netral. Sengaja tidak linear: gray-200 untuk garis dan tepi panel, gray-300
+     hanya untuk batas kontrol (3:1), gray-400 ke atas aman sebagai teks. */
+  --color-gray-50: #f7f8f8;
+  --color-gray-100: #eef0f0;
+  --color-gray-200: #dfe2e3;
+  --color-gray-300: #81898d;
+  --color-gray-400: #656d71;
+  --color-gray-500: #586064;
+  --color-gray-600: #4a5256;
+  --color-gray-700: #383f43;
+  --color-gray-800: #272d30;
+  --color-gray-900: #181d20;
+  --color-gray-950: #0d1113;
+
+  /* Latar halaman. Panel, header, tab bawah, dan sidebar memakai putih. */
+  --color-surface: #f5f6f6;
+
+  /* Aksen oranye. 500 = warna logo: logo, splash, ikon, warna notifikasi, konfeti,
+     seri kedua grafik. 600 = semua penanda UI. Teks putih di atasnya gagal AA. */
+  --color-accent-500: #f26522;
+  --color-accent-600: #d4500f;
+
+  /* Semantik status. fg lolos AA di atas putih, surface, dan bg-nya sendiri. */
+  --color-success-fg: #27683f;
+  --color-success-bg: #eff5f0;
+  --color-success-border: #c8ddce;
+  --color-warning-fg: #7a5300;
+  --color-warning-bg: #faf4e4;
+  --color-warning-border: #e6d6a8;
+  --color-danger-fg: #a12c24;
+  --color-danger-bg: #fbf0ee;
+  --color-danger-border: #edcdc8;
+  --color-danger-hover: #8a241d;
+  --color-info-fg: #1c3f72;
+  --color-info-bg: #eef4fb;
+  --color-info-border: #aecae9;
+  /* Bintang rating terisi. */
+  --color-star: #a67c00;
+
+  /* Pegangan batang gulir: sengaja di bawah 3:1 agar tidak menyaingi isi. */
+  --color-scrollbar: #c9cdd0;
 
   /* ---------------------------------------------------------------------
-   * Cool neutrals (slate) — menggantikan stone hangat agar selaras dengan
-   * tema indigo modern. Semua utilitas `gray-*` mewarisi ini otomatis.
+   * Bentuk: sudut kecil; rounded-full hanya untuk avatar, radio, spinner, dan
+   * angka jumlah notifikasi.
    * ------------------------------------------------------------------- */
-  --color-gray-50: #f8fafc;
-  --color-gray-100: #f1f5f9;
-  --color-gray-200: #e2e8f0;
-  --color-gray-300: #cbd5e1;
-  --color-gray-400: #94a3b8;
-  --color-gray-500: #64748b;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1e293b;
-  --color-gray-900: #0f172a;
-  --color-gray-950: #020617;
+  --radius: 4px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
 
-  /* App surface tint (cool off-white) */
-  --color-surface: #f8fafc;
-
-  /* Slightly softer default radii */
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
+  /* Tepi memakai border, bukan bayangan. shadow-lg/xl hanya untuk overlay. */
+  --shadow-xs: 0 1px 0 rgb(24 29 32 / 0.04);
+  --shadow-sm: 0 1px 0 rgb(24 29 32 / 0.04);
+  --shadow: 0 0 0 1px #dfe2e3;
+  --shadow-md: 0 1px 0 rgb(24 29 32 / 0.04);
+  --shadow-lg: 0 4px 12px rgb(24 29 32 / 0.12);
+  --shadow-xl: 0 4px 12px rgb(24 29 32 / 0.12);
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 
   body {
     @apply bg-surface text-gray-900 antialiased;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
-  /* Headings get tighter tracking for a more designed, less default feel */
-  h1,
+  /* Judul halaman: satu-satunya tempat serif dipakai secara otomatis. */
+  h1 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    font-synthesis: none;
+    color: var(--color-gray-900);
+  }
+
   h2,
   h3,
   h4 {
-    @apply tracking-tight text-gray-900;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-gray-900);
   }
 
-  /* Consistent, branded focus outline for keyboard users */
+  /* Angka rata kolom di tabel dan elemen .num, termasuk pada fallback Roboto. */
+  table,
+  .num {
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  /* Fokus keyboard: garis solid tanpa ring dan tanpa opasitas. */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500/60 ring-offset-2 ring-offset-surface;
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
   }
 
-  /* Thin, unobtrusive scrollbars */
+  /* Thin, unobtrusive scrollbars. gray-300 terlalu gelap: warna itu hanya untuk batas kontrol. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-gray-300) transparent;
+    scrollbar-color: var(--color-scrollbar) transparent;
   }
 
   /* Leaflet: kurung z-index internal peta (pane & kontrol bisa mencapai 1000)
@@ -115,23 +228,23 @@
     }
   }
   .skeleton {
-    background-color: rgb(0 0 0 / 0.06);
+    background-color: rgb(24 29 32 / 0.07);
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.65) 50%,
+      rgb(255 255 255 / 0.55) 50%,
       transparent 100%
     );
     background-size: 200% 100%;
     background-repeat: no-repeat;
-    animation: skeleton-shimmer 1.3s ease-in-out infinite;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
   }
 
   /* Toast masuk: meluncur turun + memudar masuk. */
   @keyframes toast-in {
     from {
       opacity: 0;
-      transform: translateY(-14px);
+      transform: translateY(-10px);
     }
     to {
       opacity: 1;
@@ -139,10 +252,10 @@
     }
   }
   .animate-toast-in {
-    animation: toast-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: toast-in 0.2s ease-out both;
   }
 
-  /* Riak sentuh untuk tombol utama (native-feel). */
+  /* Riak sentuh (useTapFeedback di Button.tsx). */
   @keyframes ripple {
     to {
       transform: scale(2.6);
@@ -151,17 +264,10 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .skeleton {
+    .skeleton,
+    .animate-toast-in,
+    .animate-fade-up {
       animation: none;
     }
-    .animate-toast-in {
-      animation: none;
-    }
-  }
-
-  /* Subtle paper-like surface used for auth / marketing panels */
-  .bg-grain {
-    background-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.04) 1px, transparent 0);
-    background-size: 22px 22px;
   }
 }

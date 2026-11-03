@@ -13,11 +13,18 @@ const config: CapacitorConfig = {
   appId: 'com.populicenter.survei',
   appName: 'Riset Populi Center',
   webDir: 'dist',
+  // Warna WebView sebelum halaman pertama tergambar (sama dengan --color-surface).
+  backgroundColor: '#F5F6F6',
   server: {
     // Skema https untuk Android agar service worker / API sama seperti web.
     androidScheme: 'https',
   },
   plugins: {
+    // Plugin bawaan @capacitor/core 8. Wajib LIGHT: gaya DEFAULT mengikuti mode gelap
+    // HP sehingga ikon bar menjadi putih di atas bar putih (UI aplikasi hanya tema terang).
+    SystemBars: {
+      style: 'LIGHT',
+    },
     PushNotifications: {
       // Saat aplikasi DI DEPAN (foreground), tampilkan juga banner sistem.
       presentationOptions: ['badge', 'sound', 'alert'],

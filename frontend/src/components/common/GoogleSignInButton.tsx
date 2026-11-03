@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isNativeGoogleAvailable, signInWithGoogleNative } from '@/services/google-auth';
+import { useTapFeedback } from './Button';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
@@ -32,15 +33,29 @@ function loadGsi(): Promise<void> {
  * - Di WEB: pakai Google Identity Services (GIS).
  * Tidak ditampilkan bila VITE_GOOGLE_CLIENT_ID belum diset.
  */
-export function GoogleSignInButton({ onCredential }: { onCredential: (idToken: string) => void }) {
+export function GoogleSignInButton({
+  onCredential,
+  label,
+}: {
+  onCredential: (idToken: string) => void;
+  /** Teks tombol native (bawaan: "Masuk dengan Google"). Tombol web mengikuti teks Google. */
+  label?: string;
+}) {
   if (isNativeGoogleAvailable()) {
-    return <NativeGoogleButton onCredential={onCredential} />;
+    return <NativeGoogleButton onCredential={onCredential} label={label} />;
   }
   return <WebGoogleButton onCredential={onCredential} />;
 }
 
 /** Tombol native — memicu plugin Google Sign-In lalu mengirim idToken. */
-function NativeGoogleButton({ onCredential }: { onCredential: (idToken: string) => void }) {
+function NativeGoogleButton({
+  onCredential,
+  label = 'Masuk dengan Google',
+}: {
+  onCredential: (idToken: string) => void;
+  label?: string;
+}) {
+  const tap = useTapFeedback();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,14 +77,17 @@ function NativeGoogleButton({ onCredential }: { onCredential: (idToken: string) 
     <div className="flex flex-col items-center gap-2">
       <button
         type="button"
-        onClick={handleClick}
+        onClick={(e) => {
+          tap(e);
+          void handleClick();
+        }}
         disabled={loading}
-        className="flex w-full max-w-[320px] items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
+        className="relative flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 text-base font-medium text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-60 lg:h-11"
       >
         <GoogleGlyph />
-        {loading ? 'Memproses…' : 'Masuk dengan Google'}
+        {loading ? 'Memproses…' : label}
       </button>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger-fg">{error}</p>}
     </div>
   );
 }

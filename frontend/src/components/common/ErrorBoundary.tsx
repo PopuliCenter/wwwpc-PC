@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { reportClientError } from '@/services/clientLog';
+import { Button } from './Button';
 
 interface Props {
   children: ReactNode;
@@ -32,17 +33,13 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-          <h1 className="text-lg font-semibold text-gray-900">Terjadi kesalahan</h1>
-          <p className="max-w-sm text-sm text-gray-500">
+          <h1 className="text-xl text-gray-900">Terjadi kesalahan</h1>
+          <p className="max-w-sm text-sm text-gray-600">
             Maaf, ada gangguan tak terduga. Coba muat ulang halaman.
           </p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
-          >
+          <Button type="button" onClick={() => window.location.reload()}>
             Muat ulang
-          </button>
+          </Button>
         </div>
       );
     }

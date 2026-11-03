@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Loader2 } from 'lucide-react';
 import {
   getProvinces,
   getRegencies,
@@ -132,20 +131,23 @@ export function IndonesiaRegionQuestion({ question, value, onChange, invalid }: 
 
   return (
     <div className="space-y-3" aria-busy={loadingLevel !== null}>
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-        <MapPin className="h-3.5 w-3.5" />
-        Pilih wilayah secara berurutan
-        {loadingLevel !== null && (
-          <span className="inline-flex items-center gap-1 text-primary-600">
-            <Loader2 className="h-3 w-3 animate-spin" /> memuat…
-          </span>
-        )}
-      </div>
+      {/* Khusus pembaca layar: tampilan memuat sudah ada di opsi pertama tiap select.
+          Baris yang terlihat di sini akan mendorong select turun-naik saat responden
+          hendak mengetuk tingkat berikutnya. Elemennya selalu ada agar pengumuman terbaca. */}
+      <p role="status" className="sr-only">
+        {loadingLevel !== null ? 'Memuat wilayah…' : ''}
+      </p>
 
       {/* Provinsi */}
       <div>
-        <label className="mb-1 block text-xs font-medium text-gray-600">Provinsi</label>
+        <label
+          htmlFor={`${question.id}-province`}
+          className="mb-1 block text-sm font-medium text-gray-700"
+        >
+          Provinsi
+        </label>
         <select
+          id={`${question.id}-province`}
           value={lockedProvince ? lockedProvince.id : (regionVal.province_id ?? '')}
           disabled={!!lockedProvince || loadingLevel === 'province'}
           onChange={(e) => {
@@ -172,8 +174,14 @@ export function IndonesiaRegionQuestion({ question, value, onChange, invalid }: 
       {/* Kabupaten/Kota */}
       {depthIndex >= 1 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Kabupaten / Kota</label>
+          <label
+            htmlFor={`${question.id}-regency`}
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Kabupaten / Kota
+          </label>
           <select
+            id={`${question.id}-regency`}
             value={lockedRegency ? lockedRegency.id : (regionVal.regency_id ?? '')}
             disabled={!!lockedRegency || !regionVal.province_id || loadingLevel === 'regency'}
             onChange={(e) => {
@@ -205,8 +213,14 @@ export function IndonesiaRegionQuestion({ question, value, onChange, invalid }: 
       {/* Kecamatan */}
       {depthIndex >= 2 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Kecamatan</label>
+          <label
+            htmlFor={`${question.id}-district`}
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Kecamatan
+          </label>
           <select
+            id={`${question.id}-district`}
             value={regionVal.district_id ?? ''}
             disabled={!regionVal.regency_id || loadingLevel === 'district'}
             onChange={(e) => {
@@ -238,8 +252,14 @@ export function IndonesiaRegionQuestion({ question, value, onChange, invalid }: 
       {/* Kelurahan/Desa */}
       {depthIndex >= 3 && (
         <div>
-          <label className="mb-1 block text-xs font-medium text-gray-600">Kelurahan / Desa</label>
+          <label
+            htmlFor={`${question.id}-village`}
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Kelurahan / Desa
+          </label>
           <select
+            id={`${question.id}-village`}
             value={regionVal.village_id ?? ''}
             disabled={!regionVal.district_id || loadingLevel === 'village'}
             onChange={(e) => {

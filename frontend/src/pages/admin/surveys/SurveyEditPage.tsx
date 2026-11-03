@@ -15,7 +15,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { Shuffle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, BookOpen, Check, Plus, Shuffle } from 'lucide-react';
 import { api } from '@/services/api';
 import { showAppNotice } from '@/stores/notification.store';
 import { getProvinces } from '@/utils/wilayah';
@@ -26,7 +26,10 @@ import {
   type ImportedQuestion,
 } from './questionImportExport';
 import { takePendingImport } from './questionImportHandoff';
-import { LoadingState } from '@/components/common/AsyncState';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
+import { Skeleton } from '@/components/common/Skeleton';
+import { fieldCls, textareaCls } from '@/components/common/fieldStyles';
 import type { QuestionType, Question, SurveyDetail, BackendQuestion } from './surveyEditTypes';
 import { mapBackendQuestion, buildQuestionsFromImport } from './surveyEditTypes';
 import { defaultsForType } from './questionTypeMeta';
@@ -103,13 +106,13 @@ export function SurveyEditPage() {
           maxRespondents: settingsMaxRespondents ? Number(settingsMaxRespondents) : 0,
         },
       });
-      setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan ✓' });
+      setSaveMessage({ ok: true, text: 'Pengaturan survei disimpan' });
     } catch (e) {
       // Tampilkan pesan asli dari server (mis. validasi) agar mudah didiagnosis.
       const msg = (e as { message?: string })?.message;
       setSaveMessage({
         ok: false,
-        text: msg ? `Gagal menyimpan: ${msg}` : 'Gagal menyimpan pengaturan ✗',
+        text: msg ? `Gagal menyimpan: ${msg}` : 'Gagal menyimpan pengaturan',
       });
     } finally {
       setSavingSettings(false);
@@ -381,58 +384,90 @@ export function SurveyEditPage() {
   // Tutup modal editor + simpan otomatis ke server (agar tak hilang).
   const closeEditor = () => {
     setExpandedId(null);
-    void persistQuestions('Tersimpan otomatis ✓');
+    void persistQuestions('Tersimpan otomatis');
   };
 
   if (loading) {
-    return <LoadingState text="Memuat survei..." />;
+    // Kerangka sebentuk halaman editor: judul, dua panel pengaturan, daftar pertanyaan.
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <Skeleton className="h-8 w-2/3 max-w-md" />
+        <Card className="space-y-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+        </Card>
+        <Card className="space-y-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-11 w-full rounded-lg" />
+        </Card>
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <SurveyEditorHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="shrink-0"
             onClick={() => navigate('/admin/surveys')}
-            className="text-gray-600 hover:text-gray-900 text-sm"
           >
-            ← Kembali
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Edit: {survey?.title}</h1>
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Kembali
+          </Button>
+          <h1 className="min-w-0 truncate text-2xl text-gray-900" title={survey?.title}>
+            Edit: {survey?.title}
+          </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {saveMessage && (
-            <span className={`text-sm ${saveMessage.ok ? 'text-emerald-600' : 'text-red-600'}`}>
-              {saveMessage.ok ? '✓' : '✗'} {saveMessage.text}
+            <span
+              role="status"
+              className={`inline-flex items-center gap-1.5 text-sm ${
+                saveMessage.ok ? 'text-success-fg' : 'text-danger-fg'
+              }`}
+            >
+              {saveMessage.ok ? (
+                <Check className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0" strokeWidth={1.75} aria-hidden="true" />
+              )}
+              {saveMessage.text}
             </span>
           )}
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => setHelpOpen(true)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
             title="Panduan: percabangan, skip & kelompok eksperimen"
           >
-            📘 Panduan
-          </button>
-          <button
+            <BookOpen className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Panduan
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
             onClick={() => navigate(`/admin/surveys/${id}/preview`)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm transition-colors"
           >
-            Preview
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 text-sm transition-colors"
-          >
+            Pratinjau
+          </Button>
+          <Button type="button" onClick={handleSave} isLoading={saving}>
             {saving ? 'Menyimpan...' : 'Simpan'}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Informasi Survei — judul, deskripsi, jadwal (bisa diedit, mis. survei duplikat) */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
+      <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Informasi Survei</h2>
         <div className="space-y-4">
           <div>
@@ -442,7 +477,7 @@ export function SurveyEditPage() {
               value={settingsTitle}
               onChange={(e) => setSettingsTitle(e.target.value)}
               placeholder="Masukkan judul survei"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={fieldCls}
             />
           </div>
           <div>
@@ -452,7 +487,7 @@ export function SurveyEditPage() {
               onChange={(e) => setSettingsDescription(e.target.value)}
               placeholder="Deskripsi survei"
               rows={3}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={textareaCls}
             />
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -462,7 +497,7 @@ export function SurveyEditPage() {
                 type="datetime-local"
                 value={settingsStartDate}
                 onChange={(e) => setSettingsStartDate(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
@@ -473,7 +508,7 @@ export function SurveyEditPage() {
                 type="datetime-local"
                 value={settingsEndDate}
                 onChange={(e) => setSettingsEndDate(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
@@ -486,15 +521,15 @@ export function SurveyEditPage() {
                 value={settingsMaxDuration}
                 onChange={(e) => setSettingsMaxDuration(e.target.value)}
                 placeholder="mis. 30"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Pengaturan Survei */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-5">
+      <Card>
         <h2 className="mb-3 text-sm font-semibold text-gray-900">Pengaturan Survei</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
@@ -502,7 +537,7 @@ export function SurveyEditPage() {
             <select
               value={settingsType}
               onChange={(e) => setSettingsType(e.target.value as typeof settingsType)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={fieldCls}
             >
               <option value="nasional">Nasional</option>
               <option value="daerah">Daerah</option>
@@ -517,7 +552,7 @@ export function SurveyEditPage() {
               value={settingsCategory}
               onChange={(e) => setSettingsCategory(e.target.value)}
               placeholder="Contoh: Politik, Ekonomi"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={fieldCls}
             />
             <datalist id="survey-category-options">
               <option value="Politik" />
@@ -536,7 +571,7 @@ export function SurveyEditPage() {
             <select
               value={settingsFormMode}
               onChange={(e) => setSettingsFormMode(e.target.value as typeof settingsFormMode)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className={fieldCls}
             >
               <option value="paginated">Per Halaman (beberapa pertanyaan per halaman)</option>
               <option value="scroll">Satu Halaman (gulir ke bawah)</option>
@@ -547,7 +582,7 @@ export function SurveyEditPage() {
 
         {/* Reward — poin & deskripsi dapat diubah agar survei tidak mubazir */}
         <div className="mt-4 border-t border-gray-100 pt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          <p className="mb-2 text-sm font-medium text-gray-700">
             Reward
             <InfoHint text="Hadiah untuk responden yang menyelesaikan survei. Bisa diubah kapan saja, termasuk setelah survei dibuat." />
           </p>
@@ -557,7 +592,7 @@ export function SurveyEditPage() {
               <select
                 value={settingsRewardMode}
                 onChange={(e) => setSettingsRewardMode(e.target.value as typeof settingsRewardMode)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               >
                 <option value="automatic">Otomatis (poin)</option>
                 <option value="manual">Manual</option>
@@ -571,7 +606,7 @@ export function SurveyEditPage() {
                 value={settingsRewardPoints}
                 onChange={(e) => setSettingsRewardPoints(e.target.value)}
                 placeholder="mis. 500"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
@@ -583,7 +618,7 @@ export function SurveyEditPage() {
                 value={settingsRewardDescription}
                 onChange={(e) => setSettingsRewardDescription(e.target.value)}
                 placeholder="mis. Pulsa 5rb / e-wallet"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
           </div>
@@ -591,51 +626,51 @@ export function SurveyEditPage() {
 
         {/* Alat pendukung — bukan tipe pertanyaan, melainkan setelan survei */}
         <div className="mt-4 border-t border-gray-100 pt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          <p className="mb-2 text-sm font-medium text-gray-700">
             Fitur Tambahan
             <InfoHint text="Fitur opsional yang berlaku untuk seluruh survei, mis. merekam lokasi GPS atau meminta tanda tangan." />
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
               <input
                 type="checkbox"
                 checked={settingsCaptureGps}
                 onChange={(e) => setSettingsCaptureGps(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
               />
               <span className="text-sm">
                 <span className="block font-medium text-gray-800">Rekam lokasi GPS</span>
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-gray-600">
                   Tangkap koordinat otomatis di awal &amp; akhir pengisian.
                 </span>
               </span>
             </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
               <input
                 type="checkbox"
                 checked={settingsRequireSignature}
                 onChange={(e) => setSettingsRequireSignature(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
               />
               <span className="text-sm">
                 <span className="block font-medium text-gray-800">Tanda tangan responden</span>
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-gray-600">
                   Minta tanda tangan di akhir sebagai verifikasi/persetujuan.
                 </span>
               </span>
             </label>
-            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
               <input
                 type="checkbox"
                 checked={settingsUppercaseAnswers}
                 onChange={(e) => setSettingsUppercaseAnswers(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
               />
               <span className="text-sm">
                 <span className="block font-medium text-gray-800">
                   Huruf besar semua jawaban teks
                 </span>
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-gray-600">
                   Jawaban teks &amp; isian responden otomatis jadi HURUF BESAR.
                 </span>
               </span>
@@ -645,9 +680,7 @@ export function SurveyEditPage() {
 
         {/* Limitasi & Targeting */}
         <div className="mt-4 border-t border-gray-100 pt-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Limitasi &amp; Targeting
-          </p>
+          <p className="mb-2 text-sm font-medium text-gray-700">Limitasi &amp; Targeting</p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
@@ -659,20 +692,23 @@ export function SurveyEditPage() {
                 value={settingsMaxRespondents}
                 onChange={(e) => setSettingsMaxRespondents(e.target.value)}
                 placeholder="0 = tak terbatas"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Khusus jenis kelamin
               </label>
-              <div className="flex flex-wrap gap-3 pt-1.5">
+              <div className="flex flex-wrap gap-x-3 lg:pt-1.5">
                 {[
                   { v: 'male', l: 'Laki-laki' },
                   { v: 'female', l: 'Perempuan' },
                   { v: 'other', l: 'Lainnya' },
                 ].map((g) => (
-                  <label key={g.v} className="inline-flex items-center gap-1.5 text-sm">
+                  <label
+                    key={g.v}
+                    className="inline-flex min-h-11 items-center gap-1.5 text-sm lg:min-h-0"
+                  >
                     <input
                       type="checkbox"
                       checked={settingsAllowedGenders.includes(g.v)}
@@ -681,25 +717,28 @@ export function SurveyEditPage() {
                           e.target.checked ? [...prev, g.v] : prev.filter((x) => x !== g.v),
                         )
                       }
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 shrink-0 accent-primary-600"
                     />
                     {g.l}
                   </label>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-gray-400">Kosong = semua jenis kelamin.</p>
+              <p className="mt-1 text-xs text-gray-500">Kosong = semua jenis kelamin.</p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Khusus provinsi{' '}
                 {settingsAllowedProvinces.length > 0 && `(${settingsAllowedProvinces.length})`}
               </label>
-              <div className="max-h-32 overflow-y-auto rounded-md border border-gray-300 p-2">
+              <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-200 p-2 lg:max-h-32">
                 {provinceList.length === 0 && (
-                  <p className="text-xs text-gray-400">Memuat provinsi…</p>
+                  <p className="text-xs text-gray-500">Memuat provinsi…</p>
                 )}
                 {provinceList.map((p) => (
-                  <label key={p.id} className="flex items-center gap-1.5 py-0.5 text-xs">
+                  <label
+                    key={p.id}
+                    className="flex min-h-11 items-center gap-1.5 py-0.5 text-sm lg:min-h-0 lg:text-xs"
+                  >
                     <input
                       type="checkbox"
                       checked={settingsAllowedProvinces.includes(p.name)}
@@ -708,30 +747,31 @@ export function SurveyEditPage() {
                           e.target.checked ? [...prev, p.name] : prev.filter((x) => x !== p.name),
                         )
                       }
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 shrink-0 accent-primary-600"
                     />
                     {p.name}
                   </label>
                 ))}
               </div>
-              <p className="mt-1 text-[11px] text-gray-400">Kosong = semua wilayah.</p>
+              <p className="mt-1 text-xs text-gray-500">Kosong = semua wilayah.</p>
             </div>
           </div>
         </div>
 
         <div className="mt-3">
-          <button
+          <Button
+            type="button"
+            variant="secondary"
             onClick={saveSettings}
-            disabled={savingSettings}
-            className="rounded-md border border-gray-300 px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            isLoading={savingSettings}
           >
             {savingSettings ? 'Menyimpan...' : 'Simpan Pengaturan'}
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Builder */}
-      <div className="bg-gray-50 rounded-lg p-6">
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Pertanyaan ({questions.length})</h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -742,46 +782,44 @@ export function SurveyEditPage() {
               onChange={handleImportFile}
               className="hidden"
             />
-            <button
+            <Button
+              type="button"
+              variant="secondary"
               onClick={handleDownloadTemplate}
               title="Unduh contoh format Excel untuk diisi"
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
             >
               Template
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               onClick={handleExportQuestions}
               title="Unduh pertanyaan survei ini ke Excel"
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
             >
               Unduh
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               onClick={() => importInputRef.current?.click()}
               title="Unggah pertanyaan dari file Excel (ditambahkan di bawah)"
-              className="rounded-md border border-primary-300 bg-primary-50 px-3 py-2 text-sm font-medium text-primary-700 transition-colors hover:bg-primary-100"
             >
               Unggah
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               onClick={() => setBlockPanelOpen(true)}
               title="Atur blok pengacakan urutan pertanyaan"
-              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
             >
-              <Shuffle className="h-3.5 w-3.5" />
-              Blok Acak
-              {blockCount > 0 && (
-                <span className="rounded-full bg-primary-100 px-1.5 text-xs font-semibold text-primary-700">
-                  {blockCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => addQuestion('single_choice')}
-              className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-            >
-              + Tambah Pertanyaan
-            </button>
+              <Shuffle className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+              <span className="tabular-nums">
+                Blok Acak{blockCount > 0 ? ` (${blockCount})` : ''}
+              </span>
+            </Button>
+            <Button type="button" onClick={() => addQuestion('single_choice')}>
+              <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Tambah Pertanyaan
+            </Button>
           </div>
         </div>
 
@@ -808,8 +846,8 @@ export function SurveyEditPage() {
         </DndContext>
 
         {questions.length === 0 && (
-          <div className="rounded-md border border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
-            Belum ada pertanyaan. Klik &ldquo;+ Tambah Pertanyaan&rdquo; di atas.
+          <div className="py-10 text-center text-sm text-gray-600">
+            Belum ada pertanyaan. Klik &ldquo;Tambah Pertanyaan&rdquo; di atas.
           </div>
         )}
 

@@ -1,22 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Clock,
-  HelpCircle,
-  CalendarDays,
-  Gift,
-  RefreshCw,
-  ChevronDown,
-  CheckCircle2,
-  Hourglass,
-  ClipboardList,
-  Coins,
-} from 'lucide-react';
-import { api } from '@/services/api';
-import { useAuthStore } from '@/stores/auth.store';
-import { usePointsStore } from '@/stores/points.store';
-import { Skeleton, SurveyCardSkeleton } from '@/components/common/Skeleton';
+import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
+import { api } from '@/services/api';
+import { Button, useTapFeedback } from '@/components/common/Button';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
+import { Skeleton, SurveyRowSkeleton } from '@/components/common/Skeleton';
 
 interface AvailableSurvey {
   id: string;
@@ -33,39 +24,36 @@ interface AvailableSurvey {
   upcoming?: boolean;
 }
 
-function RewardBadge({ survey }: { survey: AvailableSurvey }) {
-  const label =
-    survey.rewardMode === 'auto_point' && survey.rewardPoints
-      ? `${survey.rewardPoints.toLocaleString('id-ID')} poin`
-      : survey.rewardDescription || null;
-  if (!label) return null;
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-      <Gift className="h-3.5 w-3.5" /> {label}
-    </span>
-  );
+// Daftar, bukan galeri kartu: di HP lebar penuh menempel tepi layar, dari sm panel bertepi.
+const listPanelCls =
+  '-mx-4 divide-y divide-gray-100 border-y border-gray-200 bg-white sm:mx-0 sm:rounded-xl sm:border';
+
+/** Teks nilai survei: poin, atau isi teks reward manual; kosong bila tidak ada. */
+function rewardLabel(survey: AvailableSurvey): string | null {
+  return survey.rewardMode === 'auto_point' && survey.rewardPoints
+    ? `${survey.rewardPoints.toLocaleString('id-ID')} poin`
+    : survey.rewardDescription || null;
 }
 
-/** Kartu survei tersedia — ringkas, detail bisa dibuka/tutup. */
-function SurveyCard({ survey }: { survey: AvailableSurvey }) {
+/** Baris survei tersedia — ringkas, detail bisa dibuka/tutup. */
+function SurveyRow({ survey, primary }: { survey: AvailableSurvey; primary: boolean }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const reward = rewardLabel(survey);
   return (
-    <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold leading-snug text-gray-900">{survey.title}</h3>
-        <RewardBadge survey={survey} />
-      </div>
+    <li className="p-4">
+      <h2 className="text-base font-medium text-gray-900">{survey.title}</h2>
 
       {/* Meta ringkas — selalu terlihat */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500">
-        <span className="inline-flex items-center gap-1.5">
-          <Clock className="h-3.5 w-3.5" /> ±{survey.estimatedTime} menit
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <HelpCircle className="h-3.5 w-3.5" /> {survey.questionCount} pertanyaan
-        </span>
-      </div>
+      <p className="mt-1 text-xs tabular-nums text-gray-600">
+        ± {survey.estimatedTime} menit · {survey.questionCount} pertanyaan
+        {reward && (
+          <>
+            {' · '}
+            <span className="font-medium text-gray-800">{reward}</span>
+          </>
+        )}
+      </p>
 
       {/* Detail — disembunyikan, bisa dibuka */}
       {open && (
@@ -73,70 +61,65 @@ function SurveyCard({ survey }: { survey: AvailableSurvey }) {
           {survey.description && (
             <p className="text-sm leading-relaxed text-gray-600">{survey.description}</p>
           )}
-          <div className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Ditutup: {format(new Date(survey.deadline), 'dd MMM yyyy')}
-          </div>
+          <p className="text-xs tabular-nums text-gray-600">
+            Ditutup {format(new Date(survey.deadline), 'd MMM yyyy', { locale: localeId })}
+          </p>
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2">
-        <button
-          onClick={() => navigate(`/surveys/${survey.id}/fill`)}
-          className="flex-1 rounded-xl bg-primary-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
-        >
-          Isi Survei
-        </button>
-        <button
+      <div className="mt-3 flex items-center gap-2">
+        <Button
           type="button"
+          variant={primary ? 'primary' : 'secondary'}
+          className="flex-1"
+          onClick={() => navigate(`/surveys/${survey.id}/fill`)}
+        >
+          Isi survei
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex items-center gap-1 rounded-xl border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
         >
           Detail
-          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
-        </button>
+          <ChevronDown
+            className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`}
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
+        </Button>
       </div>
-    </div>
+    </li>
   );
 }
 
-/** Kartu survei "akan datang" — belum bisa diisi. */
-function UpcomingCard({ survey }: { survey: AvailableSurvey }) {
+/** Baris survei "akan dibuka" — belum bisa diisi, jadi tanpa tombol. */
+function UpcomingRow({ survey }: { survey: AvailableSurvey }) {
+  const reward = rewardLabel(survey);
+  const opensAt = survey.startsAt
+    ? `Dibuka ${format(new Date(survey.startsAt), 'd MMM, HH.mm', { locale: localeId })}`
+    : null;
   return (
-    <div className="flex flex-col rounded-2xl border border-dashed border-gray-300 bg-gray-50/60 p-5">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold leading-snug text-gray-700">{survey.title}</h3>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-600 ring-1 ring-inset ring-indigo-200">
-          <Hourglass className="h-3.5 w-3.5" /> Segera
-        </span>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-gray-500">
-        <RewardBadge survey={survey} />
-        {survey.startsAt && (
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Dibuka {format(new Date(survey.startsAt), 'dd MMM yyyy, HH:mm')}
-          </span>
-        )}
-      </div>
-      <button
-        disabled
-        className="mt-4 w-full cursor-not-allowed rounded-xl bg-gray-100 py-2.5 text-sm font-semibold text-gray-400"
-      >
-        Belum dibuka
-      </button>
-    </div>
+    <li className="p-4">
+      <h3 className="text-base font-medium text-gray-700">{survey.title}</h3>
+      {(opensAt || reward) && (
+        <p className="mt-1 text-xs tabular-nums text-gray-600">
+          {opensAt}
+          {opensAt && reward && ' · '}
+          {reward && <span className="font-medium text-gray-800">{reward}</span>}
+        </p>
+      )}
+    </li>
   );
 }
 
 export function SurveyListPage() {
+  const tap = useTapFeedback();
   const [surveys, setSurveys] = useState<AvailableSurvey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
-  const { user } = useAuthStore();
-  const points = usePointsStore((s) => s.available);
-  const firstName = user?.fullName?.trim().split(' ')[0] ?? '';
 
   const fetchSurveys = useCallback(async () => {
     setLoading(true);
@@ -157,11 +140,14 @@ export function SurveyListPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-7 w-48" />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className={listPanelCls}>
           {[1, 2, 3].map((i) => (
-            <SurveyCardSkeleton key={i} />
+            <SurveyRowSkeleton key={i} />
           ))}
         </div>
       </div>
@@ -170,17 +156,19 @@ export function SurveyListPage() {
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900">Survei</h1>
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
-          <p>{error}</p>
-          <button
-            onClick={() => void fetchSurveys()}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Coba lagi
-          </button>
-        </div>
+      <div className="mx-auto max-w-2xl space-y-4">
+        <h1 className="text-2xl font-bold text-gray-900">Survei terbuka</h1>
+        <Notice
+          tone="danger"
+          role="alert"
+          action={
+            <Button type="button" variant="secondary" size="sm" onClick={() => void fetchSurveys()}>
+              <RefreshCw className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Coba lagi
+            </Button>
+          }
+        >
+          {error}
+        </Notice>
       </div>
     );
   }
@@ -190,129 +178,82 @@ export function SurveyListPage() {
   const completed = surveys.filter((s) => s.completed);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Halo, {firstName || 'Responden'}</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            {available.length > 0
-              ? `Ada ${available.length} survei menunggu untuk diisi. Setiap survei berhadiah poin.`
-              : 'Belum ada survei baru untuk Anda saat ini. Cek lagi nanti, ya.'}
-          </p>
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900">Survei terbuka</h1>
+            <p className="mt-1 text-xs tabular-nums text-gray-600">
+              {available.length} tersedia · {completed.length} selesai
+            </p>
+          </div>
+          <IconButton aria-label="Muat ulang daftar survei" onClick={() => void fetchSurveys()}>
+            <RefreshCw className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+          </IconButton>
         </div>
-        <button
-          onClick={() => void fetchSurveys()}
-          aria-label="Muat ulang daftar survei"
-          title="Muat ulang"
-          className="shrink-0 rounded-lg border border-gray-200 p-2.5 text-gray-500 hover:bg-gray-50 hover:text-gray-700"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </button>
-      </div>
 
-      {/* Kartu statistik */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          {
-            icon: Coins,
-            label: 'Poin Saya',
-            value: points == null ? '—' : points.toLocaleString('id-ID'),
-            ring: 'ring-amber-100',
-            bg: 'bg-amber-50',
-            text: 'text-amber-600',
-          },
-          {
-            icon: ClipboardList,
-            label: 'Tersedia',
-            value: available.length,
-            ring: 'ring-indigo-100',
-            bg: 'bg-indigo-50',
-            text: 'text-indigo-600',
-          },
-          {
-            icon: CheckCircle2,
-            label: 'Selesai',
-            value: completed.length,
-            ring: 'ring-emerald-100',
-            bg: 'bg-emerald-50',
-            text: 'text-emerald-600',
-          },
-        ].map(({ icon: Icon, label, value, ring, bg, text }) => (
-          <div
-            key={label}
-            className={`rounded-2xl border border-gray-100 bg-white p-3 text-center shadow-sm ring-1 ${ring}`}
-          >
-            <span
-              className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-full ${bg} ${text}`}
-            >
-              <Icon className="h-4 w-4" />
-            </span>
-            <p className="text-lg font-bold leading-none text-gray-900">{value}</p>
-            <p className="mt-1 text-[11px] font-medium text-gray-500">{label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Tersedia */}
-      {available.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <ClipboardList className="h-4 w-4 text-primary-600" /> Survei tersedia
-          </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {available.map((s) => (
-              <SurveyCard key={s.id} survey={s} />
+        {/* Tersedia */}
+        {available.length > 0 ? (
+          <ul className={listPanelCls}>
+            {available.map((s, i) => (
+              <SurveyRow key={s.id} survey={s} primary={i === 0} />
             ))}
+          </ul>
+        ) : (
+          <div className={listPanelCls}>
+            <div className="p-4">
+              <p className="text-sm text-gray-800">Belum ada survei baru untuk Anda saat ini.</p>
+              <p className="mt-1 text-sm text-gray-600">Silakan cek kembali nanti.</p>
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </div>
 
-      {/* Akan datang */}
+      {/* Akan dibuka */}
       {upcoming.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-            <Hourglass className="h-4 w-4 text-indigo-500" /> Akan datang
-          </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold text-gray-700">Akan dibuka</h2>
+          <ul className={listPanelCls}>
             {upcoming.map((s) => (
-              <UpcomingCard key={s.id} survey={s} />
+              <UpcomingRow key={s.id} survey={s} />
             ))}
-          </div>
+          </ul>
         </section>
       )}
 
-      {/* Kosong total */}
-      {available.length === 0 && upcoming.length === 0 && completed.length === 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-10 text-center">
-          <ClipboardList className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-          <p className="text-gray-600">Belum ada survei yang tersedia saat ini.</p>
-          <p className="mt-1 text-sm text-gray-400">Silakan cek kembali nanti.</p>
-        </div>
-      )}
-
-      {/* Sudah diisi — disembunyikan, bisa dibuka */}
+      {/* Sudah diisi — terlipat, bisa dibuka */}
       {completed.length > 0 && (
-        <section className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setShowDone((v) => !v)}
-            className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              Survei sudah diisi ({completed.length})
-            </span>
-            <ChevronDown
-              className={`h-4 w-4 text-gray-400 transition-transform ${showDone ? 'rotate-180' : ''}`}
-            />
-          </button>
+        <section className="space-y-2">
+          <h2>
+            <button
+              type="button"
+              aria-expanded={showDone}
+              onClick={(e) => {
+                tap(e);
+                setShowDone((v) => !v);
+              }}
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg text-sm font-semibold text-gray-600 transition-colors hover:text-gray-900"
+            >
+              <span className="flex items-center gap-2 tabular-nums">
+                <Check
+                  className="h-4 w-4 shrink-0 text-success-fg"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+                Selesai ({completed.length})
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 shrink-0 transition-transform ${showDone ? 'rotate-180' : ''}`}
+                strokeWidth={1.75}
+                aria-hidden="true"
+              />
+            </button>
+          </h2>
           {showDone && (
-            <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <ul className={listPanelCls}>
               {completed.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 px-4 py-3">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                  <span className="flex-1 truncate text-sm text-gray-600">{s.title}</span>
-                  <span className="shrink-0 text-xs text-gray-400">Selesai</span>
+                <li key={s.id} className="truncate px-4 py-3 text-sm text-gray-700">
+                  {s.title}
                 </li>
               ))}
             </ul>

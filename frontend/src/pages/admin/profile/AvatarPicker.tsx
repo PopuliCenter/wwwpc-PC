@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Camera, Trash2 } from 'lucide-react';
+import { Button, useTapFeedback } from '@/components/common/Button';
 
 const AVATAR_STYLES = ['avataaars', 'bottts', 'fun-emoji', 'thumbs', 'identicon', 'adventurer'];
 
@@ -22,6 +23,7 @@ export function AvatarPicker({
   onApplyAvatar,
   onUploadFile,
 }: AvatarPickerProps) {
+  const tap = useTapFeedback();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const avatarSeed = encodeURIComponent(seed || 'populi');
   const generatedAvatars = AVATAR_STYLES.map(
@@ -35,18 +37,14 @@ export function AvatarPicker({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">Pilih Avatar</h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs text-gray-400 hover:text-gray-600"
-        >
+    <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-gray-900">Pilih avatar</h2>
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           Tutup
-        </button>
+        </Button>
       </div>
-      <p className="mb-3 text-xs text-gray-500">
+      <p className="mb-3 text-xs text-gray-600">
         Pilih salah satu avatar, atau hapus untuk memakai inisial nama. Foto akun Google terpasang
         otomatis saat login.
       </p>
@@ -56,9 +54,13 @@ export function AvatarPicker({
             key={url}
             type="button"
             disabled={saving}
-            onClick={() => onApplyAvatar(url)}
+            aria-pressed={currentAvatarUrl === url}
+            onClick={(e) => {
+              tap(e);
+              onApplyAvatar(url);
+            }}
             className={`rounded-full ring-2 transition disabled:opacity-50 ${
-              currentAvatarUrl === url ? 'ring-primary-500' : 'ring-transparent hover:ring-gray-200'
+              currentAvatarUrl === url ? 'ring-primary-600' : 'ring-transparent hover:ring-gray-200'
             }`}
           >
             <img
@@ -79,24 +81,25 @@ export function AvatarPicker({
           className="hidden"
           onChange={handleFileChange}
         />
-        <button
+        <Button
           type="button"
+          size="sm"
           disabled={saving}
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
         >
-          <Camera className="h-3.5 w-3.5" /> Upload foto
-        </button>
-        <button
+          <Camera className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Unggah foto
+        </Button>
+        <Button
           type="button"
+          variant="secondary"
+          size="sm"
           disabled={saving || !currentAvatarUrl}
           onClick={() => onApplyAvatar(null)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
         >
-          <Trash2 className="h-3.5 w-3.5" /> Hapus (pakai inisial)
-        </button>
+          <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Hapus (pakai inisial)
+        </Button>
       </div>
-      {saving && <p className="mt-2 text-xs text-gray-400">Menyimpan…</p>}
+      {saving && <p className="mt-2 text-xs text-gray-600">Menyimpan…</p>}
     </div>
   );
 }

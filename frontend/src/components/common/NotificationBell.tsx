@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, FileText, Megaphone, Check } from 'lucide-react';
+import { Bell, FileText, Megaphone } from 'lucide-react';
 import { api } from '@/services/api';
+import { IconButton } from './IconButton';
+import { ListRowsSkeleton } from './Skeleton';
 
 interface FeedItem {
   id: string;
@@ -90,31 +92,29 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        type="button"
-        aria-label="Notifikasi"
-        onClick={openPanel}
-        className="relative text-gray-500 transition-colors hover:text-gray-700"
-      >
-        <Bell className="h-5 w-5" />
+      <IconButton aria-label="Notifikasi" onClick={openPanel}>
+        <Bell className="h-5 w-5" strokeWidth={1.75} />
         {unread > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-fg px-1 text-2xs font-semibold leading-none tabular-nums text-white">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
-      </button>
+      </IconButton>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
+        // Di HP panel menempel ke viewport: lonceng tidak berada di tepi kanan header,
+        // jadi absolute right-0 selebar 320px terpotong di layar 360px.
+        <div className="fixed right-4 top-16 z-50 w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:right-0 sm:top-full sm:mt-2">
+          <div className="border-b border-gray-100 px-4 py-2.5">
             <span className="text-sm font-semibold text-gray-900">Notifikasi</span>
-            <Check className="h-4 w-4 text-gray-400" />
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[min(24rem,calc(100dvh-13rem))] overflow-y-auto">
             {loading ? (
-              <p className="px-4 py-6 text-center text-sm text-gray-400">Memuat…</p>
+              <div role="status" aria-label="Memuat notifikasi">
+                <ListRowsSkeleton />
+              </div>
             ) : items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-gray-400">Belum ada notifikasi.</p>
+              <p className="px-4 py-8 text-center text-sm text-gray-500">Belum ada notifikasi.</p>
             ) : (
               items.map((it) => {
                 const Icon = it.type === 'announcement' ? Megaphone : FileText;
@@ -123,16 +123,21 @@ export function NotificationBell() {
                     key={it.id}
                     type="button"
                     onClick={() => handleItem(it)}
-                    className={`flex w-full items-start gap-3 border-b border-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-                      it.readAt ? '' : 'bg-indigo-50/40'
+                    className={`flex w-full items-start gap-3 border-b border-gray-100 px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
+                      it.readAt ? '' : 'bg-gray-50'
                     }`}
                   >
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" strokeWidth={1.75} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-gray-900">{it.title}</p>
                       <p className="line-clamp-2 text-xs text-gray-600">{it.body}</p>
-                      <p className="mt-0.5 text-[11px] text-gray-400">{timeAgo(it.createdAt)}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{timeAgo(it.createdAt)}</p>
                     </div>
+                    {!it.readAt && (
+                      <span className="mt-1.5 h-2 w-2 shrink-0 bg-accent-600">
+                        <span className="sr-only">Belum dibaca</span>
+                      </span>
+                    )}
                   </button>
                 );
               })
@@ -144,7 +149,7 @@ export function NotificationBell() {
               setOpen(false);
               navigate('/notifications');
             }}
-            className="w-full border-t border-gray-100 px-4 py-2.5 text-center text-xs font-medium text-primary-600 hover:bg-gray-50"
+            className="min-h-11 w-full border-t border-gray-100 px-4 py-2.5 text-center text-xs font-medium text-primary-600 hover:bg-gray-50"
           >
             Lihat semua notifikasi
           </button>

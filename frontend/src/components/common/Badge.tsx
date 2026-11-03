@@ -1,30 +1,61 @@
 import type { ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 
-type Tone = 'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info';
+export type BadgeTone =
+  'neutral' | 'brand' | 'success' | 'warning' | 'danger' | 'info' | 'active' | 'muted';
 
-const tones: Record<Tone, string> = {
-  neutral: 'bg-gray-100 text-gray-700 ring-gray-200',
-  brand: 'bg-primary-50 text-primary-700 ring-primary-100',
-  success: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-  warning: 'bg-amber-50 text-amber-700 ring-amber-100',
-  danger: 'bg-red-50 text-red-700 ring-red-100',
-  info: 'bg-sky-50 text-sky-700 ring-sky-100',
+// Status berupa teks berwarna, bukan pil: tanpa latar, ring, border, atau rounded-full.
+// brand & info tidak punya arti sendiri, jadi jatuh ke neutral.
+const tones: Record<BadgeTone, string> = {
+  neutral: 'text-gray-600',
+  brand: 'text-gray-600',
+  info: 'text-gray-600',
+  success: 'text-success-fg',
+  warning: 'text-warning-fg',
+  danger: 'text-danger-fg',
+  active: 'text-gray-900',
+  muted: 'text-gray-500',
 };
 
 interface BadgeProps {
   children: ReactNode;
-  tone?: Tone;
+  tone?: BadgeTone;
   className?: string;
-  /** Renders a small leading status dot. */
+  /** Penanda kotak kecil di depan teks. Tone `active` selalu memilikinya. */
   dot?: boolean;
+  /** Ikon lucide di depan teks (h-3.5). Menggantikan penanda kotak bila keduanya diisi. */
+  icon?: LucideIcon;
+  /** Penjelasan status saat kursor di atasnya. */
+  title?: string;
 }
 
-export function Badge({ children, tone = 'neutral', className = '', dot = false }: BadgeProps) {
+/**
+ * Label status: ikon atau kotak kecil + teks.
+ * - active: teks gray-900 + kotak hijau (survei/akun aktif)
+ * - neutral + dot: nonaktif; muted: diarsipkan (tanpa penanda)
+ * - success / warning / danger: warna membawa arti, teks wajib menyebutkannya
+ */
+export function Badge({
+  children,
+  tone = 'neutral',
+  className = '',
+  dot = false,
+  icon: Icon,
+  title,
+}: BadgeProps) {
+  const showMarker = !Icon && (dot || tone === 'active');
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${tones[tone]} ${className}`}
+      title={title}
+      className={`inline-flex items-center gap-1.5 text-xs font-medium ${tones[tone]} ${className}`}
     >
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />}
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} aria-hidden="true" />}
+      {showMarker && (
+        <span
+          className={`h-1.5 w-1.5 shrink-0 bg-current ${tone === 'active' ? 'text-success-fg' : ''}`}
+          aria-hidden="true"
+        />
+      )}
       {children}
     </span>
   );

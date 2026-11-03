@@ -1,7 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Check, Copy, KeyRound, Pencil, Plus, Trash2, UserCheck, UserX, X } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
+import { Badge } from '@/components/common/Badge';
+import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { Pagination } from '@/components/common/Pagination';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
+import { RowMenu } from '@/components/common/RowMenu';
+import { TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
+
+// Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
+const thCls = `${thBaseCls} whitespace-nowrap py-2.5 text-left`;
+const tdBase = `${tdBaseCls} text-sm`;
+const tdCls = `${tdBase} py-3 text-gray-600`;
+const labelCls = 'mb-1 block text-sm font-medium text-gray-700';
 
 // Types
 interface UserItem {
@@ -51,19 +67,55 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-            aria-label="Close"
-          >
-            ✕
-          </button>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative mx-4 max-h-[calc(100dvh-32px)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="min-w-0 text-lg font-semibold text-gray-900">{title}</h3>
+          <IconButton aria-label="Tutup" onClick={onClose}>
+            <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+          </IconButton>
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+/** Password yang hanya tampil sekali: terus terlihat sampai dialog ditutup, bisa disalin. */
+function PasswordReveal({ label, password }: { label: string; password: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+    } catch {
+      // Clipboard bisa ditolak browser; password tetap terlihat untuk disalin manual.
+    }
+  };
+
+  return (
+    <div className="mt-1 flex items-center justify-between gap-2">
+      <p className="min-w-0">
+        {label}:{' '}
+        <code className="break-all rounded-sm border border-gray-200 bg-white px-1.5 py-0.5 font-mono">
+          {password}
+        </code>
+      </p>
+      <IconButton
+        aria-label={copied ? 'Kata sandi tersalin' : 'Salin kata sandi'}
+        onClick={handleCopy}
+      >
+        {copied ? (
+          <Check className="h-[18px] w-[18px] text-success-fg" strokeWidth={1.75} />
+        ) : (
+          <Copy className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        )}
+      </IconButton>
     </div>
   );
 }
@@ -114,30 +166,23 @@ function CreateUserModal({
   return (
     <Modal open={open} onClose={handleClose} title="Tambah Pengguna Baru">
       {tempPassword ? (
-        <div>
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-4">
-            <p className="text-sm text-green-800 font-medium">Pengguna berhasil dibuat</p>
-            <p className="text-sm text-green-700 mt-1">
-              Password sementara:{' '}
-              <code className="bg-green-100 px-2 py-0.5 rounded font-mono">{tempPassword}</code>
-            </p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
+        <div className="space-y-4">
+          <Notice tone="success" title="Pengguna berhasil dibuat">
+            <PasswordReveal label="Kata sandi sementara" password={tempPassword} />
+          </Notice>
+          <Button type="button" variant="secondary" onClick={handleClose} className="w-full">
             Tutup
-          </button>
+          </Button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+            <Notice tone="danger" role="alert">
+              {error}
+            </Notice>
           )}
           <div>
-            <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="fullName" className={labelCls}>
               Nama Lengkap
             </label>
             <input
@@ -146,11 +191,11 @@ function CreateUserModal({
               required
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" className={labelCls}>
               Email
             </label>
             <input
@@ -159,11 +204,11 @@ function CreateUserModal({
               required
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="phone" className={labelCls}>
               Nomor Telepon
             </label>
             <input
@@ -171,12 +216,12 @@ function CreateUserModal({
               type="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
+            <label htmlFor="role" className={labelCls}>
+              Peran
             </label>
             <select
               id="role"
@@ -184,28 +229,20 @@ function CreateUserModal({
               onChange={(e) =>
                 setForm({ ...form, role: e.target.value as CreateUserPayload['role'] })
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             >
               <option value="admin">Admin</option>
-              <option value="analyst">Analyst</option>
+              <option value="analyst">Analis</option>
               <option value="viewer">Viewer</option>
             </select>
           </div>
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
+            <Button type="button" variant="secondary" onClick={handleClose} className="flex-1">
               Batal
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading} className="flex-1">
               {loading ? 'Menyimpan...' : 'Simpan'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -255,65 +292,58 @@ function BulkImportModal({
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Bulk Import Pengguna (CSV)">
+    <Modal open={open} onClose={handleClose} title="Impor pengguna (CSV)">
       {result ? (
         <div className="space-y-3">
-          <div className="bg-green-50 border border-green-200 rounded-md p-4">
-            <p className="text-sm font-medium text-green-800">Import selesai</p>
-            <p className="text-sm text-green-700 mt-1">Berhasil: {result.successCount}</p>
-            <p className="text-sm text-green-700">Gagal: {result.failedCount}</p>
-          </div>
+          <Notice tone="success" title="Impor selesai">
+            <p className="tabular-nums">Berhasil: {result.successCount}</p>
+            <p className="tabular-nums">Gagal: {result.failedCount}</p>
+          </Notice>
           {result.errors.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 max-h-40 overflow-y-auto">
-              <p className="text-sm font-medium text-red-800 mb-1">Detail Error:</p>
+            <Notice tone="danger" title="Detail Error:" className="max-h-40 overflow-y-auto">
               {result.errors.map((err, idx) => (
-                <p key={idx} className="text-xs text-red-700">
+                <p key={idx} className="text-xs">
                   Baris {err.row}: {err.message}
                 </p>
               ))}
-            </div>
+            </Notice>
           )}
-          <button
-            onClick={handleClose}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-          >
+          <Button type="button" variant="secondary" onClick={handleClose} className="w-full">
             Tutup
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+            <Notice tone="danger" role="alert">
+              {error}
+            </Notice>
           )}
           <div>
-            <p className="text-sm text-gray-600 mb-2">
-              Upload file CSV dengan kolom: nama, email, phone, role
-            </p>
+            <label htmlFor="bulkImportFile" className="mb-2 block text-sm text-gray-600">
+              Unggah berkas CSV dengan kolom: nama, email, phone, role
+            </label>
             <input
+              id="bulkImportFile"
               ref={fileInputRef}
               type="file"
               accept=".csv"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+              className="w-full text-sm text-gray-600 file:mr-4 file:h-11 file:rounded-lg file:border file:border-gray-300 file:bg-white file:px-4 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-50 lg:file:h-10"
             />
           </div>
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-            >
+            <Button type="button" variant="secondary" onClick={handleClose} className="flex-1">
               Batal
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
               onClick={handleUpload}
               disabled={!file || loading}
-              className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+              className="flex-1"
             >
-              {loading ? 'Mengimpor...' : 'Import'}
-            </button>
+              {loading ? 'Mengimpor...' : 'Impor'}
+            </Button>
           </div>
         </div>
       )}
@@ -373,77 +403,77 @@ function EditUserModal({
     }
   };
 
-  const inputClass =
-    'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20';
-  const labelClass = 'mb-1 block text-xs font-medium text-gray-600';
-
   return (
     <Modal open={open} onClose={onClose} title={`Edit Pengguna — ${user.fullName}`}>
       {done ? (
         <div className="space-y-4">
-          <p className="text-sm text-emerald-700">Perubahan tersimpan.</p>
-          <button
-            onClick={onClose}
-            className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
-          >
+          <Notice tone="success">Perubahan tersimpan.</Notice>
+          <Button type="button" onClick={onClose} className="w-full">
             Tutup
-          </button>
+          </Button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+            <Notice tone="danger" role="alert">
               {error}
-            </div>
+            </Notice>
           )}
           <div>
-            <label className={labelClass}>Nama Lengkap</label>
+            <label htmlFor="editFullName" className={labelCls}>
+              Nama Lengkap
+            </label>
             <input
-              className={inputClass}
+              id="editFullName"
+              className={fieldCls}
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className={labelClass}>Email</label>
+            <label htmlFor="editEmail" className={labelCls}>
+              Email
+            </label>
             <input
+              id="editEmail"
               type="email"
-              className={inputClass}
+              className={fieldCls}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className={labelClass}>Nomor Telepon</label>
+            <label htmlFor="editPhone" className={labelCls}>
+              Nomor Telepon
+            </label>
             <input
-              className={inputClass}
+              id="editPhone"
+              className={fieldCls}
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className={labelClass}>
-              Password Baru <span className="text-gray-400">(kosongkan jika tidak diubah)</span>
+            <label htmlFor="editPassword" className={labelCls}>
+              Kata Sandi Baru{' '}
+              <span className="font-normal text-gray-500">(kosongkan jika tidak diubah)</span>
             </label>
             <input
+              id="editPassword"
               type="text"
-              className={inputClass}
+              className={fieldCls}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Min. 8 karakter"
               autoComplete="new-password"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </button>
+          </Button>
         </form>
       )}
     </Modal>
@@ -467,7 +497,13 @@ export function UserManagementPage() {
   const [showImportModal, setShowImportModal] = useState(false);
 
   // Action feedback
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<{
+    text: string;
+    tone: 'success' | 'danger';
+  } | null>(null);
+
+  // Password hasil reset: tampil di dialog sampai admin menutupnya.
+  const [resetResult, setResetResult] = useState<{ name: string; password: string } | null>(null);
 
   // Edit user modal
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
@@ -502,41 +538,58 @@ export function UserManagementPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const totalPages = Math.ceil(total / limit);
-
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
       await api.patch(`/users/${userId}/role`, { role: newRole });
-      setActionMessage('Role berhasil diubah');
+      setActionMessage({ text: 'Peran berhasil diubah', tone: 'success' });
       fetchUsers();
     } catch {
-      setActionMessage('Gagal mengubah role');
+      setActionMessage({ text: 'Gagal mengubah role', tone: 'danger' });
     }
     setTimeout(() => setActionMessage(null), 3000);
   };
 
-  const handleToggleStatus = async (userId: string, isActive: boolean) => {
+  const handleToggleStatus = async (user: UserItem) => {
+    const { isActive } = user;
+    const ok = await confirm({
+      title: isActive ? 'Nonaktifkan pengguna' : 'Aktifkan pengguna',
+      message: isActive
+        ? `Nonaktifkan akun "${user.fullName}" (${user.email})?`
+        : `Aktifkan kembali akun "${user.fullName}" (${user.email})?`,
+      confirmText: isActive ? 'Nonaktifkan' : 'Aktifkan',
+      danger: isActive,
+    });
+    if (!ok) return;
     try {
       const endpoint = isActive ? 'deactivate' : 'activate';
-      await api.patch(`/users/${userId}/${endpoint}`);
-      setActionMessage(isActive ? 'Pengguna dinonaktifkan' : 'Pengguna diaktifkan');
+      await api.patch(`/users/${user.id}/${endpoint}`);
+      setActionMessage({
+        text: isActive ? 'Pengguna dinonaktifkan' : 'Pengguna diaktifkan',
+        tone: 'success',
+      });
       fetchUsers();
     } catch {
-      setActionMessage('Gagal mengubah status');
+      setActionMessage({ text: 'Gagal mengubah status', tone: 'danger' });
     }
     setTimeout(() => setActionMessage(null), 3000);
   };
 
-  const handleResetPassword = async (userId: string) => {
+  const handleResetPassword = async (user: UserItem) => {
+    const ok = await confirm({
+      title: 'Reset kata sandi',
+      message: `Reset kata sandi akun "${user.fullName}" (${user.email})? Kata sandi lama tidak berlaku lagi.`,
+      confirmText: 'Reset',
+    });
+    if (!ok) return;
     try {
       const result = await api.post<{ temporaryPassword: string }>(
-        `/users/${userId}/reset-password`,
+        `/users/${user.id}/reset-password`,
       );
-      setActionMessage(`Password direset. Password baru: ${result.temporaryPassword}`);
+      setResetResult({ name: user.fullName, password: result.temporaryPassword });
     } catch {
-      setActionMessage('Gagal mereset password');
+      setActionMessage({ text: 'Gagal mereset kata sandi', tone: 'danger' });
+      setTimeout(() => setActionMessage(null), 8000);
     }
-    setTimeout(() => setActionMessage(null), 8000);
   };
 
   const handleDelete = async (user: { id: string; fullName: string; email: string }) => {
@@ -551,11 +604,11 @@ export function UserManagementPage() {
     }
     try {
       await api.delete(`/users/${user.id}`);
-      setActionMessage(`Akun ${user.email} dihapus.`);
+      setActionMessage({ text: `Akun ${user.email} dihapus.`, tone: 'success' });
       fetchUsers();
     } catch (e) {
       const msg = (e as { message?: string })?.message || 'Gagal menghapus akun';
-      setActionMessage(msg);
+      setActionMessage({ text: msg, tone: 'danger' });
     }
     setTimeout(() => setActionMessage(null), 8000);
   };
@@ -563,36 +616,33 @@ export function UserManagementPage() {
   return (
     <div className="space-y-6">
       {dialog}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Manajemen Pengguna</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
-          >
-            Import CSV
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
-          >
-            + Tambah Pengguna
-          </button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => setShowImportModal(true)}>
+            Impor CSV
+          </Button>
+          <Button type="button" onClick={() => setShowCreateModal(true)}>
+            <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Tambah Pengguna
+          </Button>
         </div>
       </div>
 
       {/* Action feedback */}
       {actionMessage && (
-        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
-          <p className="text-sm text-primary-800">{actionMessage}</p>
-        </div>
+        <Notice
+          tone={actionMessage.tone}
+          role={actionMessage.tone === 'danger' ? 'alert' : 'status'}
+        >
+          {actionMessage.text}
+        </Notice>
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="search" className={labelCls}>
               Cari
             </label>
             <input
@@ -604,12 +654,12 @@ export function UserManagementPage() {
                 setSearch(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="roleFilter" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
+            <label htmlFor="roleFilter" className={labelCls}>
+              Peran
             </label>
             <select
               id="roleFilter"
@@ -618,16 +668,16 @@ export function UserManagementPage() {
                 setRoleFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             >
-              <option value="">Semua Role</option>
+              <option value="">Semua Peran</option>
               <option value="admin">Admin</option>
-              <option value="analyst">Analyst</option>
+              <option value="analyst">Analis</option>
               <option value="viewer">Viewer</option>
             </select>
           </div>
           <div>
-            <label htmlFor="statusFilter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="statusFilter" className={labelCls}>
               Status
             </label>
             <select
@@ -637,7 +687,7 @@ export function UserManagementPage() {
                 setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             >
               <option value="">Semua Status</option>
               <option value="active">Aktif</option>
@@ -649,103 +699,104 @@ export function UserManagementPage() {
 
       {/* Error state */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
+        <Notice tone="danger" role="alert">
+          {error}
+        </Notice>
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Memuat data...</div>
+          <TableSkeleton rows={6} cols={5} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead>
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Nama
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Telepon
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Role
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Dibuat
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
+                  <th className={thCls}>Nama dan email</th>
+                  <th className={thCls}>Telepon</th>
+                  <th className={thCls}>Peran</th>
+                  <th className={thCls}>Status</th>
+                  <th className={thCls}>Dibuat</th>
+                  <th className={`${thBaseCls} whitespace-nowrap py-2.5 text-right`}>Aksi</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="[&>tr:last-child>td]:border-b-0">
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={6} className={`${tdBase} py-8 text-center text-gray-600`}>
                       Tidak ada pengguna ditemukan
                     </td>
                   </tr>
                 ) : (
                   users.map((user) => (
                     <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900">{user.fullName}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{user.email}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{user.phone || '-'}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <select
-                          value={user.role}
-                          onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                          className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          aria-label={`Role for ${user.fullName}`}
-                        >
-                          <option value="admin">Admin</option>
-                          <option value="analyst">Analyst</option>
-                          <option value="viewer">Viewer</option>
-                        </select>
+                      <td className={`${tdBase} py-3`}>
+                        <p className="min-w-[180px] text-gray-900">{user.fullName}</p>
+                        <p className="break-all text-xs text-gray-600">{user.email}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <button
-                          onClick={() => handleToggleStatus(user.id, user.isActive)}
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full cursor-pointer ${
-                            user.isActive
-                              ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                              : 'bg-red-100 text-red-800 hover:bg-red-200'
-                          }`}
-                        >
-                          {user.isActive ? 'Aktif' : 'Nonaktif'}
-                        </button>
+                      <td className={`${tdCls} tabular-nums`}>{user.phone || '-'}</td>
+                      <td className={`${tdBase} py-1.5`}>
+                        <div className="w-32">
+                          <select
+                            value={user.role}
+                            onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                            className={fieldCls}
+                            aria-label={`Peran untuk ${user.fullName}`}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="analyst">Analis</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
+                      <td className={`${tdBase} whitespace-nowrap py-3`}>
+                        {user.isActive ? (
+                          <Badge tone="active">Aktif</Badge>
+                        ) : (
+                          <Badge tone="neutral" dot>
+                            Nonaktif
+                          </Badge>
+                        )}
+                      </td>
+                      <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
                         {format(new Date(user.createdAt), 'dd/MM/yyyy')}
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center gap-3">
-                          <button
+                      <td className={`${tdBase} py-1.5`}>
+                        <div className="flex items-center justify-end gap-1">
+                          <IconButton
+                            aria-label={`Edit ${user.fullName}`}
                             onClick={() => setEditingUser(user)}
-                            className="text-primary-600 hover:text-primary-800 text-xs font-medium"
                           >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleResetPassword(user.id)}
-                            className="text-gray-500 hover:text-gray-700 text-xs font-medium"
-                          >
-                            Reset Password
-                          </button>
-                          <button
-                            onClick={() => handleDelete(user)}
-                            className="text-xs font-medium text-red-600 hover:text-red-800"
-                          >
-                            Hapus
-                          </button>
+                            <Pencil className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                          </IconButton>
+                          <RowMenu
+                            label={`Aksi lainnya untuk ${user.fullName}`}
+                            items={[
+                              {
+                                label: 'Reset Kata Sandi',
+                                icon: KeyRound,
+                                onClick: () => handleResetPassword(user),
+                              },
+                              user.isActive
+                                ? {
+                                    label: 'Nonaktifkan',
+                                    icon: UserX,
+                                    onClick: () => handleToggleStatus(user),
+                                  }
+                                : {
+                                    label: 'Aktifkan',
+                                    icon: UserCheck,
+                                    onClick: () => handleToggleStatus(user),
+                                  },
+                              {
+                                label: 'Hapus',
+                                icon: Trash2,
+                                destructive: true,
+                                onClick: () => handleDelete(user),
+                              },
+                            ]}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -756,48 +807,7 @@ export function UserManagementPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Menampilkan {(page - 1) * limit + 1}-{Math.min(page * limit, total)} dari {total}
-            </p>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Prev
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
-                const pageNum = startPage + i;
-                if (pageNum > totalPages) return null;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`px-3 py-1 text-sm border rounded-md ${
-                      page === pageNum
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination page={page} limit={limit} total={total} onPageChange={setPage} />
       </div>
 
       {/* Modals */}
@@ -817,6 +827,30 @@ export function UserManagementPage() {
         onClose={() => setEditingUser(null)}
         onSuccess={fetchUsers}
       />
+      <Modal
+        open={!!resetResult}
+        onClose={() => setResetResult(null)}
+        title={`Kata sandi direset — ${resetResult?.name ?? ''}`}
+      >
+        {resetResult && (
+          <div className="space-y-4">
+            <Notice tone="success">
+              <PasswordReveal label="Kata sandi baru" password={resetResult.password} />
+            </Notice>
+            <p className="text-sm text-gray-600">
+              Kata sandi ini hanya ditampilkan sekali. Simpan sebelum menutup dialog.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setResetResult(null)}
+              className="w-full"
+            >
+              Tutup
+            </Button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,5 +1,11 @@
-import { useMemo, useState } from 'react';
-import { Shuffle, Pin, Trash2, TriangleAlert, Plus } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { Pin, Trash2, Plus, X } from 'lucide-react';
+import { Badge } from '@/components/common/Badge';
+import { Button } from '@/components/common/Button';
+import { IconButton } from '@/components/common/IconButton';
+import { ModalShell } from '@/components/common/ModalShell';
+import { Notice } from '@/components/common/Notice';
+import { fieldCls } from '@/components/common/fieldStyles';
 import type { Question } from './surveyEditTypes';
 
 /**
@@ -13,24 +19,26 @@ import type { Question } from './surveyEditTypes';
  * tidak meleset seperti kalau rentang disimpan sebagai angka.
  */
 
-/** Warna penanda blok — dipakai konsisten dengan lencana di kartu pertanyaan. */
+/**
+ * Gaya penanda blok, dipakai konsisten dengan lencana di kartu pertanyaan. Hanya
+ * navy dan abu-abu: hijau, kuning, dan merah sudah berarti status. Empat gaya saja
+ * tidak cukup untuk banyak blok, jadi identitas blok dibawa huruf (A, B, C).
+ */
 const BLOCK_COLORS = [
-  'bg-violet-100 text-violet-700 ring-violet-200',
-  'bg-sky-100 text-sky-700 ring-sky-200',
-  'bg-emerald-100 text-emerald-700 ring-emerald-200',
-  'bg-amber-100 text-amber-700 ring-amber-200',
-  'bg-rose-100 text-rose-700 ring-rose-200',
-  'bg-teal-100 text-teal-700 ring-teal-200',
+  'bg-primary-100 text-primary-900 border-primary-200',
+  'bg-gray-100 text-gray-800 border-gray-300',
+  'bg-white text-gray-800 border-gray-300',
+  'bg-primary-800 text-white border-primary-800',
 ];
 
 /**
- * Peta nama blok → warna, dibagikan menurut URUTAN kemunculan blok.
+ * Peta nama blok → gaya, dibagikan menurut URUTAN kemunculan blok.
  *
  * Sempat memakai hash dari nama blok agar warnanya melekat pada nama, tapi
- * dengan palet 6 warna dua blok gampang bertabrakan — pada survei uji,
+ * dengan palet terbatas dua blok gampang bertabrakan — pada survei uji,
  * "Elektabilitas" dan "Media & Informasi" sama-sama ungu, sehingga batas blok
  * justru tak terbaca. Pembagian berdasar urutan menjamin blok yang berdekatan
- * selalu beda warna, dan itu yang sebenarnya dibutuhkan mata saat menyusuri
+ * selalu beda gaya, dan itu yang sebenarnya dibutuhkan mata saat menyusuri
  * daftar pertanyaan.
  */
 export function buildBlockColors(questions: Question[]): Record<string, string> {
@@ -39,6 +47,50 @@ export function buildBlockColors(questions: Question[]): Record<string, string> 
     colors[block.name] = BLOCK_COLORS[i % BLOCK_COLORS.length];
   });
   return colors;
+}
+
+/** Urutan blok jadi huruf: 0 → A, 25 → Z, 26 → AA. */
+function blockLetter(index: number): string {
+  let n = index;
+  let out = '';
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
+/** Peta nama blok → huruf, mengikuti urutan yang sama dengan buildBlockColors. */
+export function buildBlockLetters(questions: Question[]): Record<string, string> {
+  const letters: Record<string, string> = {};
+  collectBlocks(questions).forEach((block, i) => {
+    letters[block.name] = blockLetter(i);
+  });
+  return letters;
+}
+
+/** Penanda satu blok: huruf + nama, dengan gaya dari buildBlockColors. */
+export function BlockChip({
+  name,
+  letter,
+  colorCls,
+  children,
+}: {
+  name: string;
+  letter: string;
+  colorCls: string;
+  /** Ikon tambahan di dalam penanda (mis. Shuffle atau Pin). */
+  children?: ReactNode;
+}) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1 rounded-sm border px-1.5 py-0.5 text-xs ${colorCls}`}
+    >
+      <span className="font-semibold">{letter}</span>
+      <span className="min-w-0 truncate">{name}</span>
+      {children}
+    </span>
+  );
 }
 
 /** Ringkas nomor anggota blok jadi rentang terbaca: [1,2,3,7] → "1–3, 7". */
@@ -143,6 +195,7 @@ interface Props {
 export function RandomBlockPanel({ questions, onApply, onClose }: Props) {
   const blocks = useMemo(() => collectBlocks(questions), [questions]);
   const blockColors = useMemo(() => buildBlockColors(questions), [questions]);
+  const blockLetters = useMemo(() => buildBlockLetters(questions), [questions]);
   const conflicts = useMemo(() => findBlockConflicts(questions), [questions]);
 
   const [from, setFrom] = useState('');
@@ -185,156 +238,137 @@ export function RandomBlockPanel({ questions, onApply, onClose }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="my-8 w-full max-w-2xl rounded-xl border border-gray-200 bg-white shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-5">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
-              <Shuffle className="h-4 w-4 text-primary-600" /> Blok acak urutan pertanyaan
-            </h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Pertanyaan dalam satu blok tampil dengan urutan berbeda tiap responden. Pertanyaan di
-              luar blok tidak pernah bergeser — biarkan bagian data diri dan penyaring tanpa blok.
-            </p>
+    <ModalShell label="Blok acak urutan pertanyaan" onClose={onClose}>
+      <div className="flex items-start justify-between gap-4 border-b border-gray-200 p-4 sm:p-5">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-gray-900">Blok acak urutan pertanyaan</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Pertanyaan dalam satu blok tampil dengan urutan berbeda tiap responden. Pertanyaan di
+            luar blok tidak pernah bergeser — biarkan bagian data diri dan penyaring tanpa blok.
+          </p>
+        </div>
+        <IconButton aria-label="Tutup" onClick={onClose}>
+          <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+        </IconButton>
+      </div>
+
+      <div className="space-y-5 p-4 sm:p-5">
+        {/* Tambah blok dari rentang nomor */}
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="mb-3 text-sm font-medium text-gray-700">
+            Jadikan satu rentang sebagai blok
+          </p>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="w-24 text-xs text-gray-600">
+              Dari no.
+              <input
+                type="number"
+                min={1}
+                max={total}
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className={`${fieldCls} mt-1`}
+              />
+            </label>
+            <label className="w-24 text-xs text-gray-600">
+              Sampai no.
+              <input
+                type="number"
+                min={1}
+                max={total}
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className={`${fieldCls} mt-1`}
+              />
+            </label>
+            <label className="min-w-40 flex-1 text-xs text-gray-600">
+              Nama blok
+              <input
+                type="text"
+                maxLength={50}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="mis. Pengetahuan Politik"
+                list="nama-blok-tersedia"
+                className={`${fieldCls} mt-1`}
+              />
+              <datalist id="nama-blok-tersedia">
+                {blocks.map((b) => (
+                  <option key={b.name} value={b.name} />
+                ))}
+              </datalist>
+            </label>
+            <Button type="button" onClick={applyRange}>
+              <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Terapkan
+            </Button>
           </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 rounded-md px-2 py-1 text-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            ✕
-          </button>
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-danger-fg">
+              {error}
+            </p>
+          )}
+          <p className="mt-2 text-xs text-gray-600">
+            Pakai nama yang sama untuk menggabungkan beberapa rentang jadi satu blok, atau nama
+            berbeda supaya tiap rentang diacak sendiri-sendiri.
+          </p>
         </div>
 
-        <div className="space-y-5 p-5">
-          {/* Tambah blok dari rentang nomor */}
-          <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-            <p className="mb-3 text-sm font-medium text-gray-700">
-              Jadikan satu rentang sebagai blok
+        {/* Daftar blok yang sudah ada */}
+        <div>
+          <p className="mb-2 text-sm font-medium text-gray-700">Blok pada survei ini</p>
+          {blocks.length === 0 ? (
+            <p className="py-6 text-center text-sm text-gray-600">
+              Belum ada blok acak. Semua pertanyaan tampil berurutan.
             </p>
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="text-xs text-gray-500">
-                Dari no.
-                <input
-                  type="number"
-                  min={1}
-                  max={total}
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                  className="mt-1 block w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                />
-              </label>
-              <label className="text-xs text-gray-500">
-                Sampai no.
-                <input
-                  type="number"
-                  min={1}
-                  max={total}
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                  className="mt-1 block w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                />
-              </label>
-              <label className="flex-1 text-xs text-gray-500">
-                Nama blok
-                <input
-                  type="text"
-                  maxLength={50}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="mis. Pengetahuan Politik"
-                  list="nama-blok-tersedia"
-                  className="mt-1 block w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-                />
-                <datalist id="nama-blok-tersedia">
-                  {blocks.map((b) => (
-                    <option key={b.name} value={b.name} />
-                  ))}
-                </datalist>
-              </label>
-              <button
-                type="button"
-                onClick={applyRange}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
-              >
-                <Plus className="h-3.5 w-3.5" /> Terapkan
-              </button>
-            </div>
-            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-            <p className="mt-2 text-xs text-gray-500">
-              Pakai nama yang sama untuk menggabungkan beberapa rentang jadi satu blok, atau nama
-              berbeda supaya tiap rentang diacak sendiri-sendiri.
-            </p>
-          </div>
-
-          {/* Daftar blok yang sudah ada */}
-          <div>
-            <p className="mb-2 text-sm font-medium text-gray-700">Blok pada survei ini</p>
-            {blocks.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">
-                Belum ada blok acak. Semua pertanyaan tampil berurutan.
-              </p>
-            ) : (
-              <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
-                {blocks.map((b) => (
-                  <li key={b.name} className="flex items-center gap-3 px-4 py-3">
-                    <span
-                      className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${blockColors[b.name]}`}
-                    >
-                      {b.name}
-                    </span>
-                    <span className="flex-1 truncate text-sm text-gray-600">
-                      No. {summarizeRanges(b.positions)}
-                      <span className="text-gray-400"> · {b.positions.length} pertanyaan</span>
-                      {b.pinnedCount > 0 && (
-                        <span className="ml-1 inline-flex items-center gap-0.5 text-gray-400">
-                          <Pin className="h-3 w-3" />
-                          {b.pinnedCount} terkunci
-                        </span>
-                      )}
-                    </span>
-                    {b.positions.length < 2 && (
-                      <span className="shrink-0 text-xs text-amber-600">
-                        Perlu min. 2 pertanyaan
+          ) : (
+            <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200">
+              {blocks.map((b) => (
+                <li key={b.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
+                  <BlockChip
+                    name={b.name}
+                    letter={blockLetters[b.name]}
+                    colorCls={blockColors[b.name]}
+                  />
+                  <span className="min-w-0 flex-1 text-sm text-gray-600 tabular-nums">
+                    No. {summarizeRanges(b.positions)}
+                    <span className="text-gray-500"> · {b.positions.length} pertanyaan</span>
+                    {b.pinnedCount > 0 && (
+                      <span className="ml-1 inline-flex items-center gap-0.5 text-gray-500">
+                        <Pin className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
+                        {b.pinnedCount} terkunci
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => removeBlock(b.name)}
-                      title={`Bubarkan blok "${b.name}"`}
-                      className="shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Peringatan bentrok dengan aturan logika */}
-          {conflicts.length > 0 && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
-                <TriangleAlert className="h-4 w-4" /> Bentrok dengan aturan logika
-              </p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800">
-                {conflicts.map((c) => (
-                  <li key={c}>{c}</li>
-                ))}
-              </ul>
-              <p className="mt-2 text-xs text-amber-700">
-                Survei tidak bisa disimpan sebelum ini dibereskan.
-              </p>
-            </div>
+                  </span>
+                  {b.positions.length < 2 && (
+                    <Badge tone="warning" className="shrink-0">
+                      Perlu min. 2 pertanyaan
+                    </Badge>
+                  )}
+                  <IconButton
+                    destructive
+                    aria-label={`Bubarkan blok "${b.name}"`}
+                    onClick={() => removeBlock(b.name)}
+                  >
+                    <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </IconButton>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
+
+        {/* Peringatan bentrok dengan aturan logika */}
+        {conflicts.length > 0 && (
+          <Notice tone="warning" role="alert" title="Bentrok dengan aturan logika">
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              {conflicts.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+            <p className="mt-2">Survei tidak bisa disimpan sebelum ini dibereskan.</p>
+          </Notice>
+        )}
       </div>
-    </div>
+    </ModalShell>
   );
 }

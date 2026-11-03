@@ -1,9 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { pollAndDownloadExport } from '@/utils/exportDownload';
 import { format } from 'date-fns';
+import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { Pagination } from '@/components/common/Pagination';
+import { RowCheckbox } from '@/components/common/RowCheckbox';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { Notice, type NoticeTone } from '@/components/common/Notice';
+import { TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls, fieldInvalidCls } from '@/components/common/fieldStyles';
+
+// Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
+const thCls = `${thBaseCls} whitespace-nowrap py-2.5 text-left`;
+const tdBase = `${tdBaseCls} text-sm`;
+const tdCls = `${tdBase} py-3 text-gray-600`;
+const labelCls = 'mb-1 block text-sm font-medium text-gray-700';
+
+interface PageMessage {
+  text: string;
+  tone: NoticeTone;
+}
 
 // Types
 interface AuditLogEntry {
@@ -28,15 +47,10 @@ const roleLabels: Record<string, string> = {
   respondent: 'Responden',
 };
 
-/** Warna badge per kategori aksi (hijau=buat, biru=ubah, merah=hapus, dst). */
+/** Hanya aksi destruktif yang berwarna; aksi lain teks biasa agar log tetap tenang. */
 function actionTone(action: string): string {
-  if (action.includes('delete') || action.includes('cleanup')) return 'bg-red-50 text-red-700';
-  if (action.includes('create')) return 'bg-emerald-50 text-emerald-700';
-  if (action.includes('update') || action.includes('change')) return 'bg-blue-50 text-blue-700';
-  if (action.includes('export')) return 'bg-indigo-50 text-indigo-700';
-  if (action.includes('redemption') || action.includes('reward'))
-    return 'bg-amber-50 text-amber-700';
-  return 'bg-gray-100 text-gray-600';
+  if (action.includes('delete') || action.includes('cleanup')) return 'text-danger-fg';
+  return 'text-gray-700';
 }
 
 /** Render details (objek JSONB / string) jadi teks aman untuk React. */
@@ -82,6 +96,29 @@ const ACTION_TYPES = [
   'reward_redemption',
 ];
 
+// Label tampilan saja; nilai filter dan data tetap memakai ACTION_TYPES.
+const ACTION_LABELS: Record<string, string> = {
+  login: 'Masuk',
+  logout: 'Keluar',
+  survey_create: 'Buat survei',
+  survey_update: 'Ubah survei',
+  survey_delete: 'Hapus survei',
+  survey_archive: 'Arsipkan survei',
+  response_submit: 'Kirim respons',
+  data_export: 'Ekspor data',
+  user_create: 'Buat pengguna',
+  user_update: 'Ubah pengguna',
+  user_delete: 'Hapus pengguna',
+  user_password_reset: 'Reset kata sandi',
+  role_change: 'Ubah peran',
+  data_cleanup: 'Pembersihan data',
+  reward_redemption: 'Penukaran poin',
+};
+
+function actionLabel(action: string): string {
+  return ACTION_LABELS[action] ?? action.replace(/_/g, ' ');
+}
+
 const MODULES = [
   'auth',
   'survey',
@@ -100,7 +137,7 @@ export function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportMessage, setExportMessage] = useState<PageMessage | null>(null);
 
   // Filters
   const [userFilter, setUserFilter] = useState('');
@@ -114,8 +151,12 @@ export function AuditLogPage() {
   const { user } = useAuthStore();
   const isSuperAdmin = user?.role === 'super_admin';
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<PageMessage | null>(null);
   const { confirm, dialog } = useConfirm();
+  // Dialog input hari untuk bersihkan log lama (pengganti window.prompt).
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeInput, setPurgeInput] = useState('90');
+  const [purgeError, setPurgeError] = useState<string | null>(null);
 
   const limit = 20;
 
@@ -148,8 +189,6 @@ export function AuditLogPage() {
     fetchLogs();
   }, [fetchLogs]);
 
-  const totalPages = Math.ceil(total / limit);
-
   const handleExport = async () => {
     setExporting(true);
     setExportMessage(null);
@@ -163,11 +202,14 @@ export function AuditLogPage() {
       if (ipFilter) filters.ipAddress = ipFilter;
 
       const job = await api.post<{ id: string }>('/export/audit-log', filters);
-      setExportMessage('Memproses export...');
+      setExportMessage({ text: 'Memproses ekspor...', tone: 'neutral' });
       await pollAndDownloadExport(job.id);
-      setExportMessage('File export berhasil diunduh.');
+      setExportMessage({ text: 'Berkas ekspor berhasil diunduh.', tone: 'success' });
     } catch (e) {
-      setExportMessage((e as Error).message || 'Gagal mengexport audit log');
+      setExportMessage({
+        text: (e as Error).message || 'Gagal mengekspor audit log',
+        tone: 'danger',
+      });
     } finally {
       setExporting(false);
       setTimeout(() => setExportMessage(null), 5000);
@@ -214,24 +256,30 @@ export function AuditLogPage() {
     setActionMsg(null);
     try {
       const res = await api.post<{ deleted: number }>('/audit/delete', { ids: [...selected] });
-      setActionMsg(`${res.deleted} log dihapus.`);
+      setActionMsg({ text: `${res.deleted} log dihapus.`, tone: 'success' });
       setSelected(new Set());
       fetchLogs();
     } catch (e) {
-      setActionMsg((e as Error).message || 'Gagal menghapus log.');
+      setActionMsg({ text: (e as Error).message || 'Gagal menghapus log.', tone: 'danger' });
     } finally {
       setTimeout(() => setActionMsg(null), 5000);
     }
   };
 
-  const handlePurge = async () => {
-    const input = window.prompt('Hapus log yang LEBIH LAMA dari berapa hari? (mis. 90)', '90');
-    if (input === null) return;
-    const days = Math.floor(Number(input));
+  const handlePurge = () => {
+    setPurgeInput('90');
+    setPurgeError(null);
+    setPurgeOpen(true);
+  };
+
+  const submitPurge = async (e: FormEvent) => {
+    e.preventDefault();
+    const days = Math.floor(Number(purgeInput));
     if (!Number.isFinite(days) || days < 0) {
-      setActionMsg('Jumlah hari tidak valid.');
+      setPurgeError('Jumlah hari tidak valid.');
       return;
     }
+    setPurgeOpen(false);
     const ok = await confirm({
       title: 'Bersihkan log lama',
       message: `Hapus PERMANEN semua log lebih lama dari ${days} hari?`,
@@ -242,12 +290,12 @@ export function AuditLogPage() {
     setActionMsg(null);
     try {
       const res = await api.post<{ deleted: number }>('/audit/purge', { olderThanDays: days });
-      setActionMsg(`${res.deleted} log lama dihapus.`);
+      setActionMsg({ text: `${res.deleted} log lama dihapus.`, tone: 'success' });
       setSelected(new Set());
       setPage(1);
       fetchLogs();
     } catch (e) {
-      setActionMsg((e as Error).message || 'Gagal membersihkan log.');
+      setActionMsg({ text: (e as Error).message || 'Gagal membersihkan log.', tone: 'danger' });
     } finally {
       setTimeout(() => setActionMsg(null), 5000);
     }
@@ -256,58 +304,107 @@ export function AuditLogPage() {
   return (
     <div className="space-y-6">
       {dialog}
-      <div className="flex items-center justify-between gap-3">
+      {purgeOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setPurgeOpen(false)}
+          >
+            <form
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="purgeDialogTitle"
+              onSubmit={submitPurge}
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setPurgeOpen(false);
+              }}
+              className="w-full max-w-sm rounded-xl bg-white p-5 text-left shadow-xl"
+            >
+              <h3 id="purgeDialogTitle" className="text-lg font-semibold text-gray-900">
+                Bersihkan log lama
+              </h3>
+              <label htmlFor="purgeDays" className="mt-2 block text-sm text-gray-600">
+                Hapus log yang lebih lama dari berapa hari?
+              </label>
+              <input
+                id="purgeDays"
+                type="number"
+                min={0}
+                autoFocus
+                value={purgeInput}
+                onChange={(e) => {
+                  setPurgeInput(e.target.value);
+                  setPurgeError(null);
+                }}
+                className={`${purgeError ? fieldInvalidCls : fieldCls} mt-3 tabular-nums`}
+              />
+              {purgeError && (
+                <p role="alert" className="mt-1.5 text-sm text-danger-fg">
+                  {purgeError}
+                </p>
+              )}
+              <div className="mt-5 flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setPurgeOpen(false)}>
+                  Batal
+                </Button>
+                <Button type="submit">Lanjutkan</Button>
+              </div>
+            </form>
+          </div>,
+          document.body,
+        )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Audit Log</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isSuperAdmin && (
-            <button
+            <Button
+              type="button"
+              variant="secondary"
               onClick={handlePurge}
-              className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
               title="Hapus log lama agar data tidak menumpuk"
             >
               Bersihkan log lama
-            </button>
+            </Button>
           )}
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="rounded-md bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-          >
-            {exporting ? 'Mengexport...' : 'Export CSV'}
-          </button>
+          <Button type="button" variant="secondary" onClick={handleExport} disabled={exporting}>
+            {exporting ? 'Mengekspor...' : 'Ekspor CSV'}
+          </Button>
         </div>
       </div>
 
       {actionMsg && (
-        <div className="rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-800">
-          {actionMsg}
-        </div>
+        <Notice tone={actionMsg.tone} role={actionMsg.tone === 'danger' ? 'alert' : 'status'}>
+          {actionMsg.text}
+        </Notice>
       )}
 
       {isSuperAdmin && selected.size > 0 && (
-        <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm">
-          <span className="font-medium text-red-700">{selected.size} log dipilih</span>
-          <button
-            onClick={handleDeleteSelected}
-            className="rounded-md bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-700"
-          >
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm">
+          <span className="font-medium tabular-nums text-gray-800">
+            {selected.size} log dipilih
+          </span>
+          <Button type="button" variant="danger" size="sm" onClick={handleDeleteSelected}>
             Hapus terpilih
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Export message */}
       {exportMessage && (
-        <div className="bg-primary-50 border border-primary-200 rounded-md p-3">
-          <p className="text-sm text-primary-800">{exportMessage}</p>
-        </div>
+        <Notice
+          tone={exportMessage.tone}
+          role={exportMessage.tone === 'danger' ? 'alert' : 'status'}
+        >
+          {exportMessage.text}
+        </Notice>
       )}
 
       {/* Filter Panel */}
-      <div className="bg-white shadow-sm rounded-xl border border-gray-200 p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
           <div>
-            <label htmlFor="userFilter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="userFilter" className={labelCls}>
               User ID/Nama
             </label>
             <input
@@ -319,11 +416,11 @@ export function AuditLogPage() {
                 setUserFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="actionType" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="actionType" className={labelCls}>
               Tipe Aksi
             </label>
             <select
@@ -333,18 +430,18 @@ export function AuditLogPage() {
                 setActionTypeFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             >
               <option value="">Semua</option>
               {ACTION_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {type.replace(/_/g, ' ')}
+                  {actionLabel(type)}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="moduleFilter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="moduleFilter" className={labelCls}>
               Modul
             </label>
             <select
@@ -354,7 +451,7 @@ export function AuditLogPage() {
                 setModuleFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             >
               <option value="">Semua</option>
               {MODULES.map((mod) => (
@@ -365,7 +462,7 @@ export function AuditLogPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="startDate" className={labelCls}>
               Dari Tanggal
             </label>
             <input
@@ -376,11 +473,11 @@ export function AuditLogPage() {
                 setStartDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="endDate" className={labelCls}>
               Sampai Tanggal
             </label>
             <input
@@ -391,11 +488,11 @@ export function AuditLogPage() {
                 setEndDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="ipFilter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="ipFilter" className={labelCls}>
               IP Address
             </label>
             <input
@@ -407,72 +504,56 @@ export function AuditLogPage() {
                 setIpFilter(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+              className={fieldCls}
             />
           </div>
         </div>
         <div className="mt-3 flex justify-end">
-          <button
-            onClick={handleClearFilters}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
             Reset Filter
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
+        <Notice tone="danger" role="alert">
+          {error}
+        </Notice>
       )}
 
       {/* Table */}
-      <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Memuat data...</div>
+          <TableSkeleton rows={6} cols={5} />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full">
+              <thead>
                 <tr>
                   {isSuperAdmin && (
-                    <th className="px-4 py-3">
-                      <input
-                        type="checkbox"
+                    <th className={thCls}>
+                      <RowCheckbox
+                        label="Pilih semua di halaman ini"
                         checked={allOnPageSelected}
                         onChange={toggleSelectAll}
-                        aria-label="Pilih semua di halaman ini"
                       />
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Waktu
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    User
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Aksi
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Modul
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    IP Address
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Detail
-                  </th>
+                  <th className={thCls}>Waktu</th>
+                  <th className={thCls}>User</th>
+                  <th className={thCls}>Aksi</th>
+                  <th className={thCls}>Modul</th>
+                  <th className={thCls}>IP Address</th>
+                  <th className={thCls}>Detail</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="[&>tr:last-child>td]:border-b-0">
                 {logs.length === 0 ? (
                   <tr>
                     <td
                       colSpan={isSuperAdmin ? 7 : 6}
-                      className="px-4 py-8 text-center text-gray-500"
+                      className={`${tdBase} py-8 text-center text-gray-600`}
                     >
                       Tidak ada log ditemukan
                     </td>
@@ -481,26 +562,25 @@ export function AuditLogPage() {
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-gray-50">
                       {isSuperAdmin && (
-                        <td className="px-4 py-3">
-                          <input
-                            type="checkbox"
+                        <td className={tdCls}>
+                          <RowCheckbox
+                            label="Pilih log"
                             checked={selected.has(log.id)}
                             onChange={() => toggleSelect(log.id)}
-                            aria-label="Pilih log"
                           />
                         </td>
                       )}
-                      <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                      <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
                         {format(new Date(log.createdAt), 'dd/MM/yyyy HH:mm:ss')}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-900">
+                      <td className={`${tdBase} py-3 text-gray-900`}>
                         <div className="flex flex-col">
                           <span className="font-medium">
                             {log.userName ||
                               log.userEmail ||
                               (log.userId ? 'Tanpa nama' : 'Sistem')}
                           </span>
-                          <span className="text-xs text-gray-400">
+                          <span className="text-xs text-gray-500">
                             {[
                               log.userRole ? (roleLabels[log.userRole] ?? log.userRole) : null,
                               // Tampilkan email bila ada nama (agar jelas akun mana);
@@ -510,24 +590,21 @@ export function AuditLogPage() {
                               .filter(Boolean)
                               .join(' · ')}
                             {log.userExists === false && (
-                              <span className="text-amber-500"> · akun terhapus</span>
+                              <span className="text-warning-fg"> · akun terhapus</span>
                             )}
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${actionTone(log.actionType)}`}
-                        >
-                          {log.actionType.replace(/_/g, ' ')}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{log.module}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 font-mono text-sm">
-                        {log.ipAddress}
-                      </td>
                       <td
-                        className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate"
+                        className={`${tdBase} whitespace-nowrap py-3 font-medium ${actionTone(log.actionType)}`}
+                        title={log.actionType}
+                      >
+                        {actionLabel(log.actionType)}
+                      </td>
+                      <td className={tdCls}>{log.module}</td>
+                      <td className={`${tdCls} font-mono`}>{log.ipAddress}</td>
+                      <td
+                        className={`${tdCls} max-w-xs truncate`}
                         title={formatDetails(log.details)}
                       >
                         {formatDetails(log.details)}
@@ -540,48 +617,7 @@ export function AuditLogPage() {
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Menampilkan {(page - 1) * limit + 1}-{Math.min(page * limit, total)} dari {total}
-            </p>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Prev
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
-                const pageNum = startPage + i;
-                if (pageNum > totalPages) return null;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`px-3 py-1 text-sm border rounded-md ${
-                      page === pageNum
-                        ? 'bg-primary-600 text-white border-primary-600'
-                        : 'border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination page={page} limit={limit} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

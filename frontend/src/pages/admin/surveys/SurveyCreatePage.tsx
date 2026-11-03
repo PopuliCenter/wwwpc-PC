@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { api } from '@/services/api';
+import { Button } from '@/components/common/Button';
+import { Notice } from '@/components/common/Notice';
+import { fieldCls, textareaCls } from '@/components/common/fieldStyles';
 
 interface SurveyFormData {
   title: string;
@@ -82,25 +86,31 @@ export function SurveyCreatePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <button
+      <div className="flex items-center gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
           onClick={() => navigate('/admin/surveys')}
-          className="text-gray-600 hover:text-gray-900"
         >
-          ← Kembali
-        </button>
-        <h1 className="text-2xl font-bold text-gray-900">Buat Survei Baru</h1>
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Kembali
+        </Button>
+        <h1 className="min-w-0 text-2xl text-gray-900">Buat Survei Baru</h1>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+        <Notice tone="danger" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
+      >
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="title" className="mb-1 block text-xs font-medium text-gray-600">
             Judul Survei *
           </label>
           <input
@@ -110,13 +120,13 @@ export function SurveyCreatePage() {
             required
             value={form.title}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={fieldCls}
             placeholder="Masukkan judul survei"
           />
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="description" className="mb-1 block text-xs font-medium text-gray-600">
             Deskripsi
           </label>
           <textarea
@@ -125,14 +135,14 @@ export function SurveyCreatePage() {
             rows={4}
             value={form.description}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={textareaCls}
             placeholder="Deskripsi survei"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="surveyType" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="surveyType" className="mb-1 block text-xs font-medium text-gray-600">
               Tipe Survei
             </label>
             <select
@@ -140,7 +150,7 @@ export function SurveyCreatePage() {
               name="surveyType"
               value={form.surveyType}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             >
               <option value="nasional">Nasional</option>
               <option value="daerah">Daerah</option>
@@ -148,7 +158,7 @@ export function SurveyCreatePage() {
             </select>
           </div>
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="category" className="mb-1 block text-xs font-medium text-gray-600">
               Kategori (tema)
             </label>
             <input
@@ -158,7 +168,7 @@ export function SurveyCreatePage() {
               list="survey-category-options"
               value={form.category}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
               placeholder="Contoh: Politik, Ekonomi, Sosial"
             />
             <datalist id="survey-category-options">
@@ -174,7 +184,7 @@ export function SurveyCreatePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="startDate" className="mb-1 block text-xs font-medium text-gray-600">
               Tanggal Mulai
             </label>
             <input
@@ -183,11 +193,11 @@ export function SurveyCreatePage() {
               type="datetime-local"
               value={form.startDate}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="endDate" className="mb-1 block text-xs font-medium text-gray-600">
               Tanggal Berakhir
             </label>
             <input
@@ -196,7 +206,7 @@ export function SurveyCreatePage() {
               type="datetime-local"
               value={form.endDate}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
         </div>
@@ -205,7 +215,7 @@ export function SurveyCreatePage() {
           <div>
             <label
               htmlFor="maxDurationMinutes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="mb-1 block text-xs font-medium text-gray-600"
             >
               Durasi Maks (menit)
             </label>
@@ -216,15 +226,15 @@ export function SurveyCreatePage() {
               min={1}
               value={form.maxDurationMinutes}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
             <label
               htmlFor="maxRespondents"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="mb-1 block text-xs font-medium text-gray-600"
             >
-              Maks Responden (0 = tak terbatas)
+              Kuota maks responden (0 = tak terbatas)
             </label>
             <input
               id="maxRespondents"
@@ -233,13 +243,13 @@ export function SurveyCreatePage() {
               min={0}
               value={form.maxRespondents}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
         </div>
 
         <div>
-          <label htmlFor="rewardMode" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="rewardMode" className="mb-1 block text-xs font-medium text-gray-600">
             Mode Reward
           </label>
           <select
@@ -247,36 +257,37 @@ export function SurveyCreatePage() {
             name="rewardMode"
             value={form.rewardMode}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={fieldCls}
           >
-            <option value="automatic">Otomatis</option>
+            <option value="automatic">Otomatis (poin)</option>
             <option value="manual">Manual</option>
           </select>
         </div>
 
         <div>
-          <label htmlFor="formMode" className="block text-sm font-medium text-gray-700 mb-1">
-            Mode Tampilan Form
+          <label htmlFor="formMode" className="mb-1 block text-xs font-medium text-gray-600">
+            Cara Menampilkan Pertanyaan
           </label>
           <select
             id="formMode"
             name="formMode"
             value={form.formMode}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className={fieldCls}
           >
-            <option value="paginated">Paginasi (beberapa pertanyaan per halaman)</option>
-            <option value="scroll">Scroll (semua pertanyaan dalam satu halaman)</option>
-            <option value="wizard">Wizard (satu pertanyaan per langkah)</option>
+            <option value="paginated">Per Halaman (beberapa pertanyaan per halaman)</option>
+            <option value="scroll">Satu Halaman (gulir ke bawah)</option>
+            <option value="wizard">Satu per Satu (1 pertanyaan tiap langkah)</option>
           </select>
-          <p className="mt-1 text-xs text-gray-500">
-            Mode <strong>wizard</strong> cocok untuk pengisian lapangan (satu pertanyaan per layar).
+          <p className="mt-1 text-xs text-gray-600">
+            Pilihan <strong>Satu per Satu</strong> cocok untuk pengisian lapangan (satu pertanyaan
+            per layar).
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="rewardPoints" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="rewardPoints" className="mb-1 block text-xs font-medium text-gray-600">
               Poin Reward
             </label>
             <input
@@ -286,13 +297,13 @@ export function SurveyCreatePage() {
               min={0}
               value={form.rewardPoints}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
             />
           </div>
           <div>
             <label
               htmlFor="rewardDescription"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="mb-1 block text-xs font-medium text-gray-600"
             >
               Deskripsi Reward
             </label>
@@ -302,27 +313,19 @@ export function SurveyCreatePage() {
               type="text"
               value={form.rewardDescription}
               onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={fieldCls}
               placeholder="Contoh: Pulsa 10rb"
             />
           </div>
         </div>
 
-        <div className="flex gap-4 pt-4">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 transition-colors"
-          >
+        <div className="flex gap-3 pt-2">
+          <Button type="submit" isLoading={submitting}>
             {submitting ? 'Menyimpan...' : 'Buat Survei'}
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/surveys')}
-            className="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => navigate('/admin/surveys')}>
             Batal
-          </button>
+          </Button>
         </div>
       </form>
     </div>

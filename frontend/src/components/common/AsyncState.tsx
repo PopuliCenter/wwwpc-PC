@@ -1,5 +1,6 @@
 import { Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button } from './Button';
 
 /**
  * Penyeragam state async: loading / error / kosong / konten. Menggantikan pola
@@ -14,7 +15,7 @@ import type { ReactNode } from 'react';
  * Atau langsung sebagai early-return: `if (loading) return <LoadingState />`.
  */
 
-const panelClass = 'p-8 text-center text-sm text-gray-500';
+const panelClass = 'p-8 text-center text-sm text-gray-600';
 
 function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return <div className={className ?? panelClass}>{children}</div>;
@@ -31,7 +32,7 @@ export function LoadingState({
   return (
     <Panel className={className}>
       <span className="inline-flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin text-primary-500" />
+        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
         {text}
       </span>
     </Panel>
@@ -50,16 +51,12 @@ export function ErrorState({
 }) {
   return (
     <Panel className={className}>
-      <span className="text-red-600">{message}</span>
+      <span className="text-danger-fg">{message}</span>
       {onRetry && (
         <div className="mt-3">
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
             Coba lagi
-          </button>
+          </Button>
         </div>
       )}
     </Panel>

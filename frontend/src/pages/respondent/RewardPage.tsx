@@ -1,8 +1,26 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Wallet, Gift, Hourglass, Clock, Smartphone, CheckCircle2, XCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Wallet,
+  Hourglass,
+  Clock,
+  Smartphone,
+  CheckCircle2,
+  XCircle,
+  Loader,
+  Check,
+  X,
+} from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '@/services/api';
 import { format } from 'date-fns';
+import { Badge, type BadgeTone } from '@/components/common/Badge';
+import { Button } from '@/components/common/Button';
+import { UnderlineTabs } from '@/components/common/UnderlineTabs';
+import { CountUp } from '@/components/common/CountUp';
+import { fieldCls } from '@/components/common/fieldStyles';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
+import { ListRowsSkeleton, Skeleton } from '@/components/common/Skeleton';
 import { usePointsStore } from '@/stores/points.store';
 import { pushBackButtonOverride } from '@/utils/nativeBackButton';
 import { celebrate } from '@/utils/celebrate';
@@ -81,13 +99,13 @@ interface BackendRedemption {
 type RedemptionStep = 'destination' | 'otp' | 'success';
 
 // E-wallet dipecah jadi tab per-dompet agar katalog terlihat penuh & jelas.
-// Setiap dompet punya warna aksen sendiri (ikon kartu). Urut sesuai katalog.
-const EWALLETS: { key: string; label: string; tone: string }[] = [
-  { key: 'gopay', label: 'GoPay', tone: 'bg-teal-50 text-teal-600 ring-teal-100' },
-  { key: 'ovo', label: 'OVO', tone: 'bg-violet-50 text-violet-600 ring-violet-100' },
-  { key: 'dana', label: 'DANA', tone: 'bg-sky-50 text-sky-600 ring-sky-100' },
-  { key: 'shopeepay', label: 'ShopeePay', tone: 'bg-orange-50 text-orange-600 ring-orange-100' },
-  { key: 'linkaja', label: 'LinkAja', tone: 'bg-red-50 text-red-600 ring-red-100' },
+// Tanpa warna per dompet: namanya sudah tertulis di tab dan kartu. Urut sesuai katalog.
+const EWALLETS: { key: string; label: string }[] = [
+  { key: 'gopay', label: 'GoPay' },
+  { key: 'ovo', label: 'OVO' },
+  { key: 'dana', label: 'DANA' },
+  { key: 'shopeepay', label: 'ShopeePay' },
+  { key: 'linkaja', label: 'LinkAja' },
 ];
 
 /** Ambil kunci dompet dari id katalog (mis. 'ewallet-gopay-25000' → 'gopay'). */
@@ -98,27 +116,27 @@ function walletOf(id: string): string | null {
 
 const REDEMPTION_STATUS_META: Record<
   RedemptionStatus,
-  { label: string; badge: string; Icon: LucideIcon }
+  { label: string; tone: BadgeTone; Icon: LucideIcon }
 > = {
   pending: {
     label: 'Menunggu konfirmasi',
-    badge: 'bg-gray-100 text-gray-700',
+    tone: 'neutral',
     Icon: Clock,
   },
   processing: {
     label: 'Diproses',
-    badge: 'bg-amber-100 text-amber-700',
-    Icon: Hourglass,
+    tone: 'warning',
+    Icon: Loader,
   },
   completed: {
     label: 'Berhasil',
-    badge: 'bg-green-100 text-green-700',
-    Icon: CheckCircle2,
+    tone: 'success',
+    Icon: Check,
   },
   failed: {
     label: 'Gagal (poin dikembalikan)',
-    badge: 'bg-red-100 text-red-700',
-    Icon: XCircle,
+    tone: 'danger',
+    Icon: X,
   },
 };
 
@@ -138,12 +156,21 @@ function describeTransaction(tx: BackendTransaction): string {
 }
 
 // Balance Card
-function BalanceCard({ balance, loading }: { balance: PointBalance | null; loading: boolean }) {
+function BalanceCard({
+  balance,
+  loading,
+  lastKnown,
+}: {
+  balance: PointBalance | null;
+  loading: boolean;
+  /** Saldo terakhir yang sudah dilihat di header; angka menghitung dari nilai ini. */
+  lastKnown: number | null;
+}) {
   if (loading) {
     return (
-      <div className="rounded-2xl bg-primary-700 p-6">
-        <div className="mb-3 h-4 w-1/3 animate-pulse rounded bg-white/20" />
-        <div className="h-10 w-1/2 animate-pulse rounded bg-white/20" />
+      <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-5">
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="h-9 w-1/2" />
       </div>
     );
   }
@@ -153,34 +180,27 @@ function BalanceCard({ balance, loading }: { balance: PointBalance | null; loadi
   const expiring = balance?.expiringWithin30Days ?? 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-primary-700 p-6 text-white shadow-sm">
-      <Gift className="pointer-events-none absolute -right-5 -top-5 h-28 w-28 text-white/10" />
-      <div className="relative">
-        <div className="flex items-center gap-2 text-primary-100">
-          <Wallet className="h-4 w-4" />
-          <p className="text-sm">Saldo Poin Anda</p>
-        </div>
-        <p className="mt-1 text-4xl font-bold tracking-tight">
-          {available.toLocaleString('id-ID')}
-        </p>
-        <p className="text-sm text-primary-200">poin tersedia</p>
+    <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <p className="text-sm text-gray-600">Saldo poin</p>
+      <p className="mt-1 text-3xl font-semibold text-gray-900">
+        <CountUp value={available} from={lastKnown ?? undefined} />
+      </p>
+      <p className="text-sm text-gray-600">poin tersedia</p>
 
-        {(pending > 0 || expiring > 0) && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {pending > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-                <Hourglass className="h-3.5 w-3.5" /> {pending.toLocaleString('id-ID')} diproses
-              </span>
-            )}
-            {expiring > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 px-3 py-1 text-xs font-medium text-amber-50 ring-1 ring-inset ring-amber-300/30">
-                <Clock className="h-3.5 w-3.5" /> {expiring.toLocaleString('id-ID')} kedaluwarsa
-                &lt;30 hari
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      {(pending > 0 || expiring > 0) && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+          {pending > 0 && (
+            <Badge icon={Hourglass} className="tabular-nums">
+              {pending.toLocaleString('id-ID')} diproses
+            </Badge>
+          )}
+          {expiring > 0 && (
+            <Badge tone="warning" icon={Clock} className="tabular-nums">
+              {expiring.toLocaleString('id-ID')} kedaluwarsa &lt;30 hari
+            </Badge>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -212,47 +232,31 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
   }, [page, refreshKey]);
 
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Riwayat Transaksi</h3>
+    <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 px-4 py-3">
+        <h2 className="text-base font-semibold text-gray-900">Riwayat transaksi</h2>
       </div>
 
       {loading ? (
-        <div className="p-4 space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse flex items-center gap-3">
-              <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
-              <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-              </div>
-              <div className="h-4 bg-gray-200 rounded w-16"></div>
-            </div>
-          ))}
-        </div>
+        <ListRowsSkeleton rows={3} />
       ) : transactions.length === 0 ? (
-        <div className="p-8 text-center text-gray-500">Belum ada transaksi</div>
+        <div className="p-8 text-center text-sm text-gray-600">Belum ada transaksi</div>
       ) : (
         <div className="divide-y divide-gray-100">
           {transactions.map((tx) => {
             const earned = tx.transactionType === 'credit';
             return (
-              <div key={tx.id} className="p-4 flex items-center gap-3">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                    earned ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                  }`}
-                >
-                  {earned ? '+' : '-'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 truncate">{describeTransaction(tx)}</p>
-                  <p className="text-xs text-gray-500">
+              <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-gray-900">{describeTransaction(tx)}</p>
+                  <p className="text-xs tabular-nums text-gray-600">
                     {format(new Date(tx.earnedAt), 'dd MMM yyyy, HH:mm')}
                   </p>
                 </div>
                 <span
-                  className={`text-sm font-medium ${earned ? 'text-green-600' : 'text-red-600'}`}
+                  className={`shrink-0 text-sm font-medium tabular-nums ${
+                    earned ? 'text-success-fg' : 'text-gray-800'
+                  }`}
                 >
                   {earned ? '+' : '-'}
                   {tx.amount.toLocaleString('id-ID')}
@@ -265,24 +269,30 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-          <button
+        <div className="flex items-center justify-between gap-2 border-t border-gray-200 p-4">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Sebelumnya
-          </button>
-          <span className="text-sm text-gray-600">
+          </Button>
+          <span className="min-w-0 text-center text-xs tabular-nums text-gray-600">
             Halaman {page} dari {totalPages}
           </span>
-          <button
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0"
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             Selanjutnya
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -335,60 +345,40 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
   }, [hasInFlight, fetchRedemptions]);
 
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Riwayat Penukaran</h3>
-        {hasInFlight && (
-          <span className="text-xs text-amber-600 flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-            Memantau status…
-          </span>
-        )}
+    <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
+        <h2 className="text-base font-semibold text-gray-900">Riwayat penukaran</h2>
+        {hasInFlight && <span className="text-xs text-gray-500">Memantau status…</span>}
       </div>
 
       {loading ? (
-        <div className="p-4 space-y-3">
-          {[1, 2].map((i) => (
-            <div key={i} className="animate-pulse flex items-center gap-3">
-              <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-              </div>
-              <div className="h-6 bg-gray-200 rounded-full w-20"></div>
-            </div>
-          ))}
-        </div>
+        <ListRowsSkeleton rows={2} />
       ) : redemptions.length === 0 ? (
-        <div className="p-8 text-center text-gray-500">Belum ada penukaran</div>
+        <div className="p-8 text-center text-sm text-gray-600">Belum ada penukaran</div>
       ) : (
         <div className="divide-y divide-gray-100">
           {redemptions.map((r) => {
             const meta = REDEMPTION_STATUS_META[r.status] ?? REDEMPTION_STATUS_META.processing;
             return (
-              <div key={r.id} className="p-4 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900 truncate">
+              <div key={r.id} className="flex items-start gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-gray-900">
                     {nameMap[r.rewardType] ?? r.rewardType}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs tabular-nums text-gray-600">
                     {r.destinationNumber ? `${r.destinationNumber} · ` : ''}
                     {format(new Date(r.requestedAt), 'dd MMM yyyy, HH:mm')}
                   </p>
+                  <Badge tone={meta.tone} icon={meta.Icon} className="mt-1">
+                    {meta.label}
+                  </Badge>
                   {r.status === 'failed' && r.providerMessage && (
-                    <p className="text-xs text-red-500 mt-0.5 truncate">{r.providerMessage}</p>
+                    <p className="mt-0.5 text-xs text-danger-fg">{r.providerMessage}</p>
                   )}
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${meta.badge}`}
-                  >
-                    <meta.Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                    {meta.label}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    -{r.pointsSpent.toLocaleString('id-ID')} poin
-                  </span>
-                </div>
+                <span className="shrink-0 text-sm font-medium tabular-nums text-gray-800">
+                  -{r.pointsSpent.toLocaleString('id-ID')} poin
+                </span>
               </div>
             );
           })}
@@ -442,100 +432,99 @@ function RewardCatalog({
           ? rewards.filter((r) => walletOf(r.id) === activeCategory.slice(8))
           : rewards;
 
+  // Gradien tepi hanya tampil bila masih ada kartu di kanan, supaya kartu terakhir tidak
+  // pernah terlihat pudar saat daftar sudah di ujung.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const updateHasMore = useCallback(() => {
+    const el = scrollerRef.current;
+    setHasMore(!!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }, []);
+  useEffect(() => {
+    updateHasMore();
+    window.addEventListener('resize', updateHasMore);
+    return () => window.removeEventListener('resize', updateHasMore);
+  }, [updateHasMore, loading, activeCategory, filteredRewards.length]);
+
   return (
-    <div className="bg-white shadow-sm rounded-xl border border-gray-200">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Katalog Reward</h3>
+    <div className="rounded-xl border border-gray-200 bg-white">
+      <div className="px-4 pt-3">
+        <h2 className="text-base font-semibold text-gray-900">Katalog reward</h2>
       </div>
 
       {/* Category tabs — Semua · Pulsa · per dompet */}
-      <div className="flex gap-2 overflow-x-auto border-b border-gray-200 p-4">
-        {tabs.map((t) => {
-          const Icon = t.key === 'pulsa' ? Smartphone : Wallet;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setActiveCategory(t.key)}
-              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-sm transition-colors ${
-                activeCategory === t.key
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {t.key !== 'all' && <Icon className="h-3.5 w-3.5" />}
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
+      <UnderlineTabs
+        items={tabs}
+        active={activeCategory}
+        onChange={setActiveCategory}
+        className="px-1 pt-1"
+      />
 
       {loading ? (
-        <div className="flex gap-4 overflow-x-auto p-4 pb-3">
+        <div className="flex gap-3 overflow-x-auto p-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse border rounded-lg p-4 min-w-[240px] shrink-0">
-              <div className="h-5 bg-gray-200 rounded w-2/3 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-full mb-3"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+            <div
+              key={i}
+              className="w-[230px] shrink-0 space-y-2.5 rounded-lg border border-gray-200 p-3"
+            >
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-11 w-full" />
             </div>
           ))}
         </div>
       ) : filteredRewards.length === 0 ? (
-        <div className="p-8 text-center text-gray-500">Tidak ada reward tersedia</div>
+        <div className="p-8 text-center text-sm text-gray-600">Tidak ada reward tersedia</div>
       ) : (
         // List kesamping (horizontal scroll) — gradient di tepi kanan menandakan
         // masih ada pilihan reward lain untuk digeser.
         <div className="relative">
-          <div className="flex gap-4 overflow-x-auto p-4 pb-3 snap-x">
+          <div
+            ref={scrollerRef}
+            onScroll={updateHasMore}
+            className="flex snap-x scroll-pl-4 gap-3 overflow-x-auto p-4 [scrollbar-width:none] lg:[scrollbar-width:thin]"
+          >
             {filteredRewards.map((reward) => {
               const canAfford = currentBalance >= reward.pointsCost;
+              const Icon = reward.category === 'pulsa' ? Smartphone : Wallet;
               return (
                 <div
                   key={reward.id}
-                  className={`flex w-[230px] shrink-0 snap-start flex-col rounded-xl border border-gray-200 p-4 transition-all ${
-                    canAfford ? 'hover:border-primary-300 hover:shadow-sm' : 'opacity-60'
-                  }`}
+                  className="flex w-[230px] shrink-0 snap-start flex-col rounded-lg border border-gray-200 p-3"
                 >
-                  <div className="flex flex-1 items-start gap-3">
-                    {(() => {
-                      const w = walletOf(reward.id);
-                      const meta = w ? EWALLETS.find((x) => x.key === w) : null;
-                      const Icon = reward.category === 'pulsa' ? Smartphone : Wallet;
-                      const tone =
-                        meta?.tone ??
-                        (reward.category === 'pulsa'
-                          ? 'bg-indigo-50 text-indigo-600 ring-indigo-100'
-                          : 'bg-gray-50 text-gray-500 ring-gray-100');
-                      return (
-                        <span
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ${tone}`}
-                        >
-                          <Icon className="h-5 w-5" />
-                        </span>
-                      );
-                    })()}
+                  <div className="flex flex-1 items-start gap-2.5">
+                    <Icon
+                      className="mt-0.5 h-[18px] w-[18px] shrink-0 text-gray-600"
+                      strokeWidth={1.75}
+                      aria-hidden="true"
+                    />
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-semibold text-gray-900">{reward.name}</h4>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
+                      <h3 className="text-sm font-medium text-gray-900">{reward.name}</h3>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-gray-600">
                         {reward.description}
                       </p>
                     </div>
                   </div>
-                  <span className="mt-3 inline-flex w-fit items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-inset ring-amber-200">
-                    <Gift className="h-3.5 w-3.5" /> {reward.pointsCost.toLocaleString('id-ID')}{' '}
-                    poin
-                  </span>
-                  <button
+                  <p className="mt-3 text-sm font-medium tabular-nums text-gray-800">
+                    {reward.pointsCost.toLocaleString('id-ID')} poin
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-2 w-full"
                     onClick={() => onSelectReward(reward)}
                     disabled={!canAfford}
-                    className="mt-3 w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors bg-primary-600 text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                   >
                     {canAfford ? 'Tukar' : 'Poin tidak cukup'}
-                  </button>
+                  </Button>
                 </div>
               );
             })}
           </div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-2xl bg-gradient-to-l from-white to-transparent" />
+          {hasMore && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-br-xl bg-gradient-to-l from-white to-transparent" />
+          )}
         </div>
       )}
     </div>
@@ -666,26 +655,31 @@ function RedemptionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
-      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-          aria-label="Tutup"
-        >
-          ✕
-        </button>
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true"></div>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="redeem-dialog-title"
+        className="relative max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+      >
+        {/* Tombol tutup; pembungkus yang absolute karena IconButton sendiri relative. */}
+        <div className="absolute right-3 top-3">
+          <IconButton aria-label="Tutup" onClick={onClose}>
+            <X className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
+          </IconButton>
+        </div>
 
         {/* Step: Destination */}
         {step === 'destination' && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Tukar Reward</h3>
-            <div className="space-y-1.5 rounded-lg bg-gray-50 p-3">
+            <h2 id="redeem-dialog-title" className="pr-10 text-lg font-semibold text-gray-900">
+              Tukar reward
+            </h2>
+            <div className="space-y-1.5 rounded-lg bg-gray-50 p-3 tabular-nums">
               <p className="text-sm font-medium text-gray-900">{reward.name}</p>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Biaya</span>
-                <span className="font-semibold text-primary-600">
+                <span className="font-medium text-gray-900">
                   {reward.pointsCost.toLocaleString('id-ID')} poin
                 </span>
               </div>
@@ -696,46 +690,58 @@ function RedemptionModal({
               <div className="flex items-center justify-between border-t border-gray-200 pt-1.5 text-sm">
                 <span className="text-gray-600">Sisa setelah tukar</span>
                 <span
-                  className={`font-medium ${currentBalance - reward.pointsCost < 0 ? 'text-red-600' : 'text-gray-900'}`}
+                  className={`font-medium ${currentBalance - reward.pointsCost < 0 ? 'text-danger-fg' : 'text-gray-900'}`}
                 >
                   {(currentBalance - reward.pointsCost).toLocaleString('id-ID')} poin
                 </span>
               </div>
             </div>
             {currentBalance - reward.pointsCost < 0 && (
-              <p className="rounded-md bg-red-50 p-2 text-xs text-red-700">
+              <Notice tone="danger">
                 Poin Anda kurang {(reward.pointsCost - currentBalance).toLocaleString('id-ID')}.
                 Selesaikan lebih banyak survei untuk menambah poin.
-              </p>
+              </Notice>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Tujuan</label>
-              <p className="text-xs text-gray-500 mb-2">
+              <label
+                htmlFor="redeem-destination"
+                className="mb-1 block text-sm font-medium text-gray-700"
+              >
+                Nomor tujuan
+              </label>
+              <p id="redeem-destination-hint" className="mb-2 text-xs text-gray-600">
                 {reward.category === 'e_wallet'
                   ? 'Masukkan nomor HP yang terdaftar di akun e-wallet'
                   : 'Masukkan nomor telepon'}
               </p>
               <input
+                id="redeem-destination"
                 type="tel"
                 value={destinationNumber}
                 onChange={(e) => setDestinationNumber(e.target.value.replace(/[^0-9]/g, ''))}
                 placeholder="08xxxxxxxxxx"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                aria-describedby="redeem-destination-hint"
+                className={fieldCls}
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
+            {error && (
+              <Notice tone="danger" role="alert">
+                {error}
+              </Notice>
+            )}
+            <Button
+              type="button"
+              className="w-full"
+              isLoading={loading}
               onClick={handleInitiate}
               disabled={
-                loading ||
                 currentBalance < reward.pointsCost ||
                 destinationNumber.replace(/\D/g, '').length < 9
               }
-              className="w-full rounded-lg bg-primary-600 py-2 font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Memproses...' : 'Lanjutkan & kirim OTP'}
-            </button>
-            <p className="text-center text-xs text-gray-500">
+            </Button>
+            <p className="text-xs text-gray-600">
               Kode OTP akan dikirim ke email Anda untuk mengonfirmasi penukaran.
             </p>
           </div>
@@ -744,40 +750,51 @@ function RedemptionModal({
         {/* Step: OTP */}
         {step === 'otp' && (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Konfirmasi OTP</h3>
+            <h2 id="redeem-dialog-title" className="pr-10 text-lg font-semibold text-gray-900">
+              Konfirmasi OTP
+            </h2>
             <p className="text-sm text-gray-600">
               Kami mengirim kode OTP 6 digit ke email Anda. Masukkan di bawah untuk mengonfirmasi
               penukaran. Kode bisa perlu beberapa saat — cek juga folder spam.
             </p>
+            {/* text-2xl! : fieldCls sudah membawa ukuran teks, jadi ukuran OTP harus menang. */}
             <input
               type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              aria-label="Kode OTP 6 digit"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-              placeholder="000000"
+              placeholder="······"
               maxLength={6}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className={`${fieldCls} text-center text-2xl! tabular-nums tracking-widest`}
             />
-            {resendMsg && <p className="text-sm text-emerald-600">{resendMsg}</p>}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button
+            {resendMsg && <p className="text-sm text-success-fg">{resendMsg}</p>}
+            {error && (
+              <Notice tone="danger" role="alert">
+                {error}
+              </Notice>
+            )}
+            <Button
+              type="button"
+              className="w-full"
+              isLoading={loading}
               onClick={handleConfirm}
-              disabled={loading || otp.length !== 6}
-              className="w-full py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 font-medium"
+              disabled={otp.length !== 6}
             >
               {loading ? 'Memverifikasi...' : 'Konfirmasi'}
-            </button>
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendCooldown > 0 || loading}
-                className="text-sm text-primary-600 hover:text-primary-700 disabled:cursor-not-allowed disabled:text-gray-400"
-              >
-                {resendCooldown > 0
-                  ? `Kirim ulang kode (${resendCooldown}s)`
-                  : 'Tidak menerima kode? Kirim ulang'}
-              </button>
-            </div>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full tabular-nums"
+              onClick={handleResend}
+              disabled={resendCooldown > 0 || loading}
+            >
+              {resendCooldown > 0
+                ? `Kirim ulang kode (${resendCooldown}s)`
+                : 'Tidak menerima kode? Kirim ulang'}
+            </Button>
           </div>
         )}
 
@@ -798,43 +815,40 @@ function RedemptionModal({
                 ? `${reward.name} telah dikirim ke nomor tujuan Anda.`
                 : `${reward.name} sedang diproses. Status akan diperbarui otomatis.`;
             return (
-              <div className="space-y-4 text-center">
-                <div
-                  className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${
-                    failed
-                      ? 'bg-red-50 text-red-600'
-                      : completed
-                        ? 'bg-emerald-50 text-emerald-600'
-                        : 'bg-amber-50 text-amber-600'
+              <div className="space-y-4">
+                <StatusIcon
+                  className={`h-8 w-8 ${
+                    failed ? 'text-danger-fg' : completed ? 'text-success-fg' : 'text-warning-fg'
                   }`}
-                >
-                  <StatusIcon className="h-7 w-7" strokeWidth={1.75} aria-hidden="true" />
-                </div>
-                <h3
-                  className={`text-lg font-semibold ${failed ? 'text-red-600' : 'text-gray-900'}`}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
+                <h2
+                  id="redeem-dialog-title"
+                  className={`pr-10 text-lg font-semibold ${failed ? 'text-danger-fg' : 'text-gray-900'}`}
                 >
                   {title}
-                </h3>
+                </h2>
                 <p className="text-sm text-gray-600">{desc}</p>
                 {remainingBalance !== null && (
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-500">Sisa saldo</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {remainingBalance.toLocaleString('id-ID')} poin
+                  <div className="rounded-lg bg-gray-50 p-3">
+                    <p className="text-sm text-gray-600">Sisa saldo</p>
+                    <p className="text-2xl font-semibold text-gray-900">
+                      <CountUp value={remainingBalance} from={currentBalance} /> poin
                     </p>
                   </div>
                 )}
-                <button
+                <Button
+                  type="button"
+                  variant={failed ? 'secondary' : 'primary'}
+                  className="w-full"
                   onClick={() => {
                     onSuccess();
                     onClose();
                   }}
-                  className={`w-full py-2 text-white rounded-lg font-medium ${
-                    failed ? 'bg-gray-600 hover:bg-gray-700' : 'bg-primary-600 hover:bg-primary-700'
-                  }`}
                 >
                   {failed ? 'Tutup' : 'Selesai'}
-                </button>
+                </Button>
               </div>
             );
           })()}
@@ -849,6 +863,8 @@ export function RewardPage() {
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // Saldo di header sebelum halaman ini memuat; dibaca sekali karena fetchBalance menimpanya.
+  const [lastKnownBalance] = useState(() => usePointsStore.getState().available);
 
   const fetchBalance = useCallback(async () => {
     try {
@@ -874,16 +890,16 @@ export function RewardPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reward Saya</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900">Reward saya</h1>
+        <p className="mt-1 text-sm text-gray-600">
           Tukar poin Anda jadi pulsa atau saldo e-wallet.
         </p>
       </div>
 
       {/* Balance Card */}
-      <BalanceCard balance={balance} loading={balanceLoading} />
+      <BalanceCard balance={balance} loading={balanceLoading} lastKnown={lastKnownBalance} />
 
       {/* Katalog Reward — tepat di bawah saldo, list kesamping + filter */}
       <RewardCatalog onSelectReward={setSelectedReward} currentBalance={balance?.available ?? 0} />

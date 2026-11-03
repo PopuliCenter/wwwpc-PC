@@ -12,6 +12,7 @@
  */
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Logo } from '@/components/common/Logo';
 
 /** Tanggal perubahan terakhir isi dokumen legal (perbarui manual bila isi diubah). */
 const TERAKHIR_DIPERBARUI = '14 Juli 2026';
@@ -19,40 +20,50 @@ const TERAKHIR_DIPERBARUI = '14 Juli 2026';
 const EMAIL = 'info@populicenter.org';
 const WHATSAPP = '0812-9206-8362';
 
+const linkCls =
+  'text-primary-600 underline decoration-primary-200 underline-offset-2 hover:decoration-primary-600';
+/** Tautan navigasi berdiri sendiri; min-h-11 menjaga target sentuh 44px di HP. */
+const navLinkCls = `${linkCls} inline-flex min-h-11 items-center lg:min-h-0`;
+
 function LegalShell({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-primary-700 px-6 py-8 text-white">
+    <div className="min-h-screen bg-surface">
+      <header className="border-b border-gray-200 bg-white px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-medium text-indigo-100">Populi Center · Survei Online</p>
-          <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{title}</h1>
-          <p className="mt-2 text-xs text-indigo-200">Terakhir diperbarui: {TERAKHIR_DIPERBARUI}</p>
+          <div className="flex items-center gap-2.5">
+            <Logo size={40} alt="" />
+            <p className="text-sm font-semibold text-gray-900">Populi Center</p>
+          </div>
+          <h1 className="mt-5 text-2xl sm:text-3xl">{title}</h1>
+          <p className="mt-1.5 text-xs text-gray-500">Terakhir diperbarui: {TERAKHIR_DIPERBARUI}</p>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-10">
-        <article className="space-y-6 rounded-xl border border-gray-200 bg-white p-6 text-sm leading-relaxed text-gray-700 shadow-sm sm:p-8">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
+        <article className="space-y-6 rounded-xl border border-gray-200 bg-white p-5 text-sm leading-relaxed text-gray-700 sm:p-8">
           {children}
         </article>
 
-        <nav className="mt-8 flex flex-wrap gap-x-4 gap-y-2 text-sm text-indigo-700">
-          <Link className="hover:underline" to="/kebijakan-privasi">
+        <nav className="mt-6 flex flex-wrap gap-x-4 text-sm lg:gap-y-2">
+          <Link className={navLinkCls} to="/kebijakan-privasi">
             Kebijakan Privasi
           </Link>
-          <Link className="hover:underline" to="/penghapusan-akun">
+          <Link className={navLinkCls} to="/penghapusan-akun">
             Penghapusan Akun
           </Link>
-          <Link className="hover:underline" to="/syarat-ketentuan">
+          <Link className={navLinkCls} to="/syarat-ketentuan">
             Syarat &amp; Ketentuan
           </Link>
-          <Link className="hover:underline" to="/login">
+          <Link className={navLinkCls} to="/login">
             Masuk ke aplikasi
           </Link>
         </nav>
       </main>
 
-      <footer className="border-t border-gray-200 bg-white px-6 py-6 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} Populi Center. Semua hak dilindungi.
+      <footer className="border-t border-gray-200 bg-white px-4 py-6 text-xs text-gray-500 sm:px-6">
+        <p className="mx-auto max-w-3xl">
+          © {new Date().getFullYear()} Populi Center. Semua hak dilindungi.
+        </p>
       </footer>
     </div>
   );
@@ -167,7 +178,7 @@ export function PublicPrivacyPolicyPage() {
         <p>
           Anda dapat mengakses dan memperbarui data di menu <strong>Profil</strong>. Anda dapat
           menghapus akun kapan saja — lihat{' '}
-          <Link className="text-indigo-700 underline" to="/penghapusan-akun">
+          <Link className={linkCls} to="/penghapusan-akun">
             halaman Penghapusan Akun
           </Link>
           .

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { getProvinces, getRegencies, getDistricts, type WilayahItem } from '@/utils/wilayah';
+import { fieldCls as selectCls } from './fieldStyles';
 
 interface WilayahValue {
   province: string;
@@ -13,9 +14,6 @@ interface Props {
   required?: boolean;
 }
 
-const selectCls =
-  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-gray-50 disabled:text-gray-400';
-
 /**
  * Dropdown wilayah berjenjang: Provinsi → Kabupaten/Kota → Kecamatan.
  * Memilih provinsi memuat kab/kota-nya saja, dst. Mengeluarkan NAMA wilayah
@@ -23,6 +21,7 @@ const selectCls =
  * utils/wilayah (API wilayah administrasi Indonesia, sampai kecamatan).
  */
 export function WilayahPicker({ value, onChange, required }: Props) {
+  const fieldId = useId();
   const [provinces, setProvinces] = useState<WilayahItem[]>([]);
   const [regencies, setRegencies] = useState<WilayahItem[]>([]);
   const [districts, setDistricts] = useState<WilayahItem[]>([]);
@@ -81,8 +80,14 @@ export function WilayahPicker({ value, onChange, required }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Provinsi</label>
+        <label
+          htmlFor={`${fieldId}-province`}
+          className="mb-1.5 block text-sm font-medium text-gray-700"
+        >
+          Provinsi
+        </label>
         <select
+          id={`${fieldId}-province`}
           value={provId}
           onChange={(e) => handleProvince(e.target.value)}
           required={required}
@@ -99,8 +104,14 @@ export function WilayahPicker({ value, onChange, required }: Props) {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Kabupaten/Kota</label>
+        <label
+          htmlFor={`${fieldId}-regency`}
+          className="mb-1.5 block text-sm font-medium text-gray-700"
+        >
+          Kabupaten/Kota
+        </label>
         <select
+          id={`${fieldId}-regency`}
           value={regId}
           onChange={(e) => handleRegency(e.target.value)}
           required={required}
@@ -118,8 +129,14 @@ export function WilayahPicker({ value, onChange, required }: Props) {
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">Kecamatan</label>
+        <label
+          htmlFor={`${fieldId}-district`}
+          className="mb-1.5 block text-sm font-medium text-gray-700"
+        >
+          Kecamatan
+        </label>
         <select
+          id={`${fieldId}-district`}
           value={distId}
           onChange={(e) => handleDistrict(e.target.value)}
           required={required}

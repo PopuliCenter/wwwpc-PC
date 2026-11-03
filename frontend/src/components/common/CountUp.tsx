@@ -4,53 +4,54 @@ import { useEffect, useRef, useState } from 'react';
  * Angka yang MENGHITUNG NAIK/TURUN secara mulus saat nilainya berubah (mis.
  * saldo poin bertambah setelah selesai survei). Easing ease-out; menghormati
  * `prefers-reduced-motion` (langsung lompat ke nilai akhir).
+ *
+ * Tanpa `from`, angka tidak beranimasi saat pertama tampil. Isi `from` agar langsung
+ * menghitung dari nilai itu saat mount: `from={0}` di layar selesai, atau nilai
+ * terakhir di kartu saldo. `from` hanya dibaca sekali saat mount.
  */
 export function CountUp({
   value,
-  durationMs = 700,
-  className,
+  from,
+  durationMs = 600,
+  className = '',
   format = (n: number) => n.toLocaleString('id-ID'),
 }: {
   value: number;
+  from?: number;
   durationMs?: number;
   className?: string;
   format?: (n: number) => string;
 }) {
-  const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
-  const rafRef = useRef<number | undefined>(undefined);
+  const [display, setDisplay] = useState(from ?? value);
+  // Nilai yang sedang tampil: animasi berikutnya (atau yang terputus) lanjut dari sini.
+  const currentRef = useRef(from ?? value);
 
   useEffect(() => {
-    const from = fromRef.current;
+    const start = currentRef.current;
     const to = value;
-    if (from === to) return;
+    if (start === to) return;
 
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      currentRef.current = to;
       setDisplay(to);
-      fromRef.current = to;
       return;
     }
 
-    let start: number | null = null;
+    let startTs: number | null = null;
+    let raf = 0;
     const tick = (ts: number) => {
-      if (start === null) start = ts;
-      const k = Math.min((ts - start) / durationMs, 1);
+      if (startTs === null) startTs = ts;
+      const k = Math.min((ts - startTs) / durationMs, 1);
       const eased = 1 - Math.pow(1 - k, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
-      if (k < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        fromRef.current = to;
-      }
+      const next = Math.round(start + (to - start) * eased);
+      currentRef.current = next;
+      setDisplay(next);
+      if (k < 1) raf = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(tick);
 
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      fromRef.current = to; // pastikan animasi berikutnya mulai dari nilai terkini
-    };
+    return () => cancelAnimationFrame(raf);
   }, [value, durationMs]);
 
-  return <span className={className}>{format(display)}</span>;
+  return <span className={`tabular-nums ${className}`}>{format(display)}</span>;
 }

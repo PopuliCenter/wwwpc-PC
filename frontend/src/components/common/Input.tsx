@@ -1,4 +1,5 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode } from 'react';
+import { fieldClass } from './fieldStyles';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -23,19 +24,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative">
           {leadingIcon && (
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
               {leadingIcon}
             </span>
           )}
           <input
             ref={ref}
             id={inputId}
-            className={`block w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm transition-colors placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-              leadingIcon ? 'pl-10' : ''
-            } ${trailingIcon ? 'pr-10' : ''} ${
-              error
-                ? 'border-red-300 focus:border-red-400 focus:ring-red-500/40'
-                : 'border-gray-300 hover:border-gray-400 focus:border-primary-500 focus:ring-primary-500/40'
+            className={`${fieldClass({ invalid: Boolean(error) })} block ${leadingIcon ? 'pl-10' : ''} ${
+              trailingIcon ? 'pr-10' : ''
             } ${className}`}
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={
@@ -44,18 +41,18 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {trailingIcon && (
-            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400">
+            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500">
               {trailingIcon}
             </span>
           )}
         </div>
         {error && (
-          <p id={`${inputId}-error`} className="text-sm text-red-600" role="alert">
+          <p id={`${inputId}-error`} className="text-sm text-danger-fg" role="alert">
             {error}
           </p>
         )}
         {helperText && !error && (
-          <p id={`${inputId}-helper`} className="text-sm text-gray-500">
+          <p id={`${inputId}-helper`} className="text-sm text-gray-600">
             {helperText}
           </p>
         )}

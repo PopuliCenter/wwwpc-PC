@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
 import { Avatar } from '@/components/common/Avatar';
+import { IconButton } from '@/components/common/IconButton';
+import { Logo } from '@/components/common/Logo';
 import { access, hasRole } from '@/config/access';
 import type { UserRole } from '@/types';
 
@@ -47,7 +49,7 @@ const navItems: NavItem[] = [
   },
   { path: '/admin/audit', label: 'Audit Log', icon: ScrollText, roles: access.audit },
   { path: '/admin/client-logs', label: 'Monitoring Error', icon: Bug, roles: access.audit },
-  { path: '/admin/cleanup', label: 'Data Cleanup', icon: Trash2, roles: access.cleanup },
+  { path: '/admin/cleanup', label: 'Pembersihan Data', icon: Trash2, roles: access.cleanup },
   { path: '/admin/storage', label: 'Penyimpanan', icon: HardDrive, roles: access.storage },
   { path: '/admin/profile', label: 'Profil', icon: UserCog, roles: access.profile },
 ];
@@ -89,51 +91,46 @@ export function AdminLayout() {
 
       {/* Sidebar — drawer geser di mobile, statis & sticky di desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-800 bg-gray-900 text-white transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between px-5 py-5">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo-populi-center.png"
-              alt="Populi Center"
-              className="h-10 w-10 object-contain"
-            />
-            <div className="leading-tight">
-              <h1 className="text-sm font-semibold text-white">Populi Center</h1>
-              <p className="text-xs text-gray-400">Survei Online</p>
-            </div>
+        <div className="flex items-center justify-between gap-2 px-5 py-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Logo size={36} />
+            <p className="truncate text-sm font-semibold text-gray-900">Populi Center</p>
           </div>
           {/* Tombol tutup — hanya di mobile */}
-          <button
-            onClick={closeSidebar}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-white/5 hover:text-white md:hidden"
-            aria-label="Tutup menu"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <IconButton aria-label="Tutup menu" onClick={closeSidebar} className="md:hidden">
+            <X className="h-5 w-5" strokeWidth={1.75} />
+          </IconButton>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto py-2">
           {visibleNav.map(({ path, label, icon: Icon }) => (
             <NavLink
               key={path}
               to={path}
               onClick={closeSidebar}
               className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                `group relative flex min-h-11 items-center gap-3 px-5 text-sm transition-colors lg:min-h-10 ${
                   isActive
-                    ? 'bg-primary-600 text-white shadow-sm'
-                    : 'text-gray-300 hover:bg-white/5 hover:text-white'
+                    ? 'bg-gray-50 font-semibold text-primary-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
+                  {isActive && (
+                    <span
+                      className="absolute inset-y-0 left-0 w-[3px] bg-accent-600"
+                      aria-hidden="true"
+                    />
+                  )}
                   <Icon
-                    className={`h-[18px] w-[18px] ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}
-                    strokeWidth={1.85}
+                    className={`h-[18px] w-[18px] shrink-0 ${isActive ? '' : 'text-gray-500 group-hover:text-gray-700'}`}
+                    strokeWidth={1.75}
                   />
                   <span>{label}</span>
                 </>
@@ -142,19 +139,20 @@ export function AdminLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-gray-800 p-3">
+        <div className="border-t border-gray-200 p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <Avatar name={user?.fullName} url={user?.avatarUrl} size={36} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{user?.fullName}</p>
-              <p className="truncate text-xs text-gray-400">{user?.email}</p>
+              <p className="truncate text-sm font-medium text-gray-900">{user?.fullName}</p>
+              <p className="truncate text-xs text-gray-600">{user?.email}</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg px-2 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900 lg:min-h-10"
           >
-            <LogOut className="h-[18px] w-[18px]" strokeWidth={1.85} />
+            <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
             Keluar
           </button>
         </div>
@@ -162,20 +160,20 @@ export function AdminLayout() {
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-surface/80 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              {/* Hamburger — buka drawer (mobile saja) */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-lg p-1.5 text-gray-600 hover:bg-gray-100 hover:text-gray-900 md:hidden"
-                aria-label="Buka menu"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <h2 className="truncate text-base font-semibold text-gray-900">Panel Admin</h2>
-            </div>
-            <span className="hidden truncate text-sm text-gray-500 sm:block">{user?.email}</span>
+        {/* Hanya di HP, tempat hamburger berada. Judul halaman tetap satu: <h1> di dalam
+            halamannya, jadi bar ini menampilkan merek, bukan judul. */}
+        <header className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-2 sm:px-6 md:hidden">
+          <div className="flex min-h-10 min-w-0 items-center gap-2">
+            {/* Hamburger — buka drawer */}
+            <IconButton
+              aria-label="Buka menu"
+              onClick={() => setSidebarOpen(true)}
+              className="-ml-2"
+            >
+              <Menu className="h-5 w-5" strokeWidth={1.75} />
+            </IconButton>
+            <Logo size={28} />
+            <p className="truncate text-sm font-semibold text-gray-900">Populi Center</p>
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">

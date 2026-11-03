@@ -3,7 +3,6 @@ import {
   Search,
   FileSpreadsheet,
   FileText,
-  Loader2,
   Trash2,
   ChevronUp,
   ChevronDown,
@@ -12,7 +11,21 @@ import {
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { api } from '@/services/api';
+import { Button } from '@/components/common/Button';
+import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
+import { RowCheckbox } from '@/components/common/RowCheckbox';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
+import { TableSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
+
+// Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
+// Kelas dasar dipisah dari warna/padding: utilitas yang bentrok dimenangkan urutan CSS.
+const thBase = `${thBaseCls} whitespace-nowrap py-2.5`;
+const thCls = `${thBase} text-left`;
+const tdBase = tdBaseCls;
+const tdCls = `${tdBase} py-3 text-gray-600`;
 
 interface Respondent {
   id: string;
@@ -413,28 +426,30 @@ export function RespondentsPage() {
 
   const selectedCount = displayed.filter((r) => selected.has(r.id)).length;
 
-  const SortHead = ({
-    k,
-    label,
-    className = '',
-  }: {
-    k: SortKey;
-    label: string;
-    className?: string;
-  }) => (
+  // Fungsi render, bukan komponen: komponen yang dibuat ulang tiap render me-remount th dan
+  // tombolnya, sehingga fokus keyboard hilang ke body setiap kali sortir ditekan.
+  const renderSortHead = (k: SortKey, label: string, numeric = false) => (
     <th
-      className={`cursor-pointer select-none whitespace-nowrap px-4 py-3.5 hover:text-gray-700 ${className}`}
-      onClick={() => toggleSort(k)}
+      aria-sort={sortKey === k ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={`${thBaseCls} whitespace-nowrap py-0 lg:py-2.5 ${
+        numeric ? 'text-right' : 'text-left'
+      }`}
     >
-      <span className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => toggleSort(k)}
+        className={`inline-flex min-h-11 min-w-11 items-center gap-1 font-medium hover:text-gray-900 lg:min-h-0 ${
+          numeric ? 'justify-end' : ''
+        }`}
+      >
         {label}
         {sortKey === k &&
           (sortDir === 'asc' ? (
-            <ChevronUp className="h-3 w-3" />
+            <ChevronUp className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
           ) : (
-            <ChevronDown className="h-3 w-3" />
+            <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />
           ))}
-      </span>
+      </button>
     </th>
   );
 
@@ -442,12 +457,7 @@ export function RespondentsPage() {
     <div className="space-y-4">
       {dialog}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Responden</h1>
-          <p className="text-sm text-gray-500">
-            Daftar responden mandiri — filter, urutkan, dan kelola.
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Responden</h1>
         <div className="flex flex-wrap items-center gap-2">
           <input
             ref={fileInputRef}
@@ -459,211 +469,204 @@ export function RespondentsPage() {
               if (f) void handleImportFile(f);
             }}
           />
-          <button
-            onClick={downloadTemplate}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Download className="h-4 w-4" /> Template
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={importing}
-            className="inline-flex items-center gap-2 rounded-md bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-          >
-            {importing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="h-4 w-4" />
-            )}
+          <Button type="button" variant="secondary" onClick={downloadTemplate}>
+            <Download className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Template
+          </Button>
+          <Button type="button" onClick={() => fileInputRef.current?.click()} isLoading={importing}>
+            {!importing && <Upload className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />}
             Impor Excel
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
             onClick={exportExcel}
             disabled={displayed.length === 0}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            <FileSpreadsheet className="h-4 w-4" /> Excel
-          </button>
-          <button
+            <FileSpreadsheet className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Excel
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
             onClick={exportCsv}
             disabled={displayed.length === 0}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
-            <FileText className="h-4 w-4" /> CSV
-          </button>
+            <FileText className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> CSV
+          </Button>
         </div>
       </div>
 
       {/* Toolbar: cari + filter */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <div className="relative w-full sm:w-64">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama/email/telepon…"
-            className="w-64 rounded-md border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            aria-label="Cari responden"
+            className={`${fieldCls} pl-9`}
           />
         </div>
-        <select
-          value={filterProvince}
-          onChange={(e) => setFilterProvince(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">Semua provinsi</option>
-          {provinceOptions.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filterGender}
-          onChange={(e) => setFilterGender(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
-          <option value="">Semua gender</option>
-          <option value="male">Laki-laki</option>
-          <option value="female">Perempuan</option>
-          <option value="other">Lainnya</option>
-        </select>
+        <div className="w-full sm:w-48">
+          <select
+            value={filterProvince}
+            onChange={(e) => setFilterProvince(e.target.value)}
+            aria-label="Filter provinsi"
+            className={fieldCls}
+          >
+            <option value="">Semua provinsi</option>
+            {provinceOptions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-44">
+          <select
+            value={filterGender}
+            onChange={(e) => setFilterGender(e.target.value)}
+            aria-label="Filter jenis kelamin"
+            className={fieldCls}
+          >
+            <option value="">Semua gender</option>
+            <option value="male">Laki-laki</option>
+            <option value="female">Perempuan</option>
+            <option value="other">Lainnya</option>
+          </select>
+        </div>
         {(filterProvince || filterGender) && (
-          <button
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => {
               setFilterProvince('');
               setFilterGender('');
             }}
-            className="text-sm text-gray-500 hover:text-gray-700"
           >
             Reset filter
-          </button>
+          </Button>
         )}
         {selectedCount > 0 && (
-          <button
+          <Button
+            type="button"
+            variant="danger"
             onClick={handleBulkDelete}
-            disabled={bulkBusy}
-            className="ml-auto inline-flex items-center gap-2 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            isLoading={bulkBusy}
+            className="ml-auto"
           >
-            {bulkBusy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Trash2 className="h-4 w-4" />
-            )}
+            {!bulkBusy && <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />}
             Hapus terpilih ({selectedCount})
-          </button>
+          </Button>
         )}
       </div>
 
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <Notice tone="danger" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
-      {info && (
-        <div className="rounded-md border border-primary-200 bg-primary-50 p-3 text-sm text-primary-700">
-          {info}
-        </div>
-      )}
+      {info && <Notice>{info}</Notice>}
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <tr>
-              <th className="px-4 py-3.5">
-                <input
-                  type="checkbox"
-                  checked={allDisplayedSelected}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-              </th>
-              <SortHead k="fullName" label="Nama" />
-              <th className="px-4 py-3.5">Email</th>
-              <th className="px-4 py-3.5">Telepon</th>
-              <SortHead k="age" label="Umur" />
-              <SortHead k="gender" label="Jenis Kelamin" />
-              <th className="px-4 py-3.5">Pekerjaan</th>
-              <th className="px-4 py-3.5">Pendidikan</th>
-              <th className="px-4 py-3.5">Agama</th>
-              <SortHead k="province" label="Provinsi" />
-              <SortHead k="city" label="Kota/Kab" />
-              <SortHead k="district" label="Kecamatan" />
-              <th className="px-4 py-3.5">Alamat</th>
-              <SortHead k="registeredAt" label="Tgl Daftar" />
-              <th className="px-4 py-3.5 text-right">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading && (
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
               <tr>
-                <td colSpan={15} className="px-3 py-10 text-center text-gray-400">
-                  <Loader2 className="mx-auto h-5 w-5 animate-spin" />
-                </td>
+                <th className={thCls}>
+                  <RowCheckbox
+                    label="Pilih semua responden"
+                    checked={allDisplayedSelected}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                {renderSortHead('fullName', 'Nama')}
+                <th className={thCls}>Email</th>
+                <th className={thCls}>Telepon</th>
+                {renderSortHead('age', 'Umur', true)}
+                {renderSortHead('gender', 'Jenis Kelamin')}
+                <th className={thCls}>Pekerjaan</th>
+                <th className={thCls}>Pendidikan</th>
+                <th className={thCls}>Agama</th>
+                {renderSortHead('province', 'Provinsi')}
+                {renderSortHead('city', 'Kota/Kab')}
+                {renderSortHead('district', 'Kecamatan')}
+                <th className={thCls}>Alamat</th>
+                {renderSortHead('registeredAt', 'Tgl Daftar')}
+                <th className={`${thBase} text-right`}>Aksi</th>
               </tr>
-            )}
-            {!loading && displayed.length === 0 && (
-              <tr>
-                <td colSpan={15} className="px-3 py-10 text-center text-gray-400">
-                  Tidak ada responden.
-                </td>
-              </tr>
-            )}
-            {!loading &&
-              displayed.map((r) => (
-                <tr
-                  key={r.id}
-                  className={selected.has(r.id) ? 'bg-primary-50/40' : 'hover:bg-gray-50'}
-                >
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(r.id)}
-                      onChange={() => toggleSelect(r.id)}
-                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-800">
-                    {r.fullName}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.email}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.phone}</td>
-                  <td className="px-4 py-3 text-gray-600">{r.age ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
-                    {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
-                    {r.occupation ?? '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
-                    {r.education ?? '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.religion ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.province ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.city ?? '—'}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">{r.district ?? '—'}</td>
-                  <td className="max-w-xs truncate px-4 py-3 text-gray-600" title={r.address ?? ''}>
-                    {r.address ?? '—'}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-gray-500">
-                    {fmtDate(r.registeredAt)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(r)}
-                      title="Hapus responden"
-                      className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 hover:text-red-800"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" /> Hapus
-                    </button>
+            </thead>
+            <tbody className="[&>tr:last-child>td]:border-b-0">
+              {loading && (
+                <tr>
+                  <td colSpan={15} className="p-0">
+                    <TableSkeleton rows={6} cols={6} />
                   </td>
                 </tr>
-              ))}
-          </tbody>
-        </table>
+              )}
+              {!loading && displayed.length === 0 && (
+                <tr>
+                  <td colSpan={15} className={`${tdBase} py-10 text-center text-gray-600`}>
+                    Tidak ada responden.
+                  </td>
+                </tr>
+              )}
+              {!loading &&
+                displayed.map((r) => (
+                  <tr
+                    key={r.id}
+                    className={selected.has(r.id) ? 'bg-primary-50' : 'hover:bg-gray-50'}
+                  >
+                    <td className={tdCls}>
+                      <RowCheckbox
+                        label={`Pilih ${r.fullName}`}
+                        checked={selected.has(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                      />
+                    </td>
+                    <td className={`${tdBase} whitespace-nowrap py-3 font-medium text-gray-800`}>
+                      {r.fullName}
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.email}</td>
+                    <td className={`${tdCls} whitespace-nowrap tabular-nums`}>{r.phone}</td>
+                    <td className={`${tdCls} text-right tabular-nums`}>{r.age ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>
+                      {r.gender ? (GENDER_LABEL[r.gender] ?? r.gender) : '—'}
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.occupation ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.education ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.religion ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.province ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.city ?? '—'}</td>
+                    <td className={`${tdCls} whitespace-nowrap`}>{r.district ?? '—'}</td>
+                    <td className={`${tdCls} max-w-xs truncate`} title={r.address ?? ''}>
+                      {r.address ?? '—'}
+                    </td>
+                    <td className={`${tdCls} whitespace-nowrap tabular-nums`}>
+                      {fmtDate(r.registeredAt)}
+                    </td>
+                    <td className={`${tdBase} whitespace-nowrap py-1.5 text-right`}>
+                      <IconButton
+                        aria-label={`Hapus responden ${r.fullName}`}
+                        destructive
+                        onClick={() => handleDelete(r)}
+                      >
+                        <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                      </IconButton>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {!loading && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs tabular-nums text-gray-500">
           Menampilkan {displayed.length} dari {respondents.length} responden
           {selectedCount > 0 ? ` · ${selectedCount} terpilih` : ''}.
         </p>

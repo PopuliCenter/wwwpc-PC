@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/common/Button';
+import { Button, buttonCls, useTapFeedback } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
+import { Notice } from '@/components/common/Notice';
 import { api } from '@/services/api';
+import { AuthError, AuthHeader, PasswordToggle, authLinkCls, otpInputCls } from './AuthShared';
 
 export function ForgotPasswordPage() {
+  const tap = useTapFeedback();
   const [step, setStep] = useState<'email' | 'reset' | 'done'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -48,7 +50,7 @@ export function ForgotPasswordPage() {
     e.preventDefault();
     setError('');
     if (password !== confirmPassword) {
-      setError('Konfirmasi password tidak sama.');
+      setError('Konfirmasi kata sandi tidak sama.');
       return;
     }
     setIsLoading(true);
@@ -62,7 +64,7 @@ export function ForgotPasswordPage() {
     } catch (err: unknown) {
       const apiError = err as { message?: string | string[] };
       const msg = Array.isArray(apiError.message) ? apiError.message.join(', ') : apiError.message;
-      setError(msg || 'Gagal mereset password. Periksa kode OTP Anda.');
+      setError(msg || 'Gagal mereset kata sandi. Periksa kode OTP Anda.');
     } finally {
       setIsLoading(false);
     }
@@ -71,17 +73,12 @@ export function ForgotPasswordPage() {
   if (step === 'done') {
     return (
       <div>
-        <h2 className="mb-4 text-xl font-semibold text-gray-900">Password Berhasil Direset</h2>
-        <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-4">
-          <p className="text-sm text-green-700">
-            Password Anda telah diperbarui. Silakan masuk dengan password baru.
-          </p>
-        </div>
-        <Link
-          to="/login"
-          className="block text-center text-sm font-medium text-primary-600 hover:text-primary-500"
-        >
-          Ke halaman login
+        <AuthHeader title="Kata sandi diperbarui" />
+        <Notice tone="success" className="mb-4">
+          Kata sandi Anda telah diperbarui. Silakan masuk dengan kata sandi baru.
+        </Notice>
+        <Link to="/login" onClick={tap} className={buttonCls('primary', 'lg', 'w-full')}>
+          Ke halaman masuk
         </Link>
       </div>
     );
@@ -89,23 +86,21 @@ export function ForgotPasswordPage() {
 
   return (
     <div>
-      <h2 className="mb-2 text-xl font-semibold text-gray-900">Lupa Password</h2>
-      <p className="mb-6 text-sm text-gray-600">
-        {step === 'email'
-          ? 'Masukkan email Anda, kami akan mengirim kode OTP untuk reset password.'
-          : 'Masukkan kode OTP yang dikirim ke email Anda dan password baru.'}
-      </p>
+      <AuthHeader
+        title="Lupa kata sandi"
+        subtitle={
+          step === 'email'
+            ? 'Masukkan email Anda, kami akan mengirim kode OTP untuk mereset kata sandi.'
+            : 'Masukkan kode OTP yang dikirim ke email Anda dan kata sandi baru.'
+        }
+      />
 
       {info && (
-        <div className="mb-4 rounded-md border border-primary-200 bg-primary-50 p-3">
-          <p className="text-sm text-primary-700">{info}</p>
-        </div>
+        <p className="mb-4 text-sm text-gray-600" role="status">
+          {info}
+        </p>
       )}
-      {error && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3" role="alert">
-          <p className="text-sm text-red-700">{error}</p>
-        </div>
-      )}
+      <AuthError message={error} />
 
       {step === 'email' ? (
         <form onSubmit={requestOtp} className="space-y-4">
@@ -118,81 +113,73 @@ export function ForgotPasswordPage() {
             required
             autoComplete="email"
           />
-          <Button type="submit" isLoading={isLoading} className="w-full">
-            Kirim Kode OTP
+          <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
+            Kirim kode OTP
           </Button>
         </form>
       ) : (
         <form onSubmit={confirmReset} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Kode OTP</label>
+            <label htmlFor="otp-reset" className="mb-1.5 block text-sm font-medium text-gray-700">
+              Kode OTP
+            </label>
             <input
+              id="otp-reset"
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="______"
-              className="w-full rounded-md border border-gray-300 px-3 py-2.5 text-center text-xl font-semibold tracking-[0.4em] focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              className={otpInputCls}
               required
             />
           </div>
           <Input
-            label="Password Baru"
+            label="Kata sandi baru"
             type={showPassword ? 'text' : 'password'}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimal 8 karakter"
+            helperText="Minimal 8 karakter."
             required
             minLength={8}
             autoComplete="new-password"
             trailingIcon={
-              <button
-                type="button"
-                tabIndex={-1}
-                onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                className="text-gray-400 transition-colors hover:text-gray-600 focus:outline-none"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+              <PasswordToggle shown={showPassword} onToggle={() => setShowPassword((v) => !v)} />
             }
           />
           <Input
-            label="Konfirmasi Password Baru"
+            label="Konfirmasi kata sandi baru"
             type={showPassword ? 'text' : 'password'}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Ulangi password baru"
+            placeholder="Ulangi kata sandi baru"
             required
             minLength={8}
             autoComplete="new-password"
             error={
               confirmPassword.length > 0 && confirmPassword !== password
-                ? 'Password tidak sama'
+                ? 'Kata sandi tidak sama'
                 : undefined
             }
           />
           <Button
             type="submit"
+            size="lg"
             isLoading={isLoading}
             className="w-full"
             disabled={code.length !== 6}
           >
-            Reset Password
+            Simpan kata sandi baru
           </Button>
-          <button
-            type="button"
-            onClick={resendOtp}
-            className="w-full text-center text-sm font-medium text-primary-600 hover:text-primary-500"
-          >
+          <Button type="button" variant="ghost" className="w-full" onClick={resendOtp}>
             Kirim ulang kode
-          </button>
+          </Button>
         </form>
       )}
 
-      <p className="mt-6 text-center text-sm text-gray-600">
-        <Link to="/login" className="font-medium text-primary-600 hover:text-primary-500">
-          Kembali ke login
+      <p className="mt-6 text-sm">
+        <Link to="/login" className={authLinkCls}>
+          Kembali ke halaman masuk
         </Link>
       </p>
     </div>

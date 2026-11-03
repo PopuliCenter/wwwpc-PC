@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Megaphone, Send } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { api } from '@/services/api';
+import { Button } from '@/components/common/Button';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { Notice } from '@/components/common/Notice';
+import { fieldCls, textareaCls } from '@/components/common/fieldStyles';
 
 /**
  * Pengumuman/Berita ke responden. Disiarkan ke lonceng (in-app) semua responden
@@ -68,99 +71,109 @@ export function AnnouncementPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       {dialog}
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
-          <Megaphone className="h-6 w-6 text-primary-600" /> Pengumuman
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-gray-900">Pengumuman</h1>
+        <p className="mt-1 text-sm text-gray-600">
           Kirim berita/info ke semua responden. Muncul di lonceng aplikasi mereka, dan opsional
           sebagai push notifikasi.
         </p>
       </div>
 
       {result && (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <Notice tone="success" role="status">
           {result}
-        </div>
+        </Notice>
       )}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <Notice tone="danger" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5"
       >
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Judul</label>
+          <label
+            htmlFor="announcementTitle"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Judul
+          </label>
           <input
+            id="announcementTitle"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
-            placeholder="Contoh: Hadiah poin naik bulan ini!"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            placeholder="Contoh: Survei baru minggu ini"
+            className={fieldCls}
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Isi</label>
+          <label
+            htmlFor="announcementBody"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Isi
+          </label>
           <textarea
+            id="announcementBody"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             maxLength={2000}
             rows={5}
             placeholder="Tulis pengumuman Anda di sini…"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            className={textareaCls}
           />
-          <p className="mt-1 text-right text-xs text-gray-400">{body.length}/2000</p>
+          <p className="mt-1 text-right text-xs tabular-nums text-gray-500">{body.length}/2000</p>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Link tujuan <span className="text-gray-400">(opsional)</span>
+          <label
+            htmlFor="announcementLink"
+            className="mb-1 block text-sm font-medium text-gray-700"
+          >
+            Link tujuan <span className="font-normal text-gray-500">(opsional)</span>
           </label>
           <input
+            id="announcementLink"
             type="text"
             value={link}
             onChange={(e) => setLink(e.target.value)}
             placeholder="Contoh: /rewards atau /surveys/<id>/fill"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            className={fieldCls}
           />
-          <p className="mt-1 text-xs text-gray-400">
+          <p className="mt-1 text-xs text-gray-600">
             Rute internal aplikasi yang dibuka saat notifikasi diketuk.
           </p>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-700 lg:min-h-0">
           <input
             type="checkbox"
             checked={sendPush}
             onChange={(e) => setSendPush(e.target.checked)}
-            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            className="h-4 w-4 shrink-0 accent-primary-600"
           />
           Kirim juga sebagai push notifikasi (bila perangkat terdaftar)
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-gray-700 lg:min-h-0">
           <input
             type="checkbox"
             checked={sendEmail}
             onChange={(e) => setSendEmail(e.target.checked)}
-            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            className="h-4 w-4 shrink-0 accent-primary-600"
           />
           Kirim juga sebagai email ke semua responden
         </label>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
-        >
-          <Send className="h-4 w-4" />
+        <Button type="submit" disabled={submitting}>
+          <Send className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
           {submitting ? 'Mengirim…' : 'Kirim Pengumuman'}
-        </button>
+        </Button>
       </form>
     </div>
   );

@@ -26,18 +26,25 @@ export default defineConfig({
       // di native. Tanpa ini, plugin menyuntik skrip auto-register ke index.html
       // sehingga SW tetap aktif di Capacitor → layar blank. null = jangan suntik.
       injectRegister: null,
-      includeAssets: ['logo-populi-center.png'],
+      // Ikon di bawah ini digenerate docs/play-store/assets/generate-assets.js.
       manifest: {
-        name: 'Survei Populi',
-        short_name: 'Survei Populi',
-        description: 'Platform survei & pengumpulan data lapangan',
-        theme_color: '#4f46e5',
-        background_color: '#ffffff',
+        name: 'Riset Populi Center',
+        short_name: 'Populi Center',
+        lang: 'id',
+        description: 'Survei opini publik dari Populi Center',
+        theme_color: '#FFFFFF',
+        background_color: '#F5F6F6',
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/logo-populi-center.png', sizes: '192x192', type: 'image/png' },
-          { src: '/logo-populi-center.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: '/icons/icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -45,6 +52,9 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Berkas sumber logo 5700x5699 tetap dilayani (dipakai template email backend),
+        // tetapi tidak ikut precache; UI memakai varian 96 dan 192.
+        globIgnores: ['**/node_modules/**/*', 'logo-populi-center.png'],
         runtimeCaching: [
           {
             // Cache GET data survei (mis. fill/numbers) agar bisa dibuka offline.

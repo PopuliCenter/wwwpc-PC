@@ -6,7 +6,7 @@
  * Pemakaian:  celebrate();                      // dari tengah-atas layar
  *             celebrate({ x: cx, y: cy });      // dari titik tertentu (mis. tombol)
  */
-const COLORS = ['#F86828', '#6366f1', '#1D9E75', '#EF9F27', '#D4537E', '#378ADD'];
+const COLORS = ['#F26522', '#234E8C', '#7BA6D8', '#AECAE9', '#DFE2E3'];
 
 export function celebrate(origin?: { x: number; y: number }): void {
   if (typeof document === 'undefined') return;
@@ -20,14 +20,13 @@ export function celebrate(origin?: { x: number; y: number }): void {
   layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
   document.body.appendChild(layer);
 
-  const count = 90;
+  const count = 50;
   for (let i = 0; i < count; i++) {
     const piece = document.createElement('div');
     const size = 6 + Math.random() * 7;
-    const rounded = Math.random() > 0.5 ? '50%' : '2px';
     piece.style.cssText = `position:absolute;left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;background:${
       COLORS[i % COLORS.length]
-    };border-radius:${rounded};will-change:transform,opacity;`;
+    };border-radius:2px;`;
     layer.appendChild(piece);
 
     const angle = Math.random() * Math.PI * 2;
@@ -45,12 +44,12 @@ export function celebrate(origin?: { x: number; y: number }): void {
         },
       ],
       {
-        duration: 1500 + Math.random() * 800,
+        duration: 1100 + Math.random() * 500,
         easing: 'cubic-bezier(.15,.7,.3,1)',
         fill: 'forwards',
       },
     );
   }
 
-  window.setTimeout(() => layer.remove(), 2600);
+  window.setTimeout(() => layer.remove(), 1700);
 }

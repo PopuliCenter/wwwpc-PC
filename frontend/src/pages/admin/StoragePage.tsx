@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  HardDrive,
   Image as ImageIcon,
   Film,
   Music,
@@ -11,13 +10,18 @@ import {
   Download,
   X,
   Search,
-  Loader2,
   CheckSquare,
   Square,
   type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/services/api';
+import { Button, useTapFeedback } from '@/components/common/Button';
 import { useConfirm } from '@/components/common/ConfirmDialog';
+import { IconButton, iconButtonCls } from '@/components/common/IconButton';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { Notice } from '@/components/common/Notice';
+import { ListRowsSkeleton } from '@/components/common/Skeleton';
+import { fieldCls } from '@/components/common/fieldStyles';
 
 interface StorageObject {
   key: string;
@@ -32,6 +36,11 @@ interface ListResponse {
 }
 
 type BucketKey = 'uploads' | 'exports';
+
+const BUCKETS: { key: BucketKey; label: string }[] = [
+  { key: 'uploads', label: 'Unggahan responden' },
+  { key: 'exports', label: 'Berkas ekspor' },
+];
 
 type Kind = 'image' | 'video' | 'audio' | 'doc' | 'other';
 
@@ -122,6 +131,7 @@ export function StoragePage() {
   const [kindFilter, setKindFilter] = useState<'all' | Kind>('all');
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const { confirm, dialog } = useConfirm();
+  const tap = useTapFeedback();
 
   const fetchPage = useCallback(
     async (token?: string, append = false) => {
@@ -287,75 +297,69 @@ export function StoragePage() {
     <div className="space-y-6">
       {dialog}
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-gray-900">
-          <HardDrive className="h-6 w-6 text-primary-600" /> Penyimpanan (MinIO)
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Telusur, lihat, dan hapus berkas mentah (unggahan responden &amp; file export).
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Penyimpanan (MinIO)</h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Berkas mentah: unggahan responden dan berkas ekspor.
         </p>
       </div>
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-        Menghapus berkas bersifat <strong>permanen</strong> dan bisa memutus rujukan pada respons
-        survei. Gunakan untuk pembersihan/koreksi yang disengaja.
-      </div>
+      <Notice tone="warning">
+        Menghapus berkas bersifat <strong className="font-semibold">permanen</strong> dan bisa
+        memutus rujukan pada respons survei. Gunakan untuk pembersihan/koreksi yang disengaja.
+      </Notice>
 
       {/* Bucket + cari */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
-          {(
-            [
-              { k: 'uploads', label: 'Unggahan responden' },
-              { k: 'exports', label: 'File export' },
-            ] as const
-          ).map(({ k, label }) => (
-            <button
-              key={k}
-              onClick={() => setBucket(k)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                bucket === k
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-900'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Jenis berkas"
+          options={BUCKETS}
+          value={bucket}
+          onChange={setBucket}
+        />
         <div className="relative min-w-[200px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500"
+            strokeWidth={1.75}
+            aria-hidden="true"
+          />
           <input
             value={prefix}
             onChange={(e) => setPrefix(e.target.value)}
             placeholder="Filter awalan key (mis. survey-uploads/<surveyId>/)"
-            className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            aria-label="Filter awalan key"
+            className={`${fieldCls} pl-9`}
           />
         </div>
       </div>
 
       {/* Filter tipe + urutan */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1.5">
-          {KIND_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setKindFilter(key)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                kindFilter === key
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-xs text-gray-500">
-          Urutkan
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-full sm:w-44">
+          <label htmlFor="storageKind" className="mb-1 block text-xs text-gray-600">
+            Jenis berkas
+          </label>
           <select
+            id="storageKind"
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value as 'all' | Kind)}
+            className={fieldCls}
+          >
+            {KIND_FILTERS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-full sm:w-52">
+          <label htmlFor="storageSort" className="mb-1 block text-xs text-gray-600">
+            Urutkan
+          </label>
+          <select
+            id="storageSort"
             value={sortKey}
             onChange={(e) => setSortKey(e.target.value as SortKey)}
-            className="rounded-lg border border-gray-300 py-1.5 pl-2 pr-7 text-xs text-gray-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+            className={fieldCls}
           >
             {SORT_OPTIONS.map((s) => (
               <option key={s.key} value={s.key}>
@@ -363,60 +367,62 @@ export function StoragePage() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <Notice tone="danger" role="alert">
           {error}
-        </div>
+        </Notice>
       )}
 
       {/* Daftar */}
       {loading ? (
-        <p className="py-10 text-center text-sm text-gray-400">Memuat…</p>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <ListRowsSkeleton rows={5} />
+        </div>
       ) : visibleObjects.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm p-10 text-center">
-          <HardDrive className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
           <p className="text-gray-600">Tidak ada berkas pada filter ini.</p>
         </div>
       ) : (
         <>
           {/* Toolbar seleksi */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-2.5">
-            <button
-              type="button"
-              onClick={toggleAll}
-              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-primary-600"
-            >
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+            <Button type="button" variant="ghost" size="sm" onClick={toggleAll}>
               {allSelected ? (
-                <CheckSquare className="h-4 w-4 text-primary-600" />
+                <CheckSquare
+                  className="h-4 w-4 text-primary-600"
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
               ) : (
-                <Square className="h-4 w-4" />
+                <Square className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
               )}
               {allSelected ? 'Batal pilih semua' : 'Pilih semua di halaman'}
-            </button>
+            </Button>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-400">
+              <span className="text-xs tabular-nums text-gray-600">
                 {selected.size > 0 ? `${selected.size} dipilih` : `${visibleObjects.length} berkas`}
               </span>
-              <button
-                type="button"
-                disabled={selected.size === 0 || bulkBusy}
-                onClick={handleBulkDelete}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none"
-              >
-                {bulkBusy ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="h-3.5 w-3.5" />
-                )}
-                Hapus terpilih
-              </button>
+              {selected.size > 0 && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  isLoading={bulkBusy}
+                  onClick={handleBulkDelete}
+                >
+                  {!bulkBusy && (
+                    <Trash2 className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+                  )}
+                  Hapus terpilih
+                </Button>
+              )}
             </div>
           </div>
 
-          <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
             {visibleObjects.map((o) => {
               const Icon = KIND_ICON[kindOf(o.key)];
               const busy = busyKey === o.key;
@@ -424,57 +430,54 @@ export function StoragePage() {
               return (
                 <li
                   key={o.key}
-                  className={`flex items-center gap-3 px-4 py-3 ${checked ? 'bg-primary-50/50' : ''}`}
+                  className={`flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 ${checked ? 'bg-primary-50' : ''}`}
                 >
-                  <button
-                    type="button"
+                  <IconButton
+                    aria-label={checked ? 'Batal pilih' : 'Pilih'}
+                    aria-pressed={checked}
                     onClick={() => toggleOne(o.key)}
-                    title={checked ? 'Batal pilih' : 'Pilih'}
-                    className="shrink-0 text-gray-400 hover:text-primary-600"
                   >
                     {checked ? (
-                      <CheckSquare className="h-4 w-4 text-primary-600" />
+                      <CheckSquare
+                        className="h-[18px] w-[18px] text-primary-600"
+                        strokeWidth={1.75}
+                      />
                     ) : (
-                      <Square className="h-4 w-4" />
+                      <Square className="h-[18px] w-[18px]" strokeWidth={1.75} />
                     )}
-                  </button>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-500 ring-1 ring-inset ring-gray-100">
-                    <Icon className="h-4 w-4" />
-                  </span>
+                  </IconButton>
+                  <Icon
+                    className="h-[18px] w-[18px] shrink-0 text-gray-600"
+                    strokeWidth={1.75}
+                    aria-hidden="true"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-gray-900">
                       {displayName(o.key)}
                     </p>
-                    <p className="truncate text-xs text-gray-400">{o.key}</p>
-                    <p className="text-[11px] text-gray-400">
+                    <p className="truncate text-xs text-gray-500">{o.key}</p>
+                    <p className="text-xs tabular-nums text-gray-500">
                       {fmtSize(o.size)}
                       {o.lastModified
                         ? ` · ${new Date(o.lastModified).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}`
                         : ''}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    disabled={busy}
+                  <IconButton
+                    aria-label="Lihat / unduh"
+                    isLoading={busy}
                     onClick={() => handleView(o.key)}
-                    title="Lihat / unduh"
-                    className="shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:opacity-50"
                   >
-                    {busy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
+                    <Eye className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Hapus"
+                    destructive
                     disabled={busy}
                     onClick={() => handleDelete(o.key)}
-                    title="Hapus"
-                    className="shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </IconButton>
                 </li>
               );
             })}
@@ -484,14 +487,14 @@ export function StoragePage() {
 
       {nextToken && !loading && (
         <div className="text-center">
-          <button
+          <Button
             type="button"
+            variant="secondary"
             disabled={loadingMore}
             onClick={() => fetchPage(nextToken, true)}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
           >
             {loadingMore ? 'Memuat…' : 'Muat lebih banyak'}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -511,17 +514,16 @@ export function StoragePage() {
                 <a
                   href={preview.url}
                   download={preview.name}
-                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+                  aria-label="Unduh"
                   title="Unduh"
+                  onClick={tap}
+                  className={iconButtonCls()}
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-[18px] w-[18px]" strokeWidth={1.75} aria-hidden="true" />
                 </a>
-                <button
-                  onClick={closePreview}
-                  className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                <IconButton aria-label="Tutup" onClick={closePreview}>
+                  <X className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </IconButton>
               </div>
             </div>
             {preview.kind === 'image' && (

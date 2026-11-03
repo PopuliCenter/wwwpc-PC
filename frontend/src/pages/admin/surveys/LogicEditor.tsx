@@ -1,3 +1,8 @@
+import { Plus, Trash2 } from 'lucide-react';
+import { Button } from '@/components/common/Button';
+import { IconButton } from '@/components/common/IconButton';
+import { Notice } from '@/components/common/Notice';
+import { fieldCls } from '@/components/common/fieldStyles';
 import type { Question, ConditionOperator, SkipLogicRule, VisibilityRule } from './surveyEditTypes';
 import { operatorLabels } from './questionTypeMeta';
 
@@ -45,11 +50,7 @@ export function LogicEditor({
     const opts = src && choiceTypes.has(src.type) ? (src.options ?? []) : null;
     if (opts && opts.length > 0) {
       return (
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
-        >
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={fieldCls}>
           <option value="">— pilih nilai —</option>
           {opts.map((o) => (
             <option key={o.id} value={o.value || o.label}>
@@ -64,7 +65,7 @@ export function LogicEditor({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+        className={fieldCls}
         placeholder="nilai..."
       />
     );
@@ -73,39 +74,38 @@ export function LogicEditor({
   return (
     <div className="space-y-4">
       {/* Penjelasan singkat untuk pengguna awam */}
-      <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-600">
+      <Notice>
         Atur pertanyaan ini agar <b>muncul atau hilang otomatis</b> tergantung jawaban pertanyaan
         sebelumnya. Contoh: tampilkan "Akun Instagram" hanya jika responden menjawab "Ya" pada
         "Punya Instagram?".
-      </div>
+      </Notice>
 
       {/* Skip Logic */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold text-purple-700 uppercase tracking-wide">
-            Sembunyikan otomatis
-          </h4>
-          <button
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-gray-700">Sembunyikan otomatis</h4>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0 whitespace-nowrap"
             onClick={() => setSkip([...skipRules, blankSkip()])}
-            className="text-xs text-purple-600 hover:text-purple-800"
           >
-            + Tambah Aturan
-          </button>
+            <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Tambah Aturan
+          </Button>
         </div>
-        <p className="text-xs text-gray-400 mb-2">
+        <p className="mb-2 text-xs text-gray-600">
           Sembunyikan pertanyaan ini jika kondisi terpenuhi.
         </p>
-        {skipRules.length === 0 && (
-          <p className="text-xs text-gray-400 italic">Tidak ada skip logic.</p>
-        )}
+        {skipRules.length === 0 && <p className="text-xs text-gray-500">Belum ada aturan.</p>}
         {skipRules.map((rule, idx) => (
           <div
             key={idx}
-            className="bg-purple-50 border border-purple-100 rounded p-2 mb-2 space-y-2"
+            className="mb-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
           >
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Jika pertanyaan</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Jika pertanyaan</label>
                 <select
                   value={rule.sourceQuestionId}
                   onChange={(e) => {
@@ -113,7 +113,7 @@ export function LogicEditor({
                     n[idx] = { ...rule, sourceQuestionId: e.target.value };
                     setSkip(n);
                   }}
-                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+                  className={fieldCls}
                 >
                   <option value="">— pilih —</option>
                   {others.map((q) => (
@@ -128,7 +128,7 @@ export function LogicEditor({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Operator</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Operator</label>
                 <select
                   value={rule.operator}
                   onChange={(e) => {
@@ -136,7 +136,7 @@ export function LogicEditor({
                     n[idx] = { ...rule, operator: e.target.value as ConditionOperator };
                     setSkip(n);
                   }}
-                  className="w-full px-1.5 py-1 border border-purple-200 rounded text-xs"
+                  className={fieldCls}
                 >
                   {(Object.entries(operatorLabels) as [ConditionOperator, string][]).map(
                     ([k, v]) => (
@@ -148,7 +148,7 @@ export function LogicEditor({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Nilai</label>
                 {renderValueInput(rule.sourceQuestionId, rule.conditionValue, (v) => {
                   const n = [...skipRules];
                   n[idx] = { ...rule, conditionValue: v };
@@ -156,46 +156,52 @@ export function LogicEditor({
                 })}
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Aksi:</span>
-                <select
-                  value={rule.action}
-                  onChange={(e) => {
-                    const n = [...skipRules];
-                    n[idx] = { ...rule, action: e.target.value as 'skip' | 'jump_to' };
-                    setSkip(n);
-                  }}
-                  className="px-1.5 py-1 border border-purple-200 rounded text-xs"
-                >
-                  <option value="skip">Sembunyikan pertanyaan ini</option>
-                  <option value="jump_to">Lompat ke pertanyaan lain</option>
-                </select>
-                {rule.action === 'jump_to' && (
+            <div className="flex items-end gap-2">
+              <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="block text-xs text-gray-600">
+                  Aksi
                   <select
-                    value={rule.targetQuestionId ?? ''}
+                    value={rule.action}
                     onChange={(e) => {
                       const n = [...skipRules];
-                      n[idx] = { ...rule, targetQuestionId: e.target.value };
+                      n[idx] = { ...rule, action: e.target.value as 'skip' | 'jump_to' };
                       setSkip(n);
                     }}
-                    className="px-1.5 py-1 border border-purple-200 rounded text-xs"
+                    className={`${fieldCls} mt-0.5`}
                   >
-                    <option value="">— tujuan —</option>
-                    {others.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.text ? q.text.slice(0, 25) : `Q${q.order + 1}`}
-                      </option>
-                    ))}
+                    <option value="skip">Sembunyikan pertanyaan ini</option>
+                    <option value="jump_to">Lompat ke pertanyaan lain</option>
                   </select>
+                </label>
+                {rule.action === 'jump_to' && (
+                  <label className="block text-xs text-gray-600">
+                    Tujuan
+                    <select
+                      value={rule.targetQuestionId ?? ''}
+                      onChange={(e) => {
+                        const n = [...skipRules];
+                        n[idx] = { ...rule, targetQuestionId: e.target.value };
+                        setSkip(n);
+                      }}
+                      className={`${fieldCls} mt-0.5`}
+                    >
+                      <option value="">— tujuan —</option>
+                      {others.map((q) => (
+                        <option key={q.id} value={q.id}>
+                          {q.text ? q.text.slice(0, 25) : `Q${q.order + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
               </div>
-              <button
+              <IconButton
+                aria-label="Hapus aturan"
+                destructive
                 onClick={() => setSkip(skipRules.filter((_, i) => i !== idx))}
-                className="text-red-400 hover:text-red-600 text-xs"
               >
-                Hapus
-              </button>
+                <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </IconButton>
             </div>
           </div>
         ))}
@@ -203,26 +209,30 @@ export function LogicEditor({
 
       {/* Visibility Rules */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-            Tampilkan otomatis
-          </h4>
-          <button
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-gray-700">Tampilkan otomatis</h4>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="shrink-0 whitespace-nowrap"
             onClick={() => setVis([...visRules, blankVis()])}
-            className="text-xs text-blue-600 hover:text-blue-800"
           >
-            + Tambah Kondisi
-          </button>
+            <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Tambah Aturan
+          </Button>
         </div>
-        <p className="text-xs text-gray-400 mb-2">
-          Tampilkan/sembunyikan pertanyaan ini berdasarkan jawaban pertanyaan lain.
+        <p className="mb-2 text-xs text-gray-600">
+          Atur tampil atau tidaknya pertanyaan ini berdasarkan jawaban pertanyaan lain.
         </p>
-        {visRules.length === 0 && <p className="text-xs text-gray-400 italic">Selalu tampil.</p>}
+        {visRules.length === 0 && <p className="text-xs text-gray-500">Selalu tampil.</p>}
         {visRules.map((rule, idx) => (
-          <div key={idx} className="bg-blue-50 border border-blue-100 rounded p-2 mb-2 space-y-2">
-            <div className="grid grid-cols-3 gap-1.5">
+          <div
+            key={idx}
+            className="mb-2 space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
+          >
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Jika pertanyaan</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Jika pertanyaan</label>
                 <select
                   value={rule.sourceQuestionId}
                   onChange={(e) => {
@@ -230,7 +240,7 @@ export function LogicEditor({
                     n[idx] = { ...rule, sourceQuestionId: e.target.value };
                     setVis(n);
                   }}
-                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
+                  className={fieldCls}
                 >
                   <option value="">— pilih —</option>
                   {others.map((q) => (
@@ -245,7 +255,7 @@ export function LogicEditor({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Operator</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Operator</label>
                 <select
                   value={rule.operator}
                   onChange={(e) => {
@@ -253,7 +263,7 @@ export function LogicEditor({
                     n[idx] = { ...rule, operator: e.target.value as ConditionOperator };
                     setVis(n);
                   }}
-                  className="w-full px-1.5 py-1 border border-blue-200 rounded text-xs"
+                  className={fieldCls}
                 >
                   {(Object.entries(operatorLabels) as [ConditionOperator, string][]).map(
                     ([k, v]) => (
@@ -265,7 +275,7 @@ export function LogicEditor({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-0.5">Nilai</label>
+                <label className="mb-0.5 block text-xs text-gray-600">Nilai</label>
                 {renderValueInput(rule.sourceQuestionId, rule.conditionValue, (v) => {
                   const n = [...visRules];
                   n[idx] = { ...rule, conditionValue: v };
@@ -273,9 +283,9 @@ export function LogicEditor({
                 })}
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Maka:</span>
+            <div className="flex items-end gap-2">
+              <label className="block min-w-0 flex-1 text-xs text-gray-600 sm:max-w-xs">
+                Maka
                 <select
                   value={rule.visibilityAction}
                   onChange={(e) => {
@@ -283,18 +293,20 @@ export function LogicEditor({
                     n[idx] = { ...rule, visibilityAction: e.target.value as 'show' | 'hide' };
                     setVis(n);
                   }}
-                  className="px-1.5 py-1 border border-blue-200 rounded text-xs"
+                  className={`${fieldCls} mt-0.5`}
                 >
                   <option value="show">Tampilkan pertanyaan ini</option>
                   <option value="hide">Sembunyikan pertanyaan ini</option>
                 </select>
-              </div>
-              <button
+              </label>
+              <IconButton
+                aria-label="Hapus aturan"
+                destructive
+                className="ml-auto"
                 onClick={() => setVis(visRules.filter((_, i) => i !== idx))}
-                className="text-red-400 hover:text-red-600 text-xs"
               >
-                Hapus
-              </button>
+                <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+              </IconButton>
             </div>
           </div>
         ))}
