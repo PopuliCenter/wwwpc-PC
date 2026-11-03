@@ -7,6 +7,34 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { STATUS_CODES } from 'http';
+
+// Pesan tetap untuk error body-parser: layar kirim survei menampilkan pesan server apa
+// adanya, sedangkan teks aslinya berbahasa Inggris dan bisa memuat detail zlib.
+const BODY_ERROR_MESSAGES: Record<number, string> = {
+  413: 'Data yang dikirim terlalu besar.',
+  415: 'Format data tidak didukung.',
+};
+
+/**
+ * Status dan pesan 4xx untuk error dari middleware yang bukan HttpException, atau
+ * undefined bila error itu bukan kesalahan klien.
+ * - multer: Nest 10 memetakannya lewat teks persis, yang tak lagi cocok dgn multer
+ *   yang kita override (mis. 'Unexpected file field').
+ * - body-parser (http-errors): `expose` wajib dicek agar `status` milik error layanan
+ *   luar tidak ikut dianggap kesalahan klien.
+ */
+function clientError(exception: unknown): { status: number; message: string } | undefined {
+  if (!(exception instanceof Error)) return undefined;
+  if (exception.name === 'MulterError') {
+    return { status: HttpStatus.BAD_REQUEST, message: exception.message };
+  }
+  const { status, expose } = exception as Error & { status?: unknown; expose?: unknown };
+  if (expose === true && typeof status === 'number' && status >= 400 && status < 500) {
+    return { status, message: BODY_ERROR_MESSAGES[status] ?? 'Permintaan tidak valid.' };
+  }
+  return undefined;
+}
 
 /**
  * Filter exception global: menormalkan SEMUA error ke satu bentuk body
@@ -25,23 +53,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    // Nest 10 memetakan error multer lewat teks persis, yang tak lagi cocok dgn multer
-    // yang kita override (mis. 'Unexpected file field'). Semuanya kesalahan klien.
-    const isMulterError = exception instanceof Error && exception.name === 'MulterError';
+    const client = clientError(exception);
 
     const status =
       exception instanceof HttpException
         ? exception.getStatus()
-        : isMulterError
-          ? HttpStatus.BAD_REQUEST
-          : HttpStatus.INTERNAL_SERVER_ERROR;
+        : (client?.status ?? HttpStatus.INTERNAL_SERVER_ERROR);
 
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
 
-    if (isMulterError) {
-      message = exception.message;
-      error = 'Bad Request';
+    if (client) {
+      message = client.message;
+      error = STATUS_CODES[client.status] ?? 'Bad Request';
     }
     // Detail validasi per-item (mis. daftar pertanyaan wajib) — diteruskan ke
     // klien HANYA untuk error 4xx agar frontend bisa menampilkan alasan spesifik.
