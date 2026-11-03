@@ -25,11 +25,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    // Nest 10 memetakan error multer lewat teks persis, yang tak lagi cocok dgn multer
+    // yang kita override (mis. 'Unexpected file field'). Semuanya kesalahan klien.
+    const isMulterError = exception instanceof Error && exception.name === 'MulterError';
+
     const status =
-      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : isMulterError
+          ? HttpStatus.BAD_REQUEST
+          : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
+
+    if (isMulterError) {
+      message = exception.message;
+      error = 'Bad Request';
+    }
     // Detail validasi per-item (mis. daftar pertanyaan wajib) — diteruskan ke
     // klien HANYA untuk error 4xx agar frontend bisa menampilkan alasan spesifik.
     let errors: string[] | undefined;

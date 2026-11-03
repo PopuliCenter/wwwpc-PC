@@ -26,21 +26,6 @@ const ALLOWLIST = [
   // @nestjs/core injection — hanya tertutup di v12 (breaking). Dinilai risiko
   // rendah pada pemakaian app ini; dijadwalkan upgrade v10→v12.
   { id: 'GHSA-36xv-jgw5-4q75', reason: '@nestjs/core; perlu upgrade v12', expires: '2026-12-31' },
-  // multer DoS/bypass — multer di-pin 2.0.2 oleh @nestjs/platform-express@10;
-  // naik bersih baru mungkin setelah platform-express v11/v12. Dampak dibatasi:
-  // endpoint upload wajib auth+profil lengkap, di belakang Cloudflare, dan cek
-  // ukuran berkas milik app sendiri (file-validation.service) menahan bypass.
-  { id: 'GHSA-wc9g-mqfw-jrwm', reason: 'multer DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
-  { id: 'GHSA-qfvm-cv95-jqjf', reason: 'multer DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
-  { id: 'GHSA-qvfw-j98x-7q72', reason: 'multer size-bypass; ditahan cek ukuran app', expires: '2026-12-31' },
-  { id: 'GHSA-535w-7cp7-47q4', reason: 'multer DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
-  // Orphaned disk writes saat upload dibatalkan — hanya berlaku utk diskStorage.
-  // App memakai memoryStorage (file-validation membaca file.buffer) → tak ada
-  // tulis disk, tak terjangkau.
-  { id: 'GHSA-3pph-fpjx-jg34', reason: 'multer diskStorage; app pakai memory', expires: '2026-12-31' },
-  // body-parser DoS (limit tak berlaku) via express bundled di platform-express@10;
-  // akar sama, tertutup oleh upgrade @nestjs/express. App set batas body sendiri.
-  { id: 'GHSA-v422-hmwv-36x6', reason: 'body-parser DoS; ikut upgrade @nestjs', expires: '2026-12-31' },
 ];
 
 const today = new Date().toISOString().slice(0, 10);
