@@ -100,7 +100,7 @@ function useOrderedOptions(question: Question): SurveyOption[] {
 }
 
 // Bingkai panel pertanyaan: lebar penuh di HP, berbingkai dari sm ke atas.
-const panelFrame = '-mx-4 border-y bg-white sm:mx-0 sm:rounded-xl sm:border';
+const panelFrame = '-mx-4 border-y bg-panel sm:mx-0 sm:rounded-xl sm:border';
 const panelCls = (invalid = false) =>
   `${panelFrame} p-4 sm:p-6 ${invalid ? 'border-danger-fg' : 'border-gray-200'}`;
 
@@ -113,7 +113,7 @@ const choiceRowClasses = (selected: boolean) =>
   `flex min-h-12 cursor-pointer items-center gap-3 rounded-lg transition-colors ${
     selected
       ? 'border-2 border-primary-600 bg-primary-50 px-[13px] py-[11px]'
-      : 'border border-gray-300 bg-white px-3.5 py-3 hover:bg-gray-50'
+      : 'border border-gray-300 bg-panel px-3.5 py-3 hover:bg-gray-50'
   }`;
 
 /** Satu pola status "tersimpan" untuk media dan lokasi: centang + teks, tanpa pita. */
@@ -186,7 +186,7 @@ function ScalePicker({
             className={`h-11 rounded-lg text-base tabular-nums transition-colors ${
               active
                 ? 'border-2 border-primary-600 bg-primary-50 font-semibold text-gray-900'
-                : `border bg-white font-medium text-gray-800 hover:bg-gray-50 ${
+                : `border bg-panel font-medium text-gray-800 hover:bg-gray-50 ${
                     invalid ? 'border-danger-fg' : 'border-gray-300'
                   }`
             }`}
@@ -505,7 +505,7 @@ function MatrixLikertQuestion({ question, value, onChange, invalid }: RendererPr
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
             <tr>
-              <th className="sticky left-0 z-[1] border-r border-gray-100 bg-white px-4 py-2.5 text-left">
+              <th className="sticky left-0 z-[1] border-r border-gray-100 bg-panel px-4 py-2.5 text-left">
                 <span className="sr-only">Pernyataan</span>
               </th>
               {columns.map((col) => (
@@ -524,7 +524,7 @@ function MatrixLikertQuestion({ question, value, onChange, invalid }: RendererPr
               <tr key={row} className="group">
                 <th
                   scope="row"
-                  className={`sticky left-0 z-[1] min-w-44 max-w-72 border-r border-t border-gray-100 bg-white px-4 py-3 text-left text-sm font-normal group-hover:bg-gray-50 ${
+                  className={`sticky left-0 z-[1] min-w-44 max-w-72 border-r border-t border-gray-100 bg-panel px-4 py-3 text-left text-sm font-normal group-hover:bg-gray-50 ${
                     invalid && !answers[row] ? 'text-danger-fg' : 'text-gray-800'
                   }`}
                 >
@@ -858,7 +858,7 @@ function SignatureQuestion({ value, onChange, surveyId, invalid }: RendererProps
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
-        className={`w-full touch-none rounded-lg border bg-white ${invalid ? 'border-danger-fg' : 'border-gray-300'}`}
+        className={`w-full touch-none rounded-lg border bg-paper ${invalid ? 'border-danger-fg' : 'border-gray-300'}`}
         style={{ height: 180 }}
       />
       <p className="text-xs text-gray-600">
@@ -912,10 +912,11 @@ function PhotoQuestion({ value, onChange, surveyId, invalid }: RendererProps) {
       {value ? (
         <div className="space-y-2">
           {preview ? (
+            // bg-paper: PNG transparan bertinta gelap tetap terlihat di tema gelap.
             <img
               src={preview}
               alt="Foto"
-              className="max-h-56 rounded-lg border border-gray-200 object-contain"
+              className="max-h-56 rounded-lg border border-gray-200 bg-paper object-contain"
             />
           ) : (
             <SavedNote>Foto telah diunggah</SavedNote>
@@ -1267,7 +1268,7 @@ function ProgressStrip({
   const percentage = Math.round((current / total) * 100);
   return (
     <div
-      className={`sticky z-[5] -mx-4 border-b border-gray-200 bg-white sm:-mx-6 lg:-mx-8 ${
+      className={`sticky z-[5] -mx-4 border-b border-gray-200 bg-panel sm:-mx-6 lg:-mx-8 ${
         isEmbedMode ? 'top-0' : 'top-16'
       }`}
     >
@@ -1594,7 +1595,7 @@ export function SurveyFillPage() {
     return (
       <div role="status" aria-busy="true">
         <span className="sr-only">Memuat survei</span>
-        <div className="-mx-4 border-b border-gray-200 bg-white sm:-mx-6 lg:-mx-8">
+        <div className="-mx-4 border-b border-gray-200 bg-panel sm:-mx-6 lg:-mx-8">
           <div className={`${fillColumn} py-2`}>
             <Skeleton className="h-[18px] w-32" />
           </div>
@@ -1664,7 +1665,7 @@ export function SurveyFillPage() {
             <p className="mt-2 text-base text-gray-600">Jawaban Anda sudah tercatat.</p>
           )}
           {!queuedOffline && earnedPoints > 0 && (
-            <dl className="mt-6 border-t-2 border-primary-900">
+            <dl className="mt-6 border-t-2 border-table-rule">
               <div className="flex items-baseline justify-between gap-4 py-3">
                 <dt className="text-sm text-gray-600">Poin diperoleh</dt>
                 <dd>
@@ -1778,7 +1779,7 @@ export function SurveyFillPage() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="leave-survey-title"
-              className="w-full max-w-sm rounded-xl bg-white p-5 text-left shadow-xl"
+              className="w-full max-w-sm rounded-xl bg-panel p-5 text-left shadow-xl"
             >
               <h3 id="leave-survey-title" className="text-lg font-semibold text-gray-900">
                 Tinggalkan pengisian survei?
@@ -1978,7 +1979,7 @@ export function SurveyFillPage() {
         {/* Navigation — menempel di bawah layar (sticky) agar mudah dijangkau tanpa
             scroll jauh pada survei panjang. -mb-8 menutup jarak bawah milik layout. */}
         <div
-          className="sticky bottom-0 z-20 -mx-4 -mb-8 border-t border-gray-200 bg-white sm:-mx-6 lg:-mx-8"
+          className="sticky bottom-0 z-20 -mx-4 -mb-8 border-t border-gray-200 bg-panel sm:-mx-6 lg:-mx-8"
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
         >
           <div className={`${fillColumn} pt-3`}>

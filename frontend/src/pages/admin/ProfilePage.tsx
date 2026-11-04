@@ -16,7 +16,7 @@ import { Capacitor } from '@capacitor/core';
 import { AvatarPicker } from './profile/AvatarPicker';
 import { DataDiriForm } from './profile/DataDiriForm';
 import { PasswordForm } from './profile/PasswordForm';
-import { SettingsMenu } from './profile/SettingsMenu';
+import { AppearancePanel, SettingsMenu } from './profile/SettingsMenu';
 import { PrivacyPolicyView, TermsView } from './profile/LegalPages';
 import { ROLE_LABELS, errMessage, type ProfileData } from './profile/types';
 
@@ -243,14 +243,14 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div role="status" aria-label="Memuat profil" className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-panel p-5">
           <div className="skeleton h-16 w-16 shrink-0 rounded-full" aria-hidden="true" />
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-7 w-2/3" />
             <Skeleton className="h-4 w-1/2" />
           </div>
         </div>
-        <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-5">
+        <div className="space-y-3 rounded-xl border border-gray-200 bg-panel p-5">
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-2 w-full" />
           <Skeleton className="h-4 w-2/3" />
@@ -300,7 +300,7 @@ export function ProfilePage() {
       )}
 
       {showHeader && (
-        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-panel p-5">
           <div className="relative shrink-0">
             <Avatar name={profile?.fullName} url={profile?.avatarUrl} size={64} />
             {/* Tampil 28px; ::before memperluas area ketuk jadi 44px. */}
@@ -311,7 +311,7 @@ export function ProfilePage() {
                 setAvatarPickerOpen((v) => !v);
               }}
               aria-label="Ubah foto profil"
-              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 transition-colors before:absolute before:-inset-[9px] hover:bg-gray-50"
+              className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-lg border border-gray-300 bg-panel text-gray-700 transition-colors before:absolute before:-inset-[9px] hover:bg-gray-50"
             >
               <Camera className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
             </button>
@@ -398,6 +398,9 @@ export function ProfilePage() {
           onSubmit={hasPassword ? handleChangePassword : handleSetPassword}
         />
       )}
+
+      {/* Responden memilih tema dari menu Settings; admin tidak punya menu itu. */}
+      {!isRespondent && <AppearancePanel />}
 
       {isRespondent && view === 'privacy' && <PrivacyPolicyView />}
       {isRespondent && view === 'terms' && <TermsView />}

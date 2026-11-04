@@ -9,16 +9,18 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <!-- UI aplikasi hanya tema terang, jadi parent tidak mengikuti mode gelap HP.
-         Bar navigasi putih hanya di API 26 (values-v26, ikon gelap dari plugin SystemBars)
-         dan API 27+ (values-v27, ikon gelap dari tema). Di API 24-25 ikon bar tidak bisa
+    <!-- Parent DayNight wajib: WebView menentukan prefers-color-scheme dari isLightTheme tema
+         ini, jadi parent Light membuat "Ikuti sistem" selalu terang. Warna untuk mode gelap HP
+         ada di values-night; pilihan yang berbeda dari sistem disetel PopuliThemePlugin.
+         Warna bar navigasi hanya di API 26 (values-v26, ikon dari PopuliThemePlugin) dan
+         API 27+ (values-v27, ikon dari tema). Di API 24-25 ikon bar navigasi tidak bisa
          dijadikan gelap sama sekali. Perubahan di sini ikut disalin ke kedua berkas itu. -->
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.Light.NoActionBar">
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
         <item name="android:statusBarColor">@color/populi_chrome</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">@bool/populi_light_bars</item>
         <!-- Android 15+ mengabaikan statusBarColor dan memakai warna ini di balik bar. -->
         <item name="android:windowBackground">@color/populi_chrome</item>
     </style>

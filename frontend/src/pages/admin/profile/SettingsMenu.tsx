@@ -14,6 +14,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Button, useTapFeedback } from '@/components/common/Button';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { useTheme, type ThemePreference } from '@/utils/theme';
 
 // "Bantuan" tidak diulang di sini: sudah ada di "Pertanyaan Umum & Bantuan" di bawah.
 const ACTIVITIES: { icon: LucideIcon; label: string; to: string }[] = [
@@ -21,8 +23,33 @@ const ACTIVITIES: { icon: LucideIcon; label: string; to: string }[] = [
   { icon: ClipboardList, label: 'Survei saya', to: '/surveys' },
 ];
 
-const panelCls = 'overflow-hidden rounded-xl border border-gray-200 bg-white';
+const panelCls = 'overflow-hidden rounded-xl border border-gray-200 bg-panel';
 const panelTitleCls = 'border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-600';
+
+const THEME_OPTIONS: ReadonlyArray<{ key: ThemePreference; label: string }> = [
+  { key: 'system', label: 'Ikuti sistem' },
+  { key: 'light', label: 'Terang' },
+  { key: 'dark', label: 'Gelap' },
+];
+
+/** Pilihan tema. Tidak tampil di mode embed karena di sana tema selalu terang. */
+export function AppearancePanel() {
+  const { preference, setPreference, locked } = useTheme();
+  if (locked) return null;
+  return (
+    <div className={panelCls}>
+      <p className={panelTitleCls}>Tampilan</p>
+      <div className="p-4">
+        <SegmentedControl
+          label="Tema tampilan"
+          options={THEME_OPTIONS}
+          value={preference}
+          onChange={setPreference}
+        />
+      </div>
+    </div>
+  );
+}
 
 /** Satu baris menu (ikon + label + chevron). */
 function MenuRow({
@@ -99,7 +126,7 @@ export function SettingsMenu({
       </Button>
 
       {/* Kelengkapan profil */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-gray-200 bg-panel p-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">Kelengkapan profil</h2>
           <span className="text-xs font-medium tabular-nums text-gray-700">{completeCount}/3</span>
@@ -146,6 +173,8 @@ export function SettingsMenu({
           ))}
         </div>
       </div>
+
+      <AppearancePanel />
 
       <div className={panelCls}>
         <p className={panelTitleCls}>Akun</p>

@@ -37,7 +37,7 @@ function NoticeCard({ notice }: { notice: AppNotice }) {
 
   return (
     <div
-      className="animate-toast-in pointer-events-auto w-full max-w-sm rounded-lg border border-gray-200 bg-white text-sm text-gray-900 shadow-lg"
+      className="animate-toast-in pointer-events-auto w-full max-w-sm rounded-lg border border-gray-200 bg-panel text-sm text-gray-900 shadow-lg"
       role="status"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}

@@ -319,7 +319,7 @@ export function AuditLogPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setPurgeOpen(false);
               }}
-              className="w-full max-w-sm rounded-xl bg-white p-5 text-left shadow-xl"
+              className="w-full max-w-sm rounded-xl bg-panel p-5 text-left shadow-xl"
             >
               <h3 id="purgeDialogTitle" className="text-lg font-semibold text-gray-900">
                 Bersihkan log lama
@@ -380,7 +380,7 @@ export function AuditLogPage() {
       )}
 
       {isSuperAdmin && selected.size > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-panel px-4 py-2 text-sm">
           <span className="font-medium tabular-nums text-gray-800">
             {selected.size} log dipilih
           </span>
@@ -401,7 +401,7 @@ export function AuditLogPage() {
       )}
 
       {/* Filter Panel */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-gray-200 bg-panel p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
           <div>
             <label htmlFor="userFilter" className={labelCls}>
@@ -523,7 +523,7 @@ export function AuditLogPage() {
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
         {loading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : (

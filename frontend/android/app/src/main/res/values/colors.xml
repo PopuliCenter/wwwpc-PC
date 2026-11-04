@@ -4,6 +4,13 @@
     <color name="populi_notification">#F26522</color>
     <!-- Oranye merek: latar splash, sama dengan ic_launcher_background. -->
     <color name="populi_brand">#F26522</color>
-    <!-- Status bar, bar navigasi, dan latar jendela: menyatu dengan header dan tab bawah. -->
-    <color name="populi_chrome">#FFFFFF</color>
+    <!-- Sama dengan token color-panel di globals.css: status bar, bar navigasi, dan latar jendela
+         menyatu dengan header dan tab bawah. -->
+    <color name="populi_chrome_light">#FFFFFF</color>
+    <color name="populi_chrome_dark">#1A2023</color>
+    <!-- Sama dengan token color-surface di globals.css: latar WebView sebelum halaman tergambar. -->
+    <color name="populi_surface_light">#F5F6F6</color>
+    <color name="populi_surface_dark">#12171A</color>
+    <!-- Warna chrome untuk tema mengikuti mode HP; values-night memakai varian gelap. -->
+    <color name="populi_chrome">@color/populi_chrome_light</color>
 </resources>

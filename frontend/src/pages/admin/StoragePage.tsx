@@ -378,17 +378,17 @@ export function StoragePage() {
 
       {/* Daftar */}
       {loading ? (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
           <ListRowsSkeleton rows={5} />
         </div>
       ) : visibleObjects.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
+        <div className="rounded-xl border border-gray-200 bg-panel p-10 text-center">
           <p className="text-gray-600">Tidak ada berkas pada filter ini.</p>
         </div>
       ) : (
         <>
           {/* Toolbar seleksi */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-panel px-4 py-2.5">
             <Button type="button" variant="ghost" size="sm" onClick={toggleAll}>
               {allSelected ? (
                 <CheckSquare
@@ -422,7 +422,7 @@ export function StoragePage() {
             </div>
           </div>
 
-          <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-panel">
             {visibleObjects.map((o) => {
               const Icon = KIND_ICON[kindOf(o.key)];
               const busy = busyKey === o.key;
@@ -505,7 +505,7 @@ export function StoragePage() {
           onClick={closePreview}
         >
           <div
-            className="max-h-[90vh] max-w-3xl overflow-auto rounded-xl bg-white p-3"
+            className="max-h-[90vh] max-w-3xl overflow-auto rounded-xl bg-panel p-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2 flex items-center justify-between gap-3">
@@ -527,7 +527,11 @@ export function StoragePage() {
               </div>
             </div>
             {preview.kind === 'image' && (
-              <img src={preview.url} alt={preview.name} className="max-h-[78vh] rounded-lg" />
+              <img
+                src={preview.url}
+                alt={preview.name}
+                className="max-h-[78vh] rounded-lg bg-paper"
+              />
             )}
             {preview.kind === 'video' && (
               <video src={preview.url} controls className="max-h-[78vh] rounded-lg" />

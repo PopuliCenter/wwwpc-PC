@@ -6,7 +6,7 @@
  * yang bentrok (border-*, h-*) dimenangkan urutan CSS, bukan urutan di className.
  */
 const shared =
-  'w-full rounded-lg border bg-white px-3 text-base lg:text-sm text-gray-900 ' +
+  'w-full rounded-lg border bg-panel px-3 text-base lg:text-sm text-gray-900 ' +
   'placeholder:text-gray-400 focus:outline-none focus:ring-2 ' +
   'disabled:bg-gray-100 disabled:text-gray-500';
 

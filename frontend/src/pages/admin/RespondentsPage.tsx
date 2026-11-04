@@ -572,7 +572,7 @@ export function RespondentsPage() {
       )}
       {info && <Notice>{info}</Notice>}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>

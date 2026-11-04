@@ -289,7 +289,7 @@ function CleanupCandidatesSection() {
           </p>
           <p className="mb-3">
             Token konfirmasi:{' '}
-            <code className="break-all rounded-sm border border-danger-border bg-white px-1.5 py-0.5 font-mono text-xs">
+            <code className="break-all rounded-sm border border-danger-border bg-panel px-1.5 py-0.5 font-mono text-xs">
               {deletionResult.confirmationToken}
             </code>
           </p>

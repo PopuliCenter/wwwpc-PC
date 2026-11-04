@@ -28,7 +28,7 @@ const navLinkCls = `${linkCls} inline-flex min-h-11 items-center lg:min-h-0`;
 function LegalShell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-surface">
-      <header className="border-b border-gray-200 bg-white px-4 py-6 sm:px-6">
+      <header className="border-b border-gray-200 bg-panel px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-2.5">
             <Logo size={40} alt="" />
@@ -40,7 +40,7 @@ function LegalShell({ title, children }: { title: string; children: ReactNode })
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10">
-        <article className="space-y-6 rounded-xl border border-gray-200 bg-white p-5 text-sm leading-relaxed text-gray-700 sm:p-8">
+        <article className="space-y-6 rounded-xl border border-gray-200 bg-panel p-5 text-sm leading-relaxed text-gray-700 sm:p-8">
           {children}
         </article>
 
@@ -60,7 +60,7 @@ function LegalShell({ title, children }: { title: string; children: ReactNode })
         </nav>
       </main>
 
-      <footer className="border-t border-gray-200 bg-white px-4 py-6 text-xs text-gray-500 sm:px-6">
+      <footer className="border-t border-gray-200 bg-panel px-4 py-6 text-xs text-gray-500 sm:px-6">
         <p className="mx-auto max-w-3xl">
           © {new Date().getFullYear()} Populi Center. Semua hak dilindungi.
         </p>

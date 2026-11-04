@@ -168,7 +168,7 @@ function BalanceCard({
 }) {
   if (loading) {
     return (
-      <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-5">
+      <div className="space-y-3 rounded-xl border border-gray-200 bg-panel p-5">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-9 w-1/2" />
       </div>
@@ -180,7 +180,7 @@ function BalanceCard({
   const expiring = balance?.expiringWithin30Days ?? 0;
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <div className="rounded-xl border border-gray-200 bg-panel p-5">
       <p className="text-sm text-gray-600">Saldo poin</p>
       <p className="mt-1 text-3xl font-semibold text-gray-900">
         <CountUp value={available} from={lastKnown ?? undefined} />
@@ -232,7 +232,7 @@ function TransactionHistory({ refreshKey }: { refreshKey: number }) {
   }, [page, refreshKey]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white">
+    <div className="rounded-xl border border-gray-200 bg-panel">
       <div className="border-b border-gray-200 px-4 py-3">
         <h2 className="text-base font-semibold text-gray-900">Riwayat transaksi</h2>
       </div>
@@ -345,7 +345,7 @@ function RedemptionHistory({ refreshKey }: { refreshKey: number }) {
   }, [hasInFlight, fetchRedemptions]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white">
+    <div className="rounded-xl border border-gray-200 bg-panel">
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3">
         <h2 className="text-base font-semibold text-gray-900">Riwayat penukaran</h2>
         {hasInFlight && <span className="text-xs text-gray-500">Memantau status…</span>}
@@ -447,7 +447,7 @@ function RewardCatalog({
   }, [updateHasMore, loading, activeCategory, filteredRewards.length]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white">
+    <div className="rounded-xl border border-gray-200 bg-panel">
       <div className="px-4 pt-3">
         <h2 className="text-base font-semibold text-gray-900">Katalog reward</h2>
       </div>
@@ -523,7 +523,7 @@ function RewardCatalog({
             })}
           </div>
           {hasMore && (
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-br-xl bg-gradient-to-l from-white to-transparent" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-br-xl bg-gradient-to-l from-panel to-transparent" />
           )}
         </div>
       )}
@@ -660,7 +660,7 @@ function RedemptionModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="redeem-dialog-title"
-        className="relative max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        className="relative max-h-full w-full max-w-md overflow-y-auto rounded-xl bg-panel p-5 shadow-xl"
       >
         {/* Tombol tutup; pembungkus yang absolute karena IconButton sendiri relative. */}
         <div className="absolute right-3 top-3">

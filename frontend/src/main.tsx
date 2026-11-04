@@ -6,7 +6,12 @@ import App from './App';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { initErrorMonitoring } from './services/clientLog';
 import { queryClient } from './services/queryClient';
+import { initTheme } from './utils/theme';
 import './assets/styles/globals.css';
+
+// Tema: skrip di index.html sudah memasangnya sebelum render; di sini ditambah
+// pendengar perubahan sistem dan sinkronisasi native.
+initTheme();
 
 // Monitoring error frontend: tangkap error global & promise tak tertangani,
 // kirim ke backend (dgn platform/device/versi/route/user) utk dipantau admin.

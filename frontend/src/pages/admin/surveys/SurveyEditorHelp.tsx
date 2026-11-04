@@ -12,7 +12,7 @@ import { Notice } from '@/components/common/Notice';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <details className="group rounded-lg border border-gray-200 bg-white [&_summary]:marker:content-['']">
+    <details className="group rounded-lg border border-gray-200 bg-panel [&_summary]:marker:content-['']">
       <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-2.5 text-sm font-semibold text-gray-900 hover:bg-gray-50">
         {title}
         <ChevronDown

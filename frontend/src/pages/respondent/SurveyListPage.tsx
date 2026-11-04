@@ -26,7 +26,7 @@ interface AvailableSurvey {
 
 // Daftar, bukan galeri kartu: di HP lebar penuh menempel tepi layar, dari sm panel bertepi.
 const listPanelCls =
-  '-mx-4 divide-y divide-gray-100 border-y border-gray-200 bg-white sm:mx-0 sm:rounded-xl sm:border';
+  '-mx-4 divide-y divide-gray-100 border-y border-gray-200 bg-panel sm:mx-0 sm:rounded-xl sm:border';
 
 /** Teks nilai survei: poin, atau isi teks reward manual; kosong bila tidak ada. */
 function rewardLabel(survey: AvailableSurvey): string | null {

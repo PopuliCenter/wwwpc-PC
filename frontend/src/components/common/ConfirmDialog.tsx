@@ -89,7 +89,7 @@ export function useConfirm() {
           ref={dialogRef}
           // tabIndex -1: klik pada teks dialog tidak melempar fokus ke body, jadi Esc tetap jalan.
           tabIndex={-1}
-          className="w-full max-w-sm rounded-xl bg-white p-5 text-left shadow-xl"
+          className="w-full max-w-sm rounded-xl bg-panel p-5 text-left shadow-xl"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={onDialogKeyDown}
           role="alertdialog"

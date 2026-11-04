@@ -91,7 +91,7 @@ export function AdminLayout() {
 
       {/* Sidebar — drawer geser di mobile, statis & sticky di desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen w-64 shrink-0 flex-col border-r border-gray-200 bg-panel transition-transform duration-200 ease-out md:sticky md:top-0 md:z-auto md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -162,7 +162,7 @@ export function AdminLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Hanya di HP, tempat hamburger berada. Judul halaman tetap satu: <h1> di dalam
             halamannya, jadi bar ini menampilkan merek, bukan judul. */}
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-white px-4 py-2 sm:px-6 md:hidden">
+        <header className="sticky top-0 z-20 border-b border-gray-200 bg-panel px-4 py-2 sm:px-6 md:hidden">
           <div className="flex min-h-10 min-w-0 items-center gap-2">
             {/* Hamburger — buka drawer */}
             <IconButton

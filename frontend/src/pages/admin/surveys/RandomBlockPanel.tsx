@@ -27,8 +27,8 @@ import type { Question } from './surveyEditTypes';
 const BLOCK_COLORS = [
   'bg-primary-100 text-primary-900 border-primary-200',
   'bg-gray-100 text-gray-800 border-gray-300',
-  'bg-white text-gray-800 border-gray-300',
-  'bg-primary-800 text-white border-primary-800',
+  'bg-panel text-gray-800 border-gray-300',
+  'bg-primary-800 text-on-primary border-primary-800',
 ];
 
 /**

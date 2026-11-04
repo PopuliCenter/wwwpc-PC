@@ -9,7 +9,7 @@ import type { HTMLAttributes } from 'react';
 export function Tag({ className = '', children, ...props }: HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-white px-1.5 py-0.5 text-xs text-gray-700 ${className}`}
+      className={`inline-flex items-center gap-1 rounded-sm border border-gray-200 bg-panel px-1.5 py-0.5 text-xs text-gray-700 ${className}`}
       {...props}
     >
       {children}

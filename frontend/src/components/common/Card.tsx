@@ -11,7 +11,7 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 export function Card({ flush = false, className = '', children, ...props }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white ${
+      className={`rounded-xl border border-gray-200 bg-panel ${
         flush ? '' : 'p-5 sm:p-6'
       } ${className}`}
       {...props}

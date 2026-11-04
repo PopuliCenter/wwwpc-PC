@@ -133,7 +133,7 @@ export function NotificationsPage() {
 
       {/* Daftar */}
       {loading ? (
-        <div className="rounded-xl border border-gray-200 bg-white">
+        <div className="rounded-xl border border-gray-200 bg-panel">
           <ListRowsSkeleton rows={5} />
         </div>
       ) : filtered.length === 0 ? (
@@ -141,7 +141,7 @@ export function NotificationsPage() {
           {filter === 'semua' ? 'Belum ada notifikasi.' : 'Tidak ada notifikasi di kategori ini.'}
         </p>
       ) : (
-        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
+        <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-panel">
           {filtered.map((it) => {
             const Icon = TYPE_META[it.type]?.icon ?? Bell;
             const unread = !it.readAt;

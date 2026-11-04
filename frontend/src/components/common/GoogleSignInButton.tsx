@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isNativeGoogleAvailable, signInWithGoogleNative } from '@/services/google-auth';
+import { useTheme } from '@/utils/theme';
 import { useTapFeedback } from './Button';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
@@ -82,7 +83,7 @@ function NativeGoogleButton({
           void handleClick();
         }}
         disabled={loading}
-        className="relative flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 text-base font-medium text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-60 lg:h-11"
+        className="relative flex h-12 w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-panel px-4 text-base font-medium text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100 disabled:opacity-60 lg:h-11"
       >
         <GoogleGlyph />
         {loading ? 'Memproses…' : label}
@@ -95,6 +96,8 @@ function NativeGoogleButton({
 /** Tombol web (Google Identity Services). */
 function WebGoogleButton({ onCredential }: { onCredential: (idToken: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const initializedFor = useRef<((idToken: string) => void) | null>(null);
+  const { resolved } = useTheme();
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
@@ -104,14 +107,19 @@ function WebGoogleButton({ onCredential }: { onCredential: (idToken: string) => 
         if (cancelled || !ref.current) return;
         const g = (window as unknown as { google?: any }).google;
         if (!g?.accounts?.id) return;
-        g.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: (resp: { credential?: string }) => {
-            if (resp?.credential) onCredential(resp.credential);
-          },
-        });
+        // Ganti tema hanya menggambar ulang tombol; initialize cukup per callback.
+        if (initializedFor.current !== onCredential) {
+          initializedFor.current = onCredential;
+          g.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: (resp: { credential?: string }) => {
+              if (resp?.credential) onCredential(resp.credential);
+            },
+          });
+        }
+        ref.current.replaceChildren();
         g.accounts.id.renderButton(ref.current, {
-          theme: 'outline',
+          theme: resolved === 'dark' ? 'filled_black' : 'outline',
           size: 'large',
           width: 320,
           text: 'signin_with',
@@ -125,10 +133,11 @@ function WebGoogleButton({ onCredential }: { onCredential: (idToken: string) => 
     return () => {
       cancelled = true;
     };
-  }, [onCredential]);
+  }, [onCredential, resolved]);
 
   if (!GOOGLE_CLIENT_ID) return null;
-  return <div ref={ref} className="flex justify-center" />;
+  // color-scheme terang: iframe Google yang beda skema dengan induknya digambar berlatar putih.
+  return <div ref={ref} className="flex justify-center" style={{ colorScheme: 'light' }} />;
 }
 
 /** Logo "G" Google (inline SVG) untuk tombol native. */

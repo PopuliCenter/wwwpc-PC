@@ -99,7 +99,7 @@
   --color-gray-900: #181d20;
   --color-gray-950: #0d1113;
 
-  /* Latar halaman. Panel, header, tab bawah, dan sidebar memakai putih. */
+  /* Latar halaman. Panel, header, tab bawah, dan sidebar memakai --color-panel. */
   --color-surface: #f5f6f6;
 
   /* Aksen oranye. 500 = warna logo: logo, splash, ikon, warna notifikasi, konfeti,
@@ -127,6 +127,50 @@
   /* Pegangan batang gulir: sengaja di bawah 3:1 agar tidak menyaingi isi. */
   --color-scrollbar: #c9cdd0;
 
+  /* Panel, header, tab bawah, dan sidebar. Teks di atas tombol terisi. */
+  --color-panel: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-on-danger: #ffffff;
+
+  /* Tetap putih di kedua tema: kanvas dan gambar tanda tangan bergaris gelap transparan. */
+  --color-paper: #ffffff;
+
+  /* Sampul login: tetap gelap di kedua tema, jadi tidak boleh memakai primary-* yang
+     terbalik. Bukan --color-cover karena akan bentrok dengan utilitas bg-cover. */
+  --color-cover-token: #0f2342;
+  --color-cover-line: #16315a;
+  --color-cover-muted: #7ba6d8;
+  --color-cover-fg: #d6e4f5;
+
+  /* Konsol log: tetap gelap dengan teks terang di kedua tema. */
+  --color-console: #181d20;
+  --color-console-fg: #eef0f0;
+
+  /* Garis tebal kepala tabel dan ringkasan: navy di terang, diredam di gelap. */
+  --color-table-rule: #0f2342;
+
+  /* Placeholder berkilau. */
+  --color-skeleton: rgb(24 29 32 / 0.07);
+  --color-skeleton-shine: rgb(255 255 255 / 0.55);
+
+  /* Warna bayangan. Tailwind menyalin nilai --shadow-* ke dalam utilitas saat build, jadi
+     tema hanya bisa mengubahnya lewat variabel warna ini, bukan dengan menimpa --shadow-*. */
+  --color-shadow-line: rgb(24 29 32 / 0.04);
+  --color-shadow-overlay: rgb(24 29 32 / 0.12);
+
+  /* Grafik dan peta: kategori "Lainnya", dan skala sekuensial dari nilai rendah ke tinggi. */
+  --color-chart-other: #c9cdd0;
+  /* Garis kursor tooltip: sama dengan bawaan recharts. */
+  --color-chart-cursor: #ccc;
+  --color-seq-1: #d6e4f5;
+  --color-seq-2: #aecae9;
+  --color-seq-3: #7ba6d8;
+  --color-seq-4: #4d80c4;
+  --color-seq-5: #2f63ab;
+  --color-seq-6: #234e8c;
+  --color-seq-7: #1c3f72;
+  --color-seq-8: #16315a;
+
   /* ---------------------------------------------------------------------
    * Bentuk: sudut kecil; rounded-full hanya untuk avatar, radio, spinner, dan
    * angka jumlah notifikasi.
@@ -140,12 +184,152 @@
   --radius-3xl: 8px;
 
   /* Tepi memakai border, bukan bayangan. shadow-lg/xl hanya untuk overlay. */
-  --shadow-xs: 0 1px 0 rgb(24 29 32 / 0.04);
-  --shadow-sm: 0 1px 0 rgb(24 29 32 / 0.04);
-  --shadow: 0 0 0 1px #dfe2e3;
-  --shadow-md: 0 1px 0 rgb(24 29 32 / 0.04);
-  --shadow-lg: 0 4px 12px rgb(24 29 32 / 0.12);
-  --shadow-xl: 0 4px 12px rgb(24 29 32 / 0.12);
+  --shadow-xs: 0 1px 0 var(--color-shadow-line);
+  --shadow-sm: 0 1px 0 var(--color-shadow-line);
+  --shadow: 0 0 0 1px var(--color-gray-200);
+  --shadow-md: 0 1px 0 var(--color-shadow-line);
+  --shadow-lg: 0 4px 12px var(--color-shadow-overlay);
+  --shadow-xl: 0 4px 12px var(--color-shadow-overlay);
+}
+
+/* ---------------------------------------------------------------------
+ * Mode gelap: hanya menimpa token, lewat data-theme dari utils/theme.ts. Di dalam
+ * @media screen agar cetak tetap terang. Primary dibalik: angka kecil tetap berarti
+ * latar lembut dan angka besar tetap berarti teks atau isi tombol yang menonjol.
+ * ------------------------------------------------------------------- */
+@media screen {
+  :root[data-theme='dark'] {
+    --color-surface: #12171a;
+    --color-panel: #1a2023;
+
+    --color-gray-50: #20272a;
+    --color-gray-100: #262e31;
+    --color-gray-200: #2e363a;
+    --color-gray-300: #6f797e;
+    --color-gray-400: #98a0a4;
+    --color-gray-500: #a4acb0;
+    --color-gray-600: #b3babd;
+    --color-gray-700: #cbd1d3;
+    --color-gray-800: #dde1e3;
+    --color-gray-900: #eceff0;
+    --color-gray-950: #f7f8f8;
+
+    /* primary-50 sengaja lebih terang dari info-bg: ia menandai keadaan terpilih (opsi jawaban,
+       segmen, baris), yang harus bisa dibedakan dari panel. */
+    --color-primary-50: #1e3355;
+    --color-primary-100: #243d66;
+    --color-primary-200: #2a4a78;
+    --color-primary-300: #3d6aa5;
+    --color-primary-400: #6f9ad2;
+    --color-primary-500: #8db2e0;
+    --color-primary-600: #9dbde6;
+    --color-primary-700: #aecae9;
+    --color-primary-800: #c4d8f0;
+    --color-primary-900: #d6e4f5;
+    --color-primary-950: #eef4fb;
+
+    --color-on-primary: #08172e;
+    --color-on-danger: #1c0b09;
+
+    --color-accent-500: #f26522;
+    --color-accent-600: #e8682a;
+
+    --color-success-fg: #7ccb95;
+    --color-success-bg: #16281d;
+    --color-success-border: #2c4a36;
+    --color-warning-fg: #e3bc5e;
+    --color-warning-bg: #2a2210;
+    --color-warning-border: #4e3f1c;
+    --color-danger-fg: #f0a29a;
+    --color-danger-bg: #2d1715;
+    --color-danger-border: #5a2b26;
+    --color-danger-hover: #f5b8b1;
+    --color-info-fg: #a9c8ec;
+    --color-info-bg: #16263d;
+    --color-info-border: #2a4a78;
+    --color-star: #e0b13f;
+    --color-scrollbar: #444d52;
+
+    --color-table-rule: #6f797e;
+
+    /* Isi skeleton dari teks terang tipis; kilaunya ikut tipis agar tidak menyala. */
+    --color-skeleton: rgb(236 239 240 / 0.08);
+    --color-skeleton-shine: rgb(236 239 240 / 0.07);
+
+    --color-shadow-line: rgb(0 0 0 / 0.3);
+    --color-shadow-overlay: rgb(0 0 0 / 0.5);
+
+    --color-chart-other: #5b656a;
+    --color-chart-cursor: #5b656a;
+    /* Makin tinggi nilainya makin terang, sebab latarnya gelap. */
+    --color-seq-1: #2a4a78;
+    --color-seq-2: #33598d;
+    --color-seq-3: #3d6aa5;
+    --color-seq-4: #5483bd;
+    --color-seq-5: #6f9ad2;
+    --color-seq-6: #8db2e0;
+    --color-seq-7: #aecae9;
+    --color-seq-8: #d6e4f5;
+  }
+
+  /* shadow-xl hanya dipakai panel dialog, dan semuanya tanpa border. Bayangan tidak terlihat di
+     atas latar gelap, jadi tepinya diberi garis seperti panel lain. Lewat aturan ini, bukan
+     --shadow-xl, agar tema terang tidak tersentuh sama sekali. */
+  :root[data-theme='dark'] .shadow-xl {
+    box-shadow:
+      0 0 0 1px var(--color-gray-200),
+      0 4px 12px var(--color-shadow-overlay);
+  }
+
+  /* Leaflet memuat CSS-nya sendiri tanpa layer dan memakai warna tetap, jadi perlu
+     ditimpa di sini. Hanya berlaku di tema gelap; tema terang tidak disentuh. */
+  :root[data-theme='dark'] .leaflet-container {
+    background: var(--color-gray-100);
+  }
+  :root[data-theme='dark'] .leaflet-container a {
+    color: var(--color-primary-600);
+  }
+  /* Tile OSM dibalik lalu diredupkan; jalan dan laut tetap bisa dibedakan. */
+  :root[data-theme='dark'] .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.85) saturate(0.6);
+  }
+  :root[data-theme='dark'] .leaflet-popup-content-wrapper,
+  :root[data-theme='dark'] .leaflet-popup-tip {
+    background: var(--color-panel);
+    color: var(--color-gray-900);
+    box-shadow: 0 0 0 1px var(--color-gray-300);
+  }
+  :root[data-theme='dark'] .leaflet-container a.leaflet-popup-close-button {
+    color: var(--color-gray-600);
+  }
+  :root[data-theme='dark'] .leaflet-bar {
+    border-color: var(--color-gray-300);
+  }
+  :root[data-theme='dark'] .leaflet-bar a {
+    background-color: var(--color-panel);
+    border-bottom-color: var(--color-gray-200);
+    color: var(--color-gray-800);
+  }
+  :root[data-theme='dark'] .leaflet-bar a:hover,
+  :root[data-theme='dark'] .leaflet-bar a:focus {
+    background-color: var(--color-gray-100);
+  }
+  :root[data-theme='dark'] .leaflet-bar a.leaflet-disabled {
+    background-color: var(--color-gray-50);
+    color: var(--color-gray-400);
+  }
+  :root[data-theme='dark'] .leaflet-control-attribution {
+    background: var(--color-panel);
+    color: var(--color-gray-600);
+  }
+}
+
+/* color-scheme dipasang sebagai gaya inline, jadi cetak perlu !important agar kontrol
+   bawaan peramban tidak ikut gelap di atas kertas. */
+@media print {
+  :root {
+    color-scheme: light !important;
+  }
 }
 
 @layer base {
@@ -228,11 +412,11 @@
     }
   }
   .skeleton {
-    background-color: rgb(24 29 32 / 0.07);
+    background-color: var(--color-skeleton);
     background-image: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.55) 50%,
+      var(--color-skeleton-shine) 50%,
       transparent 100%
     );
     background-size: 200% 100%;

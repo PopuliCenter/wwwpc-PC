@@ -227,7 +227,7 @@ export function HelpPage() {
         {noResult ? (
           <p className="text-sm text-gray-600">Tidak ada pertanyaan yang cocok.</p>
         ) : (
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-panel">
             {results.map((f) => (
               <FaqItem key={f.q} faq={f} defaultOpen={searching && results.length === 1} />
             ))}
@@ -244,7 +244,7 @@ export function HelpPage() {
             )}
 
             {aiLoading && (
-              <div className="space-y-2.5 rounded-xl border border-gray-200 bg-white p-4">
+              <div className="space-y-2.5 rounded-xl border border-gray-200 bg-panel p-4">
                 <p role="status" className="text-xs text-gray-600">
                   Asisten sedang menulis jawaban…
                 </p>
@@ -254,7 +254,7 @@ export function HelpPage() {
             )}
 
             {aiAnswer && (
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="rounded-xl border border-gray-200 bg-panel p-4">
                 <p className="text-xs font-medium text-gray-600">Jawaban otomatis dari asisten</p>
                 <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-gray-700">
                   {aiAnswer}
@@ -278,7 +278,7 @@ export function HelpPage() {
             )}
 
             {aiUnavailable && (
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="rounded-xl border border-gray-200 bg-panel p-4">
                 <p className="text-sm text-gray-600">
                   Asisten AI sedang tidak tersedia. Tim kami siap membantu via WhatsApp.
                 </p>
@@ -299,7 +299,7 @@ export function HelpPage() {
       </section>
 
       {/* Kontak */}
-      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
         <div className="p-4 pb-3">
           <h2 className="text-base font-semibold text-gray-900">Hubungi kami</h2>
           <p className="mt-0.5 text-sm text-gray-600">

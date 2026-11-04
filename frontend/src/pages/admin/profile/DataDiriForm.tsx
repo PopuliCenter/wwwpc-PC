@@ -58,7 +58,7 @@ export function DataDiriForm({
 }: DataDiriFormProps) {
   return (
     <>
-      <form onSubmit={onSubmit} className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+      <form onSubmit={onSubmit} className="rounded-xl border border-gray-200 bg-panel p-5 sm:p-6">
         <h2 className="mb-4 text-base font-semibold text-gray-900">Data diri</h2>
         <div className="space-y-4">
           <div>
@@ -133,7 +133,7 @@ export function DataDiriForm({
 
       {/* Data demografi (pembobot) — read-only untuk responden */}
       {demographics && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+        <div className="rounded-xl border border-gray-200 bg-panel p-5 sm:p-6">
           <h2 className="mb-1 text-base font-semibold text-gray-900">Data demografi (pembobot)</h2>
           <p className="mb-4 text-xs text-gray-600">
             Data ini dikunci untuk menjaga kualitas analisis dan mencegah penyalahgunaan targeting.

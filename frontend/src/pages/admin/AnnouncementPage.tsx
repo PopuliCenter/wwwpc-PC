@@ -91,7 +91,7 @@ export function AnnouncementPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 rounded-xl border border-gray-200 bg-white p-5"
+        className="space-y-4 rounded-xl border border-gray-200 bg-panel p-5"
       >
         <div>
           <label

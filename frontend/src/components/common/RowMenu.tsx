@@ -261,7 +261,7 @@ export function RowMenu({ items, label = 'Aksi lainnya', className = '' }: RowMe
               left: pos?.left ?? 0,
               visibility: pos ? 'visible' : 'hidden',
             }}
-            className="fixed z-[65] max-h-[calc(100dvh-16px)] w-max min-w-44 max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+            className="fixed z-[65] max-h-[calc(100dvh-16px)] w-max min-w-44 max-w-[calc(100vw-16px)] overflow-y-auto rounded-lg border border-gray-200 bg-panel py-1 shadow-lg"
           >
             {visible.map(renderItem)}
           </div>,

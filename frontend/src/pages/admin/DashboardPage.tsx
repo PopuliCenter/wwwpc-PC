@@ -19,13 +19,17 @@ import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
 import { Card, CardHeader } from '@/components/common/Card';
 import { Skeleton, TableSkeleton } from '@/components/common/Skeleton';
 import {
+  activeDotRing,
   axis,
+  chartCursor,
   grid,
   latestPoint,
   navy1,
   sequentialColor,
+  tooltipBackground,
   tooltipLabel,
   tooltipMuted,
+  tooltipText,
   tooltipValue,
 } from '@/utils/chartTokens';
 import { format, subDays } from 'date-fns';
@@ -96,7 +100,13 @@ interface CompletionRate {
 }
 
 const axisTick = { fontSize: 12, fill: axis };
-const chartTooltipStyle = { borderRadius: 6, border: `1px solid ${grid}`, fontSize: 13 };
+const chartTooltipStyle = {
+  backgroundColor: tooltipBackground,
+  color: tooltipText,
+  borderRadius: 6,
+  border: `1px solid ${grid}`,
+  fontSize: 13,
+};
 
 // Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
 const thCls = `${thBaseCls} py-2.5 text-left`;
@@ -134,7 +144,7 @@ function OverviewCards({ data, loading }: { data: OverviewData | null; loading: 
   return (
     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-200 bg-gray-200 lg:grid-cols-4">
       {cells.map(({ label, value, note }) => (
-        <div key={label} className="min-w-0 bg-white px-4 py-4 sm:px-5">
+        <div key={label} className="min-w-0 bg-panel px-4 py-4 sm:px-5">
           <p className="text-xs text-gray-600">{label}</p>
           {loading ? (
             <>
@@ -243,7 +253,7 @@ function CumulativeTrendChart() {
             <CartesianGrid stroke={grid} vertical={false} />
             <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} />
             <YAxis tick={axisTick} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={chartTooltipStyle} />
+            <Tooltip cursor={{ stroke: chartCursor }} contentStyle={chartTooltipStyle} />
             <Line
               type="monotone"
               dataKey="total"
@@ -271,7 +281,7 @@ function CumulativeTrendChart() {
                   </g>
                 );
               }}
-              activeDot={{ r: 5, fill: navy1 }}
+              activeDot={{ r: 5, fill: navy1, stroke: activeDotRing }}
             />
           </LineChart>
         </ResponsiveContainer>

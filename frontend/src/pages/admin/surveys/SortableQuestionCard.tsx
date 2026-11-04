@@ -69,7 +69,7 @@ export function SortableQuestionCard({
   const tap = useTapFeedback();
 
   return (
-    <div ref={setNodeRef} style={style} className="mb-3 rounded-xl border border-gray-200 bg-white">
+    <div ref={setNodeRef} style={style} className="mb-3 rounded-xl border border-gray-200 bg-panel">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 p-3 sm:flex-nowrap sm:gap-3 sm:p-4">
         <IconButton

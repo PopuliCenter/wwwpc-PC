@@ -13,17 +13,17 @@ const config: CapacitorConfig = {
   appId: 'com.populicenter.survei',
   appName: 'Riset Populi Center',
   webDir: 'dist',
-  // Warna WebView sebelum halaman pertama tergambar (sama dengan --color-surface).
-  backgroundColor: '#F5F6F6',
+  // backgroundColor sengaja tidak diset. Nilainya statis, jadi warna apa pun akan berkilat di
+  // salah satu tema. PopuliThemePlugin menyetel latar WebView sesuai tema sebelum frame pertama.
   server: {
     // Skema https untuk Android agar service worker / API sama seperti web.
     androidScheme: 'https',
   },
   plugins: {
-    // Plugin bawaan @capacitor/core 8. Wajib LIGHT: gaya DEFAULT mengikuti mode gelap
-    // HP sehingga ikon bar menjadi putih di atas bar putih (UI aplikasi hanya tema terang).
+    // Plugin bawaan @capacitor/core 8. DEFAULT mengikuti mode gelap HP, senada dengan tema
+    // DayNight. Pilihan Gelap atau Terang di aplikasi diterapkan PopuliThemePlugin sesudahnya.
     SystemBars: {
-      style: 'LIGHT',
+      style: 'DEFAULT',
     },
     PushNotifications: {
       // Saat aplikasi DI DEPAN (foreground), tampilkan juga banner sistem.

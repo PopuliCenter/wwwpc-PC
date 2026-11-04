@@ -107,7 +107,7 @@ export function SurveyCreatePage() {
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6"
+        className="space-y-6 rounded-xl border border-gray-200 bg-panel p-4 sm:p-6"
       >
         <div>
           <label htmlFor="title" className="mb-1 block text-xs font-medium text-gray-600">

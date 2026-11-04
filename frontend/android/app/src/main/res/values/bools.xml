@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bar berlatar terang dengan ikon gelap; values-night membaliknya. -->
+    <bool name="populi_light_bars">true</bool>
+</resources>

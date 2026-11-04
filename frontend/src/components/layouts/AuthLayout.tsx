@@ -44,7 +44,7 @@ export function AuthLayout() {
       {/* Back Android: di /login langsung keluar aplikasi. */}
       <NativeBackGuard />
       {/* Panel sampul laporan — hanya desktop; warna rata tanpa gradien atau ikon. */}
-      <div className="hidden bg-primary-900 p-10 lg:flex lg:flex-col lg:justify-between xl:p-12">
+      <div className="hidden bg-cover-token p-10 lg:flex lg:flex-col lg:justify-between xl:p-12">
         <div className="flex items-center gap-3">
           <Logo size={48} />
           <p className="text-sm font-semibold text-white">Populi Center</p>
@@ -57,23 +57,21 @@ export function AuthLayout() {
 
         <div>
           <dl className="text-xs">
-            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
-              <dt className="text-primary-300">Penyelenggara</dt>
-              <dd className="text-right text-primary-100">Populi Center</dd>
+            <div className="flex justify-between gap-6 border-t border-cover-line py-2.5">
+              <dt className="text-cover-muted">Penyelenggara</dt>
+              <dd className="text-right text-cover-fg">Populi Center</dd>
             </div>
-            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
-              <dt className="text-primary-300">Poin</dt>
-              <dd className="text-right text-primary-100">
-                Dapat ditukar pulsa atau saldo e-wallet
-              </dd>
+            <div className="flex justify-between gap-6 border-t border-cover-line py-2.5">
+              <dt className="text-cover-muted">Poin</dt>
+              <dd className="text-right text-cover-fg">Dapat ditukar pulsa atau saldo e-wallet</dd>
             </div>
-            <div className="flex justify-between gap-6 border-t border-primary-800 py-2.5">
-              <dt className="text-primary-300">Data pribadi</dt>
+            <div className="flex justify-between gap-6 border-t border-cover-line py-2.5">
+              <dt className="text-cover-muted">Data pribadi</dt>
               <dd className="text-right">
                 <Link
                   to="/kebijakan-privasi"
-                  // Outline fokus global (primary-500) tidak terbaca di atas primary-900.
-                  className="text-primary-100 underline decoration-primary-300 underline-offset-2 hover:text-white focus-visible:outline-white"
+                  // Outline fokus global (primary-500) tidak terbaca di atas sampul.
+                  className="text-cover-fg underline decoration-cover-muted underline-offset-2 hover:text-white focus-visible:outline-white"
                 >
                   Kebijakan Privasi
                 </Link>
@@ -87,7 +85,7 @@ export function AuthLayout() {
       </div>
 
       {/* Form panel */}
-      <div className="flex flex-col bg-white">
+      <div className="flex flex-col bg-panel">
         <div className="flex flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-16 xl:px-24">
           <div className="mx-auto w-full max-w-[400px] lg:mx-0">
             {/* Identitas di bawah lg saja; desktop sudah punya panel sampul. */}

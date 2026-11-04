@@ -57,7 +57,7 @@ export function RespondentLayout() {
       <NativeBackGuard />
       {/* Header — disembunyikan di mode embed (Elementor sudah punya header) */}
       {!isEmbedMode && (
-        <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
+        <header className="sticky top-0 z-10 border-b border-gray-200 bg-panel">
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-8">
               <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export function RespondentLayout() {
           ke bawah area yang terlihat. paddingBottom menghormati safe-area iOS. */}
       {!isEmbedMode && !isFillMode && (
         <nav
-          className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white md:hidden"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-panel md:hidden"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           aria-label="Navigasi utama"
         >

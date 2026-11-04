@@ -16,10 +16,10 @@ const base =
   'transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none select-none';
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-  secondary: 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 active:bg-gray-100',
+  primary: 'bg-primary-600 text-on-primary hover:bg-primary-700 active:bg-primary-800',
+  secondary: 'bg-panel text-gray-800 border border-gray-300 hover:bg-gray-50 active:bg-gray-100',
   ghost: 'bg-transparent text-gray-700 hover:bg-gray-100 active:bg-gray-200',
-  danger: 'bg-danger-fg text-white hover:bg-danger-hover active:bg-danger-hover',
+  danger: 'bg-danger-fg text-on-danger hover:bg-danger-hover active:bg-danger-hover',
 };
 
 const sizes: Record<ButtonSize, string> = {

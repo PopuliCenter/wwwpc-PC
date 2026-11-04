@@ -89,7 +89,7 @@ function LogRow({ log, onDelete }: { log: ClientLog; onDelete: (id: string) => v
           {log.stack && (
             <div>
               <p className="mb-1 font-semibold text-gray-600">Stack</p>
-              <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded-lg bg-gray-900 p-3 text-xs leading-relaxed text-gray-100">
+              <pre className="max-h-60 overflow-auto whitespace-pre-wrap rounded-lg bg-console p-3 text-xs leading-relaxed text-console-fg">
                 {log.stack}
               </pre>
             </div>
@@ -97,7 +97,7 @@ function LogRow({ log, onDelete }: { log: ClientLog; onDelete: (id: string) => v
           {log.context && (
             <div>
               <p className="mb-1 font-semibold text-gray-600">Konteks</p>
-              <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-white p-2">
+              <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border border-gray-200 bg-panel p-2">
                 {JSON.stringify(log.context, null, 2)}
               </pre>
             </div>
@@ -251,15 +251,15 @@ export function ClientLogsPage() {
       </div>
 
       {loading ? (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
           <ListRowsSkeleton rows={5} />
         </div>
       ) : logs.length === 0 ? (
-        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center">
+        <div className="rounded-xl border border-gray-200 bg-panel p-10 text-center">
           <p className="text-gray-600">Belum ada error yang dilaporkan.</p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-panel">
           {logs.map((log) => (
             <LogRow key={log.id} log={log} onDelete={handleDelete} />
           ))}

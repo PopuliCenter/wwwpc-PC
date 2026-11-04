@@ -23,7 +23,7 @@ export function SegmentedControl<T extends string>({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-white"
+      className="inline-flex overflow-hidden rounded-lg border border-gray-300 bg-panel"
     >
       {options.map(({ key, label: optionLabel }) => (
         <button

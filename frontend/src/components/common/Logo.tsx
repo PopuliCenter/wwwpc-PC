@@ -7,7 +7,7 @@ interface LogoProps {
 
 /**
  * Logo Populi Center versi 96/192 px; berkas sumber 5700 px terlalu berat untuk
- * didekode di HP. Letakkan hanya di atas putih atau primary-900 karena di atas
+ * didekode di HP. Letakkan hanya di atas panel atau sampul login karena di atas
  * surface kontrasnya tidak cukup.
  */
 export function Logo({ size = 40, alt = 'Populi Center', className = '' }: LogoProps) {

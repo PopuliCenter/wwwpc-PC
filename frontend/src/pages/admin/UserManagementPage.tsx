@@ -71,7 +71,7 @@ function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative mx-4 max-h-[calc(100dvh-32px)] w-full max-w-md overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+        className="relative mx-4 max-h-[calc(100dvh-32px)] w-full max-w-md overflow-y-auto rounded-xl bg-panel p-6 shadow-xl"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="min-w-0 text-lg font-semibold text-gray-900">{title}</h3>
@@ -102,7 +102,7 @@ function PasswordReveal({ label, password }: { label: string; password: string }
     <div className="mt-1 flex items-center justify-between gap-2">
       <p className="min-w-0">
         {label}:{' '}
-        <code className="break-all rounded-sm border border-gray-200 bg-white px-1.5 py-0.5 font-mono">
+        <code className="break-all rounded-sm border border-gray-200 bg-panel px-1.5 py-0.5 font-mono">
           {password}
         </code>
       </p>
@@ -329,7 +329,7 @@ function BulkImportModal({
               type="file"
               accept=".csv"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-600 file:mr-4 file:h-11 file:rounded-lg file:border file:border-gray-300 file:bg-white file:px-4 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-50 lg:file:h-10"
+              className="w-full text-sm text-gray-600 file:mr-4 file:h-11 file:rounded-lg file:border file:border-gray-300 file:bg-panel file:px-4 file:text-sm file:font-medium file:text-gray-800 hover:file:bg-gray-50 lg:file:h-10"
             />
           </div>
           <div className="flex gap-3">
@@ -639,7 +639,7 @@ export function UserManagementPage() {
       )}
 
       {/* Filters */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="rounded-xl border border-gray-200 bg-panel p-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
             <label htmlFor="search" className={labelCls}>
@@ -705,7 +705,7 @@ export function UserManagementPage() {
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
         {loading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : (

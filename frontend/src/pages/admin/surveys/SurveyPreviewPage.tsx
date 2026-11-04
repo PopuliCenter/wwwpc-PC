@@ -155,7 +155,7 @@ export function SurveyPreviewPage() {
       <MediaUploadProvider value={previewUpload}>
         <div className="space-y-4">
           {sorted.map(({ question: q, rawType }, idx) => (
-            <div key={q.id} className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+            <div key={q.id} className="rounded-xl border border-gray-200 bg-panel p-4 sm:p-6">
               <p className="text-question font-medium text-gray-900">
                 {idx + 1}.{' '}
                 {q.text || <span className="font-normal text-gray-500">(tanpa teks)</span>}

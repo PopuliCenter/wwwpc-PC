@@ -99,7 +99,7 @@ function ManualRewardPanel({
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 sm:p-6">
+    <div className="rounded-xl border border-gray-200 bg-panel p-5 sm:p-6">
       <h3 className="mb-4 text-lg font-semibold text-gray-900">
         Distribusi Reward Manual ({eligibleResponses.length} menunggu)
       </h3>
@@ -430,7 +430,7 @@ export function ResponseListPage() {
       </Notice>
 
       {/* Filter Panel */}
-      <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5">
+      <div className="space-y-4 rounded-xl border border-gray-200 bg-panel p-5">
         {/* Survei — filter utama, ditempatkan di atas & diperbesar */}
         <div>
           <label
@@ -612,7 +612,7 @@ export function ResponseListPage() {
       <ManualRewardPanel responses={responses} onMarkDistributed={handleMarkDistributed} />
 
       {/* Response Table */}
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-panel">
         {loading ? (
           <TableSkeleton rows={6} cols={5} />
         ) : !hasActiveFilter ? (

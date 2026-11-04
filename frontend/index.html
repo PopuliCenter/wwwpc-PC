@@ -8,12 +8,49 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#FFFFFF" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Tema sebelum render, agar tidak ada kilatan terang. Logikanya sama dengan src/utils/theme.ts;
+         mode embed selalu terang. Aman bila localStorage atau sessionStorage diblokir. -->
+    <script>
+      (function () {
+        var theme = 'light';
+        try {
+          var embed = new URLSearchParams(location.search).get('embed');
+          var locked = embed === '1' || embed === 'true' || window.self !== window.top;
+          try {
+            locked = locked || sessionStorage.getItem('embedMode') === '1';
+          } catch (e) {}
+          if (!locked) {
+            var stored = null;
+            try {
+              stored = localStorage.getItem('theme');
+            } catch (e) {}
+            if (stored === 'dark') theme = 'dark';
+            else if (stored !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+              theme = 'dark';
+          }
+        } catch (e) {
+          theme = 'light';
+        }
+        var root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.style.colorScheme = theme;
+        if (theme === 'dark') {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#1a2023');
+        }
+      })();
+    </script>
     <!-- Latar sebelum CSS dan JS termuat, agar tidak ada kilatan warna lain (sama dengan --color-surface). -->
     <style>
       html,
       body {
         background: #f5f6f6;
+      }
+      @media screen {
+        html[data-theme='dark'],
+        html[data-theme='dark'] body {
+          background: #12171a;
+        }
       }
     </style>
     <title>Riset Populi Center</title>

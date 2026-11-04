@@ -157,7 +157,7 @@ export function MapsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="h-[28rem] overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="h-[28rem] overflow-hidden rounded-xl border border-gray-200 bg-panel">
             {loading ? (
               <Skeleton className="h-full w-full rounded-none" />
             ) : error ? (
@@ -171,7 +171,7 @@ export function MapsPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-200 bg-panel p-4">
             <p className="text-xs text-gray-600">Ringkasan</p>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-3xl font-semibold tabular-nums text-gray-900">{total}</span>
@@ -180,7 +180,7 @@ export function MapsPage() {
             <p className="mt-1 text-xs tabular-nums text-gray-600">{points.length} titik lokasi</p>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="rounded-xl border border-gray-200 bg-panel p-4">
             <p className="text-sm font-semibold text-gray-900">Konsentrasi tertinggi</p>
             <p className="mb-2 mt-0.5 text-xs text-gray-600">
               Titik dengan {CONCENTRATION_THRESHOLD} responden atau lebih ditandai peringatan.

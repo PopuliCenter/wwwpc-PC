@@ -95,7 +95,7 @@ export function NotificationBell() {
       <IconButton aria-label="Notifikasi" onClick={openPanel}>
         <Bell className="h-5 w-5" strokeWidth={1.75} />
         {unread > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-fg px-1 text-2xs font-semibold leading-none tabular-nums text-white">
+          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-fg px-1 text-2xs font-semibold leading-none tabular-nums text-on-danger">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -104,7 +104,7 @@ export function NotificationBell() {
       {open && (
         // Di HP panel menempel ke viewport: lonceng tidak berada di tepi kanan header,
         // jadi absolute right-0 selebar 320px terpotong di layar 360px.
-        <div className="fixed right-4 top-16 z-50 w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg sm:absolute sm:right-0 sm:top-full sm:mt-2">
+        <div className="fixed right-4 top-16 z-50 w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-xl border border-gray-200 bg-panel shadow-lg sm:absolute sm:right-0 sm:top-full sm:mt-2">
           <div className="border-b border-gray-100 px-4 py-2.5">
             <span className="text-sm font-semibold text-gray-900">Notifikasi</span>
           </div>
