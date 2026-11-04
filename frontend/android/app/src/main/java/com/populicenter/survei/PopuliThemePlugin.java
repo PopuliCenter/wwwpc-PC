@@ -33,8 +33,13 @@ public class PopuliThemePlugin extends Plugin {
     private static final String CHOICE_SYSTEM = "system";
     private static final String CHOICE_LIGHT = "light";
     private static final String CHOICE_DARK = "dark";
-    /** Batas tunggu sebelum WebView ditampilkan paksa, bila JavaScript gagal berjalan. */
-    private static final long REVEAL_TIMEOUT_MS = 3000;
+    /**
+     * Batas tunggu sebelum WebView ditampilkan paksa, bila JavaScript gagal berjalan. Dibuat
+     * longgar karena HP lambat bisa butuh beberapa detik sebelum setAppearance pertama.
+     */
+    private static final long REVEAL_TIMEOUT_MS = 10000;
+    /** Batas tunggu visual state callback sesudah setAppearance pertama. */
+    private static final long PAINT_TIMEOUT_MS = 1000;
 
     /** Tema yang sedang tampil di halaman. Hanya disentuh di main thread. */
     private boolean dark;
@@ -88,17 +93,17 @@ public class PopuliThemePlugin extends Plugin {
     /** setAppearance datang sebelum render berikutnya, jadi tunggu sampai temanya siap digambar. */
     private void revealWhenPainted() {
         if (revealed) return;
-        getBridge()
-            .getWebView()
-            .postVisualStateCallback(
-                0,
-                new WebView.VisualStateCallback() {
-                    @Override
-                    public void onComplete(long requestId) {
-                        reveal();
-                    }
+        WebView webView = getBridge().getWebView();
+        webView.postDelayed(this::reveal, PAINT_TIMEOUT_MS);
+        webView.postVisualStateCallback(
+            0,
+            new WebView.VisualStateCallback() {
+                @Override
+                public void onComplete(long requestId) {
+                    reveal();
                 }
-            );
+            }
+        );
     }
 
     private void reveal() {
