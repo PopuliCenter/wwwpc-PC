@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import type { Importance, PushNotificationsPlugin } from '@capacitor/push-notifications';
 import { router } from '@/router';
 import { api } from '@/services/api';
 import { requestFeedRefresh } from '@/services/notificationFeed';
@@ -11,8 +12,12 @@ import { showAppNotice } from '@/stores/notification.store';
  *
  * Perilaku:
  *  - minta izin & daftar ke FCM/APNs → kirim device token ke backend;
- *  - buat CHANNEL prioritas tinggi → notifikasi muncul HEADS-UP (pop di layar HP);
- *  - push tiba → OS menampilkan notifikasi sistem dari payload FCM (sekali);
+ *  - buat CHANNEL prioritas tinggi bernada khas → notifikasi muncul HEADS-UP (pop
+ *    di layar HP) dan berbunyi populi_notif; channel lama & channel cadangan FCM
+ *    dihapus agar Setelan HP hanya berisi satu kategori dari push;
+ *  - push tiba → notifikasi sistem dari payload FCM tampil SEKALI di channel itu:
+ *    app di belakang/tertutup oleh SDK FCM, app di depan oleh plugin
+ *    (presentationOptions 'alert' di capacitor.config.ts) → nada sama di semua keadaan;
  *  - push tiba saat app DI DEPAN → TAMBAHAN pop-up in-app (showAppNotice). App
  *    TIDAK membuat local notification lagi agar tidak muncul notif GANDA;
  *  - push tiba di depan → lonceng & halaman Notifikasi ikut segar
@@ -23,9 +28,27 @@ import { showAppNotice } from '@/stores/notification.store';
  */
 let initialized = false;
 
-// HARUS sama dengan channelId yang dikirim backend (push.service.ts) agar
-// notifikasi memakai channel prioritas tinggi ini (heads-up + suara).
-const CHANNEL_ID = 'survei_penting';
+// HARUS sama dengan channelId yang dikirim backend (push.service.ts) dan meta-data
+// default_notification_channel_id di AndroidManifest.xml agar notifikasi memakai
+// channel prioritas tinggi ini (heads-up + nada khas).
+// Bunyi channel Android TIDAK bisa diubah setelah channel dibuat, jadi ganti
+// nada = ganti id channel. Berkas nada: android/app/src/main/res/raw/populi_notif.wav
+// (dibuat scripts/generate-notif-sound.mjs).
+const CHANNEL_ID = 'populi_pemberitahuan';
+const CHANNEL_SOUND = 'populi_notif.wav';
+const IMPORTANCE_MAX: Importance = 5; // heads-up di layar + bunyi
+
+// Channel lama bernada bawaan yang digantikan CHANNEL_ID. Tingkat (importance)
+// yang dipilih pengguna di channel ini dibawa ke channel baru, lihat ensureAndroidChannel.
+const REPLACED_CHANNEL_ID = 'survei_penting';
+
+// Channel yang dihapus agar tidak dobel di Setelan HP:
+//  - survei_penting: channel lama bernada bawaan;
+//  - fcm_fallback_notification_channel ("Misc"): dibuat SDK FCM bila push tiba
+//    sebelum CHANNEL_ID ada (APK lama menerima push dari backend baru, atau APK baru
+//    yang belum dibuka). Aman dihapus: FCM baru membuatnya lagi bila channel payload
+//    DAN channel meta-data manifest sama-sama belum ada.
+const LEGACY_CHANNEL_IDS = [REPLACED_CHANNEL_ID, 'fcm_fallback_notification_channel'];
 
 /**
  * Navigasi aman dari notifikasi: hanya path INTERNAL (diawali '/'). Link kosong
@@ -64,20 +87,50 @@ export async function syncDeviceToken(): Promise<void> {
   await postDeviceToken(fcmToken);
 }
 
-/** Buat channel Android prioritas tinggi (heads-up). iOS tidak punya channel. */
+/**
+ * Tingkat channel baru. Android tidak memindahkan setelan pengguna antar-id channel,
+ * jadi bila channel lama dulu dibisukan atau dimatikan (importance < MAX), tingkat
+ * itu dipakai juga untuk channel baru agar pengguna tidak tiba-tiba diganggu lagi.
+ */
+async function inheritedImportance(push: PushNotificationsPlugin): Promise<Importance> {
+  try {
+    const { channels } = await push.listChannels();
+    const old = channels.find((ch) => ch.id === REPLACED_CHANNEL_ID)?.importance;
+    if (typeof old === 'number' && old >= 0 && old < IMPORTANCE_MAX) return old;
+  } catch {
+    /* daftar channel tak terbaca → pakai tingkat bawaan */
+  }
+  return IMPORTANCE_MAX;
+}
+
+/**
+ * Buat channel Android prioritas tinggi (heads-up + nada khas) lalu hapus channel
+ * lama. iOS tidak punya channel. Idempoten: createChannel dengan id yang sama
+ * hanya memperbarui nama/deskripsi (Android tidak mengizinkan app MENAIKKAN
+ * importance channel yang sudah ada, jadi tingkat warisan tetap bertahan setelah
+ * channel lama terhapus), deleteChannel untuk id yang tak ada diabaikan OS.
+ */
 async function ensureAndroidChannel(): Promise<void> {
   if (Capacitor.getPlatform() !== 'android') return;
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
     await PushNotifications.createChannel({
       id: CHANNEL_ID,
-      name: 'Notifikasi Penting',
+      name: 'Pemberitahuan',
       description: 'Survei baru, pengumuman, dan pengingat',
-      importance: 5, // MAX → muncul heads-up di layar + bunyi
+      // MAX → heads-up di layar + bunyi, kecuali pengguna dulu membisukan channel lama.
+      importance: await inheritedImportance(PushNotifications),
       visibility: 1, // tampil di layar kunci
+      sound: CHANNEL_SOUND, // nama berkas di res/raw
       vibration: true,
       lights: true,
     });
+    // Hapus SESUDAH channel baru ada, supaya tidak ada jeda tanpa channel.
+    for (const id of LEGACY_CHANNEL_IDS) {
+      await PushNotifications.deleteChannel({ id }).catch(() => {
+        /* channel lama memang tidak ada / gagal dihapus → abaikan */
+      });
+    }
   } catch {
     /* channel gagal dibuat → notifikasi tetap jalan di channel default */
   }
@@ -105,7 +158,8 @@ export async function initNativeNotifications(): Promise<void> {
       return; // pengguna menolak izin notifikasi
     }
 
-    // Channel prioritas tinggi agar notifikasi muncul heads-up (pop di layar).
+    // Channel prioritas tinggi bernada khas, dibuat SEBELUM register agar sudah
+    // ada saat push pertama tiba (termasuk ketika app sedang tertutup).
     await ensureAndroidChannel();
 
     // Token perangkat dari FCM/APNs → simpan & kirim ke backend. Token juga

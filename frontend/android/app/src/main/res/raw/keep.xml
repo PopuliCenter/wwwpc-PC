@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Build rilis memakai shrinkResources. Nada notifikasi hanya dirujuk lewat NAMA
+     (channel Android "android.resource://.../raw/populi_notif" dan payload FCM
+     sound "populi_notif" yang dicari dengan getIdentifier), bukan R.raw, sehingga
+     bisa dianggap tak terpakai lalu dibuang. Berkas ini menahannya di APK/AAB. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/populi_notif" />

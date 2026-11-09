@@ -28,6 +28,12 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/populi_notification" />
+        <!-- Channel cadangan bila payload FCM tanpa channelId (mis. pesan uji dari
+             Firebase Console). HARUS sama dengan CHANNEL_ID di
+             src/services/notifications.ts (channel bernada res/raw/populi_notif). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="populi_pemberitahuan" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

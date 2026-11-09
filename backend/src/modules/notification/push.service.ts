@@ -31,6 +31,10 @@ export class PushService {
   private app: App | null = null;
   private initTried = false;
   private static readonly APP_NAME = 'survei-push';
+  /** Channel Android bernada khas; dibuat aplikasi di frontend notifications.ts. */
+  static readonly ANDROID_CHANNEL_ID = 'populi_pemberitahuan';
+  /** Nada di res/raw aplikasi Android (populi_notif.wav) tanpa ekstensi. */
+  static readonly ANDROID_SOUND = 'populi_notif';
 
   constructor(private readonly config: ConfigService) {}
 
@@ -83,14 +87,16 @@ export class PushService {
           notification: { title: payload.title, body: payload.body },
           data: payload.data ?? {},
           // Prioritas tinggi + channel khusus agar notifikasi muncul HEADS-UP
-          // (pop di layar HP) dan berbunyi. channelId HARUS sama dengan channel
-          // yang dibuat aplikasi (frontend notifications.ts: 'survei_penting').
+          // (pop di layar HP) dan berbunyi nada khas. channelId HARUS sama dengan
+          // channel yang dibuat aplikasi (frontend notifications.ts). Android 8+
+          // memakai bunyi milik channel; `sound` (nama berkas res/raw tanpa
+          // ekstensi) berlaku untuk Android 7. defaultSound sengaja TIDAK diset:
+          // nilai true memaksa bunyi bawaan sistem dan menimpa nada khas di Android 7.
           android: {
             priority: 'high',
             notification: {
-              channelId: 'survei_penting',
-              sound: 'default',
-              defaultSound: true,
+              channelId: PushService.ANDROID_CHANNEL_ID,
+              sound: PushService.ANDROID_SOUND,
               priority: 'high',
               defaultVibrateTimings: true,
             },
