@@ -1,22 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  FileText,
-  CheckCircle2,
-  Coins,
-  ArrowUpRight,
-  Gift,
-  Megaphone,
-  Trash2,
-  Bell,
-  type LucideIcon,
-} from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { api } from '@/services/api';
+import { announceFeedRead, subscribeFeed } from '@/services/notificationFeed';
 import { Button, useTapFeedback } from '@/components/common/Button';
 import { UnderlineTabs } from '@/components/common/UnderlineTabs';
 import { useConfirm } from '@/components/common/ConfirmDialog';
 import { IconButton } from '@/components/common/IconButton';
 import { ListRowsSkeleton } from '@/components/common/Skeleton';
+import {
+  FEED_TYPE_META,
+  feedTypeIcon,
+  type FeedCategory,
+} from '@/components/common/notificationTypes';
 
 interface FeedItem {
   id: string;
@@ -28,18 +24,8 @@ interface FeedItem {
   createdAt: string;
 }
 
-type Category = 'semua' | 'survei' | 'poin' | 'reward' | 'pengumuman';
-
-// Meta tampilan per tipe notifikasi: ikon dan kategori penyaring. Ikon selalu gray-600;
-// warna tidak membedakan tipe, karena menukar poin bukan masalah.
-const TYPE_META: Record<string, { icon: LucideIcon; category: Exclude<Category, 'semua'> }> = {
-  survey_new: { icon: FileText, category: 'survei' },
-  survey_done: { icon: CheckCircle2, category: 'survei' },
-  point_earned: { icon: Coins, category: 'poin' },
-  point_spent: { icon: ArrowUpRight, category: 'reward' },
-  reward_fulfilled: { icon: Gift, category: 'reward' },
-  announcement: { icon: Megaphone, category: 'pengumuman' },
-};
+// Ikon & kategori per tipe ada di notificationTypes.ts (dipakai bersama lonceng).
+type Category = 'semua' | FeedCategory;
 
 const FILTERS: { key: Category; label: string }[] = [
   { key: 'semua', label: 'Semua' },
@@ -75,26 +61,42 @@ export function NotificationsPage() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    const load = async (initial: boolean) => {
       try {
         const feed = await api.get<FeedItem[]>('/notifications/feed?limit=100');
-        if (active) setItems(Array.isArray(feed) ? feed : []);
-        // Tandai semua dibaca saat halaman dibuka.
-        await api.post('/notifications/feed/read', {}).catch(() => {});
+        if (!active) return;
+        setItems(Array.isArray(feed) ? feed : []);
       } catch {
-        if (active) setItems([]);
+        // Refresh latar yang gagal tidak menghapus daftar yang sedang tampil.
+        if (active && initial) setItems([]);
+        return;
       } finally {
         if (active) setLoading(false);
       }
-    })();
+      // Tandai semua dibaca saat halaman dibuka (dan saat notifikasi baru masuk
+      // selagi terbuka), lalu kabari lonceng agar badge ikut nol.
+      const ok = await api.post('/notifications/feed/read', {}).then(
+        () => true,
+        () => false,
+      );
+      if (ok) announceFeedRead();
+    };
+    void load(true);
+    // Push tiba / aplikasi kembali ke depan → ambil ulang daftar tanpa skeleton.
+    const unsubscribe = subscribeFeed((event) => {
+      if (event === 'changed') void load(false);
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
   const filtered = useMemo(
     () =>
-      filter === 'semua' ? items : items.filter((it) => TYPE_META[it.type]?.category === filter),
+      filter === 'semua'
+        ? items
+        : items.filter((it) => FEED_TYPE_META[it.type]?.category === filter),
     [items, filter],
   );
 
@@ -143,7 +145,7 @@ export function NotificationsPage() {
       ) : (
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-panel">
           {filtered.map((it) => {
-            const Icon = TYPE_META[it.type]?.icon ?? Bell;
+            const Icon = feedTypeIcon(it.type);
             const unread = !it.readAt;
             return (
               <li key={it.id} className="flex items-start gap-3 p-3">

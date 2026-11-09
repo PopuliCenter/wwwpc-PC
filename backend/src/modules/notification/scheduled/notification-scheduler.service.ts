@@ -13,6 +13,7 @@ import { SurveyResponse, ResponseStatus } from '@modules/response/entities/surve
 import { User } from '@modules/auth/entities/user.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { SurveyStatus } from '@shared/enums';
+import { REMINDER_DAYS } from '../constants';
 import {
   CronLockService,
   CRON_LOCK_TTL_DAILY_MS,
@@ -33,6 +34,10 @@ export interface TargetCriteria {
 
 type InviteRecipient = { id: string; email: string; fullName: string };
 type MatchRow = InviteRecipient & { province: string | null };
+type ReminderDays = (typeof REMINDER_DAYS)[keyof typeof REMINDER_DAYS];
+
+/** Panjang maksimum kolom title di user_notification (varchar 200). */
+const FEED_TITLE_MAX = 200;
 
 @Injectable()
 export class NotificationSchedulerService {
@@ -92,18 +97,9 @@ export class NotificationSchedulerService {
         const pendingRespondents = await this.findRespondentsWhoHaventFilled(survey.id);
 
         if (pendingRespondents.length > 0) {
-          await this.notificationService.sendReminder(
-            pendingRespondents,
-            {
-              title: survey.title,
-              endDatetime: survey.endDatetime?.toISOString() ?? '',
-              id: survey.id,
-            },
-            3,
-            this.baseUrl,
-          );
+          const pushed = await this.dispatchReminder(survey, pendingRespondents, REMINDER_DAYS.H3);
           this.logger.log(
-            `Sent H-3 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`,
+            `Sent H-3 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents (${pushed} push)`,
           );
         }
       }
@@ -139,18 +135,9 @@ export class NotificationSchedulerService {
         const pendingRespondents = await this.findRespondentsWhoHaventFilled(survey.id);
 
         if (pendingRespondents.length > 0) {
-          await this.notificationService.sendReminder(
-            pendingRespondents,
-            {
-              title: survey.title,
-              endDatetime: survey.endDatetime?.toISOString() ?? '',
-              id: survey.id,
-            },
-            1,
-            this.baseUrl,
-          );
+          const pushed = await this.dispatchReminder(survey, pendingRespondents, REMINDER_DAYS.H1);
           this.logger.log(
-            `Sent H-1 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents`,
+            `Sent H-1 reminders for survey "${survey.title}" to ${pendingRespondents.length} respondents (${pushed} push)`,
           );
         }
       }
@@ -159,6 +146,62 @@ export class NotificationSchedulerService {
     } catch (error: any) {
       this.logger.error(`H-1 reminder job failed: ${error.message}`, error.stack);
     }
+  }
+
+  /**
+   * Kirim pengingat tenggat (email + lonceng + push) ke responden yang belum
+   * mengisi. Return jumlah push terkirim.
+   *
+   * Dipanggil SEKALI per (survei, jenis) per hari: cron lock + reminderAlreadySent
+   * menandai SEBELUM kiriman apa pun, sehingga tidak ada pengulangan. Feed & push
+   * ditulis sekali untuk seluruh penerima (bukan per batch email). Tiap kanal
+   * best-effort: email yang gagal di tengah antrean tidak membatalkan feed/push
+   * (dan tidak memicu kirim ulang), push yang gagal tidak memengaruhi email.
+   */
+  private async dispatchReminder(
+    survey: Survey,
+    recipients: InviteRecipient[],
+    daysBeforeDeadline: ReminderDays,
+  ): Promise<number> {
+    try {
+      await this.notificationService.sendReminder(
+        recipients,
+        {
+          title: survey.title,
+          endDatetime: survey.endDatetime?.toISOString() ?? '',
+          id: survey.id,
+        },
+        daysBeforeDeadline,
+        this.baseUrl,
+      );
+    } catch (e: any) {
+      this.logger.error(
+        `Gagal mengantre email pengingat H-${daysBeforeDeadline} "${survey.title}": ${e.message}`,
+        e.stack,
+      );
+    }
+
+    const ids = recipients.map((r) => r.id);
+    const title = this.truncate(`Pengingat: ${survey.title}`, FEED_TITLE_MAX);
+    const body =
+      daysBeforeDeadline === REMINDER_DAYS.H1
+        ? 'Survei ini ditutup besok. Ketuk untuk mengisi sebelum terlambat.'
+        : `Survei ini ditutup dalam ${daysBeforeDeadline} hari. Ketuk untuk mengisi sebelum terlambat.`;
+    const link = `/surveys/${survey.id}/fill`;
+
+    await this.feedService
+      .createForUsers(ids, { type: 'survey_reminder', title, body, link })
+      .catch((e) => this.logger.warn(`Gagal menulis feed pengingat: ${e.message}`));
+
+    return this.deviceTokenService.pushToUsers(ids, { title, body, data: { link } }).catch((e) => {
+      this.logger.warn(`Gagal mengirim push pengingat: ${e.message}`);
+      return 0;
+    });
+  }
+
+  /** Potong teks agar muat di kolom (beri elipsis bila terpotong). */
+  private truncate(text: string, max: number): string {
+    return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
   }
 
   /**
@@ -300,18 +343,21 @@ export class NotificationSchedulerService {
       ? `${detailParts.join(' • ')}. Ketuk untuk mulai mengisi.`
       : 'Ada survei baru yang bisa Anda isi. Ketuk untuk membuka.';
     const link = `/surveys/${survey.id}/fill`;
+    // Judul survei boleh sampai 500 karakter, kolom title feed hanya 200: potong
+    // agar insert feed tidak gagal senyap untuk survei berjudul panjang.
+    const title = this.truncate(`Survei baru: ${survey.title}`, FEED_TITLE_MAX);
 
     await this.feedService
       .createForUsers(
         respondents.map((r) => r.id),
-        { type: 'survey_new', title: `Survei baru: ${survey.title}`, body, link },
+        { type: 'survey_new', title, body, link },
       )
       .catch((e) => this.logger.warn(`Gagal menulis feed undangan: ${e.message}`));
 
     return this.deviceTokenService
       .pushToUsers(
         respondents.map((r) => r.id),
-        { title: `Survei baru: ${survey.title}`, body, data: { link } },
+        { title, body, data: { link } },
       )
       .catch((e) => {
         this.logger.warn(`Gagal mengirim push undangan: ${e.message}`);

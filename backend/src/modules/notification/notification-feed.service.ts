@@ -11,6 +11,7 @@ import { NotificationService } from './notification.service';
 
 export type FeedItemType =
   | 'survey_new'
+  | 'survey_reminder'
   | 'survey_done'
   | 'point_earned'
   | 'point_spent'

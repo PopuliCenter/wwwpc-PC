@@ -21,6 +21,7 @@ describe('NotificationSchedulerService', () => {
   let userRepository: any;
   let deviceTokenService: any;
   let feedService: any;
+  let cacheManager: any;
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
@@ -60,6 +61,16 @@ describe('NotificationSchedulerService', () => {
       createForUsers: vi.fn().mockResolvedValue(undefined),
     };
 
+    // Cache dalam memori: awalnya kosong (belum ada penanda "sudah dikirim" →
+    // reminder diproses), lalu menyimpan penanda seperti Redis sungguhan.
+    const store = new Map<string, unknown>();
+    cacheManager = {
+      get: vi.fn(async (key: string) => store.get(key) ?? null),
+      set: vi.fn(async (key: string, value: unknown) => {
+        store.set(key, value);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationSchedulerService,
@@ -74,14 +85,7 @@ describe('NotificationSchedulerService', () => {
         { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: DeviceTokenService, useValue: deviceTokenService },
         { provide: NotificationFeedService, useValue: feedService },
-        {
-          // Default: belum ada penanda "sudah dikirim" → reminder diproses.
-          provide: CACHE_MANAGER,
-          useValue: {
-            get: vi.fn().mockResolvedValue(null),
-            set: vi.fn().mockResolvedValue(undefined),
-          },
-        },
+        { provide: CACHE_MANAGER, useValue: cacheManager },
       ],
     }).compile();
 
@@ -140,6 +144,8 @@ describe('NotificationSchedulerService', () => {
       await service.sendH3Reminders();
 
       expect(notificationService.sendReminder).not.toHaveBeenCalled();
+      expect(feedService.createForUsers).not.toHaveBeenCalled();
+      expect(deviceTokenService.pushToUsers).not.toHaveBeenCalled();
     });
 
     it('should not send reminders if no surveys have deadline in 3 days', async () => {
@@ -215,6 +221,158 @@ describe('NotificationSchedulerService', () => {
     });
   });
 
+  describe('reminder feed (lonceng) + push', () => {
+    const inDays = (n: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + n);
+      return d;
+    };
+    const pending = [
+      { id: 'u-1', email: 'a@x.com', fullName: 'A' },
+      { id: 'u-2', email: 'b@x.com', fullName: 'B' },
+    ];
+
+    it('H-3 writes one feed batch + one push to the same pending respondents', async () => {
+      surveyRepository.find.mockResolvedValue([
+        {
+          id: 'survey-3',
+          title: 'Survei Gizi',
+          status: SurveyStatus.ACTIVE,
+          endDatetime: inDays(3),
+        },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue(pending);
+      deviceTokenService.pushToUsers.mockResolvedValue(2);
+
+      await service.sendH3Reminders();
+
+      expect(notificationService.sendReminder).toHaveBeenCalledTimes(1);
+      expect(notificationService.sendReminder.mock.calls[0][0]).toEqual(pending);
+      expect(feedService.createForUsers).toHaveBeenCalledTimes(1);
+      expect(feedService.createForUsers).toHaveBeenCalledWith(['u-1', 'u-2'], {
+        type: 'survey_reminder',
+        title: 'Pengingat: Survei Gizi',
+        body: expect.stringContaining('3 hari'),
+        link: '/surveys/survey-3/fill',
+      });
+      expect(deviceTokenService.pushToUsers).toHaveBeenCalledTimes(1);
+      expect(deviceTokenService.pushToUsers).toHaveBeenCalledWith(['u-1', 'u-2'], {
+        title: 'Pengingat: Survei Gizi',
+        body: expect.stringContaining('3 hari'),
+        data: { link: '/surveys/survey-3/fill' },
+      });
+    });
+
+    it('H-1 says the survey closes tomorrow', async () => {
+      surveyRepository.find.mockResolvedValue([
+        {
+          id: 'survey-1',
+          title: 'Survei Esok',
+          status: SurveyStatus.ACTIVE,
+          endDatetime: inDays(1),
+        },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue([pending[0]]);
+
+      await service.sendH1Reminders();
+
+      expect(feedService.createForUsers).toHaveBeenCalledWith(
+        ['u-1'],
+        expect.objectContaining({
+          type: 'survey_reminder',
+          title: 'Pengingat: Survei Esok',
+          body: expect.stringContaining('besok'),
+          link: '/surveys/survey-1/fill',
+        }),
+      );
+      expect(deviceTokenService.pushToUsers).toHaveBeenCalledWith(
+        ['u-1'],
+        expect.objectContaining({ body: expect.stringContaining('besok') }),
+      );
+    });
+
+    it('sends no feed and no push when nobody is pending', async () => {
+      surveyRepository.find.mockResolvedValue([
+        { id: 'survey-1', title: 'X', status: SurveyStatus.ACTIVE, endDatetime: inDays(1) },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue([]);
+
+      await service.sendH1Reminders();
+
+      expect(feedService.createForUsers).not.toHaveBeenCalled();
+      expect(deviceTokenService.pushToUsers).not.toHaveBeenCalled();
+    });
+
+    it('sends feed + push only once per survey per kind even if the job runs again the same day', async () => {
+      surveyRepository.find.mockResolvedValue([
+        {
+          id: 'survey-3',
+          title: 'Survei Ulang',
+          status: SurveyStatus.ACTIVE,
+          endDatetime: inDays(3),
+        },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue(pending);
+
+      await service.sendH3Reminders();
+      await service.sendH3Reminders(); // retrigger (restart / replika lain lolos kunci)
+
+      expect(notificationService.sendReminder).toHaveBeenCalledTimes(1);
+      expect(feedService.createForUsers).toHaveBeenCalledTimes(1);
+      expect(deviceTokenService.pushToUsers).toHaveBeenCalledTimes(1);
+    });
+
+    it('still writes feed + push exactly once when queueing the email fails midway', async () => {
+      surveyRepository.find.mockResolvedValue([
+        { id: 'survey-a', title: 'A', status: SurveyStatus.ACTIVE, endDatetime: inDays(3) },
+        { id: 'survey-b', title: 'B', status: SurveyStatus.ACTIVE, endDatetime: inDays(3) },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue(pending);
+      notificationService.sendReminder
+        .mockRejectedValueOnce(new Error('Redis down di batch ke-2'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(service.sendH3Reminders()).resolves.toBeUndefined();
+
+      // Satu kali per survei — tidak ada pengulangan karena email gagal.
+      expect(feedService.createForUsers).toHaveBeenCalledTimes(2);
+      expect(feedService.createForUsers.mock.calls.map((c: any[]) => c[1].link)).toEqual([
+        '/surveys/survey-a/fill',
+        '/surveys/survey-b/fill',
+      ]);
+      expect(deviceTokenService.pushToUsers).toHaveBeenCalledTimes(2);
+    });
+
+    it('a failing feed write or push does not fail the email or the job', async () => {
+      surveyRepository.find.mockResolvedValue([
+        { id: 'survey-1', title: 'X', status: SurveyStatus.ACTIVE, endDatetime: inDays(1) },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue(pending);
+      deviceTokenService.pushToUsers.mockRejectedValue(new Error('FCM down'));
+      feedService.createForUsers.mockRejectedValue(new Error('DB timeout'));
+
+      await expect(service.sendH1Reminders()).resolves.toBeUndefined();
+
+      expect(notificationService.sendReminder).toHaveBeenCalledTimes(1);
+    });
+
+    it('truncates the feed/push title to the 200-char column limit', async () => {
+      const longTitle = 'S'.repeat(300);
+      surveyRepository.find.mockResolvedValue([
+        { id: 'survey-1', title: longTitle, status: SurveyStatus.ACTIVE, endDatetime: inDays(3) },
+      ]);
+      mockQueryBuilder.getMany.mockResolvedValue([pending[0]]);
+
+      await service.sendH3Reminders();
+
+      const title: string = feedService.createForUsers.mock.calls[0][1].title;
+      expect(title.length).toBe(200);
+      expect(title.startsWith('Pengingat: SSS')).toBe(true);
+      // Email tetap memakai judul utuh.
+      expect(notificationService.sendReminder.mock.calls[0][1].title).toBe(longTitle);
+    });
+  });
+
   describe('sendInvitationsForSurvey', () => {
     it('queues invitations for an active survey to respondents who have not filled it', async () => {
       surveyRepository.findOne.mockResolvedValue({
@@ -279,6 +437,28 @@ describe('NotificationSchedulerService', () => {
       surveyRepository.findOne.mockResolvedValue(null);
 
       await expect(service.sendInvitationsForSurvey('missing')).rejects.toThrow();
+    });
+
+    it('truncates the feed/push title to the 200-char column limit', async () => {
+      const longTitle = 'S'.repeat(450);
+      surveyRepository.findOne.mockResolvedValue({
+        id: 'survey-1',
+        title: longTitle,
+        status: SurveyStatus.ACTIVE,
+        endDatetime: new Date('2026-07-01T00:00:00.000Z'),
+      });
+      responseRepository.find.mockResolvedValue([]);
+      mockQueryBuilder.getMany.mockResolvedValue([{ id: 'u-a', email: 'a@x.com', fullName: 'A' }]);
+
+      await service.sendInvitationsForSurvey('survey-1');
+
+      const feedTitle: string = feedService.createForUsers.mock.calls[0][1].title;
+      expect(feedTitle.length).toBe(200);
+      expect(feedTitle.startsWith('Survei baru: SSS')).toBe(true);
+      expect(feedTitle.endsWith('…')).toBe(true);
+      expect(deviceTokenService.pushToUsers.mock.calls[0][1].title).toBe(feedTitle);
+      // Email tetap memakai judul utuh.
+      expect(notificationService.sendSurveyInvitation.mock.calls[0][1].title).toBe(longTitle);
     });
   });
 

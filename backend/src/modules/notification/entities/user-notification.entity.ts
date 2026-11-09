@@ -26,7 +26,7 @@ export class UserNotification {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  /** 'survey_new' | 'announcement' */
+  /** Lihat FeedItemType di notification-feed.service.ts (mis. 'survey_new', 'survey_reminder', 'announcement'). */
   @Column({ type: 'varchar', length: 32 })
   type: string;
 

@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, FileText, Megaphone } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { api } from '@/services/api';
+import { subscribeFeed } from '@/services/notificationFeed';
 import { IconButton } from './IconButton';
 import { ListRowsSkeleton } from './Skeleton';
+import { feedTypeIcon } from './notificationTypes';
 
 interface FeedItem {
   id: string;
-  type: 'survey_new' | 'announcement' | string;
+  /** survey_new, survey_reminder, announcement, dll. (lihat notificationTypes.ts) */
+  type: string;
   title: string;
   body: string;
   link: string | null;
@@ -31,6 +34,7 @@ function timeAgo(iso: string): string {
 /**
  * Lonceng notifikasi responden: badge jumlah belum dibaca + panel daftar.
  * Sumber data: GET /notifications/feed (+ unread-count). Klik item → buka link.
+ * Ikut segar saat push tiba atau aplikasi kembali ke depan (notificationFeed.ts).
  */
 export function NotificationBell() {
   const navigate = useNavigate();
@@ -39,15 +43,51 @@ export function NotificationBell() {
   const [items, setItems] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Dibaca dari pendengar feed tanpa memasang ulang langganan tiap buka/tutup.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  // Naik setiap feed ditandai dibaca. Hitungan yang diminta SEBELUM itu sudah basi
+  // (masih menghitung item yang kini dibaca) sehingga dibuang.
+  const readSeq = useRef(0);
 
   const fetchUnread = useCallback(async () => {
+    const seq = readSeq.current;
     try {
       const r = await api.get<{ count: number }>('/notifications/feed/unread-count');
-      setUnread(r?.count ?? 0);
+      if (seq === readSeq.current) setUnread(r?.count ?? 0);
     } catch {
       /* abaikan */
     }
   }, []);
+
+  const markAllRead = useCallback(() => {
+    readSeq.current += 1;
+    setUnread(0);
+  }, []);
+
+  // Ambil daftar lalu tandai semua dibaca (panel terbuka = sudah dilihat).
+  const loadFeed = useCallback(
+    async (showLoading: boolean) => {
+      if (showLoading) setLoading(true);
+      try {
+        const feed = await api.get<FeedItem[]>('/notifications/feed');
+        const list = Array.isArray(feed) ? feed : [];
+        setItems(list);
+        if (list.some((f) => !f.readAt)) {
+          await api.post('/notifications/feed/read', {});
+          markAllRead();
+        }
+      } catch {
+        // Refresh latar yang gagal tidak menghapus daftar yang sedang tampil.
+        if (showLoading) setItems([]);
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [markAllRead],
+  );
 
   // Hitung belum-dibaca saat muncul + poll tiap 60 dtk.
   useEffect(() => {
@@ -55,6 +95,21 @@ export function NotificationBell() {
     const t = window.setInterval(fetchUnread, 60000);
     return () => window.clearInterval(t);
   }, [fetchUnread]);
+
+  // Push tiba / aplikasi kembali ke depan → segarkan badge (dan daftar bila panel
+  // terbuka). Feed ditandai dibaca di halaman Notifikasi → badge langsung nol.
+  useEffect(
+    () =>
+      subscribeFeed((event) => {
+        if (event === 'read') {
+          markAllRead();
+          return;
+        }
+        if (openRef.current) void loadFeed(false);
+        else void fetchUnread();
+      }),
+    [fetchUnread, loadFeed, markAllRead],
+  );
 
   // Tutup panel saat klik di luar.
   useEffect(() => {
@@ -69,20 +124,8 @@ export function NotificationBell() {
   const openPanel = async () => {
     setOpen((v) => !v);
     if (open) return; // sedang menutup
-    setLoading(true);
-    try {
-      const feed = await api.get<FeedItem[]>('/notifications/feed');
-      setItems(Array.isArray(feed) ? feed : []);
-      // Tandai semua dibaca begitu panel dibuka.
-      if ((feed ?? []).some((f) => !f.readAt)) {
-        await api.post('/notifications/feed/read', {});
-        setUnread(0);
-      }
-    } catch {
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
+    // Tandai semua dibaca begitu panel dibuka.
+    await loadFeed(true);
   };
 
   const handleItem = (it: FeedItem) => {
@@ -117,7 +160,7 @@ export function NotificationBell() {
               <p className="px-4 py-8 text-center text-sm text-gray-500">Belum ada notifikasi.</p>
             ) : (
               items.map((it) => {
-                const Icon = it.type === 'announcement' ? Megaphone : FileText;
+                const Icon = feedTypeIcon(it.type);
                 return (
                   <button
                     key={it.id}

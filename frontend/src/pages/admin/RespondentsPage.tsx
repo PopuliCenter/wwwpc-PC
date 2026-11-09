@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Upload,
   Download,
+  BellRing,
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { api } from '@/services/api';
@@ -15,10 +16,13 @@ import { Button } from '@/components/common/Button';
 import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
 import { RowCheckbox } from '@/components/common/RowCheckbox';
 import { useConfirm } from '@/components/common/ConfirmDialog';
-import { IconButton } from '@/components/common/IconButton';
+import { RowMenu } from '@/components/common/RowMenu';
 import { Notice } from '@/components/common/Notice';
 import { TableSkeleton } from '@/components/common/Skeleton';
 import { fieldCls } from '@/components/common/fieldStyles';
+import { showAppNotice, type AppNotice } from '@/stores/notification.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { access, hasRole } from '@/config/access';
 
 // Tabel gaya laporan: garis tebal navy di bawah kepala, garis tipis antar baris.
 // Kelas dasar dipisah dari warna/padding: utilitas yang bentrok dimenangkan urutan CSS.
@@ -89,6 +93,36 @@ function toRow(r: Respondent): Record<string, string | number> {
     }
   }
   return row;
+}
+
+/** Respons POST /notifications/test-push. */
+interface TestPushResult {
+  /** false bila push (FIREBASE_SERVICE_ACCOUNT) belum dikonfigurasi di server. */
+  pushEnabled: boolean;
+  /** Jumlah perangkat terdaftar milik responden. */
+  devices: number;
+  /** Jumlah yang diterima FCM. */
+  pushed: number;
+}
+
+/** Terjemahkan hasil push uji ke pesan awam untuk admin. */
+function describeTestPush(res: TestPushResult, name: string): Pick<AppNotice, 'title' | 'tone'> {
+  if (!res.pushEnabled) return { title: 'Push belum aktif di server.', tone: 'warning' };
+  if (res.devices === 0) {
+    return {
+      title: `${name} belum punya perangkat terdaftar. Minta ia membuka aplikasi Android dan mengizinkan notifikasi.`,
+      tone: 'warning',
+    };
+  }
+  // pushed = 0 bisa karena token mati ATAU karena FCM sendiri gagal (kredensial,
+  // jaringan, kuota) — server tidak membedakannya, jadi pesan tetap netral.
+  if (res.pushed === 0) {
+    return {
+      title: `Tidak ada yang diterima FCM untuk ${res.devices} perangkat. Token mungkin kedaluwarsa atau layanan push bermasalah; cek log server.`,
+      tone: 'warning',
+    };
+  }
+  return { title: `Terkirim ke ${res.pushed} perangkat.`, tone: 'success' };
 }
 
 type SortKey = 'fullName' | 'age' | 'gender' | 'province' | 'city' | 'district' | 'registeredAt';
@@ -187,6 +221,10 @@ export function RespondentsPage() {
   const { confirm, dialog } = useConfirm();
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Push uji: aturan peran sama dengan menu Pengumuman (backend juga menolak peran lain).
+  const role = useAuthStore((s) => s.user?.role);
+  const canTestPush = hasRole(role, access.announcements);
+  const [testingIds, setTestingIds] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async (q: string) => {
     setLoading(true);
@@ -276,6 +314,29 @@ export function RespondentsPage() {
       setRespondents((prev) => prev.filter((x) => x.id !== r.id));
     } catch (e) {
       setError((e as { message?: string })?.message || 'Gagal menghapus responden.');
+    }
+  };
+
+  // Kirim satu push uji ke semua perangkat responden (tidak masuk feed lonceng).
+  const handleTestPush = async (r: Respondent) => {
+    if (testingIds.has(r.id)) return;
+    setTestingIds((prev) => new Set(prev).add(r.id));
+    try {
+      const res = await api.post<TestPushResult>('/notifications/test-push', { userId: r.id });
+      showAppNotice(describeTestPush(res, r.fullName));
+    } catch (e) {
+      const message = (e as { message?: unknown })?.message;
+      showAppNotice({
+        title: 'Gagal mengirim notifikasi uji',
+        body: typeof message === 'string' ? message : undefined,
+        tone: 'error',
+      });
+    } finally {
+      setTestingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(r.id);
+        return next;
+      });
     }
   };
 
@@ -650,13 +711,27 @@ export function RespondentsPage() {
                       {fmtDate(r.registeredAt)}
                     </td>
                     <td className={`${tdBase} whitespace-nowrap py-1.5 text-right`}>
-                      <IconButton
-                        aria-label={`Hapus responden ${r.fullName}`}
-                        destructive
-                        onClick={() => handleDelete(r)}
-                      >
-                        <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                      </IconButton>
+                      <RowMenu
+                        label={`Aksi untuk ${r.fullName}`}
+                        items={[
+                          canTestPush && {
+                            label: testingIds.has(r.id)
+                              ? 'Mengirim notifikasi uji…'
+                              : 'Kirim notifikasi uji',
+                            title: 'Kirim satu notifikasi uji ke HP responden ini',
+                            icon: BellRing,
+                            disabled: testingIds.has(r.id),
+                            onClick: () => void handleTestPush(r),
+                          },
+                          {
+                            label: 'Hapus',
+                            title: 'Hapus permanen responden ini',
+                            icon: Trash2,
+                            destructive: true,
+                            onClick: () => void handleDelete(r),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}

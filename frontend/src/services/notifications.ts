@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { router } from '@/router';
 import { api } from '@/services/api';
+import { requestFeedRefresh } from '@/services/notificationFeed';
 import { showAppNotice } from '@/stores/notification.store';
 
 /**
@@ -14,6 +15,8 @@ import { showAppNotice } from '@/stores/notification.store';
  *  - push tiba → OS menampilkan notifikasi sistem dari payload FCM (sekali);
  *  - push tiba saat app DI DEPAN → TAMBAHAN pop-up in-app (showAppNotice). App
  *    TIDAK membuat local notification lagi agar tidak muncul notif GANDA;
+ *  - push tiba di depan → lonceng & halaman Notifikasi ikut segar
+ *    (requestFeedRefresh, lihat notificationFeed.ts);
  *  - notifikasi diketuk → buka rute tujuan (mis. /surveys/<id>/fill).
  *
  * Aman dipanggil berkali-kali (idempoten) dan tidak melempar error ke UI.
@@ -118,7 +121,8 @@ export async function initNativeNotifications(): Promise<void> {
 
     // Push tiba saat aplikasi DI DEPAN → HANYA pop-up in-app. OS sudah menampilkan
     // notifikasi sistem dari payload FCM; TIDAK membuat local notification lagi
-    // (dulu memicu notif GANDA di status bar).
+    // (dulu memicu notif GANDA di status bar). Lonceng & halaman Notifikasi
+    // diminta mengambil ulang agar badge dan daftar langsung bertambah.
     PushNotifications.addListener('pushNotificationReceived', (notif) => {
       showAppNotice({
         title: notif.title ?? 'Pemberitahuan',
@@ -126,6 +130,7 @@ export async function initNativeNotifications(): Promise<void> {
         link: (notif.data?.link as string | undefined) ?? undefined,
         tone: 'info',
       });
+      requestFeedRefresh();
     });
 
     // Notifikasi push diketuk (app di belakang/tertutup/depan) → buka rute.
