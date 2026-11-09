@@ -328,6 +328,7 @@ export class NotificationSchedulerService {
         description: survey.description ?? undefined,
         endDatetime: survey.endDatetime?.toISOString() ?? '',
         id: survey.id,
+        points: survey.rewardConfig?.pointsValue ?? null,
       },
       this.baseUrl,
     );

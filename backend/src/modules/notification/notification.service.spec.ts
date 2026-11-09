@@ -76,6 +76,25 @@ describe('NotificationService', () => {
       );
     });
 
+    it('menyertakan poin hadiah survei sebagai rewardInfo', async () => {
+      const respondents = [{ email: 'user1@test.com', fullName: 'User One' }];
+
+      await service.sendSurveyInvitation(
+        respondents,
+        { title: 'S', endDatetime: '2026-06-01', id: 's-1', points: 1500 },
+        'https://app.test',
+      );
+      await service.sendSurveyInvitation(
+        respondents,
+        { title: 'S', endDatetime: '2026-06-01', id: 's-2', points: null },
+        'https://app.test',
+      );
+
+      const contextOf = (call: number) => mockQueue.add.mock.calls[call][1].payloads[0].context;
+      expect(contextOf(0).rewardInfo).toBe('1.500 poin');
+      expect(contextOf(1).rewardInfo).toBeUndefined();
+    });
+
     it('should batch large recipient lists into groups of 50', async () => {
       const respondents = Array.from({ length: 120 }, (_, i) => ({
         email: `user${i}@test.com`,

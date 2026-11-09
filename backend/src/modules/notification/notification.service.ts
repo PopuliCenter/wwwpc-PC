@@ -39,12 +39,20 @@ export class NotificationService {
    */
   async sendSurveyInvitation(
     respondents: Array<{ email: string; fullName: string }>,
-    survey: { title: string; description?: string; endDatetime: string; id: string },
+    survey: {
+      title: string;
+      description?: string;
+      endDatetime: string;
+      id: string;
+      /** Poin hadiah survei; ditampilkan sebagai angka besar di email. */
+      points?: number | null;
+    },
     baseUrl: string,
   ): Promise<void> {
     this.logger.log(
       `Sending survey invitation for "${survey.title}" to ${respondents.length} respondents`,
     );
+    const rewardInfo = survey.points ? `${survey.points.toLocaleString('id-ID')} poin` : undefined;
 
     const payloads: EmailPayload[] = respondents.map((respondent) => ({
       to: respondent.email,
@@ -56,6 +64,7 @@ export class NotificationService {
         surveyDescription: survey.description,
         deadline: survey.endDatetime,
         surveyUrl: `${baseUrl}/surveys/${survey.id}/fill`,
+        rewardInfo,
       } as SurveyInvitationContext,
     }));
 
