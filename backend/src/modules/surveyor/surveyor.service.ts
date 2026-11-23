@@ -19,6 +19,7 @@ import { AssignSurveyorDto } from './dto/assign-surveyor.dto';
 import { UpdateSurveyorQuotaDto } from './dto/update-surveyor-quota.dto';
 import { SubmitSurveyorResponseDto } from './dto/submit-surveyor-response.dto';
 import { assertSurveyActive } from '@modules/survey/utils/survey-active';
+import { findOwnSubmission } from '@modules/response/utils/client-submission';
 
 export interface SurveyorAssignmentView {
   surveyorId: string;
@@ -228,9 +229,12 @@ export class SurveyorService {
     // tercatat (mis. retry setelah online kembali), kembalikan respons yang ada
     // tanpa membuat duplikat dan tanpa menolak nomor yang "sudah dipakai".
     if (dto.clientSubmissionId) {
-      const existing = await this.responseRepository.findOne({
-        where: { clientSubmissionId: dto.clientSubmissionId },
-      });
+      const existing = await findOwnSubmission(
+        this.responseRepository,
+        dto.clientSubmissionId,
+        surveyorId,
+        surveyId,
+      );
       if (existing) {
         return {
           id: existing.id,
@@ -297,9 +301,12 @@ export class SurveyorService {
     } catch (error: any) {
       // Race sync: dua retry kunci yang sama bersamaan; unique index menjaga.
       if (error?.code === '23505' && dto.clientSubmissionId) {
-        const raced = await this.responseRepository.findOne({
-          where: { clientSubmissionId: dto.clientSubmissionId },
-        });
+        const raced = await findOwnSubmission(
+          this.responseRepository,
+          dto.clientSubmissionId,
+          surveyorId,
+          surveyId,
+        );
         if (raced) {
           return {
             id: raced.id,

@@ -14,6 +14,10 @@ set -euo pipefail
 umask 077
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/survei}"
+# Image utilitas untuk tar/untar volume MinIO. Dipin ke tag PERSIS (T-37):
+# container ini membaca SELURUH media responden, jadi jangan ikut `alpine`
+# mutable. Naikkan versi dengan sengaja (cek changelog), bukan otomatis.
+ALPINE_IMAGE="${ALPINE_IMAGE:-alpine:3.24.4}"
 RETENTION_DAYS="${RETENTION_DAYS:-14}"
 PG_CONTAINER="${PG_CONTAINER:-survei_postgres}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-survei_minio}"
@@ -42,9 +46,9 @@ echo "[$(date '+%F %T')] DB    → $PG_FILE ($(du -h "$PG_FILE" | cut -f1))"
 
 # --- MinIO: stream tar seluruh /data via stdout (semua bucket: uploads/exports)
 # Streaming (bukan bind-mount) → portabel & bisa diuji di mesin mana pun.
-docker run --rm --volumes-from "$MINIO_CONTAINER" alpine \
+docker run --rm --volumes-from "$MINIO_CONTAINER" "$ALPINE_IMAGE" \
   tar czf - -C /data . > "$MINIO_FILE.partial"
-docker run --rm -i alpine sh -c 'tar tzf - >/dev/null' < "$MINIO_FILE.partial"
+docker run --rm -i "$ALPINE_IMAGE" sh -c 'tar tzf - >/dev/null' < "$MINIO_FILE.partial"
 mv "$MINIO_FILE.partial" "$MINIO_FILE"
 echo "[$(date '+%F %T')] MinIO → $MINIO_FILE ($(du -h "$MINIO_FILE" | cut -f1))"
 

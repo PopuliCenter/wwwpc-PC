@@ -35,6 +35,7 @@ describe('NotificationController (HTTP)', () => {
   let baseUrl: string;
   const deviceTokenService = {
     register: vi.fn(),
+    removeForUser: vi.fn(),
     sendTestPush: vi.fn(),
   };
   const feedService = {
@@ -158,6 +159,37 @@ describe('NotificationController (HTTP)', () => {
         expect(deviceTokenService.sendTestPush).not.toHaveBeenCalled();
       },
     );
+  });
+
+  describe('DELETE /notifications/device-token', () => {
+    const del = (role: UserRole | null, body: unknown) =>
+      fetch(`${baseUrl}/notifications/device-token`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(role ? { 'x-test-role': role } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+
+    it('removes the token scoped to the logged-in user and answers 204', async () => {
+      deviceTokenService.removeForUser.mockResolvedValue(undefined);
+      const res = await del(UserRole.RESPONDENT, { token: 'fcm-tok-1' });
+      expect(res.status).toBe(204);
+      expect(deviceTokenService.removeForUser).toHaveBeenCalledWith('actor-1', 'fcm-tok-1');
+    });
+
+    it('rejects a missing/empty token with 400', async () => {
+      expect((await del(UserRole.RESPONDENT, {})).status).toBe(400);
+      expect((await del(UserRole.RESPONDENT, { token: '' })).status).toBe(400);
+      expect(deviceTokenService.removeForUser).not.toHaveBeenCalled();
+    });
+
+    it('requires authentication', async () => {
+      const res = await del(null, { token: 'fcm-tok-1' });
+      expect(res.status).toBe(403);
+      expect(deviceTokenService.removeForUser).not.toHaveBeenCalled();
+    });
   });
 
   it('other notification routes stay open to respondents', async () => {

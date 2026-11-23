@@ -54,3 +54,11 @@ def('MAIL_FROM', 'Test <test@example.com>');
 def('GEO_ENCRYPTION_KEY', 'e2e-test-geo-key-32-bytes-000000');
 
 def('ALLOWED_ORIGINS', '');
+
+// Object storage: TIDAK ada MinIO di E2E. Arahkan ke port lokal yang tertutup
+// agar setiap panggilan S3 gagal CEPAT (connection refused) — tanpa ini SDK
+// menembak endpoint AWS sungguhan & menelusuri rantai kredensial (lambat).
+// Penghapusan berkas bersifat best-effort, jadi alur DB tetap teruji.
+def('S3_ENDPOINT', 'http://127.0.0.1:1');
+def('S3_ACCESS_KEY', 'e2e');
+def('S3_SECRET_KEY', 'e2e-secret');

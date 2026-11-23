@@ -5,10 +5,13 @@ node_modules/
 dist/
 build/
 
-# Environment files
+# Environment files — SEMUA varian .env.* (development, staging, test, …)
+# kecuali contoh yang memang dibagikan (audit T-28).
 .env
 .env.local
 .env.*.local
+.env.*
+!.env.example
 # .env.production berisi konfigurasi BUILD NATIVE (Capacitor) lokal: URL API
 # absolut, VITE_GOOGLE_CLIENT_ID, VITE_ENABLE_PUSH. JANGAN di-commit — VPS punya
 # .env.production sendiri untuk build web; commit akan menimpanya saat git pull.
@@ -53,3 +56,21 @@ frontend/android/local.properties
 frontend/android/app/release/
 *.keystore
 *.jks
+
+# ── Rahasia & data yang tidak boleh masuk repo PUBLIK (audit T-28) ──────────
+# Dump database (pg_dump di clone VPS: arahkan ke /var/backups/survei).
+*.sql
+*.sql.gz
+*.dump
+backups/
+# Pengecualian: skrip init Postgres yang memang bagian dari repo.
+!docker/postgres/*.sql
+# Kunci & sertifikat
+*.pem
+*.key
+*.p12
+*service-account*.json
+# Artefak rilis Android
+*.apk
+*.aab
+frontend/android/keystore.properties

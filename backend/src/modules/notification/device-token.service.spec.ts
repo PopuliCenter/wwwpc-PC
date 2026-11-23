@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
-import { DeviceTokenService, TEST_PUSH_PAYLOAD, TOKEN_QUERY_CHUNK } from './device-token.service';
+import {
+  DeviceTokenService,
+  MAX_TOKENS_PER_USER,
+  TEST_PUSH_PAYLOAD,
+  TOKEN_QUERY_CHUNK,
+} from './device-token.service';
 import { DeviceToken } from './entities/device-token.entity';
 import { PushService } from './push.service';
 import { User } from '@modules/auth/entities/user.entity';
@@ -45,6 +50,37 @@ describe('DeviceTokenService', () => {
       expect.objectContaining({ userId: 'user-1', token: 'tok-1', platform: 'android' }),
       expect.objectContaining({ conflictPaths: ['token'] }),
     );
+  });
+
+  it('prunes tokens beyond MAX_TOKENS_PER_USER newest after register', async () => {
+    repo.find.mockResolvedValue([{ id: 'old-1' }, { id: 'old-2' }]);
+    await service.register('user-1', 'tok-11', 'android');
+    expect(repo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'user-1' },
+        order: { lastSeenAt: 'DESC', createdAt: 'DESC' },
+        skip: MAX_TOKENS_PER_USER,
+      }),
+    );
+    expect(repo.delete).toHaveBeenCalledTimes(1);
+    const arg = repo.delete.mock.calls[0][0];
+    expect(arg.id.value ?? arg.id._value).toEqual(['old-1', 'old-2']);
+  });
+
+  it('does not delete anything when the user is under the cap', async () => {
+    repo.find.mockResolvedValue([]);
+    await service.register('user-1', 'tok-1', 'android');
+    expect(repo.delete).not.toHaveBeenCalled();
+  });
+
+  it('register still succeeds when pruning fails', async () => {
+    repo.find.mockRejectedValue(new Error('db down'));
+    await expect(service.register('user-1', 'tok-1', 'android')).resolves.toBeUndefined();
+  });
+
+  it('removeForUser deletes only the row matching BOTH user and token', async () => {
+    await service.removeForUser('user-1', 'tok-1');
+    expect(repo.delete).toHaveBeenCalledWith({ userId: 'user-1', token: 'tok-1' });
   });
 
   it('returns 0 and skips push when users have no tokens', async () => {

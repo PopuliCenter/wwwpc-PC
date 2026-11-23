@@ -1,8 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Cron } from '@nestjs/schedule';
 import { In, LessThan, Repository } from 'typeorm';
+import { CronLockService, CRON_LOCK_TTL_DAILY_MS } from '../../common/scheduling/cron-lock.service';
 import { ClientLog } from './client-log.entity';
 import { CreateClientLogDto } from './dto/create-client-log.dto';
+
+/** Masa simpan log error klien (hari). Env CLIENT_LOG_RETENTION_DAYS, default 30. */
+export function clientLogRetentionDays(): number {
+  const n = Number.parseInt(process.env.CLIENT_LOG_RETENTION_DAYS ?? '', 10);
+  return Number.isFinite(n) && n >= 1 ? n : 30;
+}
+
+/** Batas ukuran `context` (JSON) yang disimpan — sisanya dibuang (T-34). */
+export const MAX_CONTEXT_CHARS = 4000;
+
+function capContext(ctx: Record<string, unknown> | undefined): Record<string, unknown> | null {
+  if (!ctx) return null;
+  try {
+    const json = JSON.stringify(ctx);
+    if (json.length <= MAX_CONTEXT_CHARS) return ctx;
+    return { truncated: true, originalLength: json.length };
+  } catch {
+    return { truncated: true };
+  }
+}
 
 export interface ClientLogQuery {
   page?: number;
@@ -19,12 +41,13 @@ export class ClientLogService {
   constructor(
     @InjectRepository(ClientLog)
     private readonly repo: Repository<ClientLog>,
+    private readonly cronLock: CronLockService,
   ) {}
 
   /** Simpan satu laporan error klien. Best-effort: kegagalan tak melempar. */
   async record(
     dto: CreateClientLogDto,
-    meta: { userId?: string | null; ipAddress?: string | null },
+    meta: { userId?: string | null; userEmail?: string | null; ipAddress?: string | null },
   ): Promise<void> {
     try {
       const entry = this.repo.create({
@@ -37,8 +60,9 @@ export class ClientLogService {
         appVersion: dto.appVersion ?? null,
         userAgent: dto.userAgent ?? null,
         userId: meta.userId ?? null,
-        userEmail: dto.userEmail ?? null,
-        context: dto.context ?? null,
+        // Email dari JWT terverifikasi (controller), BUKAN dari body klien.
+        userEmail: meta.userEmail ?? null,
+        context: capContext(dto.context),
         ipAddress: meta.ipAddress ?? null,
       });
       await this.repo.save(entry);
@@ -84,5 +108,23 @@ export class ClientLogService {
     const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const res = await this.repo.delete({ createdAt: LessThan(cutoff) });
     return { deleted: res.affected ?? 0 };
+  }
+
+  /**
+   * Retensi otomatis (T-34): hapus log klien lebih tua dari
+   * CLIENT_LOG_RETENTION_DAYS (default 30) setiap hari 03.15 WIB. Satu replika
+   * saja yang mengeksekusi (cron-lock).
+   */
+  @Cron('0 15 3 * * *', { timeZone: 'Asia/Jakarta' })
+  async purgeExpired(): Promise<{ deleted: number }> {
+    if (!(await this.cronLock.acquire('client-log-retention', CRON_LOCK_TTL_DAILY_MS))) {
+      return { deleted: 0 };
+    }
+    const days = clientLogRetentionDays();
+    const res = await this.purgeOlderThanDays(days);
+    if (res.deleted > 0) {
+      this.logger.log(`Retensi client_log: ${res.deleted} log > ${days} hari dihapus`);
+    }
+    return res;
   }
 }

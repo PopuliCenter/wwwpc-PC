@@ -8,6 +8,7 @@ import { StorageController } from './storage.controller';
 import { AvatarController } from './avatar.controller';
 import { ExportProcessor } from './processors';
 import { S3StorageService } from './s3-storage.service';
+import { StorageCleanupService } from './storage-cleanup.service';
 import { ExportJob } from './entities/export-job.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
@@ -28,7 +29,7 @@ import { EXPORT_QUEUE } from './constants';
     AuditModule,
   ],
   controllers: [ExportController, StorageController, AvatarController],
-  providers: [ExportService, ExportProcessor, S3StorageService],
-  exports: [ExportService, S3StorageService],
+  providers: [ExportService, ExportProcessor, S3StorageService, StorageCleanupService],
+  exports: [ExportService, S3StorageService, StorageCleanupService],
 })
 export class ExportModule {}

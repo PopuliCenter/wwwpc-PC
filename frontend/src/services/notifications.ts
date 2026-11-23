@@ -106,8 +106,8 @@ let pushReleased = false;
 /**
  * Lepaskan push perangkat ini dari akun yang logout. Dipanggil SEBELUM sesi
  * dicabut (butuh token auth):
- *  1. `DELETE /notifications/device-token` {token} — best-effort; endpoint ini
- *     belum ada di backend (404 diabaikan), siap dipakai begitu ditambahkan;
+ *  1. `DELETE /notifications/device-token` {token} — best-effort; backend hanya
+ *     menghapus token bila milik akun ini (idempoten, 204);
  *  2. `PushNotifications.unregister()` → FCM menghapus token di perangkat, jadi
  *     token yang tersimpan di server mati (dibersihkan backend saat kirim
  *     berikutnya: registration-token-not-registered) dan push akun lama — mis.

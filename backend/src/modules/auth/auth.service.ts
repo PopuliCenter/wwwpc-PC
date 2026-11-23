@@ -21,6 +21,7 @@ import { UserProfile } from '@modules/registration/entities/user-profile.entity'
 import { UserRole } from '@shared/enums';
 import { NotificationService } from '@modules/notification';
 import { AuthResult, TokenPair, SessionInfo, JwtPayload } from './interfaces';
+import { maskEmail } from '../../common/security/mask-email';
 
 export interface ProfileResult {
   id: string;
@@ -198,7 +199,7 @@ export class AuthService {
           profileCompleted: false,
         }),
       );
-      this.logger.log(`Akun responden baru via Google: ${user.email}`);
+      this.logger.log(`Akun responden baru via Google: ${maskEmail(user.email)}`);
     }
 
     return this.issueSession(user);
@@ -395,7 +396,7 @@ export class AuthService {
       Math.round(PASSWORD_RESET_TTL / 60),
       'reset',
     );
-    this.logger.log(`Password reset OTP issued for ${email}`);
+    this.logger.log(`Password reset OTP issued for ${maskEmail(email)}`);
   }
 
   async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
@@ -440,7 +441,7 @@ export class AuthService {
     // Tendang semua sesi lama (mis. milik penyerang) setelah reset password (H5).
     await this.sessionRevocation.revokeAllSessions(user.id);
 
-    this.logger.log(`Password reset completed for ${email}`);
+    this.logger.log(`Password reset completed for ${maskEmail(email)}`);
   }
 
   // --- Profil sendiri (semua user yang login) ---
@@ -559,7 +560,7 @@ export class AuthService {
     // Cabut SEMUA sesi (mis. milik penyerang) setelah ganti password (H5, T-11).
     // Sesi saat ini ikut berakhir → pengguna login ulang dengan sandi baru.
     await this.sessionRevocation.revokeAllSessions(userId);
-    this.logger.log(`Password changed by user ${user.email}`);
+    this.logger.log(`Password changed by user ${maskEmail(user.email)}`);
   }
 
   /**
@@ -582,7 +583,7 @@ export class AuthService {
     }
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     await this.userRepository.update(userId, { passwordHash, passwordSet: true });
-    this.logger.log(`Password dibuat (akun tanpa password) oleh ${user.email}`);
+    this.logger.log(`Password dibuat (akun tanpa password) oleh ${maskEmail(user.email)}`);
   }
 
   private toProfile(user: User): ProfileResult {
@@ -642,7 +643,7 @@ export class AuthService {
     const next = current + 1;
     await this.cacheManager.set(key, next, LOCKOUT_TTL_SECONDS * 1000);
     if (next >= MAX_FAILED_ATTEMPTS) {
-      this.logger.warn(`Account locked due to ${next} failed login attempts: ${email}`);
+      this.logger.warn(`Account locked due to ${next} failed login attempts: ${maskEmail(email)}`);
     }
   }
 

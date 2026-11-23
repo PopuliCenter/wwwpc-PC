@@ -475,3 +475,102 @@ sempat ditambal manual ke container yang berjalan (tidak persisten) dan hilang
 saat container di-_recreate_ untuk pasang app WA. Diperbaiki dengan membuat
 `survei.risetcenter.com.conf` (mandiri, proxy ke `survei_frontend:80`) dan
 mendaftarkannya via `docker-compose.override.yml` (lihat §3 sbg SOP ke depan).
+
+## 7. IP klien asli: real_ip Cloudflare di edge, lalu `TRUST_PROXY_HOPS`
+
+Rantai: Cloudflare → edge nginx → nginx `survei_frontend` → backend. Backend
+membaca IP **hanya** dari `req.ip` (Express `trust proxy` = `TRUST_PROXY_HOPS`,
+lihat `backend/src/main.ts`); `X-Forwarded-For` paling kiri tidak lagi dipakai
+karena bisa dipalsukan klien. Tanpa langkah di bawah, `req.ip` = IP container
+edge untuk **semua** pengunjung, sehingga rate-limit login/OTP (5/menit) menjadi
+kuota bersama seluruh situs. **Kerjakan berurutan.**
+
+**Langkah 0 — cek baca-saja (kondisi awal).**
+
+```bash
+grep -E '^(TRUST_PROXY_HOPS|IAK_CALLBACK_IPS)=' /var/www/online-survei/backend/.env
+docker exec survey-populicenter-nginx-1 nginx -T 2>/dev/null | grep -nE 'real_ip_header|set_real_ip_from'
+```
+
+Bila `IAK_CALLBACK_IPS` **terisi**: sejak rilis ini allowlist membaca `req.ip`,
+jadi dengan hops=1 semua callback IAK ditolak 403 (IP yang terlihat = container
+edge). Kosongkan dulu (signature md5 tetap memverifikasi callback) dan isi lagi
+setelah langkah 4 lulus.
+
+**Langkah 1 — real_ip di vhost survei pada edge** (aman dikerjakan kapan saja;
+tidak mengubah apa pun selama hops masih 1). Buat daftar rentang resmi
+Cloudflare:
+
+```bash
+{ echo "    # real_ip Cloudflare — dibuat $(date -I) dari https://www.cloudflare.com/ips/"
+  for c in $(curl -fsS https://www.cloudflare.com/ips-v4) $(curl -fsS https://www.cloudflare.com/ips-v6); do
+    echo "    set_real_ip_from $c;"
+  done
+  echo "    real_ip_header CF-Connecting-IP;"
+} > /tmp/cf-realip.txt
+wc -l /tmp/cf-realip.txt   # puluhan baris; kosong = curl gagal, JANGAN lanjut
+```
+
+Cadangkan `survei.populicenter.com.conf` di `/var/www/survey-populicenter/`,
+lalu tempel isi `/tmp/cf-realip.txt` di dalam blok `server { }` vhost itu (di
+bawah `server_name`). Sunting **in-place** dengan nano (gotcha #9: jangan
+`sed -i`/`mv`). Lalu:
+
+```bash
+docker exec survey-populicenter-nginx-1 nginx -t && docker exec survey-populicenter-nginx-1 nginx -s reload
+docker exec survey-populicenter-nginx-1 nginx -T 2>/dev/null | grep -c set_real_ip_from   # > 0
+```
+
+`set_real_ip_from` **hanya** rentang Cloudflare (jangan `0.0.0.0/0`): koneksi
+langsung ke origin dari IP lain tetap tercatat dengan IP aslinya, sehingga hops=2
+aman walau origin belum dikunci. Rentang Cloudflare jarang berubah; ulangi
+langkah ini bila Cloudflare mengumumkan perubahan.
+
+**Langkah 2 (opsional, disarankan) — kunci origin ke Cloudflare.** Port Docker
+melewati UFW, jadi pakai chain `DOCKER-USER`. **Hanya** bila SEMUA domain di VPS
+ini ber-proxy Cloudflare (awan oranye) dan SSL mode Full (strict); domain yang
+DNS-only akan langsung tidak bisa diakses. Contoh IPv4 (`eth0` = interface
+publik, sesuaikan; IPv6 serupa dengan `ip6tables` bila Docker memakai IPv6):
+
+```bash
+sudo iptables -N CF-ONLY 2>/dev/null || sudo iptables -F CF-ONLY
+for c in $(curl -fsS https://www.cloudflare.com/ips-v4); do sudo iptables -A CF-ONLY -s "$c" -j RETURN; done
+sudo iptables -A CF-ONLY -j DROP
+for p in 80 443; do
+  sudo iptables -I DOCKER-USER -i eth0 -p tcp -m conntrack --ctorigdstport "$p" --ctdir ORIGINAL -j CF-ONLY
+done
+```
+
+Aturan iptables hilang saat reboot; simpan (mis. `iptables-persistent`) setelah
+terbukti benar. Cabut: hapus dua aturan `DOCKER-USER` di atas (`-D` dengan
+argumen yang sama).
+
+**Langkah 3 — baru setelah langkah 1 lulus: `TRUST_PROXY_HOPS=2`.**
+
+```bash
+cd /var/www/online-survei
+nano backend/.env            # TRUST_PROXY_HOPS=2   (jangan 3)
+docker compose up -d --no-deps --no-build backend
+```
+
+Hops=2 **tanpa** langkah 1 = `req.ip` menjadi IP server Cloudflare (kuota
+bersama per PoP, audit tak bermakna). Hops=3 = IP bisa dipalsukan. Rollback:
+kembalikan ke 1 dan ulangi perintah `up`.
+
+**Langkah 4 — verifikasi baca-saja.** Dari HP (data seluler, bukan Wi-Fi
+kantor), buka `https://survei.populicenter.com/cdn-cgi/trace` dan catat baris
+`ip=`. Login sekali dari HP itu, lalu:
+
+```bash
+docker exec survei_postgres psql -U postgres -d survei_online -c \
+  "SELECT ip_address, created_at FROM audit_log WHERE action_type = 'login' ORDER BY created_at DESC LIMIT 3;"
+```
+
+`ip_address` teratas harus sama dengan `ip=` tadi. Bila berisi IP privat
+(`172.x`, `10.x`, `192.168.x`) → langkah 1 belum termuat atau hops masih 1; bila
+IP milik Cloudflare → hops=2 tetapi real_ip belum aktif (kembali ke hops=1 dulu).
+Setelah lulus, isi kembali `IAK_CALLBACK_IPS` (langkah 0) bila dipakai.
+
+Rate-limit kini disimpan di Redis (lintas replika; fallback in-memory bila Redis
+mati). Tambahkan juga rate limiting Cloudflare (WAF) untuk `/api/*` sebagai
+lapisan luar.

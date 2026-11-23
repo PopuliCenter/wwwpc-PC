@@ -18,16 +18,10 @@ import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
 import { DeviceTokenService, TestPushResult } from './device-token.service';
 import { NotificationFeedService } from './notification-feed.service';
-import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
+import { RegisterDeviceTokenDto, RemoveDeviceTokenDto } from './dto/register-device-token.dto';
 import { MarkReadDto } from './dto/mark-read.dto';
 import { SendTestPushDto } from './dto/send-test-push.dto';
-
-/** Ambil IP klien (hormati proxy). */
-function clientIp(req: any): string {
-  return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
-  );
-}
+import { clientIp } from '../../common/security/client-ip';
 
 /**
  * Endpoint notifikasi untuk user yang login (semua peran, termasuk responden):
@@ -52,6 +46,19 @@ export class NotificationController {
   ): Promise<{ ok: true }> {
     await this.deviceTokenService.register(req.user.userId, dto.token, dto.platform);
     return { ok: true };
+  }
+
+  /**
+   * Lepas token perangkat milik user yang login (dipanggil frontend saat
+   * logout). Hanya menghapus token bila milik req.user; idempoten → selalu 204.
+   */
+  @Delete('device-token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeDeviceToken(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RemoveDeviceTokenDto,
+  ): Promise<void> {
+    await this.deviceTokenService.removeForUser(req.user.userId, dto.token);
   }
 
   /**

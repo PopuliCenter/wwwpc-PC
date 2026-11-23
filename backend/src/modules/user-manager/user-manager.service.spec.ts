@@ -12,6 +12,7 @@ import { UserManagerService } from './user-manager.service';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { SessionRevocationService } from '@modules/auth/session-revocation.service';
+import { StorageCleanupService } from '@modules/export/storage-cleanup.service';
 import { UserRole, AuditActionType } from '@shared/enums';
 
 describe('UserManagerService', () => {
@@ -19,6 +20,7 @@ describe('UserManagerService', () => {
   let userRepository: any;
   let auditService: any;
   let dataSource: any;
+  let storageCleanup: any;
   let sessionRevocation: any;
 
   beforeEach(async () => {
@@ -44,6 +46,16 @@ describe('UserManagerService', () => {
       clearAuthState: vi.fn().mockResolvedValue(undefined),
     };
 
+    storageCleanup = {
+      planForUser: vi.fn(async (_m: unknown, userId: string) => ({
+        userId,
+        uploadPrefixes: [`survey-uploads/s1/${userId}/`],
+        uploadKeys: [`avatars/${userId}`],
+        exportKeys: [],
+      })),
+      executeUserPlan: vi.fn().mockResolvedValue({ deleted: 2, failed: 0 }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserManagerService,
@@ -51,6 +63,7 @@ describe('UserManagerService', () => {
         { provide: AuditService, useValue: auditService },
         { provide: DataSource, useValue: dataSource },
         { provide: SessionRevocationService, useValue: sessionRevocation },
+        { provide: StorageCleanupService, useValue: storageCleanup },
       ],
     }).compile();
 
@@ -539,6 +552,42 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ actionType: AuditActionType.USER_DELETE }),
       );
+    });
+
+    it('audit T-16: also deletes the user MinIO objects and client_log rows', async () => {
+      userRepository.findOne.mockResolvedValue({
+        id: 'r1',
+        role: UserRole.RESPONDENT,
+        email: 'r1@x.com',
+      });
+      const txQuery = vi.fn().mockResolvedValue(undefined);
+      dataSource.transaction.mockImplementationOnce(async (cb: any) => cb({ query: txQuery }));
+
+      await service.deleteUser('r1', requesterAdmin, '127.0.0.1');
+
+      // Berkas dikumpulkan di dalam transaksi (sebelum baris hilang)…
+      expect(storageCleanup.planForUser).toHaveBeenCalledWith(expect.anything(), 'r1');
+      // …lalu dihapus setelah commit.
+      expect(storageCleanup.executeUserPlan).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'r1', uploadKeys: ['avatars/r1'] }),
+      );
+      const sqls = txQuery.mock.calls.map((c: any[]) => String(c[0]));
+      expect(sqls.some((q: string) => q.includes('DELETE FROM client_log'))).toBe(true);
+      expect(sqls.some((q: string) => q.includes('DELETE FROM "users"'))).toBe(true);
+    });
+
+    it('audit T-16: MinIO cleanup is not attempted when the DB transaction fails', async () => {
+      userRepository.findOne.mockResolvedValue({
+        id: 'r1',
+        role: UserRole.RESPONDENT,
+        email: 'r1@x.com',
+      });
+      dataSource.transaction.mockRejectedValueOnce(new Error('db down'));
+
+      await expect(service.deleteUser('r1', requesterAdmin, '127.0.0.1')).rejects.toThrow(
+        'db down',
+      );
+      expect(storageCleanup.executeUserPlan).not.toHaveBeenCalled();
     });
   });
 

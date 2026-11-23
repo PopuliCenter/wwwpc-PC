@@ -19,6 +19,7 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
+import { clientIp } from '../../common/security/client-ip';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,7 +30,7 @@ export class UserManagerController {
   @Post()
   async createUser(@Body() dto: CreateUserDto, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     return this.userManagerService.createUser(dto, adminUserId, ipAddress);
   }
 
@@ -41,7 +42,7 @@ export class UserManagerController {
     @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.updateUser(id, dto, adminUserId, ipAddress);
   }
 
@@ -53,7 +54,7 @@ export class UserManagerController {
     @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.updateUserRole(id, dto.role, adminUserId, ipAddress);
   }
 
@@ -61,7 +62,7 @@ export class UserManagerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async activateUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.activateUser(id, adminUserId, ipAddress);
   }
 
@@ -69,14 +70,14 @@ export class UserManagerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deactivateUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.deactivateUser(id, adminUserId, ipAddress);
   }
 
   @Post(':id/reset-password')
   async resetUserPassword(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     return this.userManagerService.resetUserPassword(id, adminUserId, ipAddress);
   }
 
@@ -100,7 +101,7 @@ export class UserManagerController {
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async bulkDelete(@Body('ids') ids: string[], @Req() req: AuthenticatedRequest) {
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     return this.userManagerService.deleteUsers(
       Array.isArray(ids) ? ids : [],
       { userId: req.user.userId, role: req.user.role },
@@ -123,7 +124,7 @@ export class UserManagerController {
     UserRole.RESPONDENT,
   )
   async deleteOwnAccount(@Req() req: AuthenticatedRequest) {
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.deleteOwnAccount(req.user.userId, ipAddress);
   }
 
@@ -136,7 +137,7 @@ export class UserManagerController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async deleteUser(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.userManagerService.deleteUser(
       id,
       { userId: req.user.userId, role: req.user.role },
@@ -153,7 +154,7 @@ export class UserManagerController {
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   async bulkImportUsers(@Body('csv') csv: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     return this.userManagerService.bulkImportUsers(csv, adminUserId, ipAddress, req.user.role);
   }
 }

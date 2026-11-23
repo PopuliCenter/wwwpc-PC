@@ -334,6 +334,15 @@ export class DashboardService {
   }
 
   /**
+   * Versi KASAR peta untuk peran VIEWER (T-33): koordinat dibulatkan ke 2
+   * desimal (~1,1 km) lalu digabung, TANPA daftar responden (nama, waktu,
+   * kecamatan). Data detail hanya untuk SUPER_ADMIN/ADMIN/ANALYST.
+   */
+  async getCoarseHeatmapData(): Promise<HeatmapPoint[]> {
+    return coarsenHeatmap(await this.getHeatmapData());
+  }
+
+  /**
    * Invalidate all dashboard cache keys.
    * Call this after a new survey response is submitted or a new user registers
    * so counters reflect the latest state.
@@ -379,4 +388,23 @@ export class DashboardService {
     await this.cacheManager.set(key, value, ttlMs);
     return value;
   }
+}
+
+/** Bulatkan titik ke 2 desimal, jumlahkan count, buang detail responden. */
+export function coarsenHeatmap(points: HeatmapPoint[]): HeatmapPoint[] {
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  const merged = new Map<string, HeatmapPoint>();
+  for (const p of points) {
+    const latitude = round2(p.latitude);
+    const longitude = round2(p.longitude);
+    const key = `${latitude},${longitude}`;
+    const cur = merged.get(key);
+    if (cur) {
+      cur.count += p.count;
+      if (!cur.city && p.city) cur.city = p.city;
+    } else {
+      merged.set(key, { latitude, longitude, count: p.count, city: p.city });
+    }
+  }
+  return [...merged.values()].sort((a, b) => b.count - a.count);
 }

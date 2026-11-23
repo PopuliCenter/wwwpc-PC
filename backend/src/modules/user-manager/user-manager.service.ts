@@ -14,8 +14,10 @@ import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { SessionRevocationService } from '@modules/auth/session-revocation.service';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
+import { StorageCleanupService, UserObjectPlan } from '@modules/export/storage-cleanup.service';
 import { CreateUserDto, ListUsersFilterDto } from './dto';
 import { BulkImportResult, BulkImportError, PaginatedUsers, ActivityEntry } from './interfaces';
+import { maskEmail } from '../../common/security/mask-email';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -29,6 +31,7 @@ export class UserManagerService {
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
     private readonly sessionRevocation: SessionRevocationService,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   /**
@@ -413,10 +416,7 @@ export class UserManagerService {
       );
     }
 
-    await this.dataSource.transaction((manager) => this.purgeUserData(manager, targetUserId));
-    // User sudah tidak ada → token apa pun miliknya ditolak JwtStrategy begitu
-    // cache keadaan otorisasi dibuang (T-11).
-    await this.sessionRevocation.clearAuthState(targetUserId);
+    await this.eraseUserData(targetUserId);
 
     await this.auditService.log({
       userId: requester.userId,
@@ -429,16 +429,53 @@ export class UserManagerService {
       },
       ipAddress,
     });
-    this.logger.log(`User deleted: ${target.email} by ${requester.userId}`);
+    this.logger.log(`User deleted: ${maskEmail(target.email)} by ${requester.userId}`);
+  }
+
+  /**
+   * Hapus user + SELURUH data pribadinya secara permanen: baris DB (satu
+   * transaksi), lalu berkas MinIO (foto/audio/tanda tangan/avatar/ekspor, T-16)
+   * dan cache otorisasi (token apa pun miliknya langsung ditolak, T-11).
+   * Dipakai hapus akun oleh admin, hapus akun mandiri, dan penghapusan GDPR.
+   * Akun pembuat survei ditolak (FK survey.created_by RESTRICT).
+   */
+  async eraseUserData(userId: string): Promise<void> {
+    const ownsSurvey = await this.dataSource.query(
+      'SELECT 1 FROM survey WHERE created_by = $1 LIMIT 1',
+      [userId],
+    );
+    if (ownsSurvey.length > 0) {
+      throw new BadRequestException(
+        'Akun ini pernah membuat survei. Hapus/pindahkan surveinya terlebih dahulu.',
+      );
+    }
+    const objects = await this.dataSource.transaction((manager) =>
+      this.purgeUserData(manager, userId),
+    );
+    // Setelah commit: kegagalan MinIO tidak membatalkan penghapusan data DB;
+    // sisa berkas disapu cron harian StorageCleanupService.
+    await this.storageCleanup.executeUserPlan(objects);
+    await this.sessionRevocation.clearAuthState(userId);
   }
 
   /**
    * Bersihkan semua data dependen sebuah user lalu hapus baris user, dalam satu
    * transaksi. Aman apa pun konfigurasi ON DELETE di DB. audit_log SENGAJA tidak
    * dihapus (tanpa FK) agar jejak audit utuh.
+   *
+   * Mengembalikan daftar berkas MinIO milik user (dikumpulkan SEBELUM baris
+   * dihapus) untuk dihapus pemanggil setelah transaksi commit (T-16).
    */
-  private async purgeUserData(manager: EntityManager, userId: string): Promise<void> {
+  private async purgeUserData(manager: EntityManager, userId: string): Promise<UserObjectPlan> {
     const id = [userId];
+    const objects = await this.storageCleanup.planForUser(manager, userId);
+    // Log error klien yang ditautkan ke akun ini (PII: email, IP, konteks).
+    await manager.query(
+      `DELETE FROM client_log
+        WHERE user_id = $1
+           OR lower(user_email) = (SELECT lower(email) FROM "users" WHERE id = $1)`,
+      id,
+    );
     await manager.query('DELETE FROM point_transaction WHERE user_id = $1', id);
     await manager.query('DELETE FROM reward_redemption WHERE user_id = $1', id);
     await manager.query('DELETE FROM streak_tracker WHERE user_id = $1', id);
@@ -457,6 +494,7 @@ export class UserManagerService {
     await manager.query('DELETE FROM user_profile WHERE user_id = $1', id);
     // Tabel user bernama "users".
     await manager.query('DELETE FROM "users" WHERE id = $1', id);
+    return objects;
   }
 
   /**
@@ -481,8 +519,7 @@ export class UserManagerService {
       );
     }
 
-    await this.dataSource.transaction((manager) => this.purgeUserData(manager, userId));
-    await this.sessionRevocation.clearAuthState(userId);
+    await this.eraseUserData(userId);
 
     await this.auditService.log({
       userId,
@@ -491,7 +528,7 @@ export class UserManagerService {
       details: { selfDeleted: true, email: user.email, role: user.role },
       ipAddress,
     });
-    this.logger.log(`Account self-deleted: ${user.email}`);
+    this.logger.log(`Account self-deleted: ${maskEmail(user.email)}`);
   }
 
   /**

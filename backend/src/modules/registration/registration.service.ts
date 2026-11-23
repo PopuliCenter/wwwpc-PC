@@ -25,6 +25,7 @@ import {
   calculateAge,
 } from './validators';
 import { NotificationService } from '@modules/notification';
+import { maskEmail } from '../../common/security/mask-email';
 
 const OTP_PREFIX = 'otp:';
 const OTP_TTL_SECONDS = 900; // 15 minutes
@@ -110,7 +111,7 @@ export class RegistrationService {
   private async discardPendingAccount(user: User): Promise<void> {
     await this.userProfileRepository.delete({ userId: user.id });
     await this.userRepository.delete({ id: user.id });
-    this.logger.log(`Akun PENDING lama dibuang untuk pendaftaran ulang: ${user.email}`);
+    this.logger.log(`Akun PENDING lama dibuang untuk pendaftaran ulang: ${maskEmail(user.email)}`);
   }
 
   async register(data: {
@@ -226,7 +227,7 @@ export class RegistrationService {
     // Kirim OTP ke email untuk verifikasi (akun belum aktif sampai diverifikasi).
     await this.sendOtp(savedUser.email);
 
-    this.logger.log(`User registered (pending OTP): ${data.email}`);
+    this.logger.log(`User registered (pending OTP): ${maskEmail(data.email)}`);
 
     return {
       userId: savedUser.id,
@@ -262,7 +263,7 @@ export class RegistrationService {
       code,
       OTP_TTL_SECONDS / 60,
     );
-    this.logger.log(`OTP issued for ${email}`);
+    this.logger.log(`OTP issued for ${maskEmail(email)}`);
 
     return {
       message: 'OTP has been sent to your email',
@@ -328,7 +329,7 @@ export class RegistrationService {
     // Buat sesi + token agar pengguna langsung login setelah verifikasi.
     const session = await this.authService.issueSession(activeUser);
 
-    this.logger.log(`Email verified & account activated for ${email}`);
+    this.logger.log(`Email verified & account activated for ${maskEmail(email)}`);
 
     return {
       userId: user.id,
@@ -392,7 +393,7 @@ export class RegistrationService {
 
     // Kirim ulang email OTP. OTP TIDAK di-log demi keamanan.
     await this.notificationService.sendOtpEmail(email, user.fullName, code, OTP_TTL_SECONDS / 60);
-    this.logger.log(`OTP reissued for ${email} (resend #${resendCount + 1})`);
+    this.logger.log(`OTP reissued for ${maskEmail(email)} (resend #${resendCount + 1})`);
 
     return GENERIC_RESEND_RESULT;
   }

@@ -10,6 +10,7 @@ import {
   Req,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { DataCleanupService } from './data-cleanup.service';
 import {
@@ -23,6 +24,7 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@modules/auth/guards/roles.guard';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
+import { clientIp } from '../../common/security/client-ip';
 
 @Controller('data-cleanup')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,7 +35,7 @@ export class DataCleanupController {
   @Post('request')
   async requestDeletion(@Body() dto: RequestDeletionDto, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
 
     const request = {
       surveyId: dto.surveyId,
@@ -55,7 +57,7 @@ export class DataCleanupController {
     @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     return this.dataCleanupService.confirmDeletion(
       requestId,
       dto.confirmationToken,
@@ -68,7 +70,7 @@ export class DataCleanupController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async archiveSurvey(@Param('surveyId') surveyId: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.dataCleanupService.archiveSurvey(surveyId, adminUserId, ipAddress);
   }
 
@@ -90,15 +92,15 @@ export class DataCleanupController {
   @Roles(UserRole.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async deletePersonalData(
-    @Param('respondentId') respondentId: string,
+    @Param('respondentId', ParseUUIDPipe) respondentId: string,
     @Body() dto: GdprDeleteDto,
     @Req() req: AuthenticatedRequest,
   ) {
     const adminUserId = req.user.userId;
-    const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
+    const ipAddress = clientIp(req, '0.0.0.0');
     await this.dataCleanupService.deletePersonalData(
       respondentId,
-      dto.superAdminApproval,
+      dto.confirmEmail,
       adminUserId,
       ipAddress,
     );

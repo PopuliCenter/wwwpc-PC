@@ -4,8 +4,8 @@
  *                         lagi pada re-run; akun tetap ada).
  *   all                 — hapus respons + poin + PROFIL + AKUN loadtest.
  *
- * Jalankan di dalam container:
- *   docker compose exec -e LOADTEST_CLEANUP=responses backend node dist/cleanup-loadtest.js
+ * Jalankan (bukan di dalam container):
+ *   npm run cleanup:loadtest:dev --workspace=backend  (dari source checkout; tidak ada di image)
  *
  * Aman: hanya menyentuh baris yang email-nya cocok pola loadtest+...@loadtest.local.
  */

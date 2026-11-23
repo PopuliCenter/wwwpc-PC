@@ -254,7 +254,7 @@ baris berikutnya).
   mv "$S.partial" "$S"
 
   # 1) Uji arsip MinIO dulu (sebelum DB maupun MinIO disentuh)
-  docker run --rm -i alpine sh -c 'tar tzf - >/dev/null' < "$B/minio-$TS.tar.gz"
+  docker run --rm -i alpine:3.24.4 sh -c 'tar tzf - >/dev/null' < "$B/minio-$TS.tar.gz"
 
   # 2) PostgreSQL: arsip → SQL sementara, lalu ganti skema public dalam SATU transaksi
   docker exec -i survei_postgres sh -c '
@@ -269,7 +269,7 @@ baris berikutnya).
       -f "$tmp" >/dev/null' < "$B/db-$TS.dump"
 
   # 3) MinIO: kosongkan SELURUH /data (termasuk .minio.sys) & ekstrak
-  docker run --rm -i --volumes-from survei_minio alpine \
+  docker run --rm -i --volumes-from survei_minio alpine:3.24.4 \
     sh -c 'set -e; mountpoint -q /data; find /data -mindepth 1 -delete; cd /data; tar xzf -' \
     < "$B/minio-$TS.tar.gz"
 )
@@ -281,6 +281,24 @@ blok manual tidak.
 
 `rm -rf /data/*` TIDAK cukup: glob `*` melewatkan entri ber-titik seperti
 `/data/.minio.sys`, sehingga metadata basi tertinggal.
+
+## Retensi data di MinIO & tabel log (otomatis)
+
+Selain backup harian di atas, backend membersihkan sendiri (cron 03.15/03.45 WIB,
+satu replika lewat cron-lock):
+
+| Data                                                         | Lokasi                                  | Masa simpan (env, default)                              |
+| ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------- |
+| Berkas ekspor (CSV/Excel/PDF/JSON, berisi PII)               | bucket ekspor `exports/`                | `EXPORT_RETENTION_DAYS`, 7 hari; unduhan lama → 404     |
+| Snapshot sebelum hapus massal respons                        | bucket ekspor `backups/deletion-*.json` | `DELETION_BACKUP_RETENTION_DAYS`, 30 hari               |
+| Log error klien                                              | tabel `client_log`                      | `CLIENT_LOG_RETENTION_DAYS`, 30 hari                    |
+| Foto/audio/tanda tangan/avatar milik akun yang sudah dihapus | bucket unggahan                         | disapu harian (sisa bila hapus langsung gagal)          |
+| Job email gagal (antrean Bull di Redis)                      | Redis                                   | 7 hari; job OTP/reset sandi langsung dibuang saat gagal |
+
+Hapus akun / hapus respons / purge terjadwal kini ikut menghapus berkas MinIO
+yang terkait. Data yang sudah dihapus tetap ada di **backup harian** sampai
+backup itu dirotasi (`RETENTION_DAYS`, default 14) dan di salinan offsite
+sesuai kebijakan offsite Anda.
 
 ## Catatan
 

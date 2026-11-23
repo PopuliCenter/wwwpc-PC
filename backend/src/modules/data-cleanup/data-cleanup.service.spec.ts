@@ -18,16 +18,18 @@ import { ScheduledPurgeConfig } from './entities/scheduled-purge-config.entity';
 import { PendingDeletion } from './entities/pending-deletion.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { S3StorageService } from '@modules/export/s3-storage.service';
+import { StorageCleanupService } from '@modules/export/storage-cleanup.service';
+import { UserManagerService } from '@modules/user-manager/user-manager.service';
 import { SurveyStatus, UserRole } from '@shared/enums';
 
 describe('DataCleanupService', () => {
   let service: DataCleanupService;
   let surveyRepository: any;
   let userRepository: any;
-  let userProfileRepository: any;
-  let geolocationRepository: any;
   let purgeConfigRepository: any;
   let auditService: any;
+  let storageCleanup: any;
+  let userManager: any;
 
   const mockQueryBuilder = {
     andWhere: vi.fn().mockReturnThis(),
@@ -46,12 +48,19 @@ describe('DataCleanupService', () => {
   };
 
   beforeEach(async () => {
+    storageCleanup = {
+      uploadKeysWhere: vi.fn().mockResolvedValue([]),
+      deleteUploadKeys: vi.fn().mockResolvedValue({ deleted: 0, failed: 0 }),
+    };
+    userManager = { eraseUserData: vi.fn().mockResolvedValue(undefined) };
     // Penyimpanan in-memory stateful untuk meniru tabel pending_deletion.
     const pendingStore = new Map<string, any>();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DataCleanupService,
         { provide: CronLockService, useValue: { acquire: async () => true } },
+        { provide: StorageCleanupService, useValue: storageCleanup },
+        { provide: UserManagerService, useValue: userManager },
         {
           provide: getRepositoryToken(PendingDeletion),
           useValue: {
@@ -128,8 +137,6 @@ describe('DataCleanupService', () => {
     service = module.get<DataCleanupService>(DataCleanupService);
     surveyRepository = module.get(getRepositoryToken(Survey));
     userRepository = module.get(getRepositoryToken(User));
-    userProfileRepository = module.get(getRepositoryToken(UserProfile));
-    geolocationRepository = module.get(getRepositoryToken(Geolocation));
     purgeConfigRepository = module.get(getRepositoryToken(ScheduledPurgeConfig));
     auditService = module.get(AuditService);
   });
@@ -263,56 +270,69 @@ describe('DataCleanupService', () => {
     });
   });
 
-  describe('deletePersonalData', () => {
+  describe('deletePersonalData (audit T-32)', () => {
     const adminUserId = 'admin-1';
     const ipAddress = '127.0.0.1';
     const respondentId = 'respondent-1';
+    const respondent = {
+      id: respondentId,
+      role: UserRole.RESPONDENT,
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      phone: '1234567890',
+    };
 
-    it('should throw ForbiddenException if approval is not from super admin', async () => {
-      userRepository.findOne.mockResolvedValueOnce({
-        id: 'not-super-admin',
-        role: UserRole.ADMIN,
-      });
-
+    it('404 when the respondent does not exist', async () => {
+      userRepository.findOne.mockResolvedValueOnce(null);
       await expect(
-        service.deletePersonalData(respondentId, 'not-super-admin', adminUserId, ipAddress),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('should throw NotFoundException if respondent does not exist', async () => {
-      userRepository.findOne
-        .mockResolvedValueOnce({ id: 'super-admin', role: UserRole.SUPER_ADMIN })
-        .mockResolvedValueOnce(null);
-
-      await expect(
-        service.deletePersonalData(respondentId, 'super-admin', adminUserId, ipAddress),
+        service.deletePersonalData(respondentId, 'john@example.com', adminUserId, ipAddress),
       ).rejects.toThrow(NotFoundException);
+      expect(userManager.eraseUserData).not.toHaveBeenCalled();
     });
 
-    it('should anonymize user data and delete profile and geolocation', async () => {
-      const superAdmin = { id: 'super-admin', role: UserRole.SUPER_ADMIN };
-      const respondent = {
-        id: respondentId,
-        fullName: 'John Doe',
-        email: 'john@example.com',
-        phone: '1234567890',
-      };
+    it('rejects when the typed confirmation email does not match', async () => {
+      userRepository.findOne.mockResolvedValueOnce(respondent);
+      await expect(
+        service.deletePersonalData(
+          respondentId,
+          'someone-else@example.com',
+          adminUserId,
+          ipAddress,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      // Bentuk lama (UUID super admin sebagai "persetujuan") tidak lagi berlaku.
+      userRepository.findOne.mockResolvedValueOnce(respondent);
+      await expect(
+        service.deletePersonalData(respondentId, 'super-admin-uuid', adminUserId, ipAddress),
+      ).rejects.toThrow(BadRequestException);
+      expect(userManager.eraseUserData).not.toHaveBeenCalled();
+    });
 
-      userRepository.findOne.mockResolvedValueOnce(superAdmin).mockResolvedValueOnce(respondent);
-      userRepository.save.mockResolvedValueOnce(respondent);
+    it('refuses super admin targets and self-deletion', async () => {
+      userRepository.findOne.mockResolvedValueOnce({ ...respondent, role: UserRole.SUPER_ADMIN });
+      await expect(
+        service.deletePersonalData(respondentId, 'john@example.com', adminUserId, ipAddress),
+      ).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.deletePersonalData(adminUserId, 'x@example.com', adminUserId, ipAddress),
+      ).rejects.toThrow(BadRequestException);
+      expect(userManager.eraseUserData).not.toHaveBeenCalled();
+    });
 
-      await service.deletePersonalData(respondentId, 'super-admin', adminUserId, ipAddress);
-
-      expect(userRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fullName: '[DELETED]',
-          email: `deleted_${respondentId}@anonymized.local`,
-          phone: '0000000000',
-        }),
-      );
-      expect(userProfileRepository.delete).toHaveBeenCalledWith({ userId: respondentId });
-      expect(geolocationRepository.delete).toHaveBeenCalledWith({ userId: respondentId });
-      expect(auditService.log).toHaveBeenCalled();
+    it('erases the subject completely via the account-deletion path (works for any number of subjects)', async () => {
+      for (const id of ['respondent-1', 'respondent-2']) {
+        userRepository.findOne.mockResolvedValueOnce({ ...respondent, id });
+        await service.deletePersonalData(id, ' JOHN@example.com ', adminUserId, ipAddress);
+        expect(userManager.eraseUserData).toHaveBeenLastCalledWith(id);
+      }
+      // Tidak ada lagi anonimisasi phone='0000000000' (bentrok unique index).
+      expect(userRepository.save).not.toHaveBeenCalled();
+      const details = auditService.log.mock.calls.at(-1)[0].details;
+      expect(details).toMatchObject({
+        action: 'gdpr_personal_data_deleted',
+        respondentId: 'respondent-2',
+      });
+      expect(JSON.stringify(details)).not.toContain('john@example.com');
     });
   });
 

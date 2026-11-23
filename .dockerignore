@@ -51,3 +51,18 @@ docker-compose.yml
 backend/scripts/
 backend/test/
 backend/exports/
+
+# Rahasia lokal & proyek native (audit T-42): keystore rilis, kredensial
+# signing, env build native. Image akhir sudah bersih; ini mencegahnya masuk
+# konteks/cache build lokal. Build web tidak membutuhkan frontend/android/.
+frontend/android/
+**/*.jks
+**/*.keystore
+**/keystore.properties
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.dump
+**/*.sql.gz

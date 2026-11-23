@@ -1,6 +1,8 @@
 import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { Controller, Post, Get, Body, UseGuards, Request, Query } from '@nestjs/common';
-import { JwtAuthGuard } from '@modules/auth/guards';
+import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
+import { Roles } from '@modules/auth/decorators';
+import { UserRole } from '@shared/enums';
 import { GeolocationService } from './geolocation.service';
 import { CaptureLocationDto, ManualLocationDto } from './dto';
 import { GeoFilter, HeatmapPoint, LocationData, CaptureLocationResult } from './interfaces';
@@ -48,8 +50,12 @@ export class GeolocationController {
   /**
    * Get heatmap data for geographic distribution visualization.
    * Returns aggregated data (city/province + count), never raw coordinates.
+   * Khusus peran analitik (T-45): responden tidak boleh melihat sebaran
+   * jumlah responden per kota/provinsi.
    */
   @Get('heatmap')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   async getHeatmapData(
     @Query('city') city?: string,
     @Query('province') province?: string,

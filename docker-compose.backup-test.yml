@@ -30,7 +30,7 @@ services:
   # gagal tanpa ada kaitan dengan logika backup. Nama service tetap `minio`
   # karena dirujuk skrip (compose ps -q minio → MINIO_CONTAINER).
   minio:
-    image: alpine:3
+    image: alpine:3.24.4
     command: ['sleep', 'infinity']
     volumes:
       - minio_backup_test:/data

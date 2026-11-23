@@ -22,13 +22,7 @@ import { Survey } from './entities/survey.entity';
 import { AuditService } from '@modules/audit/audit.service';
 import { NotificationSchedulerService } from '@modules/notification/scheduled';
 import { TargetCriteriaDto } from './dto/target-criteria.dto';
-
-/** Ambil IP klien dari request (hormati proxy bila ada). */
-function clientIp(req: any): string {
-  return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
-  );
-}
+import { clientIp } from '../../common/security/client-ip';
 
 @Controller('surveys')
 @UseGuards(JwtAuthGuard, RolesGuard)

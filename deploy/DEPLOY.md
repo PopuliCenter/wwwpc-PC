@@ -1,3 +1,6 @@
+> **HISTORIS — jangan dijalankan, lihat `docs/ops/vps-multi-app-nginx.md`.**
+> Topologi produksi saat ini: Cloudflare → edge nginx bersama → `survei_frontend`.
+
 > ⚠️ ARSIP / TIDAK DIPAKAI. Ini runbook Opsi C (Nginx Proxy Manager) yang
 > memindahkan risetcenter.com ke belakang NPM. Kita memilih **Opsi B** —
 > lihat **`DEPLOY-OPSI-B.md`**. Dokumen ini disimpan sebagai referensi saja.
@@ -99,7 +102,8 @@ cd /var/www/reverse-proxy
 docker compose up -d
 ```
 
-Buka GUI: `http://<IP_VPS>:81`
+GUI admin hanya terikat ke `127.0.0.1:81` (audit T-35). Buka lewat SSH tunnel:
+`ssh -L 8181:127.0.0.1:81 user@<IP_VPS>` lalu `http://localhost:8181` di laptop.
 Login awal: `admin@example.com` / `changeme` → WAJIB ganti email & password.
 
 ## Langkah 4 — Jalankan app survei
@@ -116,26 +120,28 @@ docker compose up -d
 ## Langkah 5 — Daftarkan host di NPM (GUI → Hosts → Proxy Hosts → Add)
 
 **App lama:**
-| Field | Nilai |
-|-------|-------|
-| Domain Names | `populicenter.org` (atau domain app lama yang sekarang) |
-| Forward Hostname | `survey-populicenter-nginx-1` |
-| Forward Port | `80` |
-| Scheme | `http` |
-| Block Common Exploits | on |
-| Websockets Support | on |
-| SSL tab | Request new Let's Encrypt cert + Force SSL + HTTP/2 |
+
+| Field                 | Nilai                                                   |
+| --------------------- | ------------------------------------------------------- |
+| Domain Names          | `populicenter.org` (atau domain app lama yang sekarang) |
+| Forward Hostname      | `survey-populicenter-nginx-1`                           |
+| Forward Port          | `80`                                                    |
+| Scheme                | `http`                                                  |
+| Block Common Exploits | on                                                      |
+| Websockets Support    | on                                                      |
+| SSL tab               | Request new Let's Encrypt cert + Force SSL + HTTP/2     |
 
 **App survei:**
-| Field | Nilai |
-|-------|-------|
-| Domain Names | `survei.populicenter.org` |
-| Forward Hostname | `survei_frontend` |
-| Forward Port | `80` |
-| Scheme | `http` |
-| Block Common Exploits | on |
-| Websockets Support | on |
-| SSL tab | Request new Let's Encrypt cert + Force SSL + HTTP/2 |
+
+| Field                 | Nilai                                               |
+| --------------------- | --------------------------------------------------- |
+| Domain Names          | `survei.populicenter.org`                           |
+| Forward Hostname      | `survei_frontend`                                   |
+| Forward Port          | `80`                                                |
+| Scheme                | `http`                                              |
+| Block Common Exploits | on                                                  |
+| Websockets Support    | on                                                  |
+| SSL tab               | Request new Let's Encrypt cert + Force SSL + HTTP/2 |
 
 > Forward Hostname memakai NAMA CONTAINER, bukan IP. Agar bisa di-resolve, NPM
 > dan kedua container target harus berada di network `web` yang sama.
@@ -157,10 +163,13 @@ curl -I https://survei.populicenter.org/api/health   # → 200 dari backend surv
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
 sudo ufw allow OpenSSH
-# JANGAN buka 81 (GUI NPM) ke publik — akses via SSH tunnel:
-#   ssh -L 81:localhost:81 user@IP_VPS  → buka http://localhost:81 di laptop
 sudo ufw enable
 ```
+
+> **UFW TIDAK berlaku untuk port yang di-publish Docker** (Docker menulis
+> aturan iptables sendiri). Jangan mengandalkan UFW untuk menutup port
+> container: bind ke `127.0.0.1` di compose (seperti GUI NPM `127.0.0.1:81`)
+> atau pakai chain `DOCKER-USER` — lihat `docs/ops/vps-multi-app-nginx.md` §7.
 
 ## Rollback cepat (jika ada masalah)
 

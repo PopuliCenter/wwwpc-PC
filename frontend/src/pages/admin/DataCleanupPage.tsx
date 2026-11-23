@@ -327,7 +327,7 @@ function CleanupCandidatesSection() {
 // GDPR Deletion Section
 function GdprDeletionSection() {
   const [respondentId, setRespondentId] = useState('');
-  const [superAdminApproval, setSuperAdminApproval] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<ResultMessage | null>(null);
   const { confirm, dialog } = useConfirm();
@@ -335,7 +335,7 @@ function GdprDeletionSection() {
   const handleGdprDelete = async () => {
     const ok = await confirm({
       title: 'Konfirmasi Penghapusan GDPR',
-      message: `Anda akan menghapus SEMUA data personal untuk responden ${respondentId}. Tindakan ini TIDAK DAPAT dibatalkan. Lanjutkan?`,
+      message: `Anda akan menghapus PERMANEN akun responden ${respondentId} beserta seluruh datanya (profil, jawaban, berkas foto/audio/tanda tangan, poin, riwayat penukaran). Tindakan ini TIDAK DAPAT dibatalkan. Lanjutkan?`,
       confirmText: 'Ya, Hapus Permanen',
       danger: true,
     });
@@ -343,12 +343,12 @@ function GdprDeletionSection() {
     setLoading(true);
     setMessage(null);
     try {
-      await api.post(`/data-cleanup/gdpr/${respondentId}`, {
-        superAdminApproval,
+      await api.post(`/data-cleanup/gdpr/${respondentId.trim()}`, {
+        confirmEmail: confirmEmail.trim(),
       });
       setMessage({ text: 'Data personal berhasil dihapus sesuai GDPR', ok: true });
       setRespondentId('');
-      setSuperAdminApproval('');
+      setConfirmEmail('');
     } catch (err: unknown) {
       const apiErr = err as { message?: string };
       setMessage({ text: apiErr.message || 'Gagal menghapus data', ok: false });
@@ -364,8 +364,9 @@ function GdprDeletionSection() {
 
       <Notice tone="warning">
         Penghapusan GDPR bersifat{' '}
-        <strong className="font-semibold">permanen dan tidak dapat dibatalkan</strong>. Semua data
-        personal (nama, email, telepon, lokasi) akan dihapus secara permanen.
+        <strong className="font-semibold">permanen dan tidak dapat dibatalkan</strong>. Akun
+        responden beserta seluruh datanya (profil, lokasi, jawaban, berkas foto/audio/tanda tangan,
+        avatar, poin) dihapus. Ketik ulang email responden sebagai konfirmasi.
       </Notice>
 
       {message && <ResultNotice message={message} />}
@@ -385,15 +386,16 @@ function GdprDeletionSection() {
           />
         </div>
         <div>
-          <label htmlFor="superAdminApproval" className={labelCls}>
-            Persetujuan Super Admin
+          <label htmlFor="confirmEmail" className={labelCls}>
+            Konfirmasi email responden
           </label>
           <input
-            id="superAdminApproval"
-            type="text"
-            value={superAdminApproval}
-            onChange={(e) => setSuperAdminApproval(e.target.value)}
-            placeholder="Kode persetujuan..."
+            id="confirmEmail"
+            type="email"
+            autoComplete="off"
+            value={confirmEmail}
+            onChange={(e) => setConfirmEmail(e.target.value)}
+            placeholder="email@responden..."
             className={fieldCls}
           />
         </div>
@@ -402,7 +404,7 @@ function GdprDeletionSection() {
             type="button"
             variant="danger"
             onClick={handleGdprDelete}
-            disabled={!respondentId || !superAdminApproval || loading}
+            disabled={!respondentId || !confirmEmail || loading}
             className="w-full"
           >
             {loading ? 'Memproses...' : 'Hapus Data GDPR'}

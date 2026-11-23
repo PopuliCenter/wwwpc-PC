@@ -38,6 +38,10 @@ set -euo pipefail
 umask 077
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/survei}"
+# Image utilitas untuk tar/untar volume MinIO. Dipin ke tag PERSIS (T-37):
+# container ini membaca SELURUH media responden, jadi jangan ikut `alpine`
+# mutable. Naikkan versi dengan sengaja (cek changelog), bukan otomatis.
+ALPINE_IMAGE="${ALPINE_IMAGE:-alpine:3.24.4}"
 PG_CONTAINER="${PG_CONTAINER:-survei_postgres}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-survei_minio}"
 PG_TMPDIR="${PG_TMPDIR:-/tmp}"
@@ -228,7 +232,7 @@ if [ "$DO_MINIO" -eq 1 ]; then
   yang akan diganti. Disarankan: docker compose stop minio (restore tetap
   bisa saat container berhenti), lalu start lagi setelah restore."
   fi
-  docker run --rm --volumes-from "$MINIO_CONTAINER" alpine mountpoint -q /data \
+  docker run --rm --volumes-from "$MINIO_CONTAINER" "$ALPINE_IMAGE" mountpoint -q /data \
     || die "/data di $MINIO_CONTAINER bukan volume — restore MinIO dibatalkan."
 fi
 
@@ -246,7 +250,7 @@ if [ "$DO_MINIO" -eq 1 ]; then
   # Uji arsip utuh (gzip CRC + struktur tar) SEBELUM DB maupun MinIO disentuh,
   # agar arsip MinIO rusak tidak berujung DB sudah diganti tapi MinIO gagal.
   log "Memeriksa keutuhan arsip MinIO…"
-  docker run --rm -i alpine sh -c 'tar tzf - >/dev/null' < "$MINIO_FILE" \
+  docker run --rm -i "$ALPINE_IMAGE" sh -c 'tar tzf - >/dev/null' < "$MINIO_FILE" \
     || die "arsip MinIO rusak/terpotong: $MINIO_FILE — tidak ada data yang diubah."
 fi
 
@@ -318,7 +322,7 @@ fi
 if [ "$DO_MINIO" -eq 1 ]; then
   PHASE=minio
   log "Restore MinIO…"
-  if ! docker run --rm -i --volumes-from "$MINIO_CONTAINER" alpine \
+  if ! docker run --rm -i --volumes-from "$MINIO_CONTAINER" "$ALPINE_IMAGE" \
       sh -c 'set -e; mountpoint -q /data; find /data -mindepth 1 -delete; cd /data; tar xzf -' \
       < "$MINIO_FILE"; then
     msg="restore MinIO GAGAL — isi /data mungkin setengah jadi; ulangi dengan --minio-only."

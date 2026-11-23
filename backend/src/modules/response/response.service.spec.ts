@@ -14,11 +14,16 @@ import {
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType } from '@modules/events/event-types';
+import { StorageCleanupService } from '@modules/export/storage-cleanup.service';
 
 /** Status survei yang dikembalikan mock raw-query (audit T-14). */
 const surveyStatusForTest = { value: 'active' };
 
 describe('ResponseService', () => {
+  const mockStorageCleanup = {
+    uploadKeysForResponse: vi.fn().mockResolvedValue([]),
+    deleteUploadKeys: vi.fn().mockResolvedValue({ deleted: 0, failed: 0 }),
+  };
   let service: ResponseService;
   let responseRepository: any;
   let manualRewardRepository: any;
@@ -139,6 +144,7 @@ describe('ResponseService', () => {
         { provide: AnswerValidationService, useValue: mockAnswerValidationService },
         { provide: DataSource, useValue: mockDataSource },
         { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: StorageCleanupService, useValue: mockStorageCleanup },
       ],
     }).compile();
 
@@ -728,6 +734,25 @@ describe('ResponseService', () => {
       responseRepository.findOne.mockResolvedValue(null);
       await expect(service.deleteResponse('missing')).rejects.toThrow();
     });
+
+    it('audit T-31: deletes the uploaded files referenced by the answers after commit', async () => {
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-3',
+        surveyId: 'survey-1',
+        status: ResponseStatus.IN_PROGRESS,
+      });
+      manager.delete.mockResolvedValue({ affected: 1 });
+      mockStorageCleanup.uploadKeysForResponse.mockResolvedValueOnce([
+        'survey-uploads/survey-1/r1/foto-1.jpg',
+      ]);
+
+      await service.deleteResponse('resp-3');
+
+      expect(mockStorageCleanup.uploadKeysForResponse).toHaveBeenCalledWith(manager, 'resp-3');
+      expect(mockStorageCleanup.deleteUploadKeys).toHaveBeenCalledWith([
+        'survey-uploads/survey-1/r1/foto-1.jpg',
+      ]);
+    });
   });
 
   describe('archiveResponse', () => {
@@ -809,6 +834,58 @@ describe('ResponseService', () => {
 
       await expect(service.submitResponse('ghost', 'respondent-1', dto)).rejects.toThrow(
         NotFoundException,
+      );
+    });
+  });
+
+  describe('audit T-30: idempotensi clientSubmissionId dibatasi ke pemiliknya', () => {
+    const csid = '11111111-2222-4333-8444-555555555555';
+    const dto = {
+      answers: [{ questionId: 'q1', value: 'a' }],
+      deviceType: 'mobile',
+      clientSubmissionId: csid,
+    };
+
+    it('retry sah (respondent + survei sama) mengembalikan respons yang ada', async () => {
+      const findById = vi
+        .spyOn(service as any, 'findResponseById')
+        .mockResolvedValue({ id: 'resp-a' } as any);
+      responseRepository.findOne.mockResolvedValueOnce({
+        id: 'resp-a',
+        respondentId: 'respondent-1',
+        surveyId: 'survey-1',
+      });
+
+      const res = await service.submitResponse('survey-1', 'respondent-1', dto as any);
+
+      expect(res).toEqual({ id: 'resp-a' });
+      expect(findById).toHaveBeenCalledWith('resp-a');
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+
+    it('ID milik akun lain → 409 tanpa membocorkan respons orang lain', async () => {
+      const findById = vi.spyOn(service as any, 'findResponseById');
+      responseRepository.findOne.mockResolvedValueOnce({
+        id: 'resp-a',
+        respondentId: 'respondent-A',
+        surveyId: 'survey-1',
+      });
+
+      await expect(service.submitResponse('survey-1', 'respondent-B', dto as any)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(findById).not.toHaveBeenCalled();
+    });
+
+    it('ID yang sama untuk survei lain → 409', async () => {
+      responseRepository.findOne.mockResolvedValueOnce({
+        id: 'resp-a',
+        respondentId: 'respondent-1',
+        surveyId: 'survey-OTHER',
+      });
+
+      await expect(service.submitResponse('survey-1', 'respondent-1', dto as any)).rejects.toThrow(
+        ConflictException,
       );
     });
   });

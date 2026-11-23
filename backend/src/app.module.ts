@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
+import { RedisThrottlerStorage } from './common/security/redis-throttler.storage';
 import { EnvThrottlerGuard } from './common/guards/env-throttler.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -35,12 +37,31 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
     // Batas laju global (anti-abuse). Dapat disetel via env untuk LOAD TEST
     // (banyak virtual-user dari satu IP) — mis. THROTTLE_LIMIT=100000. JANGAN
     // longgarkan di produksi normal; default 100/menit tetap berlaku bila kosong.
-    ThrottlerModule.forRoot([
-      {
-        ttl: Number(process.env.THROTTLE_TTL_MS ?? 60000),
-        limit: Number(process.env.THROTTLE_LIMIT ?? 100),
-      },
-    ]),
+    //
+    // Counter disimpan di REDIS (lintas replika, T-07). THROTTLE_STORAGE=memory
+    // atau NODE_ENV=test memakai Map in-memory bawaan (unit/E2E: tiap app
+    // instance mulai dari nol). Redis mati -> fallback in-memory otomatis.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: Number(process.env.THROTTLE_TTL_MS ?? 60000),
+            limit: Number(process.env.THROTTLE_LIMIT ?? 100),
+          },
+        ],
+        storage:
+          process.env.THROTTLE_STORAGE === 'memory' || process.env.NODE_ENV === 'test'
+            ? undefined
+            : RedisThrottlerStorage.fromOptions({
+                host: config.get<string>('redis.host'),
+                port: config.get<number>('redis.port'),
+                password: config.get<string>('redis.password'),
+                db: config.get<number>('redis.db'),
+                keyPrefix: config.get<string>('redis.keyPrefix'),
+              }),
+      }),
+    }),
     AuthModule,
     RegistrationModule,
     SurveyModule,

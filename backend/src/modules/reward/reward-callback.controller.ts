@@ -3,6 +3,7 @@ import { Controller, Post, Body, HttpCode, Req, ForbiddenException } from '@nest
 import { ConfigService } from '@nestjs/config';
 import { Public } from '@modules/auth/decorators';
 import { RewardService } from './reward.service';
+import { clientIp } from '../../common/security/client-ip';
 
 /**
  * Endpoint callback PUBLIK untuk provider fulfillment async (mis. IAK).
@@ -14,7 +15,9 @@ import { RewardService } from './reward.service';
  *  2) Hanya memfinalisasi redemption ber-status 'processing' dgn ref UUID
  *     tak tertebak → dampak terbatas.
  *  3) Opsional: IP allowlist (env IAK_CALLBACK_IPS, dipisah koma) sbg pertahanan
- *     tambahan. Bila kosong, lapisan 1 & 2 yang berlaku.
+ *     tambahan. Bila kosong, lapisan 1 & 2 yang berlaku. IP dibaca dari req.ip,
+ *     jadi allowlist baru bermakna bila TRUST_PROXY_HOPS cocok dgn rantai proxy
+ *     (lihat main.ts & docs/ops/vps-multi-app-nginx.md).
  */
 @Public()
 @Controller('rewards/callback')
@@ -35,8 +38,8 @@ export class RewardCallbackController {
   @HttpCode(200)
   async iak(@Body() payload: unknown, @Req() req: AuthenticatedRequest) {
     if (this.allowedIps.length > 0) {
-      const ip =
-        (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || '';
+      // req.ip (trust proxy) — XFF paling kiri bisa dipalsukan klien (T-18).
+      const ip = clientIp(req, '');
       if (!this.allowedIps.includes(ip)) {
         throw new ForbiddenException('IP tidak diizinkan.');
       }

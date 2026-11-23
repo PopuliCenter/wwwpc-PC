@@ -20,13 +20,7 @@ import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
-
-/** Ambil IP klien dari request (hormati proxy bila ada). */
-function clientIp(req: any): string {
-  return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
-  );
-}
+import { clientIp } from '../../common/security/client-ip';
 
 /**
  * Daftar respons LINTAS-SURVEI untuk panel admin (yang dipanggil

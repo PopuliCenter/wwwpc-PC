@@ -12,6 +12,7 @@ import { UserProfile } from '@modules/registration/entities/user-profile.entity'
 import { Geolocation } from '@modules/geolocation/entities/geolocation.entity';
 import { AuditModule } from '@modules/audit/audit.module';
 import { ExportModule } from '@modules/export';
+import { UserManagerModule } from '@modules/user-manager/user-manager.module';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { ExportModule } from '@modules/export';
     ]),
     ScheduleModule.forRoot(),
     AuditModule,
-    ExportModule, // S3StorageService untuk backup sebelum hard-delete
+    ExportModule, // S3StorageService (backup) + StorageCleanupService (hapus berkas)
+    UserManagerModule, // eraseUserData: jalur hapus total untuk GDPR
   ],
   controllers: [DataCleanupController],
   providers: [DataCleanupService],

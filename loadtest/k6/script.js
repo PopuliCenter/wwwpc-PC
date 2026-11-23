@@ -10,6 +10,10 @@
  *
  * SCENARIO: smoke | load | stress | spike | soak  (lihat opsi di bawah)
  *
+ * Akun uji dibuat dengan seed-loadtest yang dijalankan dari SOURCE CHECKOUT
+ * (`npm run seed:loadtest:dev --workspace=backend`), bukan dari image backend
+ * (skrip seed tidak lagi ada di image produksi). Lihat loadtest/README.md §2.
+ *
  * ENV wajib:
  *   BASE_URL     — mis. http://localhost:3000  (backend langsung)
  *                        atau http://localhost/api  (lewat nginx)
@@ -161,7 +165,7 @@ function buildAnswers(fill) {
 export function setup() {
   if (!SURVEY_ID) throw new Error('SURVEY_ID wajib diisi (id survei uji aktif).');
   const token = login(`loadtest+000001@loadtest.local`);
-  if (!token) throw new Error('Gagal login akun uji #1 — sudah jalankan seed-loadtest?');
+  if (!token) throw new Error('Gagal login akun uji #1 — sudah jalankan seed-loadtest dari source checkout? (loadtest/README.md §2)');
   const res = http.get(`${BASE}/surveys/${SURVEY_ID}/fill`, {
     headers: { Authorization: `Bearer ${token}` },
   });

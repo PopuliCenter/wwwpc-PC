@@ -47,6 +47,7 @@ import {
 import { PaginatedResponse, PaginationQuery } from '@shared/interfaces';
 import { CircuitBreaker } from '@shared/circuit-breaker';
 import { hashRedemptionOtp, redemptionOtpMatches } from './redemption-otp';
+import { maskEmail } from '../../common/security/mask-email';
 
 /**
  * Bentuk redemption yang aman dikirim ke klien: TANPA otpCode/otpExpiresAt/
@@ -623,7 +624,9 @@ export class RewardService {
           'redeem',
         )
         .catch((err) =>
-          this.logger.error(`Gagal mengirim OTP penukaran ke ${user.email}: ${err?.message}`),
+          this.logger.error(
+            `Gagal mengirim OTP penukaran ke ${maskEmail(user.email)}: ${err?.message}`,
+          ),
         );
     }
     this.logger.log(
@@ -678,7 +681,9 @@ export class RewardService {
           'redeem',
         )
         .catch((err) =>
-          this.logger.error(`Gagal mengirim ulang OTP penukaran ke ${user.email}: ${err?.message}`),
+          this.logger.error(
+            `Gagal mengirim ulang OTP penukaran ke ${maskEmail(user.email)}: ${err?.message}`,
+          ),
         );
     }
     this.logger.log(

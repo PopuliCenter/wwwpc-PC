@@ -6,13 +6,7 @@ import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
 import { NotificationFeedService } from './notification-feed.service';
 import { SendAnnouncementDto } from './dto/send-announcement.dto';
-
-/** Ambil IP klien (hormati proxy). */
-function clientIp(req: any): string {
-  return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
-  );
-}
+import { clientIp } from '../../common/security/client-ip';
 
 /**
  * Pengumuman/Berita ke responden (admin). Disiarkan ke feed lonceng semua

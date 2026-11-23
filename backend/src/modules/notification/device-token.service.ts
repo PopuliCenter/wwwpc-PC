@@ -12,6 +12,14 @@ export const TEST_PUSH_PAYLOAD: PushPayload = {
   data: { link: '/notifications' },
 };
 
+/**
+ * Batas token perangkat per user. Token lama/basi (perangkat dijual, app
+ * di-reinstall) dibuang otomatis saat register: yang dipertahankan adalah
+ * MAX_TOKENS_PER_USER token dengan last_seen_at terbaru. Mencegah satu akun
+ * menumpuk ribuan token (amplifikasi push & pertumbuhan tabel tanpa batas).
+ */
+export const MAX_TOKENS_PER_USER = 10;
+
 /** Jumlah id user per query token (jauh di bawah batas 65.535 parameter Postgres). */
 export const TOKEN_QUERY_CHUNK = 10_000;
 
@@ -49,6 +57,34 @@ export class DeviceTokenService {
       { userId, token, platform, lastSeenAt: new Date() },
       { conflictPaths: ['token'], skipUpdateIfNoValuesChanged: false },
     );
+    await this.pruneExcessTokens(userId);
+  }
+
+  /** Buang token user di luar MAX_TOKENS_PER_USER terbaru (best-effort). */
+  private async pruneExcessTokens(userId: string): Promise<void> {
+    try {
+      const stale = await this.deviceTokenRepository.find({
+        where: { userId },
+        select: ['id'],
+        order: { lastSeenAt: 'DESC', createdAt: 'DESC' },
+        skip: MAX_TOKENS_PER_USER,
+      });
+      if (stale.length > 0) {
+        await this.deviceTokenRepository.delete({ id: In(stale.map((t) => t.id)) });
+      }
+    } catch (e) {
+      this.logger.warn(`Gagal memangkas token perangkat lama: ${(e as Error).message}`);
+    }
+  }
+
+  /**
+   * Lepas SATU token milik user ini (logout di perangkat). Hanya baris dengan
+   * token DAN user_id yang cocok yang dihapus, sehingga user tidak bisa
+   * menghapus token akun lain. Idempoten: token tak ada / milik orang lain
+   * tidak dianggap error (tanpa oracle keberadaan token).
+   */
+  async removeForUser(userId: string, token: string): Promise<void> {
+    await this.deviceTokenRepository.delete({ userId, token });
   }
 
   /** Hapus token (mis. saat logout atau token dilaporkan kedaluwarsa oleh FCM). */

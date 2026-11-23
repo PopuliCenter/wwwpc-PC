@@ -52,7 +52,8 @@ sql() {
     -c 'SET client_min_messages = warning' -c "$1" >/dev/null
 }
 q() { docker exec "$PG_CONTAINER" psql -X -q -tA -v ON_ERROR_STOP=1 -U test -d survei_test -c "$1"; }
-minio() { docker run --rm --volumes-from "$MINIO_CONTAINER" alpine sh -c "$1"; }
+ALPINE_IMAGE="${ALPINE_IMAGE:-alpine:3.24.4}"
+minio() { docker run --rm --volumes-from "$MINIO_CONTAINER" "$ALPINE_IMAGE" sh -c "$1"; }
 # Isi DB lengkap (skema + data) sebagai hash; baris \restrict (kunci acak, PG ≥16.10) dibuang.
 db_content() {
   docker exec "$PG_CONTAINER" pg_dump -U test -d survei_test --no-owner \

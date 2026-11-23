@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { AuthenticatedRequest } from '@modules/auth/interfaces';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
@@ -41,8 +42,15 @@ export class DashboardController {
     return this.dashboardService.getDistributionCharts();
   }
 
+  /**
+   * Peta sebaran. VIEWER hanya mendapat agregat kasar (2 desimal, tanpa nama
+   * responden — T-33); peran analitik lain mendapat titik detail.
+   */
   @Get('heatmap')
-  async getHeatmapData(): Promise<HeatmapPoint[]> {
+  async getHeatmapData(@Req() req: AuthenticatedRequest): Promise<HeatmapPoint[]> {
+    if (req.user?.role === UserRole.VIEWER) {
+      return this.dashboardService.getCoarseHeatmapData();
+    }
     return this.dashboardService.getHeatmapData();
   }
 

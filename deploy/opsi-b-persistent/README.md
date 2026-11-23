@@ -1,3 +1,6 @@
+> **HISTORIS — jangan dijalankan, lihat `docs/ops/vps-multi-app-nginx.md`.**
+> Topologi produksi saat ini: Cloudflare → edge nginx bersama → `survei_frontend`.
+
 # Routing persisten `survei.risetcenter.com` (Opsi B)
 
 Memperbaiki masalah **"survei.risetcenter.com tiba-tiba balik ke aplikasi lama"**.

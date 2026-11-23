@@ -21,6 +21,16 @@ on:
 # (`queue: max` tak bisa dipakai di sini: GitHub melarang menggabungnya dengan
 # cancel-in-progress: true yang dipakai untuk PR.) Run main yang berjalan paralel
 # tidak berebut `latest`: hanya job promote-latest yang menyentuhnya, berurutan.
+# Izin GITHUB_TOKEN minimum untuk SEMUA job (T-36). Job yang menerbitkan image
+# (docker-publish, promote-latest) menaikkan sendiri ke packages: write.
+permissions:
+  contents: read
+
+# Action pihak ketiga dipin ke SHA commit (tag bisa dipindah pemiliknya);
+# komentar `# vX.Y.Z` = tag asal. Naikkan versi: resolve tag baru dengan
+# `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag>` (pakai
+# baris ^{} bila tag beranotasi), lalu ganti SHA + komentar sekaligus.
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
@@ -30,8 +40,8 @@ jobs:
     name: Lint (backend + frontend)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -42,8 +52,8 @@ jobs:
     name: Backend (typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -60,8 +70,8 @@ jobs:
     name: Frontend (typecheck, test, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -95,8 +105,8 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -110,7 +120,7 @@ jobs:
     name: Backup ↔ restore (roundtrip)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Start Postgres + MinIO ephemeral
         # Pull dulu dengan retry — penyebab paling umum kegagalan `up -d` di
         # runner adalah rate-limit pull Docker Hub yang bersifat sementara.
@@ -124,7 +134,7 @@ jobs:
             echo "GAGAL pull $1 setelah 5 percobaan"; return 1
           }
           pull_retry postgres:16-alpine
-          pull_retry alpine:3
+          pull_retry alpine:3.24.4
           docker compose -f docker-compose.backup-test.yml up -d
       - name: Tunggu container sehat
         run: |
@@ -147,16 +157,15 @@ jobs:
     name: Security audit (dependency)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
       # GERBANG WAJIB: gagal bila ada high/critical PRODUKSI DI LUAR allowlist
-      # ber-batas-waktu di scripts/audit-gate.mjs. Allowlist hanya memuat advisory
-      # yang penutupannya butuh upgrade major @nestjs v10→v12 (proyek terpisah);
-      # tiap entri punya alasan + tanggal kedaluwarsa. Menurunkan --audit-level
+      # ber-batas-waktu di scripts/audit-gate.mjs (saat ini kosong); tiap entri
+      # wajib punya alasan + tanggal kedaluwarsa. Menurunkan --audit-level
       # SENGAJA dihindari (itu membutakan gerbang thd high lain). moderate/low
       # tidak memblokir.
       - name: Audit production deps (gate + allowlist)
@@ -180,10 +189,10 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Login GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -196,7 +205,7 @@ jobs:
       # cache-to ignore-error: run main kini bisa paralel & menulis scope cache
       # yang sama; gagal ekspor cache tak boleh menggagalkan terbitnya image.
       - name: Build backend (lokal, untuk smoke test)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: backend/Dockerfile
@@ -220,7 +229,7 @@ jobs:
             console.log('OK — Node', process.versions.node, '| bcrypt native jalan | nodemailer siap');
           "
       - name: Build & push backend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: backend/Dockerfile
@@ -231,7 +240,7 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,scope=backend,mode=max,ignore-error=true
       - name: Build & push frontend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: frontend/Dockerfile
@@ -270,12 +279,12 @@ jobs:
       group: promote-latest-main
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Login GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

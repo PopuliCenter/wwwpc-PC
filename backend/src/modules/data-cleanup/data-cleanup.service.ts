@@ -10,6 +10,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan } from 'typeorm';
 import { S3StorageService } from '@modules/export/s3-storage.service';
+import { StorageCleanupService } from '@modules/export/storage-cleanup.service';
+import { UserManagerService } from '@modules/user-manager/user-manager.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { CronLockService, CRON_LOCK_TTL_DAILY_MS } from '../../common/scheduling/cron-lock.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -54,6 +56,8 @@ export class DataCleanupService {
     private readonly auditService: AuditService,
     private readonly s3: S3StorageService,
     private readonly cronLock: CronLockService,
+    private readonly storageCleanup: StorageCleanupService,
+    private readonly userManager: UserManagerService,
   ) {}
 
   /**
@@ -192,10 +196,12 @@ export class DataCleanupService {
 
     // Backup SEBELUM hard-delete: snapshot JSON respons + jawaban yang akan
     // dihapus ke object storage. Bila backup gagal, penghapusan DIBATALKAN.
-    const backupKey = await this.backupBeforeDeletion(requestId, pending.filters);
+    const { backupKey, uploadKeys } = await this.backupBeforeDeletion(requestId, pending.filters);
 
     const result = await queryBuilder.delete().execute();
     const deletedCount = result.affected || 0;
+    // Berkas jawaban (foto/audio/tanda tangan) ikut dihapus dari MinIO (T-31).
+    await this.storageCleanup.deleteUploadKeys(uploadKeys);
 
     await this.pendingDeletionRepository.delete(requestId);
 
@@ -217,13 +223,15 @@ export class DataCleanupService {
 
   /**
    * Snapshot respons + jawaban yang akan dihapus ke object storage (JSON)
-   * sebelum penghapusan permanen. Mengembalikan key backup; MELEMPAR bila gagal
-   * agar penghapusan tidak berjalan tanpa cadangan.
+   * sebelum penghapusan permanen. Mengembalikan key backup (+ key berkas
+   * unggahan yang dirujuk jawaban); MELEMPAR bila gagal agar penghapusan tidak
+   * berjalan tanpa cadangan. Snapshot ini otomatis kedaluwarsa setelah
+   * DELETION_BACKUP_RETENTION_DAYS (default 30) — StorageCleanupService.
    */
   private async backupBeforeDeletion(
     requestId: string,
     filters: { surveyId?: string; dateRange?: { start: unknown; end: unknown } },
-  ): Promise<string> {
+  ): Promise<{ backupKey: string; uploadKeys: string[] }> {
     const qb = this.responseRepository
       .createQueryBuilder('response')
       .leftJoinAndSelect('response.answers', 'answer')
@@ -264,7 +272,13 @@ export class DataCleanupService {
     this.logger.log(
       `Backup ${responses.length} respons → ${backupKey} sebelum penghapusan ${requestId}`,
     );
-    return backupKey;
+    // Key unggahan yang dirujuk jawaban respons yang akan dihapus.
+    const uploadKeys = responses.flatMap((r) =>
+      (r.answers ?? [])
+        .map((a) => a.value)
+        .filter((v): v is string => typeof v === 'string' && v.startsWith('survey-uploads/')),
+    );
+    return { backupKey, uploadKeys };
   }
 
   /**
@@ -359,53 +373,52 @@ export class DataCleanupService {
   }
 
   /**
-   * Delete personal data for GDPR compliance.
-   * Requires Super_Admin approval.
+   * Penghapusan data pribadi (hak hapus subjek data / GDPR / UU PDP).
+   *
+   * Dulu: "anonimisasi" yang menyetel phone='0000000000' (bentrok unique index
+   * mulai subjek kedua -> 500) dan meninggalkan jawaban, berkas MinIO, avatar,
+   * hash sandi, nomor tujuan reward, serta sesi (T-32). Kini memakai jalur yang
+   * SAMA dengan hapus akun: seluruh baris terkait + berkas MinIO + cache sesi
+   * dihapus permanen (UserManagerService.eraseUserData).
+   *
+   * Konfirmasi nyata: super admin wajib mengetik ulang EMAIL subjek (bukan lagi
+   * sembarang UUID super admin sebagai "persetujuan").
    */
   async deletePersonalData(
     respondentId: string,
-    superAdminApproval: string,
+    confirmEmail: string,
     adminUserId: string,
     ipAddress: string,
   ): Promise<void> {
-    // Validate super admin approval - the approval token is the super admin's userId
-    const superAdmin = await this.userRepository.findOne({
-      where: { id: superAdminApproval },
-    });
-
-    if (!superAdmin || superAdmin.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('GDPR data deletion requires valid Super Admin approval');
+    if (respondentId === adminUserId) {
+      throw new BadRequestException('Tidak dapat menghapus data akun Anda sendiri di sini.');
     }
 
     const user = await this.userRepository.findOne({
       where: { id: respondentId },
     });
-
     if (!user) {
       throw new NotFoundException(`User with id ${respondentId} not found`);
     }
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Akun Super Admin tidak dapat dihapus lewat menu ini.');
+    }
 
-    // Anonymize user PII
-    user.fullName = '[DELETED]';
-    user.email = `deleted_${respondentId}@anonymized.local`;
-    user.phone = '0000000000';
-    await this.userRepository.save(user);
+    const norm = (v: string | null | undefined) => (v ?? '').trim().toLowerCase();
+    if (!confirmEmail || norm(confirmEmail) !== norm(user.email)) {
+      throw new BadRequestException(
+        'Konfirmasi tidak cocok: ketik ulang email responden persis untuk melanjutkan.',
+      );
+    }
 
-    // Delete UserProfile
-    await this.userProfileRepository.delete({ userId: respondentId });
-
-    // Delete Geolocation records
-    await this.geolocationRepository.delete({ userId: respondentId });
+    await this.userManager.eraseUserData(respondentId);
 
     await this.auditService.log({
       userId: adminUserId,
       actionType: AuditActionType.DATA_CLEANUP,
       module: 'data-cleanup',
-      details: {
-        action: 'gdpr_personal_data_deleted',
-        respondentId,
-        approvedBy: superAdminApproval,
-      },
+      // Tanpa email/nama: jejak audit tidak menyimpan ulang data yang dihapus.
+      details: { action: 'gdpr_personal_data_deleted', respondentId, role: user.role },
       ipAddress,
     });
   }
@@ -454,6 +467,11 @@ export class DataCleanupService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - config.retentionDays);
 
+    const uploadKeys = await this.storageCleanup.uploadKeysWhere(
+      this.responseRepository.manager,
+      'r.exported_at IS NOT NULL AND r.submitted_at < $1',
+      [cutoffDate],
+    );
     const result = await this.responseRepository
       .createQueryBuilder('response')
       .delete()
@@ -462,6 +480,7 @@ export class DataCleanupService {
       .execute();
 
     const deletedCount = result.affected || 0;
+    await this.storageCleanup.deleteUploadKeys(uploadKeys);
 
     config.lastRunAt = new Date();
     await this.purgeConfigRepository.save(config);

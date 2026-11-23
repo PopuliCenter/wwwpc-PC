@@ -1,3 +1,6 @@
+> **HISTORIS — jangan dijalankan, lihat `docs/ops/vps-multi-app-nginx.md`.**
+> Topologi produksi saat ini: Cloudflare → edge nginx bersama → `survei_frontend`.
+
 # Runbook Deploy — Opsi B (survei via nginx app lama)
 
 Menjalankan **survei** di `https://survei.populicenter.org` dengan menumpang
@@ -85,7 +88,7 @@ docker network inspect web --format '{{range .Containers}}{{.Name}} {{end}}'
 ```bash
 sudo certbot certonly --webroot -w /var/www/certbot \
   -d survei.populicenter.org \
-  --email ningratkumara@gmail.com --agree-tos --no-eff-email
+  --email <email-peran-organisasi@populicenter.org> --agree-tos --no-eff-email
 ```
 
 Berhasil → sertifikat ada di `/etc/letsencrypt/live/survei.populicenter.org/`.

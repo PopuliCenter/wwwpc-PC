@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
 import { AuditActionType } from '@shared/enums';
 import { AuditService } from '../audit.service';
+import { clientIp } from '../../../common/security/client-ip';
 
 export const AUDIT_ACTION_KEY = 'audit_action';
 export const AUDIT_MODULE_KEY = 'audit_module';
@@ -75,12 +76,7 @@ export class AuditInterceptor implements NestInterceptor {
   }
 
   private extractIpAddress(request: any): string {
-    return (
-      request.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-      request.headers['x-real-ip'] ||
-      request.connection?.remoteAddress ||
-      request.ip ||
-      'unknown'
-    );
+    // req.ip (hormati trust proxy) — bukan XFF paling kiri yg bisa dipalsukan.
+    return clientIp(request);
   }
 }

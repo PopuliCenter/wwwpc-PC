@@ -11,6 +11,7 @@ import {
   UploadedFile,
   BadRequestException,
   NotFoundException,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -85,11 +86,29 @@ export class AvatarController {
     return { avatarUrl };
   }
 
-  /** Stream foto avatar (publik — avatar bukan data sensitif, dipakai di <img>). */
+  /**
+   * Stream foto avatar (publik — dipakai di <img>).
+   *
+   * - `userId` WAJIB UUID (T-40): key `avatars/<userId>` tidak pernah dibentuk
+   *   dari input bebas (cegah traversal bila storage menormalkan `..`).
+   * - 404 bila user sudah tidak ada atau tidak sedang memakai avatar unggahan
+   *   (T-16): foto pengguna yang menghapus akun / berganti avatar tidak lagi
+   *   tersaji walau objek lamanya belum tersapu.
+   */
   @Public()
   @Get(':userId')
   @SkipThrottle()
-  async stream(@Param('userId') userId: string, @Res() res: Response): Promise<void> {
+  async stream(
+    @Param('userId', new ParseUUIDPipe({ errorHttpStatusCode: 404 })) userId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const owner = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!owner?.avatarUrl?.startsWith(`/avatar/${userId}`)) {
+      throw new NotFoundException('Avatar tidak ditemukan.');
+    }
     try {
       const { buffer, contentType } = await this.s3.getObjectBuffer(
         AvatarController.KEY(userId),

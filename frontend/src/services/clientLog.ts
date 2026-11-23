@@ -1,6 +1,5 @@
 import { Capacitor } from '@capacitor/core';
 import { getAppVersion } from '@/utils/appVersion';
-import { useAuthStore } from '@/stores/auth.store';
 
 // Sama dgn api.ts: web '/api' (proxy nginx), native pakai URL absolut.
 const BASE_URL =
@@ -21,6 +20,14 @@ const seen = new Set<string>();
 let sentCount = 0;
 const MAX_PER_SESSION = 50;
 
+function readAccessToken(): string | null {
+  try {
+    return localStorage.getItem('accessToken');
+  } catch {
+    return null;
+  }
+}
+
 export interface ReportInput {
   level?: 'error' | 'warn' | 'info';
   message: string;
@@ -38,7 +45,6 @@ export function reportClientError(input: ReportInput): void {
     seen.add(key);
     sentCount += 1;
 
-    const user = useAuthStore.getState().user;
     const body = {
       level: input.level ?? 'error',
       message: String(input.message).slice(0, 2000),
@@ -51,14 +57,17 @@ export function reportClientError(input: ReportInput): void {
       deviceType,
       appVersion,
       userAgent: navigator.userAgent.slice(0, 500),
-      userEmail: user?.email,
       context: input.context,
     };
 
     // Pakai fetch langsung (bukan api.ts) agar tak terpengaruh logika 401/redirect.
+    // Identitas pelapor dibaca backend dari access token (bukan email di body).
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = readAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
     void fetch(`${BASE_URL}/client-logs`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       keepalive: true,
     }).catch(() => {});

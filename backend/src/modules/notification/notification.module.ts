@@ -18,11 +18,16 @@ import { Survey } from '@modules/survey/entities/survey.entity';
 import { SurveyResponse } from '@modules/response/entities/survey-response.entity';
 import { User } from '@modules/auth/entities/user.entity';
 import { AuditModule } from '@modules/audit';
+import { NOTIFICATION_DEFAULT_JOB_OPTIONS } from './constants';
 
 @Module({
   imports: [
     BullModule.registerQueue({
       name: NOTIFICATION_QUEUE,
+      // Job email yang GAGAL permanen tidak disimpan selamanya di Redis (T-34):
+      // payload berisi email + nama penerima. Disimpan 7 hari untuk diagnosa
+      // lalu dibuang. Job OTP/reset sandi menimpa ini dgn removeOnFail: true.
+      defaultJobOptions: NOTIFICATION_DEFAULT_JOB_OPTIONS,
     }),
     TypeOrmModule.forFeature([Survey, SurveyResponse, User, DeviceToken, UserNotification]),
     ScheduleModule.forRoot(),

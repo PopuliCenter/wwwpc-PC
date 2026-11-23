@@ -1,0 +1,11 @@
+# Action di .github/workflows dipin ke SHA commit (T-36). Dependabot membuka PR
+# saat ada rilis baru dan memperbarui SHA + komentar versi sekaligus.
+# Hanya ekosistem github-actions: dependensi npm dikelola manual (lock file
+# disunting tangan, gerbang audit di scripts/audit-gate.mjs).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

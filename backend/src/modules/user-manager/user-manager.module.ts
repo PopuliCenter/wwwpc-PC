@@ -5,9 +5,11 @@ import { UserManagerController } from './user-manager.controller';
 import { User } from '@modules/auth/entities/user.entity';
 import { AuditModule } from '@modules/audit/audit.module';
 import { AuthModule } from '@modules/auth/auth.module';
+import { ExportModule } from '@modules/export/export.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), AuditModule, AuthModule],
+  // ExportModule → StorageCleanupService (hapus berkas MinIO saat hapus akun).
+  imports: [TypeOrmModule.forFeature([User]), AuditModule, AuthModule, ExportModule],
   controllers: [UserManagerController],
   providers: [UserManagerService],
   exports: [UserManagerService],

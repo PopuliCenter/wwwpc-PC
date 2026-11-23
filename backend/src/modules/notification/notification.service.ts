@@ -24,6 +24,7 @@ import {
   EMAIL_BACKOFF_TYPE,
   POINTS_THRESHOLD,
 } from './constants';
+import { maskEmail } from '../../common/security/mask-email';
 
 @Injectable()
 export class NotificationService {
@@ -180,7 +181,9 @@ export class NotificationService {
     submittedAt: Date,
     pointsEarned?: number,
   ): Promise<void> {
-    this.logger.log(`Sending submission confirmation to ${respondent.email} for "${survey.title}"`);
+    this.logger.log(
+      `Sending submission confirmation to ${maskEmail(respondent.email)} for "${survey.title}"`,
+    );
 
     const payload: EmailPayload = {
       to: respondent.email,
@@ -206,7 +209,7 @@ export class NotificationService {
     baseUrl: string,
   ): Promise<void> {
     this.logger.log(
-      `Sending points threshold notification to ${respondent.email} (balance: ${currentBalance})`,
+      `Sending points threshold notification to ${maskEmail(respondent.email)} (balance: ${currentBalance})`,
     );
 
     const payload: EmailPayload = {
@@ -236,7 +239,7 @@ export class NotificationService {
       remainingBalance: number;
     },
   ): Promise<void> {
-    this.logger.log(`Sending redemption confirmation to ${respondent.email}`);
+    this.logger.log(`Sending redemption confirmation to ${maskEmail(respondent.email)}`);
 
     const payload: EmailPayload = {
       to: respondent.email,
@@ -267,7 +270,7 @@ export class NotificationService {
       remainingBalance: number;
     },
   ): Promise<void> {
-    this.logger.log(`Sending redemption failure notice to ${respondent.email}`);
+    this.logger.log(`Sending redemption failure notice to ${maskEmail(respondent.email)}`);
 
     const payload: EmailPayload = {
       to: respondent.email,
@@ -296,7 +299,7 @@ export class NotificationService {
     expiresInMinutes: number = 15,
     purpose: 'verify' | 'reset' | 'redeem' = 'verify',
   ): Promise<void> {
-    this.logger.log(`Sending OTP email to ${email}`);
+    this.logger.log(`Sending OTP email to ${maskEmail(email)}`);
 
     const subject =
       purpose === 'reset'
@@ -326,6 +329,8 @@ export class NotificationService {
         backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
         priority: 1, // Higher priority
         removeOnComplete: true,
+        // Kode OTP tidak boleh tertinggal di Redis setelah job gagal (T-34).
+        removeOnFail: true,
       },
     );
   }
@@ -340,7 +345,7 @@ export class NotificationService {
     baseUrl: string,
     expiresInHours: number = 1,
   ): Promise<void> {
-    this.logger.log(`Sending password reset email to ${email}`);
+    this.logger.log(`Sending password reset email to ${maskEmail(email)}`);
 
     const payload: EmailPayload = {
       to: email,
@@ -362,6 +367,8 @@ export class NotificationService {
         backoff: { type: EMAIL_BACKOFF_TYPE, delay: EMAIL_RETRY_DELAY },
         priority: 1,
         removeOnComplete: true,
+        // Tautan reset berisi token rahasia — buang juga saat gagal (T-34).
+        removeOnFail: true,
       },
     );
   }

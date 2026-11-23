@@ -8,6 +8,7 @@ import { EmailTemplateService } from '../templates';
 import { EmailJobData, BulkEmailJobData, NotificationResult } from '../interfaces';
 import { NOTIFICATION_QUEUE, EMAIL_JOB, BULK_EMAIL_JOB, EMAIL_CONCURRENCY } from '../constants';
 import { CircuitBreaker } from '@shared/circuit-breaker';
+import { maskEmail } from '../../../common/security/mask-email';
 
 @Processor(NOTIFICATION_QUEUE)
 export class EmailProcessor {
@@ -46,10 +47,12 @@ export class EmailProcessor {
         }),
       );
 
-      this.logger.log(`Email sent successfully to ${payload.to} (job ${job.id})`);
+      this.logger.log(`Email sent successfully to ${maskEmail(payload.to)} (job ${job.id})`);
       return { success: true, messageId: `msg-${job.id}` };
     } catch (error: any) {
-      this.logger.error(`Failed to send email to ${payload.to} (job ${job.id}): ${error.message}`);
+      this.logger.error(
+        `Failed to send email to ${maskEmail(payload.to)} (job ${job.id}): ${error.message}`,
+      );
       throw error; // Bull will retry based on job options
     }
   }

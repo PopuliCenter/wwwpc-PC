@@ -13,33 +13,56 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { JwtService } from '@nestjs/jwt';
+import type { JwtPayload } from '@modules/auth/interfaces';
 import { JwtAuthGuard, RolesGuard } from '@modules/auth/guards';
 import { Roles, Public } from '@modules/auth/decorators';
 import { UserRole } from '@shared/enums';
 import { ClientLogService } from './client-log.service';
 import { CreateClientLogDto, PurgeClientLogDto } from './dto/create-client-log.dto';
-
-function clientIp(req: any): string {
-  return (
-    (req?.headers?.['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req?.ip || 'unknown'
-  );
-}
+import { clientIp } from '../../common/security/client-ip';
 
 /**
  * Ingest log error dari klien (PUBLIK — error bisa terjadi sebelum login).
- * Di-throttle & dibatasi panjang payload via DTO. userEmail bersifat
- * laporan-klien (untuk monitoring, bukan keputusan keamanan).
+ * Di-throttle & dibatasi panjang payload via DTO.
+ *
+ * Identitas pelapor (user_id + email) HANYA diambil dari access token yang sah
+ * bila klien mengirim `Authorization: Bearer` (T-34). `userEmail` di body
+ * diabaikan: nilainya dikendalikan klien (bisa dipakai menanam PII/email orang
+ * lain ke panel admin). Token tidak valid → laporan tetap disimpan, anonim.
  */
 @Public()
 @Controller('client-logs')
 export class ClientLogController {
-  constructor(private readonly service: ClientLogService) {}
+  constructor(
+    private readonly service: ClientLogService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   @Post()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { ttl: 60_000, limit: 30 } })
   async ingest(@Body() dto: CreateClientLogDto, @Req() req: AuthenticatedRequest): Promise<void> {
-    await this.service.record(dto, { userId: null, ipAddress: clientIp(req) });
+    const reporter = await this.reporterFromToken(req);
+    await this.service.record(dto, {
+      userId: reporter?.userId ?? null,
+      userEmail: reporter?.email ?? null,
+      ipAddress: clientIp(req),
+    });
+  }
+
+  private async reporterFromToken(
+    req: AuthenticatedRequest,
+  ): Promise<{ userId: string; email: string | null } | null> {
+    const header = req.headers?.authorization;
+    if (typeof header !== 'string' || !header.startsWith('Bearer ')) return null;
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(header.slice(7).trim());
+      if (payload?.type === 'refresh' || typeof payload?.sub !== 'string') return null;
+      return { userId: payload.sub, email: payload.email ?? null };
+    } catch {
+      return null; // kedaluwarsa / palsu → simpan sebagai anonim
+    }
   }
 }
 

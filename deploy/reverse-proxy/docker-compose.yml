@@ -9,7 +9,8 @@
 # Setup pertama kali (jalankan di VPS):
 #   1. docker network create web          # jaringan bersama lintas-app
 #   2. docker compose up -d                # dari folder ini
-#   3. Buka http://IP_VPS:81               # GUI admin NPM
+#   3. GUI admin NPM hanya di 127.0.0.1:81 (audit T-35). Dari laptop:
+#        ssh -L 8181:127.0.0.1:81 user@IP_VPS  → buka http://localhost:8181
 #        Login awal:  admin@example.com / changeme  (WAJIB ganti)
 #   4. Pastikan tiap app (survei, dll) juga tergabung ke network "web".
 #   5. Di GUI → Proxy Hosts → Add:
@@ -32,9 +33,11 @@ services:
     container_name: nginx_proxy_manager
     restart: unless-stopped
     ports:
-      - "80:80"      # HTTP publik
-      - "443:443"    # HTTPS publik
-      - "81:81"      # GUI admin — sebaiknya dibatasi via firewall / SSH tunnel
+      - '80:80' # HTTP publik
+      - '443:443' # HTTPS publik
+      # GUI admin: HANYA loopback (UFW tidak menyaring port Docker). Akses via
+      # SSH tunnel, jangan pernah "81:81".
+      - '127.0.0.1:81:81'
     volumes:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt

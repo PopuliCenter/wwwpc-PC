@@ -322,4 +322,26 @@ describe('NotificationService', () => {
       });
     });
   });
+
+  describe('audit T-34: job email gagal tidak menyimpan rahasia di Redis', () => {
+    it('OTP job is removed on final failure', async () => {
+      await service.sendOtpEmail('user@test.com', 'User', '123456', 10, 'verify');
+      const opts = mockQueue.add.mock.calls.at(-1)[2];
+      expect(opts).toMatchObject({ removeOnComplete: true, removeOnFail: true });
+    });
+
+    it('password reset job is removed on final failure', async () => {
+      await service.sendPasswordResetEmail('user@test.com', 'User', 'tok', 'https://app.test');
+      const opts = mockQueue.add.mock.calls.at(-1)[2];
+      expect(opts).toMatchObject({ removeOnComplete: true, removeOnFail: true });
+    });
+
+    it('queue default keeps other failed jobs for at most 7 days', async () => {
+      const { NOTIFICATION_DEFAULT_JOB_OPTIONS } = await import('./constants');
+      expect(NOTIFICATION_DEFAULT_JOB_OPTIONS).toEqual({
+        removeOnComplete: true,
+        removeOnFail: { age: 7 * 24 * 60 * 60 },
+      });
+    });
+  });
 });

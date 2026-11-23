@@ -8,8 +8,9 @@
  *   password : LoadTest12345  (sama untuk semua)
  *   phone    : 0819 + index 8 digit (unik)
  *
- * Idempoten & bulk: akun yang sudah ada dilewati. Jalankan di dalam container:
- *   docker compose exec backend node dist/seed-loadtest.js
+ * Idempoten & bulk: akun yang sudah ada dilewati. TIDAK ada di image produksi
+ * (dihapus saat build, audit T-01) — jalankan dari source checkout:
+ *   npm run seed:loadtest:dev --workspace=backend   (lihat loadtest/README.md)
  * Atur via env:
  *   LOADTEST_USERS (default 2000)   — jumlah akun
  *   LOADTEST_POINTS (default 0)     — saldo poin per akun (untuk uji tukar reward)

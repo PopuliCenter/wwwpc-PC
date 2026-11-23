@@ -25,6 +25,8 @@ import { assertSurveyActive } from '@modules/survey/utils/survey-active';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
 import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
 import { PaginatedResponse } from '@shared/interfaces';
+import { StorageCleanupService } from '@modules/export/storage-cleanup.service';
+import { findOwnSubmission } from './utils/client-submission';
 
 /**
  * Minimum number of seconds a respondent must spend on a survey before a
@@ -79,6 +81,7 @@ export class ResponseService {
     private readonly answerValidationService: AnswerValidationService,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   /**
@@ -150,9 +153,12 @@ export class ResponseService {
     // tercatat (retry setelah online kembali), kembalikan respons yang ada
     // tanpa menimbulkan Conflict atau memproses ulang reward.
     if (dto.clientSubmissionId) {
-      const byKey = await this.responseRepository.findOne({
-        where: { clientSubmissionId: dto.clientSubmissionId },
-      });
+      const byKey = await findOwnSubmission(
+        this.responseRepository,
+        dto.clientSubmissionId,
+        respondentId,
+        surveyId,
+      );
       if (byKey) return this.findResponseById(byKey.id);
     }
 
@@ -301,9 +307,12 @@ export class ResponseService {
         if (error.code === '23505' || error.message?.includes('uq_one_response_per_survey')) {
           // Race sync: bentrok karena clientSubmissionId yang sama → idempoten.
           if (dto.clientSubmissionId) {
-            const raced = await this.responseRepository.findOne({
-              where: { clientSubmissionId: dto.clientSubmissionId },
-            });
+            const raced = await findOwnSubmission(
+              this.responseRepository,
+              dto.clientSubmissionId,
+              respondentId,
+              surveyId,
+            );
             if (raced) return this.findResponseById(raced.id);
           }
           throw new ConflictException(
@@ -751,12 +760,17 @@ export class ResponseService {
     }
     const { surveyId, status } = response;
 
-    await this.dataSource.transaction(async (manager) => {
+    const uploadKeys = await this.dataSource.transaction(async (manager) => {
+      // Key berkas (foto/audio/tanda tangan) yang dirujuk jawaban — dikumpulkan
+      // sebelum baris hilang, dihapus dari MinIO setelah commit (T-31).
+      const keys = await this.storageCleanup.uploadKeysForResponse(manager, id);
       // Hapus jawaban dulu (eksplisit), lalu respons. Answer juga ber-ON DELETE
       // CASCADE, tapi penghapusan eksplisit aman tanpa bergantung pada FK.
       await manager.delete(Answer, { responseId: id });
       await manager.delete(SurveyResponse, { id });
+      return keys;
     });
+    await this.storageCleanup.deleteUploadKeys(uploadKeys);
 
     // Bebaskan kuota hanya untuk respons yang dulu menambah hitungan (COMPLETE).
     if (status === ResponseStatus.COMPLETE) {

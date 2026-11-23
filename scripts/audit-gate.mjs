@@ -17,15 +17,16 @@
 import { execSync } from 'node:child_process';
 
 /**
- * Advisory yang di-terima-risiko SEMENTARA. Semua berakar pada stack @nestjs v10
- * yang penutupannya butuh upgrade ke v12 (proyek terpisah, bukan go-live).
+ * Advisory high/critical yang di-terima-risiko SEMENTARA (mis. yang penutupannya
+ * butuh upgrade major). Biarkan kosong bila tidak ada.
  *
  * expires: setelah tanggal ini gerbang gagal lagi (paksa tinjau ulang).
  */
 const ALLOWLIST = [
-  // @nestjs/core injection — hanya tertutup di v12 (breaking). Dinilai risiko
-  // rendah pada pemakaian app ini; dijadwalkan upgrade v10→v12.
-  { id: 'GHSA-36xv-jgw5-4q75', reason: '@nestjs/core; perlu upgrade v12', expires: '2026-12-31' },
+  // Kosong. GHSA-36xv-jgw5-4q75 (@nestjs/core) dihapus 23 Nov 2026 (audit T-43):
+  // advisory itu kini ber-severity MODERATE (tidak memblokir gerbang ini) dan
+  // sudah ditambal di @nestjs/core 11.1.18 — rencanakan naik ke 11.1.18+.
+  // Format entri: { id: 'GHSA-…', reason: '…', expires: 'YYYY-MM-DD' }
 ];
 
 const today = new Date().toISOString().slice(0, 10);

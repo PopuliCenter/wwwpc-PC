@@ -26,6 +26,14 @@ Status item yang sudah disiapkan di repo ditandai ✅. Sisanya tindakan manual.
   > Tanpa ini: Google login & push notification MATI di build dari Play Store.
 - ☐ Pastikan `google-services.json` produksi ada di `frontend/android/app/`.
 - ☐ Layar persetujuan OAuth Google: mode Production + URL kebijakan privasi.
+- ☐ **Batasi kunci API Firebase** (audit T-26; kunci `AIza…` di
+  `google-services.json` ikut ter-embed di setiap APK dan ada di repo publik).
+  Google Cloud Console → APIs & Services → Credentials → kunci Android:
+  _Application restrictions_ = Android apps (package `com.populicenter.survei`
+  - SHA-1 upload key **dan** App Signing key);
+    _API restrictions_ = hanya Firebase Cloud Messaging API + Firebase
+    Installations API. Backend tidak memakai Firebase Auth/Storage/Firestore/RTDB:
+    setel rules-nya ke deny-all (atau pastikan produk itu tidak diaktifkan).
 
 ## 3. Izin & hardening
 
