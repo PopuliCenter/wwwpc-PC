@@ -37,7 +37,9 @@ RUN npm run build --workspace=frontend
 
 
 # ── Stage 2: runner — serve SPA via nginx ────────────────────────────────────
-FROM nginx:1.27-alpine AS runner
+# nginx 1.30.x = cabang STABLE saat ini (1.27 beku/EOL, Alpine 3.21 EOL — audit T-24).
+# Tag minor (bukan patch) agar rebuild mengambil patch keamanan terbaru.
+FROM nginx:1.30-alpine AS runner
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY frontend/nginx.conf /etc/nginx/conf.d/app.conf

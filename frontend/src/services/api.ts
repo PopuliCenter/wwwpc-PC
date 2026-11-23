@@ -67,6 +67,57 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+/**
+ * Cabut sesi di server (`POST /auth/logout`) — best-effort, TIDAK pernah melempar
+ * dan TIDAK mengalihkan halaman (beda dengan `request`). Bila access token sudah
+ * kedaluwarsa (401) tetapi refresh token masih ada, refresh dulu lalu ulangi agar
+ * sesi (dan refresh token 7 harinya) benar-benar dicabut. Dibatasi `timeoutMs`
+ * per panggilan supaya tombol Keluar tidak menggantung saat jaringan lambat.
+ */
+async function revokeServerSession(timeoutMs = 4000): Promise<void> {
+  await bestEffortAuthed('POST', '/auth/logout', undefined, timeoutMs);
+}
+
+/**
+ * Panggilan ber-auth "kirim dan lupakan" untuk alur logout: refresh sekali bila
+ * 401, tanpa melempar, tanpa redirect ke /login, dengan batas waktu. Status
+ * non-2xx (mis. 404 bila endpoint belum ada di backend) diabaikan.
+ */
+async function bestEffortAuthed(
+  method: 'POST' | 'DELETE',
+  endpoint: string,
+  body?: unknown,
+  timeoutMs = 4000,
+): Promise<void> {
+  if (!getAccessToken() && !getRefreshToken()) return;
+  const send = async (token: string | null): Promise<Response> => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    try {
+      return await fetch(`${BASE_URL}${endpoint}`, {
+        method,
+        headers,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+        signal: ctrl.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  try {
+    const res = await send(getAccessToken());
+    if (res.status === 401 && getRefreshToken()) {
+      const fresh = await refreshAccessToken();
+      if (fresh) await send(fresh);
+    }
+  } catch {
+    /* offline / timeout → abaikan; sesi berakhir sendiri saat token kedaluwarsa */
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers: customHeaders, ...restOptions } = options;
 
@@ -209,4 +260,11 @@ export function mediaUrl(path: string): string {
   return /^https?:\/\//i.test(path) ? path : `${BASE_URL}${path}`;
 }
 
-export { clearTokens, setTokens, getAccessToken, getRefreshToken };
+export {
+  clearTokens,
+  setTokens,
+  getAccessToken,
+  getRefreshToken,
+  revokeServerSession,
+  bestEffortAuthed,
+};

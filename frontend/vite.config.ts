@@ -54,21 +54,17 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // Berkas sumber logo 5700x5699 tetap dilayani (dipakai template email backend),
         // tetapi tidak ikut precache; UI memakai varian 96 dan 192.
-        globIgnores: ['**/node_modules/**/*', 'logo-populi-center.png'],
-        runtimeCaching: [
-          {
-            // Cache GET data survei (mis. fill/numbers) agar bisa dibuka offline.
-            urlPattern: ({ url, request }) =>
-              request.method === 'GET' && url.pathname.startsWith('/api'),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-get-cache',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
+        // sw-cleanup.js dimuat SW lewat importScripts, jangan ikut precache.
+        globIgnores: ['**/node_modules/**/*', 'logo-populi-center.png', 'sw-cleanup.js'],
+        // TIDAK ADA runtimeCaching untuk /api (audit T-08). Aturan NetworkFirst
+        // 'api-get-cache' lama menyimpan SEMUA GET /api 7 hari: PII responden,
+        // berkas ekspor, media privat, beserta request ber-header Authorization,
+        // dan bisa menyajikan data akun A ke akun B saat backend lambat/offline.
+        // Data survei untuk pengisian offline sudah disimpan di IndexedDB
+        // (utils/offlineQueue.ts, kunci terikat user). Cache lama dihapus saat SW
+        // baru aktif oleh public/sw-cleanup.js (cleanupOutdatedCaches hanya
+        // menyentuh precache, bukan cache runtime).
+        importScripts: ['/sw-cleanup.js'],
       },
     }),
   ],

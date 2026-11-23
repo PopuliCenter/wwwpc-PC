@@ -34,6 +34,12 @@ if (Capacitor.isNativePlatform() && 'serviceWorker' in navigator) {
   }
 }
 
+// Di WEB: hapus cache runtime /api lama ('api-get-cache', audit T-08) secepatnya,
+// tanpa menunggu SW baru aktif (sw-cleanup.js juga menghapusnya saat activate).
+if (!Capacitor.isNativePlatform() && typeof caches !== 'undefined') {
+  caches.delete('api-get-cache').catch(() => {});
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>

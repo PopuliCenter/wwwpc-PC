@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth.store';
+import { signOut } from '@/services/session';
 import { Avatar } from '@/components/common/Avatar';
 import { IconButton } from '@/components/common/IconButton';
 import { Logo } from '@/components/common/Logo';
@@ -55,7 +56,7 @@ const navItems: NavItem[] = [
 ];
 
 export function AdminLayout() {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   // Drawer sidebar untuk mobile (di desktop sidebar selalu tampil).
@@ -71,8 +72,9 @@ export function AdminLayout() {
 
   const visibleNav = navItems.filter((item) => hasRole(user?.role, item.roles));
 
-  const handleLogout = () => {
-    logout();
+  // Logout menyeluruh: cabut sesi server, lepas push, bersihkan cache & data lokal.
+  const handleLogout = async () => {
+    await signOut();
     navigate('/login');
   };
 

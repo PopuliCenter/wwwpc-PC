@@ -11,6 +11,7 @@ import { Tag } from '@/components/common/Tag';
 import { pushBackButtonOverride } from '@/utils/nativeBackButton';
 import { showAppNotice } from '@/stores/notification.store';
 import { useAuthStore } from '@/stores/auth.store';
+import { pendingOfflineCount, signOut } from '@/services/session';
 import { getAppVersion, WEB_APP_VERSION } from '@/utils/appVersion';
 import { Capacitor } from '@capacitor/core';
 import { AvatarPicker } from './profile/AvatarPicker';
@@ -21,14 +22,37 @@ import { PrivacyPolicyView, TermsView } from './profile/LegalPages';
 import { ROLE_LABELS, errMessage, type ProfileData } from './profile/types';
 
 export function ProfilePage() {
-  const { user, setUser, logout } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
   const tap = useTapFeedback();
   const { confirm, dialog } = useConfirm();
+  const [signingOut, setSigningOut] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    if (signingOut) return;
+    // Logout mengosongkan antrean offline di perangkat ini (data tidak boleh
+    // tertinggal untuk pengguna berikutnya) → peringatkan bila ada yang belum terkirim.
+    const pending = await pendingOfflineCount();
+    if (pending > 0) {
+      const ok = await confirm({
+        title: 'Ada jawaban belum terkirim',
+        message:
+          `${pending} jawaban survei yang diisi offline belum terkirim ke server. ` +
+          'Bila Anda keluar sekarang, jawaban itu DIHAPUS dari perangkat ini dan ' +
+          'tidak bisa dikirim lagi.\n\nSambungkan ke internet dan tunggu sinkron ' +
+          'selesai bila ingin menyimpannya. Tetap keluar?',
+        confirmText: 'Keluar dan hapus',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setSigningOut(true);
+    try {
+      await signOut();
+    } finally {
+      setSigningOut(false);
+      navigate('/login');
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -45,7 +69,7 @@ export function ProfilePage() {
     try {
       await api.delete('/users/me');
       showAppNotice({ title: 'Akun Anda telah dihapus', tone: 'success', durationMs: 5000 });
-      logout();
+      await signOut({ notifyServer: false });
       navigate('/login');
     } catch (e) {
       showAppNotice({

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/services/api';
 import { showAppNotice } from '@/stores/notification.store';
+import { useAuthStore } from '@/stores/auth.store';
 import {
   useMediaUpload,
   MediaUploadProvider,
@@ -1396,11 +1397,14 @@ export function SurveyFillPage() {
   }, []);
 
   useEffect(() => {
+    // Kunci cache offline diikat ke akun: data fill memuat penugasan (arm) milik
+    // user ini, jadi tidak boleh tersaji ke akun lain di perangkat yang sama.
+    const cacheKey = `respondent-fill:${useAuthStore.getState().user?.id ?? 'anon'}:${id}`;
     const fetchSurvey = async () => {
       try {
         const result = await api.get<SurveyFillData>(`/surveys/${id}/fill`);
         setSurvey(result);
-        void cachePut(`respondent-fill:${id}`, result);
+        void cachePut(cacheKey, result);
 
         // Lanjutkan pengisian: muat draft tersimpan dari server (best-effort,
         // hanya online). Jawaban yang tersimpan diisikan kembali ke form, lalu
@@ -1442,7 +1446,7 @@ export function SurveyFillPage() {
           setError(e.message || 'Anda belum dapat mengisi survei ini.');
         } else {
           // Offline / gagal jaringan → coba muat dari cache.
-          const cached = await cacheGet<SurveyFillData>(`respondent-fill:${id}`);
+          const cached = await cacheGet<SurveyFillData>(cacheKey);
           if (cached) setSurvey(cached);
           else setError(LOAD_FAILED_MESSAGE);
         }

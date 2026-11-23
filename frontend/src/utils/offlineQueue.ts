@@ -17,6 +17,12 @@ export const LOCAL_MEDIA_PREFIX = 'local-media://';
 export interface QueuedResponse {
   /** Kunci lokal unik (juga dipakai sebagai clientSubmissionId idempotensi). */
   localId: string;
+  /**
+   * Pemilik item (id user yang mengisi). Sinkronisasi HANYA mengirim item milik
+   * user yang sedang login; item milik akun lain dibuang (lihat queueForUser).
+   * Opsional hanya demi item lama dari versi sebelum kolom ini ada.
+   */
+  userId?: string;
   surveyId: string;
   surveyTitle: string;
   /** Endpoint pengiriman respons (surveyor atau responden). */
@@ -81,6 +87,60 @@ export function queueGetAll(): Promise<QueuedResponse[]> {
 
 export function queueDelete(localId: string): Promise<void> {
   return tx<undefined>(QUEUE_STORE, 'readwrite', (s) => s.delete(localId)).then(() => undefined);
+}
+
+/** Id media lokal (local-media://<id>) yang dirujuk jawaban sebuah item antrean. */
+export function localMediaIds(item: QueuedResponse): string[] {
+  const answers = (item.payload as { answers?: Array<{ value: unknown }> }).answers;
+  if (!Array.isArray(answers)) return [];
+  return answers
+    .map((a) => a.value)
+    .filter((v): v is string => typeof v === 'string' && v.startsWith(LOCAL_MEDIA_PREFIX))
+    .map((v) => v.slice(LOCAL_MEDIA_PREFIX.length));
+}
+
+/**
+ * Antrean milik `userId` saja. Item milik akun LAIN dibuang beserta medianya
+ * (jangan pernah terkirim memakai token akun yang sedang login, dan jangan
+ * tertinggal di perangkat). Item lama tanpa `userId` (dari versi sebelum kolom
+ * ini ada) diklaim sekali oleh user aktif, sama dengan perilaku lama; sejak
+ * versi ini logout mengosongkan antrean sehingga item tak bertuan tak muncul lagi.
+ */
+export async function queueForUser(userId: string): Promise<QueuedResponse[]> {
+  const all = await queueGetAll();
+  const mine: QueuedResponse[] = [];
+  for (const item of all) {
+    if (!item.userId) {
+      const claimed = { ...item, userId };
+      await queueAdd(claimed);
+      mine.push(claimed);
+    } else if (item.userId === userId) {
+      mine.push(item);
+    } else {
+      for (const id of localMediaIds(item)) await mediaDelete(id).catch(() => undefined);
+      await queueDelete(item.localId);
+    }
+  }
+  return mine;
+}
+
+/**
+ * Kosongkan SELURUH data offline perangkat (antrean, media, cache data survei).
+ * Dipanggil saat logout / hapus akun agar data akun ini tidak tertinggal untuk
+ * pengguna berikutnya di perangkat yang sama.
+ */
+export function clearOfflineData(): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const stores = [QUEUE_STORE, MEDIA_STORE, CACHE_STORE];
+        const transaction = db.transaction(stores, 'readwrite');
+        for (const s of stores) transaction.objectStore(s).clear();
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+      }),
+  );
 }
 
 // ─── Cache (data survei untuk offline) ──────────────────────────────────────

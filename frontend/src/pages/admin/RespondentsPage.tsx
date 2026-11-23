@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { api } from '@/services/api';
+import { buildCsv } from '@/utils/csv';
 import { Button } from '@/components/common/Button';
 import { thBaseCls, tdBaseCls } from '@/components/common/tableStyles';
 import { RowCheckbox } from '@/components/common/RowCheckbox';
@@ -388,18 +389,16 @@ export function RespondentsPage() {
   };
   const exportCsv = () => {
     const header = COLUMNS.map((c) => c.label);
-    const esc = (v: unknown) => {
-      const s = String(v ?? '');
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const lines = [
-      header.join(','),
-      ...exportRows().map((r) => {
+    // buildCsv menetralkan formula injection (=, +, -, @, TAB, CR): nama,
+    // pekerjaan, dan alamat diisi responden sendiri.
+    const csv = buildCsv(
+      header,
+      exportRows().map((r) => {
         const row = toRow(r);
-        return header.map((h) => esc(row[h])).join(',');
+        return header.map((h) => row[h]);
       }),
-    ];
-    const blob = new Blob([String.fromCharCode(0xfeff) + lines.join('\r\n')], {
+    );
+    const blob = new Blob([String.fromCharCode(0xfeff) + csv], {
       type: 'text/csv;charset=utf-8;',
     });
     const url = URL.createObjectURL(blob);

@@ -1,6 +1,7 @@
 import { useState, useCallback, type MutableRefObject } from 'react';
 import { api } from '@/services/api';
 import { queueAdd, makeLocalId } from '@/utils/offlineQueue';
+import { useAuthStore } from '@/stores/auth.store';
 import type { AnswerValue, Question, SurveyFillData } from '@/types/survey';
 import { DEVICE_TYPE, autoScrollBehavior, captureGeo, isAnswered } from '../surveyFillHelpers';
 
@@ -143,8 +144,12 @@ export function useSurveySubmission(params: UseSurveySubmissionParams): UseSurve
         setSubmitted(true);
       } else {
         // Offline: antrikan submit; media (local-media://) di-resolve saat sync.
+        // Item diikat ke akun pengisi agar tidak pernah terkirim atas nama akun lain.
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) throw new Error('Sesi Anda berakhir. Silakan masuk lagi.');
         await queueAdd({
           localId,
+          userId,
           surveyId: survey.id,
           surveyTitle: survey.title,
           submitPath: `/surveys/${survey.id}/responses/submit`,

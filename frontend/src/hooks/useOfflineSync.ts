@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth.store';
 import {
-  queueGetAll,
+  queueForUser,
   queueDelete,
   queueAdd,
   mediaGet,
@@ -45,24 +46,33 @@ async function resolveLocalMedia(item: QueuedResponse): Promise<void> {
  * Manajer sinkronisasi antrian respons offline (surveyor & responden). Saat
  * online, mengirim tiap respons antri ke endpoint-nya sendiri, idempoten via
  * clientSubmissionId.
+ *
+ * Antrean TERIKAT akun: hanya item milik user yang sedang login yang dihitung
+ * dan dikirim (memakai tokennya); item milik akun lain dibuang (queueForUser).
+ * Tanpa user (belum login / sudah logout) tidak ada yang dikirim.
  */
 export function useOfflineSync(): SyncState {
   const online = useOnlineStatus();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [queuedCount, setQueuedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [lastResult, setLastResult] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const all = await queueGetAll();
-    setQueuedCount(all.length);
-  }, []);
+    if (!userId) {
+      setQueuedCount(0);
+      return;
+    }
+    const mine = await queueForUser(userId);
+    setQueuedCount(mine.length);
+  }, [userId]);
 
   const syncNow = useCallback(async () => {
-    if (syncing) return;
+    if (syncing || !userId) return;
     setSyncing(true);
     setLastResult(null);
     try {
-      const items = await queueGetAll();
+      const items = await queueForUser(userId);
       let ok = 0;
       let failed = 0;
       for (const item of items) {
@@ -87,16 +97,16 @@ export function useOfflineSync(): SyncState {
       setSyncing(false);
       await refresh();
     }
-  }, [syncing, refresh]);
+  }, [syncing, refresh, userId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   useEffect(() => {
-    if (online) void syncNow();
+    if (online && userId) void syncNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [online]);
+  }, [online, userId]);
 
   return { queuedCount, syncing, lastResult, syncNow, refresh };
 }

@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import type { Importance, PushNotificationsPlugin } from '@capacitor/push-notifications';
 import { router } from '@/router';
-import { api } from '@/services/api';
+import { api, bestEffortAuthed } from '@/services/api';
 import { requestFeedRefresh } from '@/services/notificationFeed';
 import { showAppNotice } from '@/stores/notification.store';
 
@@ -83,8 +83,49 @@ async function postDeviceToken(token: string): Promise<void> {
  * login) kini tersimpan & terkait user → push bisa sampai. Aman & idempoten.
  */
 export async function syncDeviceToken(): Promise<void> {
-  if (!Capacitor.isNativePlatform() || !fcmToken) return;
+  if (!Capacitor.isNativePlatform()) return;
+  if (pushReleased && initialized) {
+    // Token lama dihapus saat logout (releaseNativePush) → minta token BARU;
+    // listener 'registration' mengirimnya ke backend atas nama user ini.
+    pushReleased = false;
+    try {
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+      await PushNotifications.register();
+    } catch {
+      /* gagal daftar ulang → dicoba lagi pada sesi berikutnya */
+    }
+    return;
+  }
+  if (!fcmToken) return;
   await postDeviceToken(fcmToken);
+}
+
+// True setelah logout melepas token FCM; login berikutnya mendaftar ulang.
+let pushReleased = false;
+
+/**
+ * Lepaskan push perangkat ini dari akun yang logout. Dipanggil SEBELUM sesi
+ * dicabut (butuh token auth):
+ *  1. `DELETE /notifications/device-token` {token} — best-effort; endpoint ini
+ *     belum ada di backend (404 diabaikan), siap dipakai begitu ditambahkan;
+ *  2. `PushNotifications.unregister()` → FCM menghapus token di perangkat, jadi
+ *     token yang tersimpan di server mati (dibersihkan backend saat kirim
+ *     berikutnya: registration-token-not-registered) dan push akun lama — mis.
+ *     "Reward … dikirim ke <nomor>" di layar kunci — tidak sampai lagi.
+ * Tidak pernah melempar.
+ */
+export async function releaseNativePush(): Promise<void> {
+  if (!Capacitor.isNativePlatform() || !initialized) return;
+  const token = fcmToken;
+  fcmToken = null;
+  pushReleased = true;
+  if (token) await bestEffortAuthed('DELETE', '/notifications/device-token', { token });
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications');
+    await PushNotifications.unregister();
+  } catch {
+    /* plugin tak tersedia → abaikan */
+  }
 }
 
 /**
