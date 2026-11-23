@@ -43,7 +43,8 @@ export class RewardRedemption {
   @Column({ type: 'timestamptz', nullable: true, name: 'processed_at' })
   processedAt: Date | null;
 
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'otp_code' })
+  /** HMAC-SHA256 OTP (hex), bukan plaintext — lihat redemption-otp.ts (audit T-13). */
+  @Column({ type: 'varchar', length: 128, nullable: true, name: 'otp_code' })
   otpCode: string | null;
 
   @Column({ type: 'timestamptz', nullable: true, name: 'otp_expires_at' })

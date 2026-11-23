@@ -17,12 +17,18 @@ import { AuditService } from '@modules/audit/audit.service';
 import { PointCreditReason } from '@shared/enums';
 import { POINT_VALUES, POINT_EXPIRATION_MONTHS } from './constants';
 
+import { hashRedemptionOtp } from './redemption-otp';
+
+/** OTP tersimpan = HMAC (audit T-13); helper agar mock sama dengan produksi. */
+const stored = (code: string, id = 'redemption-1') => hashRedemptionOtp(id, code);
+
 describe('RewardService', () => {
   let service: RewardService;
   let pointTransactionRepo: Repository<PointTransaction>;
   let redemptionRepo: Repository<RewardRedemption>;
   let streakTrackerRepo: Repository<StreakTracker>;
   let dataSourceMock: { transaction: ReturnType<typeof vi.fn> };
+  let managerQuery: ReturnType<typeof vi.fn>;
 
   const mockQueryBuilder = {
     select: vi.fn().mockReturnThis(),
@@ -52,7 +58,9 @@ describe('RewardService', () => {
     };
     // dataSource.transaction(cb) → panggil cb dgn manager yang mengembalikan repo
     // mock yang SAMA (getRepository per-entity), agar assertion tetap berlaku.
+    managerQuery = vi.fn().mockResolvedValue([{ id: 'user-1' }]);
     const managerMock = {
+      query: managerQuery,
       getRepository: vi.fn((entity: unknown) => {
         if (entity === RewardRedemption) return rrRepoMock;
         if (entity === PointTransaction) return ptRepoMock;
@@ -450,7 +458,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '654321',
+        otpCode: stored('654321'),
         otpExpiresAt: new Date(Date.now() + 600000),
         pointsSpent: 10000,
       } as RewardRedemption);
@@ -465,7 +473,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '123456',
+        otpCode: stored('123456'),
         otpExpiresAt: new Date(Date.now() - 600000), // expired
         pointsSpent: 10000,
       } as RewardRedemption);
@@ -480,7 +488,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '123456',
+        otpCode: stored('123456'),
         otpExpiresAt: new Date(Date.now() + 600000),
         pointsSpent: 10000,
         rewardType: 'pulsa-5000',
@@ -513,7 +521,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '123456',
+        otpCode: stored('123456'),
         otpExpiresAt: new Date(Date.now() + 600000),
         pointsSpent: 500,
         rewardType: 'pulsa-5000',
@@ -545,7 +553,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '123456',
+        otpCode: stored('123456'),
         otpExpiresAt: new Date(Date.now() + 600000),
         pointsSpent: 500,
         rewardType: 'pulsa-5000',
@@ -574,7 +582,7 @@ describe('RewardService', () => {
         id: 'redemption-1',
         userId: 'user-1',
         status: RedemptionStatus.PENDING,
-        otpCode: '654321',
+        otpCode: stored('654321'),
         otpExpiresAt: new Date(Date.now() + 600000),
         pointsSpent: 500,
         otpAttempts: 4,
@@ -605,6 +613,150 @@ describe('RewardService', () => {
           reason: PointCreditReason.MANUAL_CREDIT,
         }),
       );
+    });
+  });
+
+  // ── Audit keamanan 23 Nov 2026 ──────────────────────────────────────────
+  describe('audit T-13: OTP penukaran di-hash & tak pernah dikirim ke klien', () => {
+    const balance = (credits: string, pending = '0') =>
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: credits })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: pending })
+        .mockResolvedValueOnce({ total: '0' });
+
+    it('initiate menyimpan HMAC OTP (bukan plaintext) & mengirim kode asli lewat email', async () => {
+      balance('50000');
+      const notification = (service as any).notificationService;
+
+      await service.initiateRedemption('user-1', 'pulsa-5000', '08123456789');
+
+      const created = vi.mocked(redemptionRepo.create).mock.calls[0][0] as any;
+      const sentCode = notification.sendOtpEmail.mock.calls[0][2] as string;
+      expect(sentCode).toMatch(/^\d{6}$/);
+      expect(created.otpCode).toMatch(/^[0-9a-f]{64}$/);
+      expect(created.otpCode).not.toContain(sentCode);
+      expect(created.otpCode).toBe(hashRedemptionOtp(created.id, sentCode));
+    });
+
+    it('OTP plaintext lama (sebelum migrasi) tidak lagi diterima', async () => {
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue({
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: '123456', // plaintext legacy
+        otpExpiresAt: new Date(Date.now() + 600000),
+        pointsSpent: 500,
+      } as RewardRedemption);
+
+      await expect(service.confirmRedemption('user-1', 'redemption-1', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(pointTransactionRepo.create).not.toHaveBeenCalled();
+    });
+
+    it('hash OTP terikat ke id redemption (tak bisa dipakai lintas penukaran)', () => {
+      expect(hashRedemptionOtp('a', '123456')).not.toBe(hashRedemptionOtp('b', '123456'));
+    });
+
+    it('riwayat penukaran tidak memuat otpCode/otpExpiresAt/otpAttempts', async () => {
+      vi.mocked(redemptionRepo.findAndCount).mockResolvedValue([
+        [
+          {
+            id: 'r1',
+            userId: 'user-1',
+            status: RedemptionStatus.PENDING,
+            otpCode: stored('123456', 'r1'),
+            otpExpiresAt: new Date(),
+            otpAttempts: 1,
+            pointsSpent: 500,
+          } as RewardRedemption,
+        ],
+        1,
+      ]);
+
+      const page = await service.getRedemptionHistory('user-1', { page: 1, limit: 10 } as any);
+
+      const row = page.data[0] as Record<string, unknown>;
+      expect(row.id).toBe('r1');
+      expect(row).not.toHaveProperty('otpCode');
+      expect(row).not.toHaveProperty('otpExpiresAt');
+      expect(row).not.toHaveProperty('otpAttempts');
+    });
+
+    it('kirim ulang OTP menyimpan hash baru', async () => {
+      const redemption = {
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: stored('111111'),
+      } as RewardRedemption;
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue(redemption);
+
+      await service.resendRedemptionOtp('user-1', 'redemption-1');
+
+      const saved = vi.mocked(redemptionRepo.save).mock.calls[0][0] as RewardRedemption;
+      expect(saved.otpCode).toMatch(/^[0-9a-f]{64}$/);
+      expect(saved.otpCode).not.toBe(stored('111111'));
+    });
+  });
+
+  describe('audit T-17: kunci per user saat initiate/confirm', () => {
+    it('initiate mengunci baris user (FOR UPDATE) sebelum menghitung saldo, dalam transaksi', async () => {
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: '50000' })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: '0' });
+
+      await service.initiateRedemption('user-1', 'pulsa-5000', '08123456789');
+
+      expect(dataSourceMock.transaction).toHaveBeenCalledTimes(1);
+      expect(managerQuery).toHaveBeenCalledWith(expect.stringMatching(/FOR UPDATE/), ['user-1']);
+      // Kunci diambil SEBELUM query saldo pertama.
+      // (mockQueryBuilder dipakai bersama antar-test → ambil 4 panggilan saldo terakhir)
+      const balanceCalls = mockQueryBuilder.getRawOne.mock.invocationCallOrder.slice(-4);
+      expect(managerQuery.mock.invocationCallOrder[0]).toBeLessThan(balanceCalls[0]);
+      // Redemption dibuat lewat repo transaksi (bukan di luar kunci).
+      expect(redemptionRepo.save).toHaveBeenCalled();
+    });
+
+    it('confirm mengunci user lebih dulu, lalu baris redemption', async () => {
+      vi.mocked(redemptionRepo.findOne).mockResolvedValue({
+        id: 'redemption-1',
+        userId: 'user-1',
+        status: RedemptionStatus.PENDING,
+        otpCode: stored('123456'),
+        otpExpiresAt: new Date(Date.now() + 600000),
+        pointsSpent: 500,
+        rewardType: 'pulsa-5000',
+        destinationNumber: '08123456789',
+      } as RewardRedemption);
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: '5000' })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: '500' })
+        .mockResolvedValueOnce({ total: '0' });
+
+      await service.confirmRedemption('user-1', 'redemption-1', '123456');
+
+      expect(managerQuery).toHaveBeenCalledWith(expect.stringMatching(/FOR UPDATE/), ['user-1']);
+      expect(managerQuery.mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(redemptionRepo.findOne).mock.invocationCallOrder[0],
+      );
+    });
+
+    it('saldo tidak cukup → tidak ada redemption yang dibuat', async () => {
+      mockQueryBuilder.getRawOne
+        .mockResolvedValueOnce({ total: '600' })
+        .mockResolvedValueOnce({ total: '0' })
+        .mockResolvedValueOnce({ total: '500' }) // redemption PENDING lain menahan 500
+        .mockResolvedValueOnce({ total: '0' });
+
+      await expect(
+        service.initiateRedemption('user-1', 'pulsa-5000', '08123456789'),
+      ).rejects.toThrow(BadRequestException);
+      expect(redemptionRepo.save).not.toHaveBeenCalled();
     });
   });
 });

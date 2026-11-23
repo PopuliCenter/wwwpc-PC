@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResponseService } from './response.service';
 import { SurveyResponse, ResponseStatus } from './entities/survey-response.entity';
 import { Answer } from './entities/answer.entity';
@@ -14,6 +14,9 @@ import {
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { EventType } from '@modules/events/event-types';
+
+/** Status survei yang dikembalikan mock raw-query (audit T-14). */
+const surveyStatusForTest = { value: 'active' };
 
 describe('ResponseService', () => {
   let service: ResponseService;
@@ -35,6 +38,9 @@ describe('ResponseService', () => {
     // (survey targeting / user_profile). Default: profil lengkap, tanpa targeting.
     manager: {
       query: vi.fn().mockImplementation((sql: string) => {
+        if (typeof sql === 'string' && sql.includes('SELECT status FROM survey')) {
+          return Promise.resolve([{ status: surveyStatusForTest.value }]);
+        }
         if (typeof sql === 'string' && sql.includes('profile_completed')) {
           return Promise.resolve([{ profile_completed: true }]);
         }
@@ -100,10 +106,13 @@ describe('ResponseService', () => {
     mockManager.query.mockResolvedValue(undefined);
     // clearAllMocks() tidak mereset implementasi → tegakkan ulang default
     // raw-query (profil lengkap, tanpa targeting) agar tak bocor antar-test.
+    surveyStatusForTest.value = 'active';
     mockResponseRepository.manager.query.mockImplementation((sql: string) =>
-      typeof sql === 'string' && sql.includes('profile_completed')
-        ? Promise.resolve([{ profile_completed: true, phone: '08123456789' }])
-        : Promise.resolve([]),
+      typeof sql === 'string' && sql.includes('SELECT status FROM survey')
+        ? Promise.resolve([{ status: surveyStatusForTest.value }])
+        : typeof sql === 'string' && sql.includes('profile_completed')
+          ? Promise.resolve([{ profile_completed: true, phone: '08123456789' }])
+          : Promise.resolve([]),
     );
     mockDataSource.transaction.mockImplementation(async (cb: any) => cb(mockManager));
     mockDataSource.query.mockResolvedValue([
@@ -180,9 +189,11 @@ describe('ResponseService', () => {
       surveyTimeService.checkSubmissionAllowed.mockResolvedValue({ allowed: true });
       // Gerbang data diri: users.profile_completed = false → tolak.
       responseRepository.manager.query.mockImplementation((sql: string) =>
-        typeof sql === 'string' && sql.includes('profile_completed')
-          ? Promise.resolve([{ profile_completed: false }])
-          : Promise.resolve([]),
+        typeof sql === 'string' && sql.includes('SELECT status FROM survey')
+          ? Promise.resolve([{ status: 'active' }])
+          : typeof sql === 'string' && sql.includes('profile_completed')
+            ? Promise.resolve([{ profile_completed: false }])
+            : Promise.resolve([]),
       );
 
       await expect(service.submitResponse(surveyId, respondentId, dto)).rejects.toThrow(
@@ -750,6 +761,55 @@ describe('ResponseService', () => {
 
       expect(result.archived).toBe(true);
       expect(responseRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Audit keamanan 23 Nov 2026 — T-14 ───────────────────────────────────
+  describe('audit T-14: hanya survei ACTIVE yang menerima respons', () => {
+    const dto = { answers: [{ questionId: 'q1', value: 'a' }], deviceType: 'mobile' };
+
+    it.each(['draft', 'inactive', 'archived'])(
+      'submit ke survei %s ditolak 403 tanpa menyimpan apa pun',
+      async (status) => {
+        surveyStatusForTest.value = status;
+        responseRepository.findOne.mockResolvedValue(null);
+
+        await expect(service.submitResponse('survey-1', 'respondent-1', dto)).rejects.toThrow(
+          ForbiddenException,
+        );
+        expect(dataSource.transaction).not.toHaveBeenCalled();
+        expect(eventEmitter.emit).not.toHaveBeenCalled();
+      },
+    );
+
+    it('submit respons in_progress ke survei yang kini nonaktif juga ditolak', async () => {
+      surveyStatusForTest.value = 'inactive';
+      responseRepository.findOne.mockResolvedValue({
+        id: 'resp-1',
+        status: ResponseStatus.IN_PROGRESS,
+        startedAt: new Date(Date.now() - 60_000),
+      });
+
+      await expect(service.submitResponse('survey-1', 'respondent-1', dto)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('saveProgress ke survei nonaktif ditolak', async () => {
+      surveyStatusForTest.value = 'inactive';
+
+      await expect(
+        service.saveProgress('survey-1', 'respondent-1', { answers: [] } as any),
+      ).rejects.toThrow(ForbiddenException);
+      expect(responseRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('survei tak ada → 404', async () => {
+      responseRepository.manager.query.mockResolvedValue([]);
+
+      await expect(service.submitResponse('ghost', 'respondent-1', dto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

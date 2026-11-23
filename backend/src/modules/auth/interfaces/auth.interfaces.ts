@@ -47,4 +47,12 @@ export interface JwtPayload {
   role: UserRole;
   sessionId: string;
   type: 'access' | 'refresh';
+  /**
+   * Versi sesi user saat token diterbitkan (`users.token_version`). Token
+   * ditolak bila tidak sama dengan nilai DB (pencabutan sesi, audit T-11).
+   * Token lama tanpa klaim ini otomatis ditolak.
+   */
+  tv?: number;
+  /** Issued-at (detik) — diisi oleh jsonwebtoken. */
+  iat?: number;
 }

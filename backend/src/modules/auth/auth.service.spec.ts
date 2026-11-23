@@ -8,7 +8,8 @@ import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { NotificationService } from '@modules/notification';
-import { User, UserStatus } from './entities';
+import { User, UserStatus, USER_SELECT_WITH_PASSWORD } from './entities';
+import { SessionRevocationService } from './session-revocation.service';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
 
@@ -23,6 +24,7 @@ describe('AuthService', () => {
   let jwtService: any;
   let configService: any;
   let cacheManager: any;
+  let sessionRevocation: any;
 
   const mockUser: User = {
     id: 'user-id-123',
@@ -34,9 +36,10 @@ describe('AuthService', () => {
     status: UserStatus.ACTIVE,
     emailVerified: true,
     profileCompleted: true,
+    tokenVersion: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  } as User;
 
   beforeEach(async () => {
     userRepository = {
@@ -75,6 +78,17 @@ describe('AuthService', () => {
       sendOtpEmail: vi.fn().mockResolvedValue(undefined),
     };
 
+    sessionRevocation = {
+      getAuthState: vi.fn().mockResolvedValue({
+        email: 'test@example.com',
+        role: UserRole.RESPONDENT,
+        status: UserStatus.ACTIVE,
+        tokenVersion: 0,
+      }),
+      revokeAllSessions: vi.fn().mockResolvedValue(undefined),
+      clearAuthState: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -87,6 +101,7 @@ describe('AuthService', () => {
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cacheManager },
         { provide: NotificationService, useValue: notificationService },
+        { provide: SessionRevocationService, useValue: sessionRevocation },
       ],
     }).compile();
 
@@ -216,6 +231,7 @@ describe('AuthService', () => {
       role: UserRole.RESPONDENT,
       sessionId: 'session-id-789',
       type: 'refresh' as const,
+      tv: 0,
     };
 
     it('should return new token pair on valid refresh token', async () => {
@@ -316,6 +332,7 @@ describe('AuthService', () => {
       role: UserRole.RESPONDENT,
       sessionId: 'session-id-abc',
       type: 'access' as const,
+      tv: 0,
     };
 
     it('should return session info for valid access token with active session', async () => {
@@ -542,6 +559,231 @@ describe('AuthService', () => {
       });
 
       await expect(service.loginWithGoogle('id-token')).rejects.toThrow(/belum terverifikasi/i);
+    });
+  });
+
+  // ── Audit keamanan 23 Nov 2026 ──────────────────────────────────────────
+  describe('audit T-12: passwordHash hanya dimuat eksplisit', () => {
+    it('login memuat user dengan select yang menyertakan passwordHash', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.compare as any).mockResolvedValue(true);
+      jwtService.signAsync.mockResolvedValueOnce('a').mockResolvedValueOnce('r');
+
+      await service.login('test@example.com', 'ValidPass1');
+
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { email: 'test@example.com' },
+        select: USER_SELECT_WITH_PASSWORD,
+      });
+      expect(USER_SELECT_WITH_PASSWORD.passwordHash).toBe(true);
+    });
+
+    it('respons login tidak memuat passwordHash', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.compare as any).mockResolvedValue(true);
+      jwtService.signAsync.mockResolvedValueOnce('a').mockResolvedValueOnce('r');
+
+      const result = await service.login('test@example.com', 'ValidPass1');
+
+      expect(JSON.stringify(result)).not.toContain('passwordHash');
+      expect(JSON.stringify(result)).not.toContain(mockUser.passwordHash);
+    });
+
+    it('changeOwnPassword memuat hash lewat select eksplisit lalu mencabut semua sesi', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.compare as any).mockResolvedValue(true);
+      (bcrypt.hash as any) = vi.fn().mockResolvedValue('new-hash');
+
+      await service.changeOwnPassword('user-id-123', 'OldPass123', 'NewPass123');
+
+      expect(userRepository.findOne).toHaveBeenCalledWith({
+        where: { id: 'user-id-123' },
+        select: USER_SELECT_WITH_PASSWORD,
+      });
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('user-id-123');
+    });
+  });
+
+  describe('audit T-11/T-05: versi sesi & peran dari DB', () => {
+    it('token yang diterbitkan membawa klaim tv = users.token_version', async () => {
+      userRepository.findOne.mockResolvedValue({ ...mockUser, tokenVersion: 7 });
+      (bcrypt.compare as any).mockResolvedValue(true);
+      jwtService.signAsync.mockResolvedValueOnce('a').mockResolvedValueOnce('r');
+
+      await service.login('test@example.com', 'ValidPass1');
+
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'access', tv: 7 }),
+        expect.anything(),
+      );
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'refresh', tv: 7 }),
+        expect.anything(),
+      );
+    });
+
+    it('refresh token dengan versi sesi lama ditolak dan sesinya dibuang', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-id-123',
+        email: 'test@example.com',
+        role: UserRole.RESPONDENT,
+        sessionId: 'session-old',
+        type: 'refresh',
+        tv: 0,
+      });
+      cacheManager.get
+        .mockResolvedValueOnce(JSON.stringify({ userId: 'user-id-123' }))
+        .mockResolvedValueOnce('refresh-old');
+      userRepository.findOne.mockResolvedValue({ ...mockUser, tokenVersion: 1 });
+
+      await expect(service.refreshToken('refresh-old')).rejects.toThrow(UnauthorizedException);
+      expect(cacheManager.del).toHaveBeenCalledWith('session:session-old');
+      expect(cacheManager.del).toHaveBeenCalledWith('refresh:session-old');
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    });
+
+    it('refresh token lama tanpa klaim tv (sebelum migrasi) ditolak', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-id-123',
+        email: 'test@example.com',
+        role: UserRole.RESPONDENT,
+        sessionId: 'session-legacy',
+        type: 'refresh',
+      });
+      cacheManager.get
+        .mockResolvedValueOnce(JSON.stringify({ userId: 'user-id-123' }))
+        .mockResolvedValueOnce('refresh-legacy');
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      await expect(service.refreshToken('refresh-legacy')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('validateSession memakai peran dari DB, bukan dari isi token', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-id-123',
+        email: 'test@example.com',
+        role: UserRole.SUPER_ADMIN, // token palsu/basi
+        sessionId: 'session-x',
+        type: 'access',
+        tv: 0,
+      });
+      cacheManager.get.mockResolvedValue(JSON.stringify({ userId: 'user-id-123' }));
+
+      const result = await service.validateSession('token');
+
+      expect(result.role).toBe(UserRole.RESPONDENT);
+    });
+
+    it('validateSession menolak user yang dinonaktifkan', async () => {
+      jwtService.verify.mockReturnValue({
+        sub: 'user-id-123',
+        email: 'test@example.com',
+        role: UserRole.RESPONDENT,
+        sessionId: 'session-x',
+        type: 'access',
+        tv: 0,
+      });
+      cacheManager.get.mockResolvedValue(JSON.stringify({ userId: 'user-id-123' }));
+      sessionRevocation.getAuthState.mockResolvedValue({
+        email: 'test@example.com',
+        role: UserRole.RESPONDENT,
+        status: UserStatus.INACTIVE,
+        tokenVersion: 0,
+      });
+
+      await expect(service.validateSession('token')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('reset sandi via OTP mencabut semua sesi', async () => {
+      cacheManager.get.mockResolvedValue('123456');
+      userRepository.findOne.mockResolvedValue(mockUser);
+      (bcrypt.hash as any) = vi.fn().mockResolvedValue('hashed');
+
+      await service.resetPassword('test@example.com', '123456', 'ValidP4ss!');
+
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('user-id-123');
+    });
+  });
+
+  describe('audit T-09: email responden & penautan Google', () => {
+    it('responden tidak boleh mengganti email sendiri', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      await expect(
+        service.updateProfile('user-id-123', { email: 'victim@example.com' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('responden tetap boleh menyimpan email yang sama (tanpa perubahan)', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      await expect(
+        service.updateProfile('user-id-123', { email: 'test@example.com', fullName: 'Baru' }),
+      ).resolves.toBeDefined();
+    });
+
+    it('staf (admin) masih boleh mengganti email; status verifikasi direset', async () => {
+      const admin = { ...mockUser, role: UserRole.ADMIN };
+      userRepository.findOne
+        .mockResolvedValueOnce(admin) // user
+        .mockResolvedValueOnce(null) // cek keunikan email
+        .mockResolvedValueOnce({ ...admin, email: 'baru@example.com' }); // refreshed
+
+      await service.updateProfile('user-id-123', { email: 'baru@example.com' });
+
+      expect(userRepository.update).toHaveBeenCalledWith(
+        'user-id-123',
+        expect.objectContaining({ email: 'baru@example.com', emailVerified: false }),
+      );
+    });
+
+    it('Google ke akun yang email-nya BELUM terverifikasi: sandi lama diacak & sesi lama dicabut', async () => {
+      jwtService.signAsync.mockResolvedValueOnce('a-g').mockResolvedValueOnce('r-g');
+      (bcrypt.hash as any) = vi.fn().mockResolvedValue('hashed-random');
+      vi.spyOn(service as any, 'verifyGoogleToken').mockResolvedValue({
+        email: 'test@example.com',
+        emailVerified: true,
+        name: 'Pemilik Asli',
+      });
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        emailVerified: false,
+        tokenVersion: 2,
+      });
+
+      const result = await service.loginWithGoogle('id-token');
+
+      expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
+        emailVerified: true,
+        passwordHash: 'hashed-random',
+        passwordSet: false,
+      });
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('user-id-123');
+      // Sesi baru memakai versi SETELAH pencabutan.
+      expect(jwtService.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'access', tv: 3 }),
+        expect.anything(),
+      );
+      expect(result.accessToken).toBe('a-g');
+    });
+
+    it('Google ke akun yang sudah terverifikasi tidak mengacak sandi', async () => {
+      jwtService.signAsync.mockResolvedValueOnce('a-g').mockResolvedValueOnce('r-g');
+      vi.spyOn(service as any, 'verifyGoogleToken').mockResolvedValue({
+        email: 'test@example.com',
+        emailVerified: true,
+        name: 'Test User',
+      });
+      userRepository.findOne.mockResolvedValue(mockUser);
+
+      await service.loginWithGoogle('id-token');
+
+      expect(sessionRevocation.revokeAllSessions).not.toHaveBeenCalled();
+      expect(userRepository.update).not.toHaveBeenCalledWith(
+        'user-id-123',
+        expect.objectContaining({ passwordHash: expect.anything() }),
+      );
     });
   });
 });

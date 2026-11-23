@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException, Logger, Inject } from '@nestjs/common';
-import { randomInt, timingSafeEqual } from 'crypto';
+import { randomInt, randomUUID } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -46,6 +46,23 @@ import {
 } from '../../common/scheduling/cron-lock.service';
 import { PaginatedResponse, PaginationQuery } from '@shared/interfaces';
 import { CircuitBreaker } from '@shared/circuit-breaker';
+import { hashRedemptionOtp, redemptionOtpMatches } from './redemption-otp';
+
+/**
+ * Bentuk redemption yang aman dikirim ke klien: TANPA otpCode/otpExpiresAt/
+ * otpAttempts (audit T-13 — OTP adalah bukti kepemilikan email, tak boleh
+ * terbaca lewat API meski sudah di-hash).
+ */
+export type PublicRewardRedemption = Omit<
+  RewardRedemption,
+  'otpCode' | 'otpExpiresAt' | 'otpAttempts'
+>;
+
+export function toPublicRedemption(r: RewardRedemption): PublicRewardRedemption {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { otpCode, otpExpiresAt, otpAttempts, ...rest } = r;
+  return rest;
+}
 
 @Injectable()
 export class RewardService {
@@ -551,40 +568,48 @@ export class RewardService {
       throw new NotFoundException('Reward not found in catalog');
     }
 
-    // Check balance
-    const balance = await this.getBalance(userId);
+    // Kunci per user + cek saldo + buat redemption dalam SATU transaksi (audit
+    // T-17): dua permintaan paralel diserialisasi oleh kunci baris user sehingga
+    // yang kedua melihat redemption PENDING pertama sebagai poin tertahan.
+    const { saved, otpCode } = await this.dataSource.transaction(async (manager) => {
+      await this.lockUserPoints(manager, userId);
 
-    // Check minimum threshold
-    if (balance.available < MINIMUM_REDEMPTION_THRESHOLD) {
-      throw new BadRequestException(
-        `Saldo tidak mencukupi. Minimum penukaran adalah ${MINIMUM_REDEMPTION_THRESHOLD.toLocaleString('id-ID')} poin.`,
-      );
-    }
+      const balance = await this.computeBalance(userId, manager);
 
-    // Check sufficient balance for this reward
-    if (balance.available < reward.pointsCost) {
-      throw new BadRequestException(
-        `Saldo tidak mencukupi. Reward ini membutuhkan ${reward.pointsCost.toLocaleString('id-ID')} poin, saldo tersedia: ${balance.available.toLocaleString('id-ID')} poin.`,
-      );
-    }
+      // Check minimum threshold
+      if (balance.available < MINIMUM_REDEMPTION_THRESHOLD) {
+        throw new BadRequestException(
+          `Saldo tidak mencukupi. Minimum penukaran adalah ${MINIMUM_REDEMPTION_THRESHOLD.toLocaleString('id-ID')} poin.`,
+        );
+      }
 
-    // Generate OTP
-    const otpCode = this.generateOtpCode();
-    const otpExpiresAt = new Date();
-    otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + REDEMPTION_OTP_TTL_MINUTES);
+      // Check sufficient balance for this reward
+      if (balance.available < reward.pointsCost) {
+        throw new BadRequestException(
+          `Saldo tidak mencukupi. Reward ini membutuhkan ${reward.pointsCost.toLocaleString('id-ID')} poin, saldo tersedia: ${balance.available.toLocaleString('id-ID')} poin.`,
+        );
+      }
 
-    // Create redemption record
-    const redemption = this.redemptionRepository.create({
-      userId,
-      rewardType: reward.id,
-      pointsSpent: reward.pointsCost,
-      destinationNumber,
-      status: RedemptionStatus.PENDING,
-      otpCode,
-      otpExpiresAt,
+      // Generate OTP (yang disimpan hanya HMAC-nya, terikat ke id redemption).
+      const code = this.generateOtpCode();
+      const otpExpiresAt = new Date();
+      otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + REDEMPTION_OTP_TTL_MINUTES);
+      const id = randomUUID();
+
+      const rrRepo = manager.getRepository(RewardRedemption);
+      const redemption = rrRepo.create({
+        id,
+        userId,
+        rewardType: reward.id,
+        pointsSpent: reward.pointsCost,
+        destinationNumber,
+        status: RedemptionStatus.PENDING,
+        otpCode: hashRedemptionOtp(id, code),
+        otpExpiresAt,
+      });
+
+      return { saved: await rrRepo.save(redemption), otpCode: code };
     });
-
-    const saved = await this.redemptionRepository.save(redemption);
 
     // Kirim OTP konfirmasi penukaran via email (best-effort; OTP TIDAK di-log).
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -635,8 +660,10 @@ export class RewardService {
     const otpCode = this.generateOtpCode();
     const otpExpiresAt = new Date();
     otpExpiresAt.setMinutes(otpExpiresAt.getMinutes() + REDEMPTION_OTP_TTL_MINUTES);
-    redemption.otpCode = otpCode;
+    redemption.otpCode = hashRedemptionOtp(redemption.id, otpCode);
     redemption.otpExpiresAt = otpExpiresAt;
+    // Kode baru → jatah percobaan baru tidak diberikan (otpAttempts tetap),
+    // agar kirim-ulang tak bisa dipakai memperbanyak tebakan.
     await this.redemptionRepository.save(redemption);
 
     // Kirim OTP via email (best-effort; OTP TIDAK di-log).
@@ -684,6 +711,13 @@ export class RewardService {
     // bukan PENDING lalu berhenti. Panggilan provider (jaringan) dilakukan di LUAR
     // transaksi (Fase B) agar lock tidak ditahan selama I/O.
     const claim = await this.dataSource.transaction(async (manager) => {
+      // Kunci PER USER lebih dulu (audit T-17): hanya satu confirm/initiate milik
+      // user yang sama yang boleh menghitung saldo & mendebit pada satu waktu.
+      // Tanpa ini dua confirm atas redemption BERBEDA bisa sama-sama lolos cek
+      // saldo (READ COMMITTED + tiga SELECT terpisah). Urutan kunci selalu
+      // user → redemption sehingga tidak ada deadlock dengan applyOutcome.
+      await this.lockUserPoints(manager, userId);
+
       const rrRepo = manager.getRepository(RewardRedemption);
       const redemption = await rrRepo.findOne({
         where: { id: redemptionId, userId },
@@ -703,7 +737,7 @@ export class RewardService {
       // OTP timing-safe + hitung percobaan salah (anti brute-force per-redemption).
       // Tidak throw di dalam cabang gagal ini agar increment/lock ter-COMMIT (throw
       // akan me-rollback); error dilempar setelah transaksi berdasarkan sentinel.
-      if (!this.otpMatches(otpCode, redemption.otpCode)) {
+      if (!redemptionOtpMatches(redemption.id, otpCode, redemption.otpCode)) {
         redemption.otpAttempts = (redemption.otpAttempts ?? 0) + 1;
         const locked = redemption.otpAttempts >= MAX_REDEMPTION_OTP_ATTEMPTS;
         if (locked) {
@@ -815,13 +849,12 @@ export class RewardService {
     return { redemptionId: redemption.id, status: finalStatus, message };
   }
 
-  /** Bandingkan OTP secara timing-safe (cegah timing attack). */
-  private otpMatches(provided: string, expected: string | null): boolean {
-    if (!expected) return false;
-    const a = Buffer.from(provided ?? '', 'utf8');
-    const b = Buffer.from(expected, 'utf8');
-    if (a.length !== b.length) return false;
-    return timingSafeEqual(a, b);
+  /**
+   * Kunci baris user (SELECT … FOR UPDATE) di dalam transaksi untuk
+   * menyerialisasi operasi yang membelanjakan poin milik user tsb (T-17).
+   */
+  private async lockUserPoints(manager: EntityManager, userId: string): Promise<void> {
+    await manager.query('SELECT id FROM "users" WHERE id = $1 FOR UPDATE', [userId]);
   }
 
   /** Tentukan kategori dari id katalog (mis. 'pulsa-10000' → 'pulsa'). */
@@ -1086,7 +1119,7 @@ export class RewardService {
   async getRedemptionHistory(
     userId: string,
     pagination: PaginationQuery,
-  ): Promise<PaginatedResponse<RewardRedemption>> {
+  ): Promise<PaginatedResponse<PublicRewardRedemption>> {
     const { skip, take } = calculateSkipTake(pagination);
 
     const [data, total] = await this.redemptionRepository.findAndCount({
@@ -1096,7 +1129,8 @@ export class RewardService {
       take,
     });
 
-    return createPaginatedResponse(data, total, pagination);
+    // Jangan pernah kirim field OTP ke klien (T-13).
+    return createPaginatedResponse(data.map(toPublicRedemption), total, pagination);
   }
 
   /**
@@ -1109,7 +1143,7 @@ export class RewardService {
     success: boolean,
     note?: string,
     sn?: string,
-  ): Promise<RewardRedemption> {
+  ): Promise<PublicRewardRedemption> {
     const redemption = await this.redemptionRepository.findOne({
       where: { id: redemptionId },
     });
@@ -1128,7 +1162,7 @@ export class RewardService {
         ? { status: 'completed', sn, message: note }
         : { status: 'failed', message: note || 'Dibatalkan oleh admin.' },
     );
-    return redemption;
+    return toPublicRedemption(redemption);
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────────────

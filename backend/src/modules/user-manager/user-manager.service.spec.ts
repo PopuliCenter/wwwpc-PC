@@ -11,6 +11,7 @@ import {
 import { UserManagerService } from './user-manager.service';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
 import { AuditService } from '@modules/audit/audit.service';
+import { SessionRevocationService } from '@modules/auth/session-revocation.service';
 import { UserRole, AuditActionType } from '@shared/enums';
 
 describe('UserManagerService', () => {
@@ -18,6 +19,7 @@ describe('UserManagerService', () => {
   let userRepository: any;
   let auditService: any;
   let dataSource: any;
+  let sessionRevocation: any;
 
   beforeEach(async () => {
     userRepository = {
@@ -37,12 +39,18 @@ describe('UserManagerService', () => {
       transaction: vi.fn(async (cb: any) => cb({ query: vi.fn().mockResolvedValue(undefined) })),
     };
 
+    sessionRevocation = {
+      revokeAllSessions: vi.fn().mockResolvedValue(undefined),
+      clearAuthState: vi.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserManagerService,
         { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: AuditService, useValue: auditService },
         { provide: DataSource, useValue: dataSource },
+        { provide: SessionRevocationService, useValue: sessionRevocation },
       ],
     }).compile();
 
@@ -357,7 +365,12 @@ describe('UserManagerService', () => {
 John Doe,john@example.com,+6281234567890,admin
 Jane Smith,jane@example.com,+6281234567891,analyst`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.successCount).toBe(2);
       expect(result.failedCount).toBe(0);
@@ -370,7 +383,12 @@ Jane Smith,jane@example.com,+6281234567891,analyst`;
 
       const csv = `John Doe,invalid-email,+6281234567890,admin`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.successCount).toBe(0);
       expect(result.failedCount).toBe(1);
@@ -382,7 +400,12 @@ Jane Smith,jane@example.com,+6281234567891,analyst`;
 
       const csv = `John Doe,john@example.com,+6281234567890,invalid_role`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.successCount).toBe(0);
       expect(result.failedCount).toBe(1);
@@ -394,7 +417,12 @@ Jane Smith,jane@example.com,+6281234567891,analyst`;
 
       const csv = `John Doe,john@example.com,+6281234567890,admin`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.successCount).toBe(0);
       expect(result.failedCount).toBe(1);
@@ -409,16 +437,21 @@ John Doe,john@example.com,+6281234567890,admin
 ,invalid,123,bad_role
 Jane Smith,jane@example.com,+6281234567891,viewer`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.successCount).toBe(2);
       expect(result.failedCount).toBe(1);
     });
 
     it('should throw BadRequestException for empty CSV', async () => {
-      await expect(service.bulkImportUsers('', 'admin-1', '127.0.0.1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.bulkImportUsers('', 'admin-1', '127.0.0.1', UserRole.SUPER_ADMIN),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should handle rows with insufficient columns', async () => {
@@ -426,7 +459,12 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
 
       const csv = `John Doe,john@example.com`;
 
-      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      const result = await service.bulkImportUsers(
+        csv,
+        'admin-1',
+        '127.0.0.1',
+        UserRole.SUPER_ADMIN,
+      );
 
       expect(result.failedCount).toBe(1);
       expect(result.errors[0].reason).toContain('Invalid format');
@@ -437,7 +475,7 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
 
       const csv = `John Doe,john@example.com,+6281234567890,admin`;
 
-      await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1');
+      await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1', UserRole.SUPER_ADMIN);
 
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -501,6 +539,142 @@ Jane Smith,jane@example.com,+6281234567891,viewer`;
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({ actionType: AuditActionType.USER_DELETE }),
       );
+    });
+  });
+
+  // ── Audit keamanan 23 Nov 2026 ──────────────────────────────────────────
+  describe('audit T-03: impor CSV oleh ADMIN hanya boleh membuat responden', () => {
+    it.each(['super_admin', 'admin', 'analyst', 'viewer', 'surveyor'])(
+      'ADMIN tidak bisa mengimpor peran %s',
+      async (role) => {
+        userRepository.findOne.mockResolvedValue(null);
+        const csv = `Orang Dalam,me@example.com,+6281234567890,${role}`;
+
+        const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1', UserRole.ADMIN);
+
+        expect(result.successCount).toBe(0);
+        expect(result.errors[0].reason).toContain('Invalid role');
+        expect(userRepository.save).not.toHaveBeenCalled();
+      },
+    );
+
+    it('ADMIN boleh mengimpor responden', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      const csv = `Budi,budi@example.com,+6281234567890,respondent`;
+
+      const result = await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1', UserRole.ADMIN);
+
+      expect(result.successCount).toBe(1);
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ role: UserRole.RESPONDENT }),
+      );
+    });
+
+    it('SUPER_ADMIN tetap boleh mengimpor peran staf', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      const csv = `Staf,staf@example.com,+6281234567890,admin`;
+
+      const result = await service.bulkImportUsers(csv, 'sa-1', '127.0.0.1', UserRole.SUPER_ADMIN);
+
+      expect(result.successCount).toBe(1);
+    });
+
+    it('email impor dinormalisasi huruf kecil & peran dicatat di audit log', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      const csv = `Budi,Budi@Example.COM,+6281234567890,respondent`;
+
+      await service.bulkImportUsers(csv, 'admin-1', '127.0.0.1', UserRole.ADMIN);
+
+      expect(userRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'budi@example.com' }),
+      );
+      expect(auditService.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          details: expect.objectContaining({
+            requesterRole: UserRole.ADMIN,
+            importedRoles: { respondent: 1 },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('audit T-12: createUser tidak mengembalikan hash sandi', () => {
+    it('respons createUser tanpa passwordHash', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.createUser(
+        { fullName: 'A', email: 'a@example.com', phone: '+628111', role: UserRole.ANALYST },
+        'sa-1',
+        '127.0.0.1',
+      );
+
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(JSON.stringify(result)).not.toMatch(/\$2[aby]\$/);
+    });
+  });
+
+  describe('audit T-11: pencabutan sesi', () => {
+    const target = () => ({
+      id: 'u-1',
+      email: 'u@example.com',
+      role: UserRole.ADMIN,
+      status: UserStatus.ACTIVE,
+    });
+
+    it('deactivate mencabut semua sesi', async () => {
+      userRepository.findOne.mockResolvedValue(target());
+      await service.deactivateUser('u-1', 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('u-1');
+    });
+
+    it('reset sandi oleh admin mencabut semua sesi & sandi sementara memakai CSPRNG', async () => {
+      userRepository.findOne.mockResolvedValue(target());
+      const mathRandom = vi.spyOn(Math, 'random');
+      const { temporaryPassword } = await service.resetUserPassword('u-1', 'sa-1', '127.0.0.1');
+      expect(temporaryPassword).toHaveLength(12);
+      expect(mathRandom).not.toHaveBeenCalled();
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('u-1');
+      mathRandom.mockRestore();
+    });
+
+    it('ganti peran mencabut semua sesi', async () => {
+      userRepository.findOne.mockResolvedValue(target());
+      await service.updateUserRole('u-1', UserRole.VIEWER, 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('u-1');
+    });
+
+    it('peran sama → tidak perlu mencabut sesi', async () => {
+      userRepository.findOne.mockResolvedValue(target());
+      await service.updateUserRole('u-1', UserRole.ADMIN, 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.revokeAllSessions).not.toHaveBeenCalled();
+    });
+
+    it('updateUser dengan sandi baru mencabut sesi; tanpa sandi tidak', async () => {
+      userRepository.findOne.mockResolvedValue(target());
+      await service.updateUser('u-1', { fullName: 'Nama' }, 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.revokeAllSessions).not.toHaveBeenCalled();
+
+      userRepository.findOne.mockResolvedValue(target());
+      await service.updateUser('u-1', { password: 'BaruSekali123' }, 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.revokeAllSessions).toHaveBeenCalledWith('u-1');
+    });
+
+    it('activate membuang cache keadaan otorisasi', async () => {
+      userRepository.findOne.mockResolvedValue({ ...target(), status: UserStatus.INACTIVE });
+      await service.activateUser('u-1', 'sa-1', '127.0.0.1');
+      expect(sessionRevocation.clearAuthState).toHaveBeenCalledWith('u-1');
+    });
+
+    it('hapus akun (admin & mandiri) membuang cache keadaan otorisasi', async () => {
+      userRepository.findOne.mockResolvedValue({ ...target(), role: UserRole.RESPONDENT });
+      await service.deleteUser('u-1', { userId: 'sa-1', role: UserRole.SUPER_ADMIN }, '127.0.0.1');
+      expect(sessionRevocation.clearAuthState).toHaveBeenCalledWith('u-1');
+
+      sessionRevocation.clearAuthState.mockClear();
+      userRepository.findOne.mockResolvedValue({ ...target(), id: 'me' });
+      await service.deleteOwnAccount('me', '127.0.0.1');
+      expect(sessionRevocation.clearAuthState).toHaveBeenCalledWith('me');
     });
   });
 });

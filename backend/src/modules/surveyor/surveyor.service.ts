@@ -18,6 +18,7 @@ import { UserRole } from '@shared/enums';
 import { AssignSurveyorDto } from './dto/assign-surveyor.dto';
 import { UpdateSurveyorQuotaDto } from './dto/update-surveyor-quota.dto';
 import { SubmitSurveyorResponseDto } from './dto/submit-surveyor-response.dto';
+import { assertSurveyActive } from '@modules/survey/utils/survey-active';
 
 export interface SurveyorAssignmentView {
   surveyorId: string;
@@ -237,6 +238,9 @@ export class SurveyorService {
         };
       }
     }
+
+    // Survei harus ACTIVE (audit T-14).
+    await assertSurveyActive(this.surveyRepository.manager, surveyId);
 
     if (!quota.assignedNumbers.includes(number)) {
       throw new BadRequestException('Nomor kuesioner tidak termasuk dalam alokasi Anda');

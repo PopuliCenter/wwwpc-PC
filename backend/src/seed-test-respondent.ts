@@ -10,7 +10,7 @@
  *
  * Atur via env (opsional):
  *   SEED_EMAIL (default responden.uji@populicenter.org)
- *   SEED_PASSWORD (default Test1234)
+ *   SEED_PASSWORD (WAJIB min. 12 karakter; bila kosong dibuat acak & dicetak sekali)
  *   SEED_NAME (default "Responden Uji")
  *   SEED_PHONE (default 081988888888)
  *   SEED_POINTS (default 100000)
@@ -26,14 +26,25 @@ import {
   TransactionType,
 } from './modules/reward/entities/point-transaction.entity';
 
+import { randomBytes } from 'crypto';
+import { assertSeedAllowed } from './common/security/seed-guard';
+
 dotenv.config();
 
 // Penanda kredit seed agar tidak digandakan saat dijalankan berulang.
 const SEED_CREDIT_REF = '00000000-0000-0000-0000-0000000000ee';
 
 async function main(): Promise<void> {
+  // Tolak di produksi kecuali ALLOW_SEED_IN_PRODUCTION=true (audit T-01).
+  assertSeedAllowed('seed-test-respondent');
+
   const email = process.env.SEED_EMAIL || 'responden.uji@populicenter.org';
-  const password = process.env.SEED_PASSWORD || 'Test1234';
+  // Tanpa sandi default yang terpublikasi: pakai SEED_PASSWORD atau sandi acak.
+  const generatedPassword = !process.env.SEED_PASSWORD;
+  const password = process.env.SEED_PASSWORD || `Uji${randomBytes(12).toString('base64url')}9`;
+  if (!generatedPassword && password.length < 12) {
+    throw new Error('SEED_PASSWORD minimal 12 karakter.');
+  }
   const fullName = process.env.SEED_NAME || 'Responden Uji';
   const phone = process.env.SEED_PHONE || '081988888888';
   const points = parseInt(process.env.SEED_POINTS || '100000', 10);

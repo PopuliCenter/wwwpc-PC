@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Question } from '../entities/question.entity';
 import { QuestionOption } from '../entities/question-option.entity';
 import { Survey } from '../entities/survey.entity';
+import { assertSurveyStatusActive } from '../utils/survey-active';
 
 @Injectable()
 export class OptionRandomizerService {
@@ -34,13 +35,20 @@ export class OptionRandomizerService {
    * Returns questions for a survey with options shuffled if randomizeOptions is enabled.
    * If randomizeOptions is false, returns questions with original option order.
    */
-  async getRandomizedQuestions(surveyId: string): Promise<Question[]> {
+  async getRandomizedQuestions(
+    surveyId: string,
+    options: { requireActive?: boolean } = {},
+  ): Promise<Question[]> {
     const survey = await this.surveyRepository.findOne({
       where: { id: surveyId },
     });
 
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
+    }
+    // Non-staf hanya boleh melihat soal survei ACTIVE (audit T-14: soal DRAFT bocor).
+    if (options.requireActive) {
+      assertSurveyStatusActive(survey.status);
     }
 
     const questions = await this.questionRepository.find({

@@ -11,6 +11,16 @@ import { User, UserStatus } from '@modules/auth/entities';
 import { UserProfile } from './entities';
 import { UserRole } from '@shared/enums';
 import { NotificationService } from '@modules/notification';
+import { AuthService } from '@modules/auth/auth.service';
+
+/** Cache mock yang membedakan kunci (record OTP vs penghitung kirim). */
+function keyedGet(values: Record<string, unknown>) {
+  return vi.fn((key: string) => Promise.resolve(values[key] ?? null));
+}
+/** Panggilan cache.set untuk kunci tertentu. */
+function setCallsFor(cache: any, key: string): any[][] {
+  return cache.set.mock.calls.filter((c: any[]) => c[0] === key);
+}
 
 vi.mock('bcrypt');
 vi.mock('uuid', () => ({
@@ -25,6 +35,7 @@ describe('RegistrationService', () => {
   let configService: any;
   let cacheManager: any;
   let notificationService: any;
+  let authService: any;
 
   const mockUser: User = {
     id: 'user-id-123',
@@ -36,9 +47,10 @@ describe('RegistrationService', () => {
     status: UserStatus.PENDING,
     emailVerified: false,
     profileCompleted: false,
+    tokenVersion: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  } as User;
 
   beforeEach(async () => {
     userRepository = {
@@ -82,6 +94,14 @@ describe('RegistrationService', () => {
       sendOtpEmail: vi.fn().mockResolvedValue(undefined),
     };
 
+    authService = {
+      issueSession: vi.fn().mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        user: { id: 'user-id-123' },
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RegistrationService,
@@ -91,6 +111,7 @@ describe('RegistrationService', () => {
         { provide: ConfigService, useValue: configService },
         { provide: CACHE_MANAGER, useValue: cacheManager },
         { provide: NotificationService, useValue: notificationService },
+        { provide: AuthService, useValue: authService },
       ],
     }).compile();
 
@@ -273,17 +294,21 @@ describe('RegistrationService', () => {
       expect(result.emailVerified).toBe(true);
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
-      expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
-        emailVerified: true,
-        status: UserStatus.ACTIVE,
-      });
+      // Update BERSYARAT status PENDING (atomik, audit T-02).
+      expect(userRepository.update).toHaveBeenCalledWith(
+        { id: 'user-id-123', status: UserStatus.PENDING },
+        { emailVerified: true, status: UserStatus.ACTIVE },
+      );
+      expect(authService.issueSession).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'user-id-123', status: UserStatus.ACTIVE }),
+      );
     });
 
     it('should throw BadRequestException when OTP has expired', async () => {
       cacheManager.get.mockResolvedValue(null);
 
       await expect(service.verifyOtp('test@example.com', '123456')).rejects.toThrow(
-        new BadRequestException('OTP has expired or does not exist'),
+        new BadRequestException('Kode OTP salah atau sudah kedaluwarsa'),
       );
     });
 
@@ -297,7 +322,7 @@ describe('RegistrationService', () => {
       cacheManager.get.mockResolvedValue(otpData);
 
       await expect(service.verifyOtp('test@example.com', '999999')).rejects.toThrow(
-        new BadRequestException('Invalid OTP code'),
+        new BadRequestException('Kode OTP salah atau sudah kedaluwarsa'),
       );
     });
 
@@ -357,39 +382,54 @@ describe('RegistrationService', () => {
   });
 
   describe('resendOtp', () => {
-    it('should resend OTP and increment resend count', async () => {
-      userRepository.findOne.mockResolvedValue(mockUser);
-      const existingOtp = JSON.stringify({
+    const otpRecord = (resendCount: number) =>
+      JSON.stringify({
         code: '111111',
         attemptCount: 1,
-        resendCount: 1,
+        resendCount,
         createdAt: new Date().toISOString(),
       });
-      cacheManager.get.mockResolvedValue(existingOtp);
+
+    it('should resend OTP and increment resend count (akun PENDING)', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      cacheManager.get = keyedGet({ 'otp:test@example.com': otpRecord(1) });
 
       const result = await service.resendOtp('test@example.com');
 
-      expect(result.message).toContain('OTP has been resent');
-      const storedData = JSON.parse(cacheManager.set.mock.calls[0][1]);
+      expect(result.message).toMatch(/kode OTP baru telah dikirim/i);
+      const [call] = setCallsFor(cacheManager, 'otp:test@example.com');
+      const storedData = JSON.parse(call[1]);
       expect(storedData.resendCount).toBe(2);
       expect(storedData.code).toMatch(/^\d{6}$/);
+      expect(notificationService.sendOtpEmail).toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when user not found', async () => {
-      userRepository.findOne.mockResolvedValue(null);
+    it('email tak terdaftar → respons generik yang SAMA, tanpa email (bukan oracle)', async () => {
+      userRepository.findOne.mockResolvedValueOnce(mockUser);
+      const known = await service.resendOtp('test@example.com');
+      userRepository.findOne.mockResolvedValueOnce(null);
+      const unknown = await service.resendOtp('unknown@example.com');
 
-      await expect(service.resendOtp('unknown@example.com')).rejects.toThrow(BadRequestException);
+      expect(unknown).toEqual(known);
+      expect(notificationService.sendOtpEmail).toHaveBeenCalledTimes(1);
     });
+
+    it.each([UserStatus.ACTIVE, UserStatus.INACTIVE])(
+      'akun berstatus %s tidak dikirimi OTP (audit T-02)',
+      async (status) => {
+        userRepository.findOne.mockResolvedValue({ ...mockUser, status });
+
+        const result = await service.resendOtp('test@example.com');
+
+        expect(result.message).toMatch(/Jika email terdaftar/);
+        expect(notificationService.sendOtpEmail).not.toHaveBeenCalled();
+        expect(setCallsFor(cacheManager, 'otp:test@example.com')).toHaveLength(0);
+      },
+    );
 
     it('should throw BadRequestException when resend limit reached (3 times)', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
-      const existingOtp = JSON.stringify({
-        code: '111111',
-        attemptCount: 0,
-        resendCount: 3,
-        createdAt: new Date().toISOString(),
-      });
-      cacheManager.get.mockResolvedValue(existingOtp);
+      cacheManager.get = keyedGet({ 'otp:test@example.com': otpRecord(3) });
 
       await expect(service.resendOtp('test@example.com')).rejects.toThrow(
         new BadRequestException(
@@ -398,15 +438,80 @@ describe('RegistrationService', () => {
       );
     });
 
+    it('batas kirim per email (terpisah dari record OTP) tak bisa di-reset lewat tebakan salah (T-29)', async () => {
+      userRepository.findOne.mockResolvedValue(mockUser);
+      // Record OTP sudah dihapus (mis. setelah 5 tebakan salah) → resendCount "0",
+      // tapi penghitung per email sudah mencapai batas.
+      cacheManager.get = keyedGet({ 'otp-send-count:test@example.com': 5 });
+
+      await expect(service.resendOtp('test@example.com')).rejects.toThrow(
+        /Terlalu banyak permintaan kode OTP/,
+      );
+      expect(notificationService.sendOtpEmail).not.toHaveBeenCalled();
+    });
+
+    it('penghitung kirim per email dinaikkan juga untuk email tak terdaftar', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      cacheManager.get = keyedGet({ 'otp-send-count:x@example.com': 2 });
+
+      await service.resendOtp('x@example.com');
+
+      expect(cacheManager.set).toHaveBeenCalledWith('otp-send-count:x@example.com', 3, 3600000);
+    });
+
     it('should allow resend when no existing OTP (first send)', async () => {
       userRepository.findOne.mockResolvedValue(mockUser);
       cacheManager.get.mockResolvedValue(null);
 
-      const result = await service.resendOtp('test@example.com');
+      await service.resendOtp('test@example.com');
 
-      expect(result.message).toContain('OTP has been resent');
-      const storedData = JSON.parse(cacheManager.set.mock.calls[0][1]);
-      expect(storedData.resendCount).toBe(1);
+      const [call] = setCallsFor(cacheManager, 'otp:test@example.com');
+      expect(JSON.parse(call[1]).resendCount).toBe(1);
+    });
+  });
+
+  describe('verifyOtp — audit T-02 (hanya akun PENDING)', () => {
+    const validOtp = JSON.stringify({
+      code: '123456',
+      attemptCount: 0,
+      resendCount: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    it.each([UserStatus.ACTIVE, UserStatus.INACTIVE])(
+      'OTP benar untuk akun %s TIDAK mengaktifkan akun & TIDAK menerbitkan token',
+      async (status) => {
+        cacheManager.get.mockResolvedValue(validOtp);
+        userRepository.findOne.mockResolvedValue({ ...mockUser, status, emailVerified: true });
+
+        await expect(service.verifyOtp('test@example.com', '123456')).rejects.toThrow(
+          new BadRequestException('Kode OTP salah atau sudah kedaluwarsa'),
+        );
+        expect(userRepository.update).not.toHaveBeenCalled();
+        expect(authService.issueSession).not.toHaveBeenCalled();
+        // Kode tetap dibuang (sekali pakai).
+        expect(cacheManager.del).toHaveBeenCalledWith('otp:test@example.com');
+      },
+    );
+
+    it('email tak terdaftar → pesan generik yang sama', async () => {
+      cacheManager.get.mockResolvedValue(validOtp);
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.verifyOtp('ghost@example.com', '123456')).rejects.toThrow(
+        new BadRequestException('Kode OTP salah atau sudah kedaluwarsa'),
+      );
+    });
+
+    it('balapan: status berubah sebelum update bersyarat → tidak ada token', async () => {
+      cacheManager.get.mockResolvedValue(validOtp);
+      userRepository.findOne.mockResolvedValue(mockUser);
+      userRepository.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.verifyOtp('test@example.com', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(authService.issueSession).not.toHaveBeenCalled();
     });
   });
 
@@ -419,8 +524,8 @@ describe('RegistrationService', () => {
       province: 'DKI Jakarta',
     };
 
-    it('should complete profile and activate account', async () => {
-      const verifiedUser = { ...mockUser, emailVerified: true };
+    it('should complete profile WITHOUT touching account status (audit T-02)', async () => {
+      const verifiedUser = { ...mockUser, emailVerified: true, status: UserStatus.INACTIVE };
       userRepository.findOne.mockResolvedValue(verifiedUser);
       userProfileRepository.findOne.mockResolvedValue(null);
       userProfileRepository.create.mockReturnValue({ id: 'profile-id', ...validProfile });
@@ -429,9 +534,27 @@ describe('RegistrationService', () => {
       await service.completeProfile('user-id-123', validProfile);
 
       expect(userRepository.update).toHaveBeenCalledWith('user-id-123', {
-        status: UserStatus.ACTIVE,
         profileCompleted: true,
       });
+      // Tidak ada panggilan update yang menulis status.
+      for (const call of userRepository.update.mock.calls) {
+        expect(call[1]).not.toHaveProperty('status');
+      }
+    });
+
+    it('menolak pemanggilan ulang setelah profil lengkap — demografi terkunci (audit T-10)', async () => {
+      userRepository.findOne.mockResolvedValue({
+        ...mockUser,
+        emailVerified: true,
+        profileCompleted: true,
+      });
+
+      await expect(service.completeProfile('user-id-123', validProfile)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(userProfileRepository.update).not.toHaveBeenCalled();
+      expect(userProfileRepository.save).not.toHaveBeenCalled();
+      expect(userRepository.update).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException for invalid profile data', async () => {
@@ -482,6 +605,25 @@ describe('RegistrationService', () => {
           province: 'DKI Jakarta',
         }),
       );
+    });
+  });
+
+  describe('register — batas kirim OTP per email (audit T-29)', () => {
+    it('menolak daftar-ulang bila kuota kirim OTP email ini habis, sebelum akun lama dibuang', async () => {
+      cacheManager.get = keyedGet({ 'otp-send-count:test@example.com': 5 });
+      userRepository.findOne.mockResolvedValue(mockUser); // PENDING lama
+
+      await expect(
+        service.register({
+          fullName: 'Test User',
+          email: 'test@example.com',
+          phone: '081234567890',
+          password: 'ValidP4ss',
+          termsAccepted: true,
+        }),
+      ).rejects.toThrow(/Terlalu banyak permintaan kode OTP/);
+      expect(userRepository.delete).not.toHaveBeenCalled();
+      expect(notificationService.sendOtpEmail).not.toHaveBeenCalled();
     });
   });
 });

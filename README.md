@@ -61,12 +61,18 @@ cd backend
 node scripts/setup-db.js
 ```
 
-### 5. Seed Data (Buat User Default)
+### 5. Seed Data (Buat User Awal — hanya lokal)
 
 ```bash
 cd backend
 node scripts/seed-admin.js
 ```
+
+Skrip ini **hanya untuk pengembangan lokal** dan menolak berjalan bila
+`NODE_ENV=production`. Sandi tidak ada di kode maupun di README: atur lewat env
+(`SEED_SUPERADMIN_PASSWORD`, `SEED_ADMIN_PASSWORD`, `SEED_RESPONDENT_PASSWORD`,
+min. 12 karakter) atau biarkan kosong agar dibuat acak dan dicetak sekali di
+terminal. Akun yang sudah ada tidak diubah.
 
 ### 6. Jalankan Backend
 
@@ -88,17 +94,20 @@ Frontend akan berjalan di **http://localhost:5173**
 
 ### 8. Buka Browser
 
-Akses **http://localhost:5173** dan login dengan akun default.
+Akses **http://localhost:5173** dan login dengan akun awal hasil seed (langkah 5).
 
 ---
 
-## Akun Default
+## Akun Awal (lokal)
 
-| Role            | Email                 | Password       |
-| --------------- | --------------------- | -------------- |
-| **Super Admin** | superadmin@survei.com | SuperAdmin123! |
-| **Admin**       | admin@survei.com      | Admin123!      |
-| **Responden**   | responden@survei.com  | Responden123!  |
+| Role            | Email bawaan (bisa diubah via env)                 | Password                                   |
+| --------------- | -------------------------------------------------- | ------------------------------------------ |
+| **Super Admin** | `superadmin@survei.test` (`SEED_SUPERADMIN_EMAIL`) | dari env `SEED_SUPERADMIN_PASSWORD` / acak |
+| **Admin**       | `admin@survei.test` (`SEED_ADMIN_EMAIL`)           | dari env `SEED_ADMIN_PASSWORD` / acak      |
+| **Responden**   | `responden@survei.test` (`SEED_RESPONDENT_EMAIL`)  | dari env `SEED_RESPONDENT_PASSWORD` / acak |
+
+Jangan pernah menjalankan seed ke database produksi. Image Docker produksi tidak
+membawa skrip seed.
 
 ### Hak Akses Per Role
 

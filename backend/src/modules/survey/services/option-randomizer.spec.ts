@@ -3,7 +3,7 @@ import { OptionRandomizerService } from './option-randomizer';
 import { QuestionOption } from '../entities/question-option.entity';
 import { Question } from '../entities/question.entity';
 import { Survey } from '../entities/survey.entity';
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 function createMockOption(id: string, label: string, orderIndex: number): QuestionOption {
   const option = new QuestionOption();
@@ -170,6 +170,42 @@ describe('OptionRandomizerService', () => {
 
       expect(result[0].options.map((o) => o.id).sort()).toEqual(['1', '2']);
       expect(result[1].options.map((o) => o.id).sort()).toEqual(['3', '4', '5']);
+    });
+  });
+
+  // ── Audit keamanan 23 Nov 2026 — T-14 ───────────────────────────────────
+  describe('requireActive (pemanggil non-staf)', () => {
+    it('survei DRAFT ditolak dan soal tidak dibaca', async () => {
+      mockSurveyRepository.findOne.mockResolvedValue({ id: 's', status: 'draft' } as Survey);
+
+      await expect(service.getRandomizedQuestions('s', { requireActive: true })).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockQuestionRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('survei ACTIVE diizinkan', async () => {
+      mockSurveyRepository.findOne.mockResolvedValue({
+        id: 's',
+        status: 'active',
+        randomizeOptions: false,
+      } as Survey);
+      mockQuestionRepository.find.mockResolvedValue([]);
+
+      await expect(service.getRandomizedQuestions('s', { requireActive: true })).resolves.toEqual(
+        [],
+      );
+    });
+
+    it('staf (tanpa requireActive) tetap bisa pratinjau survei DRAFT', async () => {
+      mockSurveyRepository.findOne.mockResolvedValue({
+        id: 's',
+        status: 'draft',
+        randomizeOptions: false,
+      } as Survey);
+      mockQuestionRepository.find.mockResolvedValue([]);
+
+      await expect(service.getRandomizedQuestions('s')).resolves.toEqual([]);
     });
   });
 });

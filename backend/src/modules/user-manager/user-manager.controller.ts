@@ -154,6 +154,6 @@ export class UserManagerController {
   async bulkImportUsers(@Body('csv') csv: string, @Req() req: AuthenticatedRequest) {
     const adminUserId = req.user.userId;
     const ipAddress = req.ip || req.connection?.remoteAddress || '0.0.0.0';
-    return this.userManagerService.bulkImportUsers(csv, adminUserId, ipAddress);
+    return this.userManagerService.bulkImportUsers(csv, adminUserId, ipAddress, req.user.role);
   }
 }

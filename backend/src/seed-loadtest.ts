@@ -90,6 +90,8 @@ async function ensureLoadtestSurvey(ds: DataSource, createdBy: string): Promise<
   return survey.id;
 }
 
+import { assertSeedAllowed } from './common/security/seed-guard';
+
 dotenv.config();
 
 export const LOADTEST_EMAIL_PREFIX = 'loadtest+';
@@ -104,6 +106,10 @@ function phoneFor(i: number): string {
 }
 
 async function main(): Promise<void> {
+  // Tolak di produksi kecuali ALLOW_SEED_IN_PRODUCTION=true (audit T-01):
+  // ribuan akun bersandi sama tak boleh muncul di database produksi.
+  assertSeedAllowed('seed-loadtest');
+
   const total = parseInt(process.env.LOADTEST_USERS || '2000', 10);
   const points = parseInt(process.env.LOADTEST_POINTS || '0', 10);
 

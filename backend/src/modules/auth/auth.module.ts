@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { SessionRevocationService } from './session-revocation.service';
 import { JwtStrategy } from './strategies';
 import { User } from './entities';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
@@ -32,7 +33,7 @@ import { AuditModule } from '@modules/audit';
     TypeOrmModule.forFeature([User, UserProfile]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService, JwtModule, PassportModule],
+  providers: [AuthService, JwtStrategy, SessionRevocationService],
+  exports: [AuthService, SessionRevocationService, JwtModule, PassportModule],
 })
 export class AuthModule {}

@@ -9,6 +9,9 @@ import { UserRole } from '@shared/enums';
 import { SurveyAccessResultDto } from './dto/survey-access-result.dto';
 import { Question } from './entities/question.entity';
 
+/** Peran yang boleh melihat soal survei non-aktif (pratinjau/analisis). */
+const STAFF_PREVIEW_ROLES: UserRole[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST];
+
 @Controller('surveys')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SurveyRespondentController {
@@ -41,7 +44,14 @@ export class SurveyRespondentController {
 
   @Get(':surveyId/questions/randomized')
   @HttpCode(HttpStatus.OK)
-  async getRandomizedQuestions(@Param('surveyId') surveyId: string): Promise<Question[]> {
-    return this.optionRandomizerService.getRandomizedQuestions(surveyId);
+  async getRandomizedQuestions(
+    @Param('surveyId') surveyId: string,
+    @Request() req: AuthenticatedRequest,
+  ): Promise<Question[]> {
+    // Staf pengelola boleh pratinjau survei apa pun; peran lain hanya survei ACTIVE.
+    const isStaff = STAFF_PREVIEW_ROLES.includes(req.user.role);
+    return this.optionRandomizerService.getRandomizedQuestions(surveyId, {
+      requireActive: !isStaff,
+    });
   }
 }

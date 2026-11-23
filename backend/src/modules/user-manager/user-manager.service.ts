@@ -9,7 +9,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 import { User, UserStatus } from '@modules/auth/entities/user.entity';
+import { SessionRevocationService } from '@modules/auth/session-revocation.service';
 import { UserRole, AuditActionType } from '@shared/enums';
 import { AuditService } from '@modules/audit/audit.service';
 import { CreateUserDto, ListUsersFilterDto } from './dto';
@@ -26,18 +28,26 @@ export class UserManagerService {
     private readonly userRepository: Repository<User>,
     private readonly auditService: AuditService,
     private readonly dataSource: DataSource,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
 
   /**
-   * Generate a random temporary password.
+   * Generate a random temporary password (CSPRNG, audit T-39).
    */
   private generateRandomPassword(length = 12): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
     let password = '';
     for (let i = 0; i < length; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
+      password += chars.charAt(randomInt(chars.length));
     }
     return password;
+  }
+
+  /** Buang hash sandi dari entity sebelum dikirim ke klien (audit T-12). */
+  private toSafeUser(user: User): Omit<User, 'passwordHash'> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, ...safe } = user;
+    return safe;
   }
 
   /**
@@ -47,7 +57,7 @@ export class UserManagerService {
     dto: CreateUserDto,
     adminUserId: string,
     ipAddress: string,
-  ): Promise<{ user: User; temporaryPassword: string }> {
+  ): Promise<{ user: Omit<User, 'passwordHash'>; temporaryPassword: string }> {
     // Check for duplicate email
     const existingByEmail = await this.userRepository.findOne({
       where: { email: dto.email },
@@ -88,7 +98,7 @@ export class UserManagerService {
       ipAddress,
     });
 
-    return { user: savedUser, temporaryPassword };
+    return { user: this.toSafeUser(savedUser), temporaryPassword };
   }
 
   /**
@@ -108,6 +118,13 @@ export class UserManagerService {
     const oldRole = user.role;
     user.role = newRole;
     await this.userRepository.save(user);
+
+    // Peran berubah → cabut semua sesi (audit T-11); token lama tak membawa
+    // peran baru dan peran memang dibaca dari DB, tapi sesi lama sebaiknya
+    // tidak bertahan setelah hak akses diubah.
+    if (oldRole !== newRole) {
+      await this.sessionRevocation.revokeAllSessions(userId);
+    }
 
     await this.auditService.log({
       userId: adminUserId,
@@ -129,6 +146,8 @@ export class UserManagerService {
 
     user.status = UserStatus.ACTIVE;
     await this.userRepository.save(user);
+    // Segarkan cache keadaan otorisasi agar status aktif langsung terbaca.
+    await this.sessionRevocation.clearAuthState(userId);
 
     await this.auditService.log({
       userId: adminUserId,
@@ -150,6 +169,8 @@ export class UserManagerService {
 
     user.status = UserStatus.INACTIVE;
     await this.userRepository.save(user);
+    // Nonaktif = keluarkan dari SEMUA sesi saat ini juga (audit T-02, T-11).
+    await this.sessionRevocation.revokeAllSessions(userId);
 
     await this.auditService.log({
       userId: adminUserId,
@@ -178,6 +199,8 @@ export class UserManagerService {
 
     user.passwordHash = passwordHash;
     await this.userRepository.save(user);
+    // Reset sandi oleh admin (mis. akun dibobol) harus mengeluarkan penyerang (T-11).
+    await this.sessionRevocation.revokeAllSessions(userId);
 
     await this.auditService.log({
       userId: adminUserId,
@@ -229,6 +252,11 @@ export class UserManagerService {
     }
 
     await this.userRepository.save(user);
+
+    if (dto.password) {
+      // Sandi diganti admin → cabut semua sesi lama (T-11).
+      await this.sessionRevocation.revokeAllSessions(userId);
+    }
 
     await this.auditService.log({
       userId: adminUserId,
@@ -386,6 +414,9 @@ export class UserManagerService {
     }
 
     await this.dataSource.transaction((manager) => this.purgeUserData(manager, targetUserId));
+    // User sudah tidak ada → token apa pun miliknya ditolak JwtStrategy begitu
+    // cache keadaan otorisasi dibuang (T-11).
+    await this.sessionRevocation.clearAuthState(targetUserId);
 
     await this.auditService.log({
       userId: requester.userId,
@@ -451,6 +482,7 @@ export class UserManagerService {
     }
 
     await this.dataSource.transaction((manager) => this.purgeUserData(manager, userId));
+    await this.sessionRevocation.clearAuthState(userId);
 
     await this.auditService.log({
       userId,
@@ -514,6 +546,7 @@ export class UserManagerService {
     csvContent: string,
     adminUserId: string,
     ipAddress: string,
+    requesterRole: UserRole,
   ): Promise<BulkImportResult> {
     const lines = csvContent
       .split('\n')
@@ -536,7 +569,12 @@ export class UserManagerService {
     const errors: BulkImportError[] = [];
     let successCount = 0;
 
-    const validRoles = Object.values(UserRole);
+    // Peran yang boleh dibuat lewat impor (audit T-03): SUPER_ADMIN boleh semua
+    // peran; peran lain (ADMIN) HANYA responden — peran staf hanya boleh dibuat
+    // SUPER_ADMIN agar impor tak menjadi jalan pintas eskalasi hak.
+    const validRoles: UserRole[] =
+      requesterRole === UserRole.SUPER_ADMIN ? Object.values(UserRole) : [UserRole.RESPONDENT];
+    const importedRoles: Partial<Record<UserRole, number>> = {};
 
     for (let i = 0; i < dataLines.length; i++) {
       const rowNumber = hasHeader ? i + 2 : i + 1;
@@ -551,7 +589,9 @@ export class UserManagerService {
         continue;
       }
 
-      const [fullName, email, phone, roleStr] = columns;
+      const [fullName, rawEmail, phone, roleStr] = columns;
+      // Normalisasi konsisten dgn jalur lain: email disimpan huruf kecil.
+      const email = (rawEmail ?? '').toLowerCase();
 
       // Validate fullName
       if (!fullName || fullName.length < 2) {
@@ -590,7 +630,7 @@ export class UserManagerService {
         errors.push({
           row: rowNumber,
           email,
-          reason: `Invalid role: ${roleStr}. Must be one of: ${validRoles.join(', ')}`,
+          reason: `Invalid role: ${roleStr}. Allowed for your account: ${validRoles.join(', ')}`,
         });
         continue;
       }
@@ -638,6 +678,7 @@ export class UserManagerService {
 
         await this.userRepository.save(user);
         successCount++;
+        importedRoles[role] = (importedRoles[role] ?? 0) + 1;
       } catch (error: any) {
         errors.push({
           row: rowNumber,
@@ -651,7 +692,13 @@ export class UserManagerService {
       userId: adminUserId,
       actionType: AuditActionType.USER_BULK_IMPORT,
       module: 'user-manager',
-      details: { successCount, failedCount: errors.length, totalRows: dataLines.length },
+      details: {
+        successCount,
+        failedCount: errors.length,
+        totalRows: dataLines.length,
+        requesterRole,
+        importedRoles,
+      },
       ipAddress,
     });
 

@@ -21,6 +21,7 @@ import { AllResponsesFilterDto } from './dto/all-responses-filter.dto';
 import { SurveyTimeService } from '@modules/survey/services/survey-time.service';
 import { AnswerValidationService } from '@modules/survey/services/answer-validation.service';
 import { checkEligibility } from '@modules/survey/utils/eligibility';
+import { assertSurveyActive } from '@modules/survey/utils/survey-active';
 import { EventType, ResponseSubmittedPayload } from '@modules/events/event-types';
 import { createPaginatedResponse, calculateSkipTake } from '@shared/helpers/pagination.helper';
 import { PaginatedResponse } from '@shared/interfaces';
@@ -154,6 +155,9 @@ export class ResponseService {
       });
       if (byKey) return this.findResponseById(byKey.id);
     }
+
+    // Survei harus ACTIVE untuk menerima respons & memberi poin (audit T-14).
+    await assertSurveyActive(this.responseRepository.manager, surveyId);
 
     // Check if respondent already has a complete response (abaikan yang terarsip).
     const existingResponse = await this.responseRepository.findOne({
@@ -330,6 +334,9 @@ export class ResponseService {
     respondentId: string,
     dto: SaveProgressDto,
   ): Promise<SurveyResponse> {
+    // Survei nonaktif/draft/arsip tidak menerima progres (audit T-14).
+    await assertSurveyActive(this.responseRepository.manager, surveyId);
+
     // Lenient validation for auto-save: only reject answers tied to questions
     // that don't belong to this survey. Required/format checks are deferred to
     // final submit so a partially-filled draft never fails to save.

@@ -1,1 +1,1 @@
-export { User, UserStatus } from './user.entity';
+export { User, UserStatus, USER_SELECT_WITH_PASSWORD } from './user.entity';

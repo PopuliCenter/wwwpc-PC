@@ -48,9 +48,13 @@ export class ConditionalLogicController {
     return this.branchingService.setBranchingRules(pageId, dto.rules);
   }
 
-  // --- Evaluation endpoints (authenticated users) ---
+  // --- Evaluation endpoints (staf saja) ---
+  // Klien responden mengevaluasi logika secara lokal (frontend/utils/
+  // surveyBranching.ts), jadi endpoint ini dibatasi ke staf agar tak bisa dipakai
+  // membaca struktur/aturan survei DRAFT atau nonaktif (audit T-14).
 
   @Post('surveys/:surveyId/evaluate-skip-logic')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   @HttpCode(HttpStatus.OK)
   async evaluateSkipLogic(@Param('surveyId') surveyId: string, @Body() dto: EvaluateLogicDto) {
     const skippedQuestionIds = await this.skipLogicService.evaluateSkipLogic(surveyId, dto.answers);
@@ -58,6 +62,7 @@ export class ConditionalLogicController {
   }
 
   @Post('surveys/:surveyId/evaluate-visibility')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   @HttpCode(HttpStatus.OK)
   async evaluateVisibility(@Param('surveyId') surveyId: string, @Body() dto: EvaluateLogicDto) {
     const visibility = await this.visibilityService.evaluateVisibility(surveyId, dto.answers);
@@ -65,6 +70,7 @@ export class ConditionalLogicController {
   }
 
   @Post('pages/:pageId/evaluate-branching')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.ANALYST)
   @HttpCode(HttpStatus.OK)
   async evaluateBranching(@Param('pageId') pageId: string, @Body() dto: EvaluateLogicDto) {
     const targetPageId = await this.branchingService.evaluatePageBranching(pageId, dto.answers);

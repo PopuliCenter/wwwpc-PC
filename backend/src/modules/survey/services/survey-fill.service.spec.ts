@@ -17,6 +17,7 @@ function buildSurvey(overrides: Record<string, any> = {}) {
     maxDurationMinutes: null,
     timeConfig: { maxDurationMinutes: 20 },
     rewardConfig: { pointsValue: 100 },
+    status: 'active',
     ...overrides,
   };
 }
@@ -347,5 +348,30 @@ describe('SurveyFillService', () => {
     expect(result.assignments?.['arm-1']).toBe('2');
     // Tidak ada penyisipan baru karena penugasan sudah ada.
     expect(answerRepository.create).not.toHaveBeenCalled();
+  });
+
+  // ── Audit keamanan 23 Nov 2026 — T-14 ───────────────────────────────────
+  it.each(['draft', 'inactive', 'archived'])(
+    'survei %s tidak bisa dibuka untuk diisi (soal tidak bocor, respons tak dibuat)',
+    async (status) => {
+      const { service, responseRepository } = makeService({ survey: buildSurvey({ status }) });
+      await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(responseRepository.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it('respons in_progress tidak bisa dilanjutkan bila survei sudah dinonaktifkan', async () => {
+    const { service } = makeService({
+      survey: buildSurvey({ status: 'inactive' }),
+      existingResponse: { id: 'resp-existing', status: ResponseStatus.IN_PROGRESS },
+    });
+    await expect(service.getFillData(SURVEY_ID, RESPONDENT_ID)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('data pengisian surveyor juga hanya untuk survei ACTIVE', async () => {
+    const { service } = makeService({ survey: buildSurvey({ status: 'draft' }) });
+    await expect(service.getSurveyorFillData(SURVEY_ID)).rejects.toThrow(ForbiddenException);
   });
 });

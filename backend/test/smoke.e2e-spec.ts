@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import * as bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { UserRole, PointCreditReason, SurveyStatus, QuestionType } from '@shared/enums';
@@ -18,6 +18,7 @@ import {
   RewardRedemption,
   RedemptionStatus,
 } from '@modules/reward/entities/reward-redemption.entity';
+import { NotificationService } from '@modules/notification/notification.service';
 import { createTestApp, prepareSchema, api, waitFor, type TestApp } from './app-harness';
 
 /**
@@ -169,6 +170,9 @@ describe('E2E smoke: login → isi survei → redeem', () => {
       token,
     });
 
+    // OTP kini disimpan sebagai HMAC (audit T-13) → tangkap kode dari email keluar.
+    const sendOtp = vi.spyOn(t.app.get(NotificationService), 'sendOtpEmail');
+
     const init = await api<{ redemptionId?: string; otpRequired?: boolean }>(
       t.baseUrl,
       'POST',
@@ -179,15 +183,20 @@ describe('E2E smoke: login → isi survei → redeem', () => {
     const redemptionId = init.body.redemptionId!;
     expect(redemptionId).toBeTruthy();
 
-    // Baca OTP langsung dari DB (email tak terkirim di test).
+    const redeemCall = sendOtp.mock.calls.find((c) => c[4] === 'redeem');
+    const otpCode = redeemCall?.[2] as string;
+    expect(otpCode).toMatch(/^\d{6}$/);
+    sendOtp.mockRestore();
+
+    // Di DB hanya tersimpan hash, bukan kode asli.
     const redemption = await ds
       .getRepository(RewardRedemption)
       .findOneOrFail({ where: { id: redemptionId } });
-    expect(redemption.otpCode).toMatch(/^\d{6}$/);
+    expect(redemption.otpCode).toMatch(/^[0-9a-f]{64}$/);
 
     const confirm = await api(t.baseUrl, 'POST', `/api/rewards/redeem/${redemptionId}/confirm`, {
       token,
-      body: { otpCode: redemption.otpCode },
+      body: { otpCode },
     });
     expect([200, 201]).toContain(confirm.status);
 

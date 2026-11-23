@@ -104,6 +104,6 @@ export class RegistrationController {
       district: completeProfileDto.district,
       address: completeProfileDto.address,
     });
-    return { message: 'Profile completed and account activated' };
+    return { message: 'Profile completed' };
   }
 }

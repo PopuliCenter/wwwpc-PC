@@ -26,7 +26,13 @@ export class User {
   @Column({ type: 'varchar', length: 20, unique: true, nullable: true })
   phone: string | null;
 
-  @Column({ type: 'varchar', length: 255, name: 'password_hash' })
+  /**
+   * Hash bcrypt. `select: false` (audit T-12): TIDAK ikut dimuat oleh find/
+   * relasi/query builder biasa sehingga tak pernah bocor di respons API. Jalur
+   * yang butuh (login, ganti sandi) memuatnya eksplisit lewat
+   * `USER_SELECT_WITH_PASSWORD`.
+   */
+  @Column({ type: 'varchar', length: 255, name: 'password_hash', select: false })
   passwordHash: string;
 
   /** Apakah user sudah punya password pilihannya sendiri. false = akun Google
@@ -53,9 +59,38 @@ export class User {
   @Column({ type: 'boolean', default: false, name: 'profile_completed' })
   profileCompleted: boolean;
 
+  /**
+   * Versi sesi (audit T-11). Setiap JWT membawa klaim `tv`; token ditolak bila
+   * tidak sama. Dinaikkan untuk mencabut SEMUA sesi user (nonaktif, reset/ganti
+   * sandi, ganti peran, hapus akun). Lihat SessionRevocationService.
+   */
+  @Column({ type: 'int', default: 0, name: 'token_version' })
+  tokenVersion: number;
+
   @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt: Date;
 
   @UpdateDateColumn({ type: 'timestamptz', name: 'updated_at' })
   updatedAt: Date;
 }
+
+/**
+ * Seluruh kolom User TERMASUK `passwordHash` (yang `select: false`). Dipakai
+ * hanya di jalur yang memverifikasi sandi: `findOne({ where, select })`.
+ */
+export const USER_SELECT_WITH_PASSWORD: { [K in keyof User]: true } = {
+  id: true,
+  email: true,
+  phone: true,
+  passwordHash: true,
+  passwordSet: true,
+  fullName: true,
+  avatarUrl: true,
+  role: true,
+  status: true,
+  emailVerified: true,
+  profileCompleted: true,
+  tokenVersion: true,
+  createdAt: true,
+  updatedAt: true,
+};

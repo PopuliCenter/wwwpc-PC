@@ -1,14 +1,20 @@
-import { Injectable, BadRequestException, ConflictException, Inject, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
-import { v4 as uuidv4 } from 'uuid';
 import { User, UserStatus } from '@modules/auth/entities';
+import { AuthService } from '@modules/auth/auth.service';
 import { UserProfile, Gender } from './entities';
 import { RegistrationResult, OtpResult, VerificationResult, OtpData } from './interfaces';
 import {
@@ -26,6 +32,25 @@ const MAX_RESEND_COUNT = 3;
 const MAX_OTP_ATTEMPTS = 5; // maks. percobaan OTP salah sebelum kode dibatalkan
 const BCRYPT_SALT_ROUNDS = 10;
 
+/**
+ * Batas pengiriman email OTP per alamat, TERPISAH dari record OTP (audit T-29):
+ * record OTP dihapus setelah 5 tebakan salah sehingga `resendCount` di dalamnya
+ * bisa di-reset. Penghitung ini hidup sendiri dengan TTL 1 jam dan menghitung
+ * semua pengiriman (daftar + kirim ulang), termasuk untuk email yang tak terdaftar
+ * agar batasnya tak membocorkan keberadaan akun.
+ */
+const OTP_SEND_COUNT_PREFIX = 'otp-send-count:';
+const OTP_SEND_WINDOW_SECONDS = 3600;
+const MAX_OTP_SENDS_PER_WINDOW = 5;
+
+/** Respons generik kirim-ulang OTP: sama untuk email terdaftar maupun tidak. */
+const GENERIC_RESEND_RESULT: OtpResult = {
+  message: 'Jika email terdaftar dan menunggu verifikasi, kode OTP baru telah dikirim.',
+  expiresInMinutes: OTP_TTL_SECONDS / 60,
+};
+/** Pesan generik verifikasi OTP gagal (tanpa membedakan penyebab). */
+const GENERIC_OTP_ERROR = 'Kode OTP salah atau sudah kedaluwarsa';
+
 @Injectable()
 export class RegistrationService {
   private readonly logger = new Logger(RegistrationService.name);
@@ -35,12 +60,27 @@ export class RegistrationService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(UserProfile)
     private readonly userProfileRepository: Repository<UserProfile>,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
+    private readonly authService: AuthService,
   ) {}
+
+  /**
+   * Catat satu pengiriman OTP ke `email` di jendela 1 jam. Melempar 429 bila
+   * batas sudah tercapai (penghitung tidak dinaikkan lagi).
+   */
+  private async consumeOtpSendQuota(email: string): Promise<void> {
+    const key = `${OTP_SEND_COUNT_PREFIX}${email}`;
+    const sent = (await this.cacheManager.get<number>(key)) ?? 0;
+    if (sent >= MAX_OTP_SENDS_PER_WINDOW) {
+      throw new HttpException(
+        'Terlalu banyak permintaan kode OTP untuk email ini. Silakan coba lagi dalam 1 jam.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    await this.cacheManager.set(key, sent + 1, OTP_SEND_WINDOW_SECONDS * 1000);
+  }
 
   /**
    * Cek dini ketersediaan email & telepon (langkah 1 registrasi) agar pengguna
@@ -114,6 +154,10 @@ export class RegistrationService {
         'Password must be at least 8 characters, contain at least 1 uppercase letter and at least 1 digit',
       );
     }
+
+    // Batas kirim OTP per email (T-29) — dicek SEBELUM akun lama dibuang agar
+    // daftar-ulang berulang tak bisa dipakai membanjiri kotak surat orang.
+    await this.consumeOtpSendQuota(data.email);
 
     // Check email uniqueness. Akun yang masih PENDING (belum verifikasi OTP)
     // BUKAN penghalang: izinkan daftar ulang dengan menghapus yang lama, agar
@@ -231,7 +275,7 @@ export class RegistrationService {
     const otpDataStr = await this.cacheManager.get<string>(`${OTP_PREFIX}${email}`);
 
     if (!otpDataStr) {
-      throw new BadRequestException('OTP has expired or does not exist');
+      throw new BadRequestException(GENERIC_OTP_ERROR);
     }
 
     const otpData: OtpData = JSON.parse(otpDataStr);
@@ -259,28 +303,30 @@ export class RegistrationService {
         JSON.stringify(otpData),
         OTP_TTL_SECONDS * 1000,
       );
-      throw new BadRequestException('Invalid OTP code');
+      throw new BadRequestException(GENERIC_OTP_ERROR);
     }
 
-    // OTP is valid - mark email as verified
-    const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
-
-    // OTP valid → email terverifikasi & akun diaktifkan.
-    await this.userRepository.update(user.id, {
-      emailVerified: true,
-      status: UserStatus.ACTIVE,
-    });
-
-    // Remove OTP from Redis
+    // OTP valid → kode sekali pakai, buang apa pun hasilnya.
     await this.cacheManager.del(`${OTP_PREFIX}${email}`);
 
+    // OTP registrasi HANYA mengaktifkan akun PENDING (audit T-02). Akun yang
+    // dinonaktifkan admin (INACTIVE) atau sudah aktif tidak boleh diaktifkan /
+    // diberi token lewat jalur publik ini. Update bersyarat → atomik.
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user || user.status !== UserStatus.PENDING) {
+      throw new BadRequestException(GENERIC_OTP_ERROR);
+    }
+    const activated = await this.userRepository.update(
+      { id: user.id, status: UserStatus.PENDING },
+      { emailVerified: true, status: UserStatus.ACTIVE },
+    );
+    if (!activated.affected) {
+      throw new BadRequestException(GENERIC_OTP_ERROR);
+    }
+    const activeUser: User = { ...user, emailVerified: true, status: UserStatus.ACTIVE };
+
     // Buat sesi + token agar pengguna langsung login setelah verifikasi.
-    const sessionId = uuidv4();
-    const tokenPair = await this.generateTokenPair(user, sessionId);
-    await this.storeSession(user, sessionId, tokenPair.refreshToken);
+    const session = await this.authService.issueSession(activeUser);
 
     this.logger.log(`Email verified & account activated for ${email}`);
 
@@ -288,8 +334,8 @@ export class RegistrationService {
       userId: user.id,
       email: user.email,
       emailVerified: true,
-      accessToken: tokenPair.accessToken,
-      refreshToken: tokenPair.refreshToken,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -300,10 +346,16 @@ export class RegistrationService {
   }
 
   async resendOtp(email: string): Promise<OtpResult> {
-    // Check if user exists
+    // Hitung permintaan per email apa pun hasilnya (T-29): batas tak bisa
+    // di-reset lewat tebakan salah, dan perilakunya sama untuk email terdaftar
+    // maupun tidak (bukan oracle enumerasi).
+    await this.consumeOtpSendQuota(email);
+
+    // Hanya akun yang MENUNGGU verifikasi (PENDING) yang dikirimi OTP (T-02).
+    // Selain itu (tak terdaftar, aktif, dinonaktifkan) → respons generik, tanpa email.
     const user = await this.userRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new BadRequestException('User not found');
+    if (!user || user.status !== UserStatus.PENDING) {
+      return GENERIC_RESEND_RESULT;
     }
 
     // Get existing OTP data to check resend count
@@ -342,10 +394,7 @@ export class RegistrationService {
     await this.notificationService.sendOtpEmail(email, user.fullName, code, OTP_TTL_SECONDS / 60);
     this.logger.log(`OTP reissued for ${email} (resend #${resendCount + 1})`);
 
-    return {
-      message: 'OTP has been resent to your email',
-      expiresInMinutes: 15,
-    };
+    return GENERIC_RESEND_RESULT;
   }
 
   async completeProfile(
@@ -383,6 +432,15 @@ export class RegistrationService {
       throw new BadRequestException('Email must be verified before completing profile');
     }
 
+    // Demografi (variabel pembobot & targeting) TERKUNCI setelah lengkap
+    // (audit T-10): endpoint ini hanya untuk pengisian pertama. Perubahan
+    // berikutnya lewat admin agar tak bisa dipalsukan demi lolos targeting.
+    if (user.profileCompleted) {
+      throw new ConflictException(
+        'Data diri sudah lengkap dan terkunci. Hubungi admin untuk perubahan.',
+      );
+    }
+
     // Create or update user profile
     let userProfile = await this.userProfileRepository.findOne({
       where: { userId },
@@ -418,72 +476,16 @@ export class RegistrationService {
       await this.userProfileRepository.save(userProfile);
     }
 
-    // Activate user account
-    await this.userRepository.update(userId, {
-      status: UserStatus.ACTIVE,
-      profileCompleted: true,
-    });
+    // Tandai profil lengkap. Status akun SENGAJA tidak disentuh (audit T-02):
+    // aktivasi hanya lewat verifikasi OTP (PENDING→ACTIVE) atau admin.
+    await this.userRepository.update(userId, { profileCompleted: true });
 
-    this.logger.log(`Profile completed and account activated for user ${userId}`);
+    this.logger.log(`Profile completed for user ${userId}`);
   }
 
   private generateOtpCode(): string {
     // Use cryptographically secure RNG — Math.random() is NOT suitable for OTPs
     // randomInt(min, max) returns integer in [min, max) — guarantees exactly 6 digits
     return randomInt(100000, 1000000).toString();
-  }
-
-  /** Simpan sesi + refresh token di Redis agar token lolos validasi JwtStrategy. */
-  private async storeSession(user: User, sessionId: string, refreshToken: string): Promise<void> {
-    const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
-    await this.cacheManager.set(
-      `session:${sessionId}`,
-      JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        createdAt: new Date().toISOString(),
-      }),
-      sessionTtl * 1000,
-    );
-    await this.cacheManager.set(`refresh:${sessionId}`, refreshToken, sessionTtl * 1000);
-  }
-
-  private async generateTokenPair(
-    user: User,
-    sessionId: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId,
-      type: 'access',
-    };
-
-    const refreshPayload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      sessionId,
-      type: 'refresh',
-    };
-
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(
-        accessPayload as any,
-        {
-          expiresIn: this.configService.get<string>('auth.jwtAccessExpiresIn') ?? '15m',
-        } as any,
-      ),
-      this.jwtService.signAsync(
-        refreshPayload as any,
-        {
-          expiresIn: this.configService.get<string>('auth.jwtRefreshExpiresIn') ?? '7d',
-        } as any,
-      ),
-    ]);
-
-    return { accessToken, refreshToken };
   }
 }

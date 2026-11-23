@@ -15,7 +15,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { OAuth2Client } from 'google-auth-library';
-import { User, UserStatus } from './entities';
+import { User, UserStatus, USER_SELECT_WITH_PASSWORD } from './entities';
+import { SessionRevocationService } from './session-revocation.service';
 import { UserProfile } from '@modules/registration/entities/user-profile.entity';
 import { UserRole } from '@shared/enums';
 import { NotificationService } from '@modules/notification';
@@ -89,14 +90,20 @@ export class AuthService {
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
     private readonly notificationService: NotificationService,
+    private readonly sessionRevocation: SessionRevocationService,
   ) {}
+
+  /** Muat user BESERTA passwordHash (kolom `select: false`) — hanya untuk verifikasi sandi. */
+  private findUserWithPassword(where: { email: string } | { id: string }): Promise<User | null> {
+    return this.userRepository.findOne({ where, select: USER_SELECT_WITH_PASSWORD });
+  }
 
   async login(email: string, password: string): Promise<AuthResult> {
     // Block before doing any work if this account is locked out.
     await this.assertNotLockedOut(email);
 
-    // Find user by email
-    const user = await this.userRepository.findOne({ where: { email } });
+    // Find user by email (beserta hash sandi untuk dibandingkan).
+    const user = await this.findUserWithPassword({ email });
 
     if (!user) {
       await this.registerFailedLogin(email);
@@ -120,42 +127,7 @@ export class AuthService {
     // Successful login — clear the failed-attempt counter.
     await this.clearFailedLogins(email);
 
-    // Create session
-    const sessionId = uuidv4();
-    const tokenPair = await this.generateTokenPair(user, sessionId);
-
-    // Store session in Redis
-    const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
-    await this.cacheManager.set(
-      this.getSessionKey(sessionId),
-      JSON.stringify({
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        createdAt: new Date().toISOString(),
-      }),
-      sessionTtl * 1000, // cache-manager expects ms
-    );
-
-    // Store refresh token mapping
-    await this.cacheManager.set(
-      this.getRefreshTokenKey(sessionId),
-      tokenPair.refreshToken,
-      sessionTtl * 1000,
-    );
-
-    return {
-      ...tokenPair,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-        profileCompleted: user.profileCompleted,
-        phone: user.phone,
-        avatarUrl: user.avatarUrl,
-      },
-    };
+    return this.issueSession(user);
   }
 
   /**
@@ -178,10 +150,28 @@ export class AuthService {
       if (user.status !== UserStatus.ACTIVE) {
         throw new UnauthorizedException('Akun Anda tidak aktif. Hubungi admin.');
       }
-      // Google sudah memverifikasi email → tandai terverifikasi bila belum.
+      // Akun lokal yang email-nya BELUM terverifikasi (audit T-09): siapa pun bisa
+      // mengetik alamat orang lain saat membuat/mengubah akun. Pemilik Google
+      // (yang terbukti menguasai email) dianggap pemilik sah: sandi lama diacak
+      // (akun tak bisa lagi dimasuki dengan sandi itu) dan semua sesi lama
+      // dicabut sebelum sesi baru diterbitkan.
       if (!user.emailVerified) {
+        const randomHash = await bcrypt.hash(
+          crypto.randomBytes(32).toString('hex'),
+          BCRYPT_SALT_ROUNDS,
+        );
+        await this.userRepository.update(user.id, {
+          emailVerified: true,
+          passwordHash: randomHash,
+          passwordSet: false,
+        });
+        await this.sessionRevocation.revokeAllSessions(user.id);
         user.emailVerified = true;
-        await this.userRepository.update(user.id, { emailVerified: true });
+        user.passwordSet = false;
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+        this.logger.warn(
+          `Login Google mengambil alih akun belum terverifikasi ${user.id}: sandi lama diacak & sesi dicabut`,
+        );
       }
       // Pakai foto Google sebagai avatar bila user belum memilih avatar sendiri.
       if (!user.avatarUrl && profile.picture) {
@@ -211,7 +201,7 @@ export class AuthService {
       this.logger.log(`Akun responden baru via Google: ${user.email}`);
     }
 
-    return this.createSession(user);
+    return this.issueSession(user);
   }
 
   /**
@@ -240,10 +230,11 @@ export class AuthService {
   }
 
   /**
-   * Terbitkan sesi (token + simpan di Redis) untuk user. Dipakai login biasa &
-   * login Google agar penerbitan token konsisten.
+   * Terbitkan sesi (token + simpan di Redis) untuk user. Dipakai login biasa,
+   * login Google, dan verifikasi OTP registrasi agar penerbitan token konsisten
+   * (termasuk klaim versi sesi `tv`).
    */
-  private async createSession(user: User): Promise<AuthResult> {
+  async issueSession(user: User): Promise<AuthResult> {
     const sessionId = uuidv4();
     const tokenPair = await this.generateTokenPair(user, sessionId);
     const sessionTtl = this.configService.get<number>('auth.sessionTtl') ?? 86400;
@@ -315,9 +306,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Refresh token lama (diterbitkan sebelum ganti/reset password) ditolak (H5).
-    await this.assertTokenNotStale(payload);
-
     // Find user to ensure they still exist and are active
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
@@ -325,6 +313,13 @@ export class AuthService {
     if (!user || user.status !== UserStatus.ACTIVE) {
       await this.logout(payload.sessionId);
       throw new UnauthorizedException('User account is no longer active');
+    }
+
+    // Sesi yang sudah dicabut (nonaktif, reset/ganti sandi, ganti peran) membawa
+    // versi lama → tolak & buang refresh token-nya (audit T-11).
+    if (payload.tv !== (user.tokenVersion ?? 0)) {
+      await this.logout(payload.sessionId);
+      throw new UnauthorizedException('Sesi tidak valid — silakan login ulang.');
     }
 
     // Generate new token pair (token rotation)
@@ -361,13 +356,16 @@ export class AuthService {
       throw new UnauthorizedException('Session expired or invalidated');
     }
 
-    // Tolak token yang diterbitkan sebelum ganti/reset password (H5).
-    await this.assertTokenNotStale(payload);
+    // Peran/status/versi sesi dari DB, bukan dari isi token (T-05, T-11).
+    const state = await this.sessionRevocation.getAuthState(payload.sub);
+    if (!state || state.status !== UserStatus.ACTIVE || payload.tv !== state.tokenVersion) {
+      throw new UnauthorizedException('Session expired or invalidated');
+    }
 
     return {
       userId: payload.sub,
-      email: payload.email,
-      role: payload.role,
+      email: state.email,
+      role: state.role,
       sessionId: payload.sessionId,
     };
   }
@@ -440,7 +438,7 @@ export class AuthService {
     await this.cacheManager.del(`${PASSWORD_RESET_ATTEMPTS_PREFIX}${email}`);
 
     // Tendang semua sesi lama (mis. milik penyerang) setelah reset password (H5).
-    await this.invalidateUserSessions(user.id);
+    await this.sessionRevocation.revokeAllSessions(user.id);
 
     this.logger.log(`Password reset completed for ${email}`);
   }
@@ -503,6 +501,12 @@ export class AuthService {
     }
 
     if (dto.email !== undefined && dto.email !== user.email) {
+      // Responden TIDAK boleh mengganti email sendiri (audit T-09): email adalah
+      // jangkar identitas (reset sandi, login Google, OTP penukaran). Perubahan
+      // tanpa verifikasi memungkinkan penyerobotan alamat orang lain.
+      if (user.role === UserRole.RESPONDENT) {
+        throw new BadRequestException('Email tidak dapat diubah. Hubungi admin bila perlu.');
+      }
       const existing = await this.userRepository.findOne({ where: { email: dto.email } });
       if (existing && existing.id !== userId) {
         throw new BadRequestException('Email sudah dipakai akun lain');
@@ -534,7 +538,7 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+    const user = await this.findUserWithPassword({ id: userId });
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -552,8 +556,9 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
     await this.userRepository.update(userId, { passwordHash, passwordSet: true });
-    // Tendang sesi lain (mis. milik penyerang) setelah ganti password (H5).
-    await this.invalidateUserSessions(userId);
+    // Cabut SEMUA sesi (mis. milik penyerang) setelah ganti password (H5, T-11).
+    // Sesi saat ini ikut berakhir → pengguna login ulang dengan sandi baru.
+    await this.sessionRevocation.revokeAllSessions(userId);
     this.logger.log(`Password changed by user ${user.email}`);
   }
 
@@ -652,6 +657,7 @@ export class AuthService {
       role: user.role,
       sessionId,
       type: 'access',
+      tv: user.tokenVersion ?? 0,
     };
 
     const refreshPayload: JwtPayload = {
@@ -660,6 +666,7 @@ export class AuthService {
       role: user.role,
       sessionId,
       type: 'refresh',
+      tv: user.tokenVersion ?? 0,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -686,33 +693,5 @@ export class AuthService {
 
   private getRefreshTokenKey(sessionId: string): string {
     return `refresh:${sessionId}`;
-  }
-
-  private getUserEpochKey(userId: string): string {
-    return `token_epoch:${userId}`;
-  }
-
-  /**
-   * Batalkan SEMUA sesi milik user (access + refresh) tanpa harus mengenumerasi
-   * sessionId: catat "epoch" = sekarang; token apa pun yang diterbitkan SEBELUM
-   * epoch ditolak saat validasi. Dipakai setelah ganti/reset password agar sesi
-   * lama (mis. milik penyerang) tak lagi berlaku. TTL melebihi umur token
-   * terpanjang agar catatan tak kedaluwarsa sebelum tokennya.
-   */
-  private async invalidateUserSessions(userId: string): Promise<void> {
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    await this.cacheManager.set(this.getUserEpochKey(userId), Date.now(), THIRTY_DAYS_MS);
-  }
-
-  /** Tolak token yang diterbitkan sebelum epoch invalidasi user (bila ada). */
-  private async assertTokenNotStale(payload: JwtPayload): Promise<void> {
-    const epochRaw = await this.cacheManager.get<string | number>(
-      this.getUserEpochKey(payload.sub),
-    );
-    if (epochRaw == null) return;
-    const iat = (payload as JwtPayload & { iat?: number }).iat;
-    if (iat && iat * 1000 < Number(epochRaw)) {
-      throw new UnauthorizedException('Sesi tidak valid — silakan login ulang.');
-    }
   }
 }

@@ -22,9 +22,16 @@ RUN npm ci --ignore-scripts
 COPY tsconfig.base.json ./
 COPY backend/ ./backend/
 
-# Compile (nest build) lalu buang devDependencies agar image ramping
+# Compile (nest build) lalu buang devDependencies agar image ramping.
+# Keamanan (audit T-01): image produksi TIDAK membawa source, test, maupun
+# skrip seed/cleanup (seed membuat akun dengan kredensial uji). Dihapus di stage
+# builder — bukan di runner — agar tidak tertinggal di layer image mana pun.
+# Runtime hanya butuh backend/dist (termasuk dist/migrations) + node_modules.
 RUN npm run build --workspace=backend \
- && npm prune --omit=dev
+ && npm prune --omit=dev \
+ && rm -rf backend/src backend/test backend/scripts \
+           backend/dist/seed-* backend/dist/cleanup-* \
+ && find backend/dist -name '*.spec.*' -delete
 
 
 # ── Stage 2: runner — image produksi ─────────────────────────────────────────

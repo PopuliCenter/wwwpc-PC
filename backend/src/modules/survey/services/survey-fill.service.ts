@@ -13,6 +13,7 @@ import { Question } from '../entities/question.entity';
 import { SkipLogicRule } from '../entities/skip-logic-rule.entity';
 import { VisibilityRule } from '../entities/visibility-rule.entity';
 import { SurveyResponse, ResponseStatus } from '@modules/response/entities/survey-response.entity';
+import { assertSurveyStatusActive } from '../utils/survey-active';
 import { Answer } from '@modules/response/entities/answer.entity';
 import { QuestionType } from '@shared/enums';
 import { SurveyTimeService } from './survey-time.service';
@@ -142,6 +143,9 @@ export class SurveyFillService {
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
     }
+    // Hanya survei ACTIVE yang boleh diisi (audit T-14): DRAFT tak boleh bocor,
+    // INACTIVE/ARCHIVED tak boleh menerima respons — termasuk melanjutkan.
+    assertSurveyStatusActive(survey.status);
 
     // Resume any existing response. A completed one means the respondent has
     // already submitted — one response per survey.
@@ -241,6 +245,7 @@ export class SurveyFillService {
     if (!survey) {
       throw new NotFoundException(`Survey with id ${surveyId} not found`);
     }
+    assertSurveyStatusActive(survey.status);
     // Seed null: urutan pertanyaan TIDAK diacak untuk surveyor/TPD, supaya
     // layar selalu sama dengan kuesioner cetak yang mereka pegang.
     return this.assembleFillData(survey, null);

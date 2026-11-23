@@ -45,3 +45,9 @@ docker-compose.yml
 
 # Kiro specs
 .kiro/
+
+# Keamanan (audit T-01): jangan bawa skrip seed, test, atau berkas ekspor
+# (bisa berisi data pribadi responden) ke konteks build image.
+backend/scripts/
+backend/test/
+backend/exports/
