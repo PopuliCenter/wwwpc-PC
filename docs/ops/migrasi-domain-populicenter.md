@@ -31,6 +31,28 @@ survei memakai `origin.pem` yang sama — **tidak perlu file cert terpisah**.
 
 ## 2. VPS — pasang vhost
 
+> ⚠️ **Catatan historis migrasi (Juli 2026) — JANGAN diulang apa adanya.**
+> Versi asli bagian ini menyuruh (a) menyalin `docker-compose.override.yml` dari
+> repo ke app lama "bila belum ada", lalu (b) `docker compose up -d` **tanpa
+> target**. Keduanya TIDAK AMAN sekarang:
+>
+> - salinan di repo (`deploy/opsi-b-persistent/`) hanya memuat mount vhost
+>   survei — **mount vhost WA (dan vhost lain yang ditambah sesudahnya) tidak
+>   ada**, jadi hilang saat nginx di-recreate dan domain itu jatuh ke app lama;
+> - `up -d` tanpa target mengonvergensi SEMUA service app lama (backend,
+>   worker, postgres, …), bukan hanya nginx.
+>
+> Untuk menambah/mengubah mount vhost di edge, ikuti SOP
+> [vps-multi-app-nginx.md §3](vps-multi-app-nginx.md#3-panduan-menambah-aplikasi-baru-app-ke-4-dst):
+> cadangkan lalu sunting override yang **ada di VPS** (tambah baris, jangan
+> timpa file), periksa dengan `cek_edge`, lalu
+> `cek_edge && docker compose up -d --no-deps nginx`.
+>
+> Pola historis yang sama masih tertulis di `deploy/opsi-b-persistent/README.md`
+> (Langkah 2 & Rollback), header `deploy/opsi-b-persistent/docker-compose.override.yml`
+> ("Letakkan file ini di …") dan `deploy/DEPLOY-OPSI-B.md` — anggap historis
+> juga, jangan dijalankan apa adanya.
+
 Dari repo ini (setelah `git pull` di `/var/www/online-survei`):
 
 ```
@@ -39,14 +61,32 @@ cp survei.populicenter.com.conf  /var/www/survey-populicenter/
 cp survei.risetcenter.com.conf   /var/www/survey-populicenter/   # kini isinya 301 redirect
 ```
 
-`docker-compose.override.yml` app lama sudah diperbarui di repo untuk mount kedua
-conf. Salin juga bila belum ada di app lama, lalu terapkan:
+Mount kedua conf harus terdaftar di `docker-compose.override.yml` **milik app
+lama di VPS** (yang juga memuat mount WA, dst.). **Jangan** menyalin override
+dari repo ke sana — cadangkan, lalu tambahkan baris yang kurang saja (SOP di
+atas).
+
+Periksa dulu (bash; fungsi `mount_rencana`/`cek_edge` dimuat dari
+vps-multi-app-nginx.md §3 langkah 3):
 
 ```
 cd /var/www/survey-populicenter
-docker compose config | grep -A3 conf.d          # verifikasi kedua conf ter-mount
-docker compose up -d                             # re-create nginx app lama
+source <(sed -n '/^ *# >>> fungsi-edge/,/^ *# <<< fungsi-edge/p' /var/www/online-survei/docs/ops/vps-multi-app-nginx.md)
+# Dulu: `docker compose config | grep -A3 conf.d` — JANGAN: tak terbatas ke nginx,
+# tak menunjukkan mount yang HILANG (mis. WA), dan keluaran `docker compose config`
+# memuat nilai .env (sandi) — jangan tempel ke mana pun.
+mount_rencana        # harus memuat SEMUA vhost (wa, survei.*, dst.)
+cek_edge             # "<" = mount yang akan HILANG → STOP; ">" = baru
+```
+
+Terapkan HANYA bila `cek_edge` tidak mencetak `STOP` (gerbang `&&` menahan
+`up` bila ada `STOP` atau fungsi belum dimuat):
+
+```
+cd /var/www/survey-populicenter
+cek_edge && docker compose up -d --no-deps nginx   # recreate HANYA nginx (dulu: `up -d` tanpa target — JANGAN)
 docker compose exec nginx nginx -t && docker compose exec nginx nginx -s reload
+cek_edge                                           # sesudahnya harus "SAMA"
 ```
 
 ## 3. VPS — backend/.env aplikasi survei
@@ -65,6 +105,7 @@ Bila pakai reward IAK: ganti URL callback ke
 di dashboard IAK**.
 
 Terapkan:
+
 ```
 cd /var/www/online-survei && git pull && docker compose up -d --build backend frontend
 ```
@@ -82,10 +123,12 @@ cd /var/www/online-survei && git pull && docker compose up -d --build backend fr
 
 `frontend/.env.production` sudah menunjuk `https://survei.populicenter.com/api`.
 Build ulang:
+
 ```
 cd frontend && npm run build && npx cap sync android
 cd android && ./gradlew bundleRelease
 ```
+
 AAB sebelumnya (menunjuk risetcenter) JANGAN diunggah.
 
 ## 6. Verifikasi
