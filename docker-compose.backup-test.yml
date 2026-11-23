@@ -3,6 +3,10 @@
 #   docker compose -f docker-compose.backup-test.yml up -d
 #   bash scripts/test-backup-restore.sh
 #   docker compose -f docker-compose.backup-test.yml down -v
+# Nama proyek tetap (tak bergantung nama folder) → container/volume/jaringan uji
+# terisolasi dari stack lain di mesin yang sama, dan `down -v` hanya menyentuh ini.
+name: survei-backup-test
+
 services:
   postgres:
     image: postgres:16-alpine
