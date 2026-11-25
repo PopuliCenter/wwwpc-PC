@@ -44,6 +44,28 @@ default `populicenter.org,play.google.com`, subdomain ikut).
 > ⚠️ Jangan catat rilis _wajib update_ sebelum APK-nya benar-benar bisa
 > diunduh. Kalau tidak, semua pengguna versi lama terkunci tanpa jalan keluar.
 
+## Halaman unduhan di WordPress (populicenter.org)
+
+Isi halamannya ada di [halaman-unduhan-wordpress.html](halaman-unduhan-wordpress.html):
+HTML + CSS mandiri, tanpa JavaScript.
+
+1. Unggah APK lewat **File Manager hosting** ke
+   `public_html/unduh/riset-populi-center-v<versi>.apk`.
+   - WordPress Media menolak `.apk` secara bawaan ("jenis berkas tidak
+     diizinkan").
+   - Pakai **nama berkas berversi**. Cloudflare menyimpan cache `.apk`, jadi
+     menimpa nama yang sama bisa membuat orang tetap menerima APK lama.
+2. WordPress → Halaman → Tambah Baru:
+   - judul "Unduh Aplikasi", slug `unduh-aplikasi`;
+   - blok **HTML Khusus** (atau widget **HTML** di Elementor);
+   - tempel seluruh isi berkas.
+   - Link halaman = `https://populicenter.org/unduh-aplikasi/`. Link ini
+     yang dipakai di admin → Rilis Aplikasi.
+3. Tiap rilis, perbarui nilai bertanda `⟨RILIS⟩`:
+   - link APK, versi, tanggal;
+   - ukuran dan SHA-256 (`sha256sum <apk>`);
+   - satu baris baru di riwayat versi.
+
 ## Pindah ke Google Play
 
 - Di rilis berikutnya, pilih link **Google Play** di form. Tombol _Perbarui_
