@@ -79,12 +79,16 @@ export function loadCachedInfo(): AppVersionInfo | null {
   }
 }
 
+/** Dikirim setiap info versi baru diambil (kartu "Versi baru" di beranda ikut segar). */
+export const APP_VERSION_EVENT = 'populi:app-version';
+
 function saveCachedInfo(info: AppVersionInfo): void {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(info));
   } catch {
     /* penyimpanan penuh/diblokir → cukup tanpa cache */
   }
+  window.dispatchEvent(new Event(APP_VERSION_EVENT));
 }
 
 /** True bila tawaran update opsional untuk versi ini sedang ditunda. */

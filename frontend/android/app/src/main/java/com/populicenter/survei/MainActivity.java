@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         // Plugin lokal wajib didaftarkan sebelum Bridge dibuat di super.onCreate.
         registerPlugin(PopuliThemePlugin.class);
+        registerPlugin(PopuliSettingsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

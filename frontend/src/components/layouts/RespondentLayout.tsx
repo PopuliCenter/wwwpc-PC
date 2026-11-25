@@ -14,6 +14,7 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { isEmbedMode } from '@/utils/embed';
 import { NativeBackGuard } from '@/components/common/NativeBackGuard';
 import { CountUp } from '@/components/common/CountUp';
+import { PermissionPrompts } from '@/components/common/PermissionPrompts';
 
 const navItems = [
   { path: '/surveys', label: 'Survei', icon: FileText },
@@ -149,6 +150,8 @@ export function RespondentLayout() {
         } ${isEmbedMode || isFillMode ? '' : 'pb-24 md:pb-8'}`}
       >
         {/* Mode isi survei: main tanpa jarak atas, jadi kerangka memuat yang memberi jarak. */}
+        {/* Kartu ajakan (versi baru / notifikasi / lokasi) — hanya di beranda app Android. */}
+        {location.pathname === '/surveys' && !isEmbedMode && <PermissionPrompts />}
         <Suspense
           fallback={<PageLoader className={isFillMode ? 'min-h-[40vh] pt-8' : undefined} />}
         >

@@ -17,6 +17,27 @@ memasang APK baru. Versi web tidak terpengaruh, karena selalu terbaru
 | Umumkan                                 | Lonceng + push ke semua user aktif yang punya perangkat Android. Ketuk → `/app-update` → tombol _Perbarui_.                                                     |
 | Tombol _Perbarui_                       | Membuka link di luar app. Link `populicenter.org` dibuka di browser; link `play.google.com` langsung membuka aplikasi Play Store.                               |
 
+### Kartu ajakan di beranda (app Android)
+
+Di atas daftar survei, app menampilkan **satu** kartu sesuai prioritas:
+
+1. **Versi baru tersedia**, berlaku juga setelah pengguna menekan "Nanti" di
+   dialog. Tombolnya _Perbarui_.
+2. **Nyalakan notifikasi**. Kartu ini muncul bila izin notifikasi ditolak atau
+   notifikasi app dimatikan di Setelan.
+3. **Izinkan akses lokasi** / **Nyalakan lokasi (GPS)**.
+
+Perilakunya:
+
+- Tombol aksi meminta izin langsung bila Android masih mengizinkan dialognya.
+  Bila tidak, tombol membuka halaman Setelan yang tepat.
+- Tombol "×" menunda kartu: 7 hari untuk kartu izin, 3 hari per versi untuk
+  kartu versi baru.
+- Status dicek ulang setiap app kembali ke depan.
+
+Status notifikasi dan GPS dibaca oleh plugin native `PopuliSettings`
+(`PopuliSettingsPlugin.java`), jadi perubahan ini **butuh APK baru**.
+
 Link unduhan wajib https ke domain izin (env `APP_DOWNLOAD_ALLOWED_HOSTS`,
 default `populicenter.org,play.google.com`, subdomain ikut).
 

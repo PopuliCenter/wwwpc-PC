@@ -196,7 +196,10 @@ export async function initNativeNotifications(): Promise<void> {
 
     const perm = await PushNotifications.requestPermissions();
     if (perm.receive !== 'granted') {
-      return; // pengguna menolak izin notifikasi
+      // Pengguna menolak izin. Boleh dicoba lagi nanti: kartu "Nyalakan notifikasi"
+      // di beranda (PermissionPrompts) memanggil fungsi ini setelah izin diberikan.
+      initialized = false;
+      return;
     }
 
     // Channel prioritas tinggi bernada khas, dibuat SEBELUM register agar sudah
