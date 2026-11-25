@@ -21,8 +21,8 @@ if (hasKeystore) {
 //                    ≤ upload sebelumnya. Nilai boleh berapa saja asal naik.
 // Nama file output otomatis memuat keduanya:
 //   riset-populi-center-v<appVersionName>-code<appVersionCode>-release.{aab,apk}
-def appVersionName = "1.0.0"
-def appVersionCode = 1
+def appVersionName = "1.1.0"
+def appVersionCode = 2
 
 android {
     namespace = "com.populicenter.survei"

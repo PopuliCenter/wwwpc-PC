@@ -116,12 +116,22 @@ const StoragePage = lazy(() =>
 const AnnouncementPage = lazy(() =>
   import('@/pages/admin/AnnouncementPage').then((m) => ({ default: m.AnnouncementPage })),
 );
+const AppReleasesPage = lazy(() =>
+  import('@/pages/admin/AppReleasesPage').then((m) => ({ default: m.AppReleasesPage })),
+);
+const AppUpdatePage = lazy(() =>
+  import('@/pages/AppUpdatePage').then((m) => ({ default: m.AppUpdatePage })),
+);
 
 export const router = createBrowserRouter([
   // Halaman legal publik — TANPA login (wajib Google Play).
   { path: '/kebijakan-privasi', element: legal(<PublicPrivacyPolicyPage />) },
   { path: '/penghapusan-akun', element: legal(<PublicAccountDeletionPage />) },
   { path: '/syarat-ketentuan', element: legal(<PublicTermsPage />) },
+
+  // Tujuan notifikasi "versi baru aplikasi" — publik agar tetap terbuka walau
+  // sesi habis (lihat services/appUpdate.ts).
+  { path: '/app-update', element: legal(<AppUpdatePage />) },
 
   // Public auth routes
   {
@@ -282,6 +292,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireRoles roles={access.announcements}>
             <AnnouncementPage />
+          </RequireRoles>
+        ),
+      },
+      {
+        path: 'app-releases',
+        element: (
+          <RequireRoles roles={access.appReleases}>
+            <AppReleasesPage />
           </RequireRoles>
         ),
       },

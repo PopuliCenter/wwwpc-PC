@@ -16,7 +16,8 @@ export type FeedItemType =
   | 'point_earned'
   | 'point_spent'
   | 'reward_fulfilled'
-  | 'announcement';
+  | 'announcement'
+  | 'app_update';
 
 export interface FeedItemInput {
   type: FeedItemType;

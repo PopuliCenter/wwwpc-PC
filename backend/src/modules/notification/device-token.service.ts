@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { DeviceToken } from './entities/device-token.entity';
 import { PushService, PushPayload } from './push.service';
-import { User } from '@modules/auth/entities/user.entity';
+import { User, UserStatus } from '@modules/auth/entities/user.entity';
 
 /** Isi push uji dari admin (POST /notifications/test-push). Tidak masuk feed lonceng. */
 export const TEST_PUSH_PAYLOAD: PushPayload = {
@@ -98,11 +98,14 @@ export class DeviceTokenService {
    * karena Postgres membatasi 65.535 parameter bind per query: tanpa pemecahan,
    * pengingat/undangan/pengumuman ke >65 ribu responden gagal mengambil token.
    */
-  async getTokensForUsers(userIds: string[]): Promise<string[]> {
+  async getTokensForUsers(userIds: string[], platform?: string): Promise<string[]> {
     const tokens: string[] = [];
     for (let i = 0; i < userIds.length; i += TOKEN_QUERY_CHUNK) {
       const rows = await this.deviceTokenRepository.find({
-        where: { userId: In(userIds.slice(i, i + TOKEN_QUERY_CHUNK)) },
+        where: {
+          userId: In(userIds.slice(i, i + TOKEN_QUERY_CHUNK)),
+          ...(platform ? { platform } : {}),
+        },
         select: ['token'],
       });
       for (const r of rows) tokens.push(r.token);
@@ -111,13 +114,29 @@ export class DeviceTokenService {
   }
 
   /**
-   * Kirim push ke semua perangkat milik sekumpulan user. Membersihkan token yang
-   * sudah tak valid. Mengembalikan jumlah push terkirim.
+   * Kirim push ke semua perangkat milik sekumpulan user (opsional hanya
+   * perangkat `platform` tertentu). Membersihkan token yang sudah tak valid.
+   * Mengembalikan jumlah push terkirim.
    */
-  async pushToUsers(userIds: string[], payload: PushPayload): Promise<number> {
-    const tokens = await this.getTokensForUsers(userIds);
+  async pushToUsers(userIds: string[], payload: PushPayload, platform?: string): Promise<number> {
+    const tokens = await this.getTokensForUsers(userIds, platform);
     if (tokens.length === 0) return 0;
     return this.sendAndCleanup(tokens, payload);
+  }
+
+  /**
+   * Id user AKTIF yang punya minimal satu perangkat `platform` terdaftar
+   * (mis. semua pemakai app Android — sasaran pengumuman versi baru).
+   */
+  async activeUserIdsOnPlatform(platform: string): Promise<string[]> {
+    const rows = await this.deviceTokenRepository
+      .createQueryBuilder('t')
+      .innerJoin('t.user', 'u')
+      .select('DISTINCT t.user_id', 'userId')
+      .where('t.platform = :platform', { platform })
+      .andWhere('u.status = :status', { status: UserStatus.ACTIVE })
+      .getRawMany<{ userId: string }>();
+    return rows.map((r) => r.userId);
   }
 
   /**

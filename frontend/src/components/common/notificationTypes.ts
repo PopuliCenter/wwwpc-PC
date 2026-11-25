@@ -7,6 +7,7 @@ import {
   FileText,
   Gift,
   Megaphone,
+  Smartphone,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ export const FEED_TYPE_META: Record<string, { icon: LucideIcon; category: FeedCa
   point_spent: { icon: ArrowUpRight, category: 'reward' },
   reward_fulfilled: { icon: Gift, category: 'reward' },
   announcement: { icon: Megaphone, category: 'pengumuman' },
+  app_update: { icon: Smartphone, category: 'pengumuman' },
 };
 
 export function feedTypeIcon(type: string): LucideIcon {

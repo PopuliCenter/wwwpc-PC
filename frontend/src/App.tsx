@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { PWAReloadPrompt } from '@/components/common/PWAReloadPrompt';
 import { EmbedHeightReporter } from '@/components/common/EmbedHeightReporter';
 import { NotificationHost } from '@/components/common/NotificationHost';
+import { AppUpdateGate } from '@/components/common/AppUpdateGate';
 import { initNativeNotifications, syncDeviceToken } from '@/services/notifications';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
       <EmbedHeightReporter />
       <PWAReloadPrompt />
       <NotificationHost />
+      <AppUpdateGate />
     </>
   );
 }

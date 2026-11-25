@@ -26,6 +26,7 @@ import { DataCleanupModule } from './modules/data-cleanup';
 import { EventsModule } from './modules/events';
 import { AssistantModule } from './modules/assistant/assistant.module';
 import { ClientLogModule } from './modules/client-log/client-log.module';
+import { AppReleaseModule } from './modules/app-release/app-release.module';
 
 @Module({
   imports: [
@@ -78,6 +79,7 @@ import { ClientLogModule } from './modules/client-log/client-log.module';
     EventsModule,
     AssistantModule,
     ClientLogModule,
+    AppReleaseModule,
   ],
   controllers: [AppController],
   providers: [

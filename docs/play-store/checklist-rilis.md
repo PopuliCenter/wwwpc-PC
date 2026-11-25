@@ -57,6 +57,8 @@ Status item yang sudah disiapkan di repo ditandai ✅. Sisanya tindakan manual.
     `riset-populi-center-v<name>-code<code>-release.{apk,aab}`.
   > Alur bump rilis baru: ubah kedua angka → `npm run build && npx cap sync android`
   > (bila ada perubahan web) → `cd android && ./gradlew bundleRelease`.
+- ✅ **Notifikasi update di app** — lihat [rilis-update-aplikasi.md](rilis-update-aplikasi.md).
+  Setelah APK/AAB baru bisa diunduh, catat rilisnya di admin → **Rilis Aplikasi**.
 
 ## 5. Legal & kebijakan
 
