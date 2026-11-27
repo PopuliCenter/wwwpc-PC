@@ -74,3 +74,10 @@ backups/
 *.apk
 *.aab
 frontend/android/keystore.properties
+
+# Dokumentasi internal & peta infrastruktur — HANYA lokal, jangan di-push
+# (repo GitHub publik). File tetap ada di mesin pengembang.
+/docs/
+/deploy/
+/.kiro/
+/.claude/
